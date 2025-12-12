@@ -114,7 +114,7 @@ export const DashboardScreen = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => navigation.navigate("ExchangeRate")}
+          onPress={() => navigation.getParent().navigate("ExchangeRate")}
         >
           <Text style={styles.actionIcon}>💱</Text>
           <Text style={styles.actionText}>Tasa</Text>

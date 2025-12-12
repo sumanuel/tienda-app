@@ -38,16 +38,42 @@ export const initDatabase = async () => {
 };
 
 /**
+ * Verifica si la tabla products existe
+ */
+export const checkTableExists = async () => {
+  try {
+    const result = await db.getAllAsync(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='products';"
+    );
+    return result.length > 0;
+  } catch (error) {
+    console.error("Error checking table:", error);
+    return false;
+  }
+};
+
+/**
  * Obtiene todos los productos activos
  */
 export const getAllProducts = async () => {
   try {
+    console.log("Intentando obtener productos de BD...");
+
+    // Verificar si la tabla existe
+    const tableExists = await checkTableExists();
+    if (!tableExists) {
+      console.log("Tabla products no existe, inicializando...");
+      await initDatabase();
+    }
+
     const result = await db.getAllAsync(
       "SELECT * FROM products WHERE active = 1 ORDER BY name;"
     );
+    console.log("Productos obtenidos de BD:", result.length);
     return result;
   } catch (error) {
-    throw error;
+    console.error("Error obteniendo productos:", error);
+    throw new Error(`Error al acceder a la base de datos: ${error.message}`);
   }
 };
 
@@ -88,9 +114,10 @@ export const searchProducts = async (query) => {
  */
 export const insertProduct = async (product) => {
   try {
+    console.log("Insertando producto en BD:", product);
     const result = await db.runAsync(
-      `INSERT INTO products (name, barcode, category, description, cost, priceUSD, priceVES, margin, stock, minStock, image)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO products (name, barcode, category, description, cost, priceUSD, priceVES, margin, stock, minStock, image, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         product.name,
         product.barcode,
@@ -103,10 +130,13 @@ export const insertProduct = async (product) => {
         product.stock || 0,
         product.minStock || 0,
         product.image || "",
+        1, // active
       ]
     );
+    console.log("Producto insertado, lastInsertRowId:", result.lastInsertRowId);
     return result.lastInsertRowId;
   } catch (error) {
+    console.error("Error insertando producto:", error);
     throw error;
   }
 };

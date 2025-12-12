@@ -15,28 +15,49 @@ export const useProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Cargar productos al montar
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, []); // No incluir loadProducts para evitar loops
 
   /**
    * Carga todos los productos
    */
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await getAllProducts();
+      console.log("Productos cargados:", data.length);
       setProducts(data);
+      setRetryCount(0); // Reset retry count on success
     } catch (err) {
-      setError(err.message);
       console.error("Error loading products:", err);
+      setError("Error al cargar productos");
+
+      // Intentar reinicializar solo una vez
+      if (retryCount === 0) {
+        setRetryCount(1);
+        console.log("Intentando reinicializar base de datos...");
+        setTimeout(async () => {
+          try {
+            // Intentar reinicializar la base de datos
+            const { initDatabase } = await import(
+              "../services/database/products"
+            );
+            await initDatabase();
+            loadProducts(); // Reintentar cargar
+          } catch (initError) {
+            console.error("Error reinicializando BD:", initError);
+          }
+        }, 1000);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [retryCount]);
 
   /**
    * Busca productos por texto
@@ -61,7 +82,9 @@ export const useProducts = () => {
   const addProduct = useCallback(async (product) => {
     try {
       setError(null);
+      console.log("Agregando producto:", product);
       const id = await insertProduct(product);
+      console.log("Producto agregado con ID:", id);
       await loadProducts(); // Recargar lista
       return id;
     } catch (err) {

@@ -11,6 +11,8 @@ import ProductsScreen from "./src/screens/main/ProductsScreen";
 import SalesScreen from "./src/screens/main/SalesScreen";
 import ExchangeRateScreen from "./src/screens/main/ExchangeRateScreen";
 import SettingsScreen from "./src/screens/main/SettingsScreen";
+import AddProductScreen from "./src/screens/main/AddProductScreen";
+import EditProductScreen from "./src/screens/main/EditProductScreen";
 
 // Database initialization
 import { initDatabase } from "./src/services/database/products";
@@ -131,6 +133,34 @@ export default function App() {
           component={ExchangeRateScreen}
           options={{
             title: "Tasa de Cambio",
+            headerStyle: {
+              backgroundColor: "#4CAF50",
+            },
+            headerTintColor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+          }}
+        />
+        <Stack.Screen
+          name="AddProduct"
+          component={AddProductScreen}
+          options={{
+            title: "Nuevo Producto",
+            headerStyle: {
+              backgroundColor: "#4CAF50",
+            },
+            headerTintColor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+          }}
+        />
+        <Stack.Screen
+          name="EditProduct"
+          component={EditProductScreen}
+          options={{
+            title: "Editar Producto",
             headerStyle: {
               backgroundColor: "#4CAF50",
             },
