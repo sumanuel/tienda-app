@@ -73,12 +73,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
     padding: 16,
+    paddingBottom: 100,
   },
   title: {
     fontSize: 28,
     fontWeight: "bold",
     color: "#333",
     marginBottom: 20,
+    marginTop: 20,
   },
   section: {
     marginBottom: 16,

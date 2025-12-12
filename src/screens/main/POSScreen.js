@@ -64,19 +64,23 @@ const styles = StyleSheet.create({
   leftPanel: {
     flex: 2,
     padding: 16,
+    paddingTop: 40,
   },
   rightPanel: {
     flex: 1,
     backgroundColor: "#fff",
     padding: 16,
+    paddingTop: 40,
     borderLeftWidth: 1,
     borderLeftColor: "#eee",
+    paddingBottom: 100,
   },
   title: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 16,
     color: "#333",
+    paddingTop: 20,
   },
   productsGrid: {
     flex: 1,

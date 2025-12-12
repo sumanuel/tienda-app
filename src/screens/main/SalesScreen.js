@@ -57,6 +57,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 16,
+    paddingTop: 50,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
@@ -65,6 +66,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: "#333",
+    paddingTop: 20,
   },
   statsCard: {
     backgroundColor: "#4CAF50",
@@ -90,6 +92,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
+    paddingBottom: 100,
   },
   saleCard: {
     backgroundColor: "#fff",
