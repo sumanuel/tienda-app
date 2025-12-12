@@ -3,6 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, View, Text } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Screens
 import DashboardScreen from "./src/screens/main/DashboardScreen";
@@ -27,14 +28,17 @@ const Tab = createBottomTabNavigator();
  * Tabs de navegación principal
  */
 function MainTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: "#4CAF50",
         tabBarInactiveTintColor: "#999",
         tabBarStyle: {
-          paddingBottom: 5,
-          height: 60,
+          paddingBottom: insets.bottom + 5,
+          height: 60 + insets.bottom,
+          paddingTop: 5,
         },
         headerShown: false,
       }}

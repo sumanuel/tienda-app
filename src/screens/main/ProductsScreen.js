@@ -137,6 +137,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+    paddingBottom: 20,
   },
   header: {
     flexDirection: "row",
@@ -173,6 +174,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
+    paddingBottom: 100,
   },
   productCard: {
     flexDirection: "row",
@@ -260,6 +262,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#999",
     marginTop: 40,
+    marginBottom: 60,
     fontSize: 16,
   },
 });

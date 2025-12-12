@@ -237,6 +237,9 @@ export const EditProductScreen = ({ navigation, route }) => {
               <Text style={styles.submitButtonText}>Actualizar</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Espacio adicional para botones del sistema */}
+          <View style={styles.bottomSpacer} />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -317,6 +320,9 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: "#666",
     fontSize: 16,
+  },
+  bottomSpacer: {
+    height: 100,
   },
 });
 
