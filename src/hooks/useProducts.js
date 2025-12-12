@@ -6,6 +6,7 @@ import {
   updateProduct,
   deleteProduct,
 } from "../services/database/products";
+import { useExchangeRate } from "./useExchangeRate";
 
 /**
  * Hook para gestionar productos
@@ -16,11 +17,20 @@ export const useProducts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  const { rate: exchangeRate } = useExchangeRate();
 
   // Cargar productos al montar
   useEffect(() => {
     loadProducts();
   }, []); // No incluir loadProducts para evitar loops
+
+  // Recargar productos cuando cambie la tasa de cambio
+  useEffect(() => {
+    if (exchangeRate && products.length > 0) {
+      console.log("Tasa de cambio cambió, recargando productos...");
+      loadProducts();
+    }
+  }, [exchangeRate]);
 
   /**
    * Carga todos los productos

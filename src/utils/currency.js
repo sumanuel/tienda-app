@@ -1,6 +1,28 @@
 import { CURRENCIES } from "../constants/currencies";
 
 /**
+ * Convierte un precio de USD a VES usando la tasa actual
+ * @param {number} usdPrice - Precio en USD
+ * @param {number} exchangeRate - Tasa de cambio USD → VES
+ * @returns {number} Precio convertido en VES
+ */
+export const convertUSDToVES = (usdPrice, exchangeRate) => {
+  if (!usdPrice || !exchangeRate) return 0;
+  return usdPrice * exchangeRate;
+};
+
+/**
+ * Convierte un precio de VES a USD usando la tasa actual
+ * @param {number} vesPrice - Precio en VES
+ * @param {number} exchangeRate - Tasa de cambio USD → VES
+ * @returns {number} Precio convertido en USD
+ */
+export const convertVESToUSD = (vesPrice, exchangeRate) => {
+  if (!vesPrice || !exchangeRate) return 0;
+  return vesPrice / exchangeRate;
+};
+
+/**
  * Formatea un monto en la moneda especificada
  * @param {number} amount - Monto a formatear
  * @param {string} currencyCode - Código de la moneda (VES, USD)
@@ -63,11 +85,17 @@ export const isValidAmount = (amount) => {
 };
 
 /**
- * Calcula el cambio en una transacción
- * @param {number} paid - Monto pagado
- * @param {number} total - Total a pagar
- * @returns {number} Cambio
+ * Hook personalizado para conversiones de moneda en tiempo real
+ * @param {number} exchangeRate - Tasa de cambio actual
+ * @returns {object} Funciones de conversión
  */
-export const calculateChange = (paid, total) => {
-  return Math.max(0, paid - total);
+export const useCurrencyConversion = (exchangeRate) => {
+  return {
+    convertToVES: (usdPrice) => convertUSDToVES(usdPrice, exchangeRate),
+    convertToUSD: (vesPrice) => convertVESToUSD(vesPrice, exchangeRate),
+    formatVES: (usdPrice) =>
+      formatCurrency(convertUSDToVES(usdPrice, exchangeRate), "VES"),
+    formatUSD: (vesPrice) =>
+      formatCurrency(convertVESToUSD(vesPrice, exchangeRate), "USD"),
+  };
 };

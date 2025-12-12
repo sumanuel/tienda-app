@@ -217,6 +217,33 @@ export const getLowStockProducts = async () => {
   }
 };
 
+/**
+ * Actualiza todos los precios VES basados en la nueva tasa de cambio
+ * @param {number} exchangeRate - Nueva tasa de cambio USD → VES
+ */
+export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
+  try {
+    console.log(
+      `Actualizando precios con nueva tasa: 1 USD = ${exchangeRate} VES`
+    );
+
+    // Actualizar todos los productos activos con precio USD > 0
+    const result = await db.runAsync(
+      `UPDATE products
+       SET priceVES = ROUND(priceUSD * ?, 2),
+           updatedAt = CURRENT_TIMESTAMP
+       WHERE active = 1 AND priceUSD > 0;`,
+      [exchangeRate]
+    );
+
+    console.log(`Precios actualizados: ${result.changes} productos`);
+    return result.changes;
+  } catch (error) {
+    console.error("Error actualizando precios con tasa de cambio:", error);
+    throw error;
+  }
+};
+
 export default {
   initDatabase,
   getAllProducts,
@@ -227,4 +254,5 @@ export default {
   updateProductStock,
   deleteProduct,
   getLowStockProducts,
+  updateAllPricesWithExchangeRate,
 };

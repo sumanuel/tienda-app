@@ -3,7 +3,9 @@ import {
   getCurrentRate,
   updateExchangeRate,
   autoUpdateRate,
+  setManualRate as setManualExchangeRate,
 } from "../services/exchange/rateService";
+import { updateAllPricesWithExchangeRate } from "../services/database/products";
 
 /**
  * Hook personalizado para gestionar la tasa de cambio
@@ -93,10 +95,41 @@ export const useExchangeRate = (settings = {}) => {
   };
 
   /**
-   * Refresca la tasa actual
+   * Establece una tasa manual
    */
-  const refresh = useCallback(() => {
-    return loadCurrentRate();
+  const setManualRate = useCallback(async (manualRate) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const updated = await setManualExchangeRate(manualRate);
+      setRate(updated.rate);
+      setLastUpdate(new Date(updated.updatedAt));
+
+      // Actualizar automáticamente todos los precios de productos
+      try {
+        const updatedProductsCount = await updateAllPricesWithExchangeRate(
+          manualRate
+        );
+        console.log(
+          `Precios de ${updatedProductsCount} productos actualizados con nueva tasa`
+        );
+      } catch (priceUpdateError) {
+        console.error(
+          "Error actualizando precios de productos:",
+          priceUpdateError
+        );
+        // No fallar la operación completa si hay error en precios
+      }
+
+      return updated;
+    } catch (err) {
+      setError(err.message);
+      console.error("Error setting manual rate:", err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   return {
@@ -105,7 +138,8 @@ export const useExchangeRate = (settings = {}) => {
     error,
     lastUpdate,
     updateRate,
-    refresh,
+    setManualRate,
+    refresh: loadCurrentRate,
   };
 };
 

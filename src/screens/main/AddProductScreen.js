@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,12 +11,15 @@ import {
   Platform,
 } from "react-native";
 import { useProducts } from "../../hooks/useProducts";
+import { useExchangeRate } from "../../hooks/useExchangeRate";
+import { convertUSDToVES } from "../../utils/currency";
 
 /**
  * Pantalla para agregar nuevo producto
  */
 export const AddProductScreen = ({ navigation }) => {
   const { addProduct } = useProducts();
+  const { rate: exchangeRate } = useExchangeRate();
 
   // Refs para navegación entre campos
   const nameRef = useRef(null);
@@ -51,6 +54,20 @@ export const AddProductScreen = ({ navigation }) => {
     description: "",
   });
 
+  // Actualizar precio VES automáticamente cuando cambie precio USD o tasa
+  useEffect(() => {
+    if (formData.priceUSD && exchangeRate) {
+      const usdPrice = parseFloat(formData.priceUSD);
+      if (!isNaN(usdPrice)) {
+        const vesPrice = convertUSDToVES(usdPrice, exchangeRate);
+        setFormData((prev) => ({
+          ...prev,
+          priceVES: vesPrice.toFixed(2),
+        }));
+      }
+    }
+  }, [formData.priceUSD, exchangeRate]);
+
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
@@ -70,18 +87,32 @@ export const AddProductScreen = ({ navigation }) => {
       return;
     }
 
+    if (!exchangeRate) {
+      Alert.alert(
+        "Error",
+        "No hay tasa de cambio configurada. Configure la tasa en Configuración > Moneda Base"
+      );
+      return;
+    }
+
     if (!formData.stock || isNaN(parseInt(formData.stock))) {
       Alert.alert("Error", "El stock debe ser un número válido");
       return;
     }
 
     try {
+      const usdPrice = parseFloat(formData.priceUSD);
+      const vesPrice = convertUSDToVES(usdPrice, exchangeRate);
+
       const productData = {
         name: formData.name.trim(),
         category: formData.category.trim() || "General",
-        priceUSD: parseFloat(formData.priceUSD),
-        priceVES: formData.priceVES ? parseFloat(formData.priceVES) : null,
+        cost: usdPrice, // El costo base es en USD
+        priceUSD: usdPrice,
+        priceVES: vesPrice,
+        margin: 0, // Margen por defecto
         stock: parseInt(formData.stock),
+        minStock: 0,
         description: formData.description.trim(),
       };
 

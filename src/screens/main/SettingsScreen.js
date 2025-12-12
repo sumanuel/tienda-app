@@ -5,12 +5,87 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
+import { useExchangeRate } from "../../hooks/useExchangeRate";
 
 /**
  * Pantalla de ajustes
  */
 export const SettingsScreen = ({ navigation }) => {
+  const { rate, setManualRate } = useExchangeRate();
+
+  const handleCurrencyBasePress = () => {
+    Alert.prompt(
+      "Configurar Tasa de Cambio USD → Bs",
+      `Ingresa el valor equivalente de 1 USD en Bolívares.\n\nEsta tasa se usará para convertir precios de USD a Bs en toda la aplicación.\n\nTasa actual: ${
+        rate ? `${rate.toFixed(2)} Bs` : "No configurada"
+      }`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Guardar",
+          onPress: async (value) => {
+            const numericValue = parseFloat(value);
+            if (isNaN(numericValue) || numericValue <= 0) {
+              Alert.alert("Error", "Ingresa un valor válido mayor a 0");
+              return;
+            }
+
+            // Validación adicional para valores muy bajos o muy altos
+            if (numericValue < 10) {
+              Alert.alert(
+                "Valor muy bajo",
+                "El valor parece muy bajo para una tasa de cambio. ¿Estás seguro?",
+                [
+                  { text: "Revisar", style: "cancel" },
+                  {
+                    text: "Confirmar",
+                    onPress: async () => await saveManualRate(numericValue),
+                  },
+                ]
+              );
+              return;
+            }
+
+            if (numericValue > 100000) {
+              Alert.alert(
+                "Valor muy alto",
+                "El valor parece muy alto para una tasa de cambio. ¿Estás seguro?",
+                [
+                  { text: "Revisar", style: "cancel" },
+                  {
+                    text: "Confirmar",
+                    onPress: async () => await saveManualRate(numericValue),
+                  },
+                ]
+              );
+              return;
+            }
+
+            await saveManualRate(numericValue);
+          },
+        },
+      ],
+      "decimal-pad",
+      rate?.toString() || ""
+    );
+  };
+
+  const saveManualRate = async (numericValue) => {
+    try {
+      await setManualRate(numericValue);
+      Alert.alert(
+        "Éxito",
+        `Tasa de cambio actualizada:\n1 USD = ${numericValue.toFixed(
+          2
+        )} Bs\n\nEsta tasa se usará en toda la aplicación.`
+      );
+    } catch (error) {
+      Alert.alert("Error", "No se pudo actualizar la tasa de cambio");
+      console.error("Error setting manual rate:", error);
+    }
+  };
   const SettingItem = ({ title, subtitle, onPress }) => (
     <TouchableOpacity style={styles.settingItem} onPress={onPress}>
       <View>
@@ -39,7 +114,13 @@ export const SettingsScreen = ({ navigation }) => {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Precios</Text>
-        <SettingItem title="Moneda Base" subtitle="USD" />
+        <SettingItem
+          title="Moneda Base"
+          subtitle={
+            rate ? `1 USD = ${rate.toFixed(2)} Bs` : "Configurar tasa de cambio"
+          }
+          onPress={handleCurrencyBasePress}
+        />
         <SettingItem title="Margen por Defecto" subtitle="30%" />
       </View>
 
