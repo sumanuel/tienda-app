@@ -26,6 +26,22 @@ export const EditProductScreen = ({ navigation, route }) => {
   const priceVESRef = useRef(null);
   const stockRef = useRef(null);
   const descriptionRef = useRef(null);
+  const scrollViewRef = useRef(null);
+
+  // Función para hacer scroll automático al campo enfocado
+  const scrollToField = (ref) => {
+    if (ref.current && scrollViewRef.current) {
+      setTimeout(() => {
+        ref.current.measureLayout(
+          scrollViewRef.current,
+          (x, y) => {
+            scrollViewRef.current.scrollTo({ y: y - 100, animated: true });
+          },
+          () => {}
+        );
+      }, 100);
+    }
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -101,10 +117,11 @@ export const EditProductScreen = ({ navigation, route }) => {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : "padding"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 80}
     >
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -183,6 +200,7 @@ export const EditProductScreen = ({ navigation, route }) => {
               onChangeText={(value) => handleInputChange("stock", value)}
               returnKeyType="next"
               onSubmitEditing={() => descriptionRef.current?.focus()}
+              onFocus={() => scrollToField(stockRef)}
               blurOnSubmit={false}
             />
           </View>
@@ -199,6 +217,7 @@ export const EditProductScreen = ({ navigation, route }) => {
               onChangeText={(value) => handleInputChange("description", value)}
               returnKeyType="done"
               onSubmitEditing={handleSubmit}
+              onFocus={() => scrollToField(descriptionRef)}
               blurOnSubmit={false}
             />
           </View>
