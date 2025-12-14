@@ -12,7 +12,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useProducts } from "../../hooks/useProducts";
 import { getSettings } from "../../services/database/settings";
-import { useExchangeRate } from "../../hooks/useExchangeRate";
+import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 
 /**
  * Pantalla de gestión de productos
@@ -86,8 +86,17 @@ export const ProductsScreen = ({ navigation }) => {
 
   const renderProduct = ({ item }) => {
     // Calcular precio en VES dinámicamente usando el tipo de cambio actual
-    const rate = exchangeRate || settings.pricing?.currencies?.USD || 280;
+    const rate = exchangeRate || 280;
     const priceVES = item.priceUSD * rate;
+
+    console.log(
+      "ProductsScreen - Rate:",
+      rate,
+      "PriceUSD:",
+      item.priceUSD,
+      "PriceVES:",
+      priceVES
+    );
 
     return (
       <View style={styles.productCard}>

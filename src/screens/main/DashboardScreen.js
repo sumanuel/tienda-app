@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from "react-native";
-import { useExchangeRate } from "../../hooks/useExchangeRate";
+import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useSales } from "../../hooks/useSales";
 import { useInventory } from "../../hooks/useInventory";
 import RateDisplay from "../../components/exchange/RateDisplay";

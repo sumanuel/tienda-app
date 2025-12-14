@@ -10,14 +10,14 @@ import {
   TextInput,
   Button,
 } from "react-native";
-import { useExchangeRate } from "../../hooks/useExchangeRate";
+import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { getSettings, saveSettings } from "../../services/database/settings";
 
 /**
  * Pantalla de ajustes
  */
 export const SettingsScreen = ({ navigation }) => {
-  const { rate, setManualRate } = useExchangeRate();
+  const { rate, setManualRate, updateRateLocal } = useExchangeRate();
   const [modalVisible, setModalVisible] = useState(false);
   const [inputValue, setInputValue] = useState(rate?.toString() || "");
   const [margin, setMargin] = useState(30);
@@ -191,6 +191,15 @@ export const SettingsScreen = ({ navigation }) => {
 
     try {
       await setManualRate(numericValue);
+
+      // También actualizar los settings para sincronizar
+      const settings = await getSettings();
+      if (!settings.pricing) settings.pricing = {};
+      if (!settings.pricing.currencies) settings.pricing.currencies = {};
+      settings.pricing.currencies.USD = numericValue;
+      await saveSettings(settings);
+      setCurrencies({ ...currencies, USD: numericValue });
+
       Alert.alert(
         "Éxito",
         `Tasa de cambio actualizada:\n1 USD = ${numericValue.toFixed(
@@ -278,10 +287,19 @@ export const SettingsScreen = ({ navigation }) => {
     }
 
     try {
+      // Primero guardar en settings
       const settings = await getSettings();
       settings.pricing.currencies = tempCurrencies;
       await saveSettings(settings);
       setCurrencies(tempCurrencies);
+
+      // Actualizar el contexto localmente si se cambió USD (sin tocar BD para evitar lock)
+      const newUsdValue = parseFloat(tempCurrencies.USD);
+      if (!isNaN(newUsdValue) && newUsdValue !== rate) {
+        updateRateLocal(newUsdValue);
+        console.log("Rate updated locally to:", newUsdValue);
+      }
+
       Alert.alert("Éxito", "Valores de monedas actualizados");
       setCurrenciesModalVisible(false);
     } catch (error) {

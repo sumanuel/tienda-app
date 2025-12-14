@@ -76,6 +76,8 @@ export const ExchangeRateProvider = ({ children }) => {
       setRate(updated.rate);
       setLastUpdate(new Date(updated.updatedAt));
 
+      console.log("Context updated - New rate:", updated.rate);
+
       return updated;
     } catch (err) {
       setError(err.message);
@@ -85,6 +87,15 @@ export const ExchangeRateProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Actualiza el rate localmente sin tocar la BD
+   */
+  const updateRateLocal = (newRate) => {
+    console.log("Updating rate locally:", newRate);
+    setRate(newRate);
+    setLastUpdate(new Date());
+  };
+
   const value = {
     rate,
     loading,
@@ -92,6 +103,7 @@ export const ExchangeRateProvider = ({ children }) => {
     lastUpdate,
     updateRate,
     setManualRate,
+    updateRateLocal,
     loadCurrentRate,
   };
 
