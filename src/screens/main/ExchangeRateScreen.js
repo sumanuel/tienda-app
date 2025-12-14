@@ -6,7 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import { useExchangeRate } from "../../hooks/useExchangeRate";
+import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { getSettings, updateSetting } from "../../services/database/settings";
 import RateDisplay from "../../components/exchange/RateDisplay";
 import CurrencyConverter from "../../components/exchange/CurrencyConverter";
