@@ -177,7 +177,7 @@ export const POSScreen = () => {
       await addSale(saleData, saleItems);
 
       Alert.alert(
-        "Venta completada",
+        "✓ Venta completada",
         `Total: Bs. ${total.toFixed(2)}\nCliente: ${
           customerName.trim() || "Cliente"
         }`,
@@ -188,6 +188,7 @@ export const POSScreen = () => {
               setCart([]);
               setCustomerName("");
               setTotal(0);
+              setShowCart(false); // Cerrar modal y regresar a productos
             },
           },
         ]

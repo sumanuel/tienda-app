@@ -22,10 +22,14 @@ export const SalesScreen = () => {
    */
   const showSaleDetails = async (sale) => {
     try {
+      console.log("Cargando detalles de venta #", sale.id);
       const details = await getSaleDetails(sale.id);
+      console.log("Detalles obtenidos:", details);
+      console.log("Items de la venta:", details?.items);
       setSelectedSale(sale);
       setSaleDetails(details);
     } catch (error) {
+      console.error("Error cargando detalles:", error);
       Alert.alert("Error", "No se pudieron cargar los detalles de la venta");
     }
   };
