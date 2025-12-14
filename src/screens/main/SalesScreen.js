@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,34 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useSales } from "../../hooks/useSales";
 
 /**
  * Pantalla de ventas
  */
 export const SalesScreen = () => {
-  const { sales, todayStats, loading, getSaleDetails } = useSales();
+  const navigation = useNavigation();
+  const {
+    sales,
+    todayStats,
+    loading,
+    getSaleDetails,
+    loadSales,
+    loadTodayStats,
+  } = useSales();
   const [selectedSale, setSelectedSale] = useState(null);
   const [saleDetails, setSaleDetails] = useState(null);
+
+  // Recargar ventas cuando la pantalla gane focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      loadSales();
+      loadTodayStats();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   /**
    * Muestra detalles de una venta

@@ -25,7 +25,7 @@ export const POSScreen = () => {
   const {
     products,
     loading: productsLoading,
-    refresh: refreshProducts,
+    loadProducts: refreshProducts,
   } = useProducts();
   const { registerSale: addSale } = useSales();
   const { rate: exchangeRate } = useExchangeRate();
@@ -193,22 +193,18 @@ export const POSScreen = () => {
       // Recargar productos para reflejar el nuevo stock
       await refreshProducts();
 
+      // Limpiar carrito y cerrar modal primero
+      setCart([]);
+      setCustomerName("");
+      setTotal(0);
+      setShowCart(false);
+
+      // Mostrar confirmación
       Alert.alert(
         "✓ Venta completada",
         `Total: Bs. ${total.toFixed(2)}\nCliente: ${
           customerName.trim() || "Cliente"
-        }`,
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              setCart([]);
-              setCustomerName("");
-              setTotal(0);
-              setShowCart(false); // Cerrar modal y regresar a productos
-            },
-          },
-        ]
+        }`
       );
     } catch (error) {
       console.error("Error completing sale:", error);
