@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  ScrollView,
 } from "react-native";
 import { useSales } from "../../hooks/useSales";
 
@@ -176,46 +177,60 @@ export const SalesScreen = () => {
             </Text>
           </View>
 
-          <View style={styles.saleSummary}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Cliente:</Text>
-              <Text style={styles.summaryValue}>
-                {selectedSale.notes
-                  ? selectedSale.notes.replace("Cliente: ", "")
-                  : "Sin nombre"}
-              </Text>
+          <ScrollView style={styles.detailsScroll}>
+            <View style={styles.saleSummary}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Cliente:</Text>
+                <Text style={styles.summaryValue}>
+                  {selectedSale.notes
+                    ? selectedSale.notes.replace("Cliente: ", "")
+                    : "Sin nombre"}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Fecha:</Text>
+                <Text style={styles.summaryValue}>
+                  {new Date(selectedSale.createdAt).toLocaleDateString()}{" "}
+                  {new Date(selectedSale.createdAt).toLocaleTimeString()}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Pago:</Text>
+                <Text style={styles.summaryValue}>
+                  {getPaymentMethodText(selectedSale.paymentMethod)}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Total:</Text>
+                <Text style={styles.summaryTotal}>
+                  Bs. {selectedSale.total.toFixed(2)}
+                </Text>
+              </View>
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Fecha:</Text>
-              <Text style={styles.summaryValue}>
-                {new Date(selectedSale.createdAt).toLocaleDateString()}{" "}
-                {new Date(selectedSale.createdAt).toLocaleTimeString()}
-              </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Pago:</Text>
-              <Text style={styles.summaryValue}>
-                {getPaymentMethodText(selectedSale.paymentMethod)}
-              </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Total:</Text>
-              <Text style={styles.summaryTotal}>
-                Bs. {selectedSale.total.toFixed(2)}
-              </Text>
-            </View>
-          </View>
 
-          <Text style={styles.itemsTitle}>Productos Vendidos</Text>
-          <FlatList
-            data={saleDetails?.items || []}
-            renderItem={renderSaleItem}
-            keyExtractor={(item, index) => index.toString()}
-            style={styles.itemsList}
-            ListEmptyComponent={
-              <Text style={styles.noItemsText}>No se encontraron items</Text>
-            }
-          />
+            <View style={styles.itemsSection}>
+              <Text style={styles.itemsTitle}>Productos Vendidos</Text>
+              {saleDetails?.items && saleDetails.items.length > 0 ? (
+                saleDetails.items.map((item, index) => (
+                  <View key={index} style={styles.detailItem}>
+                    <View style={styles.detailItemInfo}>
+                      <Text style={styles.detailItemName}>
+                        {item.productName}
+                      </Text>
+                      <Text style={styles.detailItemQuantity}>
+                        {item.quantity} x Bs. {item.price.toFixed(2)}
+                      </Text>
+                    </View>
+                    <Text style={styles.detailItemSubtotal}>
+                      Bs. {item.subtotal.toFixed(2)}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.noItemsText}>No se encontraron items</Text>
+              )}
+            </View>
+          </ScrollView>
         </View>
       )}
     </View>
@@ -429,8 +444,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
-    margin: 16,
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  itemsSection: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+  },
+  detailsScroll: {
+    flex: 1,
   },
   itemsList: {
     flex: 1,
