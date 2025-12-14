@@ -22,7 +22,11 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
  * Pantalla de punto de venta (POS)
  */
 export const POSScreen = () => {
-  const { products, loading: productsLoading, refresh: refreshProducts } = useProducts();
+  const {
+    products,
+    loading: productsLoading,
+    refresh: refreshProducts,
+  } = useProducts();
   const { registerSale: addSale } = useSales();
   const { rate: exchangeRate } = useExchangeRate();
 

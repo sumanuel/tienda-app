@@ -23,7 +23,11 @@ export const DashboardScreen = ({ navigation }) => {
     updateRate,
   } = useExchangeRate({ autoUpdate: true, updateInterval: 30 });
   const { todayStats, loading: salesLoading, loadTodayStats } = useSales();
-  const { stats: inventoryStats, loading: inventoryLoading, refresh: refreshInventory } = useInventory();
+  const {
+    stats: inventoryStats,
+    loading: inventoryLoading,
+    refresh: refreshInventory,
+  } = useInventory();
   const [refreshing, setRefreshing] = useState(false);
 
   // Recargar estadísticas cuando cambie el tipo de cambio
@@ -35,7 +39,7 @@ export const DashboardScreen = ({ navigation }) => {
 
   // Listener para cuando se vuelve a la pantalla (recargar inventario)
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener("focus", () => {
       refreshInventory();
     });
 
