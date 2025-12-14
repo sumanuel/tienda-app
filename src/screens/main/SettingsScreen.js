@@ -146,7 +146,7 @@ export const SettingsScreen = ({ navigation }) => {
                   "Éxito",
                   `Tasa de cambio actualizada:\n1 USD = ${numericValue.toFixed(
                     2
-                  )} Bs\n\nEsta tasa se usará en toda la aplicación.`
+                  )} VES\n\nEsta tasa se usará en toda la aplicación.`
                 );
                 setModalVisible(false);
               } catch (error) {
@@ -175,7 +175,7 @@ export const SettingsScreen = ({ navigation }) => {
                   "Éxito",
                   `Tasa de cambio actualizada:\n1 USD = ${numericValue.toFixed(
                     2
-                  )} Bs\n\nEsta tasa se usará en toda la aplicación.`
+                  )} VES\n\nEsta tasa se usará en toda la aplicación.`
                 );
                 setModalVisible(false);
               } catch (error) {
@@ -195,7 +195,7 @@ export const SettingsScreen = ({ navigation }) => {
         "Éxito",
         `Tasa de cambio actualizada:\n1 USD = ${numericValue.toFixed(
           2
-        )} Bs\n\nEsta tasa se usará en toda la aplicación.`
+        )} VES\n\nEsta tasa se usará en toda la aplicación.`
       );
       setModalVisible(false);
     } catch (error) {
@@ -342,7 +342,7 @@ export const SettingsScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Precios</Text>
           <SettingItem
             title="Moneda Base"
-            subtitle={`Moneda actual: ${baseCurrency} (${currencies[baseCurrency]} Bs)`}
+            subtitle={`Moneda actual: ${baseCurrency} (${currencies[baseCurrency]} VES)`}
             onPress={handleCurrencyBasePress}
           />
           <SettingItem
@@ -387,13 +387,13 @@ export const SettingsScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              Configurar Tasa de Cambio USD → Bs
+              Configurar Tasa de Cambio USD → VES
             </Text>
             <Text style={styles.modalSubtitle}>
               Ingresa el valor equivalente de 1 USD en Bolívares.
             </Text>
             <Text style={styles.modalSubtitle}>
-              Tasa actual: {rate ? `${rate.toFixed(2)} Bs` : "No configurada"}
+              Tasa actual: {rate ? `${rate.toFixed(2)} VES` : "No configurada"}
             </Text>
             <TextInput
               style={styles.textInput}
@@ -578,7 +578,7 @@ export const SettingsScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Configurar Valores de Monedas</Text>
-            <Text style={styles.inputLabel}>Valor del USD (Bs):</Text>
+            <Text style={styles.inputLabel}>Valor del USD (VES):</Text>
             <TextInput
               style={styles.textInput}
               placeholder="Valor del USD"
@@ -588,7 +588,7 @@ export const SettingsScreen = ({ navigation }) => {
               }
               keyboardType="decimal-pad"
             />
-            <Text style={styles.inputLabel}>Valor del EURO (Bs):</Text>
+            <Text style={styles.inputLabel}>Valor del EURO (VES):</Text>
             <TextInput
               style={styles.textInput}
               placeholder="Valor del EURO"
@@ -598,7 +598,7 @@ export const SettingsScreen = ({ navigation }) => {
               }
               keyboardType="decimal-pad"
             />
-            <Text style={styles.inputLabel}>Valor del USD2 (Bs):</Text>
+            <Text style={styles.inputLabel}>Valor del USD2 (VES):</Text>
             <TextInput
               style={styles.textInput}
               placeholder="Valor del USD2"

@@ -13,6 +13,7 @@ import {
 import { useProducts } from "../../hooks/useProducts";
 import { useExchangeRate } from "../../hooks/useExchangeRate";
 import { convertUSDToVES } from "../../utils/currency";
+import { getSettings } from "../../services/database/settings";
 
 /**
  * Pantalla para agregar nuevo producto
@@ -21,11 +22,63 @@ export const AddProductScreen = ({ navigation }) => {
   const { addProduct } = useProducts();
   const { rate: exchangeRate } = useExchangeRate();
 
+  const [settings, setSettings] = useState({});
+  const [cost, setCost] = useState("");
+  const [costCurrency, setCostCurrency] = useState("USD");
+  const [margin, setMargin] = useState(30);
+  const [calculatedPrices, setCalculatedPrices] = useState({
+    usd: "",
+    ves: "",
+  });
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const s = await getSettings();
+      setSettings(s);
+      setMargin(s.pricing?.defaultMargin || 30);
+    };
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    if (cost && settings.pricing) {
+      const costValue = parseFloat(cost);
+      if (!isNaN(costValue)) {
+        const baseCurrency = settings.pricing?.baseCurrency || "USD";
+        const currencies = settings.pricing?.currencies || {
+          USD: 280,
+          EURO: 300,
+          USD2: 350,
+        };
+
+        // Calculate selling price in cost currency
+        const sellingPriceInCostCurrency = costValue * (1 + margin / 100);
+
+        // Convert to USD and VES
+        let usdPrice, vesPrice;
+        if (costCurrency === "USD") {
+          usdPrice = sellingPriceInCostCurrency;
+          vesPrice = usdPrice * currencies.USD;
+        } else {
+          // Bs
+          vesPrice = sellingPriceInCostCurrency;
+          usdPrice = vesPrice / currencies.USD;
+        }
+
+        setCalculatedPrices({
+          usd: usdPrice.toFixed(2),
+          ves: vesPrice.toFixed(2),
+        });
+      }
+    } else {
+      setCalculatedPrices({ usd: "", ves: "" });
+    }
+  }, [cost, costCurrency, margin, settings]);
+
   // Refs para navegación entre campos
   const nameRef = useRef(null);
   const categoryRef = useRef(null);
-  const priceUSDRef = useRef(null);
-  const priceVESRef = useRef(null);
+  const costRef = useRef(null);
   const stockRef = useRef(null);
   const descriptionRef = useRef(null);
   const scrollViewRef = useRef(null);
@@ -48,25 +101,20 @@ export const AddProductScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
     name: "",
     category: "",
-    priceUSD: "",
-    priceVES: "",
+    priceUSD: calculatedPrices.usd,
+    priceVES: calculatedPrices.ves,
     stock: "",
     description: "",
   });
 
-  // Actualizar precio VES automáticamente cuando cambie precio USD o tasa
+  // Actualizar precios calculados en formData
   useEffect(() => {
-    if (formData.priceUSD && exchangeRate) {
-      const usdPrice = parseFloat(formData.priceUSD);
-      if (!isNaN(usdPrice)) {
-        const vesPrice = convertUSDToVES(usdPrice, exchangeRate);
-        setFormData((prev) => ({
-          ...prev,
-          priceVES: vesPrice.toFixed(2),
-        }));
-      }
-    }
-  }, [formData.priceUSD, exchangeRate]);
+    setFormData((prev) => ({
+      ...prev,
+      priceUSD: calculatedPrices.usd,
+      priceVES: calculatedPrices.ves,
+    }));
+  }, [calculatedPrices]);
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -82,15 +130,15 @@ export const AddProductScreen = ({ navigation }) => {
       return;
     }
 
-    if (!formData.priceUSD || isNaN(parseFloat(formData.priceUSD))) {
-      Alert.alert("Error", "El precio en USD debe ser un número válido");
+    if (!cost || isNaN(parseFloat(cost))) {
+      Alert.alert("Error", "El costo del producto debe ser un número válido");
       return;
     }
 
-    if (!exchangeRate) {
+    if (!calculatedPrices.usd || !calculatedPrices.ves) {
       Alert.alert(
         "Error",
-        "No hay tasa de cambio configurada. Configure la tasa en Configuración > Moneda Base"
+        "No se pudieron calcular los precios. Verifique la configuración"
       );
       return;
     }
@@ -101,16 +149,14 @@ export const AddProductScreen = ({ navigation }) => {
     }
 
     try {
-      const usdPrice = parseFloat(formData.priceUSD);
-      const vesPrice = convertUSDToVES(usdPrice, exchangeRate);
-
       const productData = {
         name: formData.name.trim(),
         category: formData.category.trim() || "General",
-        cost: usdPrice, // El costo base es en USD
-        priceUSD: usdPrice,
-        priceVES: vesPrice,
-        margin: 0, // Margen por defecto
+        cost: parseFloat(cost),
+        costCurrency: costCurrency,
+        priceUSD: parseFloat(calculatedPrices.usd),
+        priceVES: parseFloat(calculatedPrices.ves),
+        margin: margin,
         stock: parseInt(formData.stock),
         minStock: 0,
         description: formData.description.trim(),
@@ -170,39 +216,71 @@ export const AddProductScreen = ({ navigation }) => {
               value={formData.category}
               onChangeText={(value) => handleInputChange("category", value)}
               returnKeyType="next"
-              onSubmitEditing={() => priceUSDRef.current?.focus()}
+              onSubmitEditing={() => costRef.current?.focus()}
               blurOnSubmit={false}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Moneda del costo</Text>
+            <TouchableOpacity
+              style={styles.currencySelector}
+              onPress={() => {
+                Alert.alert("Seleccionar Moneda", "Elige la moneda del costo", [
+                  { text: "USD", onPress: () => setCostCurrency("USD") },
+                  { text: "Bs", onPress: () => setCostCurrency("Bs") },
+                  { text: "Cancelar", style: "cancel" },
+                ]);
+              }}
+            >
+              <Text style={styles.currencyText}>{costCurrency}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Costo del producto *</Text>
+            <TextInput
+              ref={costRef}
+              style={styles.input}
+              placeholder="0.00"
+              keyboardType="numeric"
+              value={cost}
+              onChangeText={setCost}
+              returnKeyType="next"
+              onSubmitEditing={() => stockRef.current?.focus()}
+              blurOnSubmit={false}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Margen (%)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="30"
+              keyboardType="numeric"
+              value={margin.toString()}
+              onChangeText={(value) => setMargin(parseFloat(value) || 0)}
             />
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Precio USD *</Text>
+              <Text style={styles.label}>Precio USD*</Text>
               <TextInput
-                ref={priceUSDRef}
-                style={styles.input}
+                style={[styles.input, styles.readOnly]}
                 placeholder="0.00"
-                keyboardType="numeric"
-                value={formData.priceUSD}
-                onChangeText={(value) => handleInputChange("priceUSD", value)}
-                returnKeyType="next"
-                onSubmitEditing={() => priceVESRef.current?.focus()}
-                blurOnSubmit={false}
+                value={calculatedPrices.usd}
+                editable={false}
               />
             </View>
 
             <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Precio VES</Text>
+              <Text style={styles.label}>Precio VES*</Text>
               <TextInput
-                ref={priceVESRef}
-                style={styles.input}
+                style={[styles.input, styles.readOnly]}
                 placeholder="0.00"
-                keyboardType="numeric"
-                value={formData.priceVES}
-                onChangeText={(value) => handleInputChange("priceVES", value)}
-                returnKeyType="next"
-                onSubmitEditing={() => stockRef.current?.focus()}
-                blurOnSubmit={false}
+                value={calculatedPrices.ves}
+                editable={false}
               />
             </View>
           </View>
@@ -301,6 +379,31 @@ const styles = StyleSheet.create({
   textArea: {
     height: 80,
     textAlignVertical: "top",
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    marginTop: 5,
+  },
+  picker: {
+    height: 50,
+  },
+  currencySelector: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 5,
+    backgroundColor: "#fff",
+  },
+  currencyText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  readOnly: {
+    backgroundColor: "#f5f5f5",
+    color: "#666",
   },
   row: {
     flexDirection: "row",
