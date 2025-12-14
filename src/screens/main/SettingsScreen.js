@@ -37,6 +37,17 @@ export const SettingsScreen = ({ navigation }) => {
   });
   const [businessModalVisible, setBusinessModalVisible] = useState(false);
   const [tempBusiness, setTempBusiness] = useState(business);
+  const [baseCurrency, setBaseCurrency] = useState("USD");
+  const [currencies, setCurrencies] = useState({
+    USD: 280,
+    EURO: 300,
+    USD2: 350,
+  });
+  const [currenciesModalVisible, setCurrenciesModalVisible] = useState(false);
+  const [tempCurrencies, setTempCurrencies] = useState(currencies);
+  const [iva, setIva] = useState(16);
+  const [ivaModalVisible, setIvaModalVisible] = useState(false);
+  const [ivaInput, setIvaInput] = useState(iva.toString());
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -52,13 +63,39 @@ export const SettingsScreen = ({ navigation }) => {
           email: "",
         }
       );
+      setBaseCurrency(settings.pricing?.baseCurrency || "USD");
+      setCurrencies(
+        settings.pricing?.currencies || { USD: 280, EURO: 300, USD2: 350 }
+      );
+      setIva(settings.pricing?.iva || 16);
     };
     loadSettings();
   }, []);
 
   const handleCurrencyBasePress = () => {
-    setInputValue(rate?.toString() || "");
-    setModalVisible(true);
+    Alert.alert(
+      "Seleccionar Moneda Base",
+      "Elige la moneda con la que trabajará el sistema",
+      [
+        { text: "USD", onPress: () => saveBaseCurrency("USD") },
+        { text: "EURO", onPress: () => saveBaseCurrency("EURO") },
+        { text: "USD2", onPress: () => saveBaseCurrency("USD2") },
+        { text: "Cancelar", style: "cancel" },
+      ]
+    );
+  };
+
+  const saveBaseCurrency = async (currency) => {
+    try {
+      const settings = await getSettings();
+      settings.pricing.baseCurrency = currency;
+      await saveSettings(settings);
+      setBaseCurrency(currency);
+      Alert.alert("Éxito", `Moneda base cambiada a ${currency}`);
+    } catch (error) {
+      Alert.alert("Error", "No se pudo cambiar la moneda base");
+      console.error("Error saving base currency:", error);
+    }
   };
 
   const handleMarginPress = () => {
@@ -74,6 +111,16 @@ export const SettingsScreen = ({ navigation }) => {
   const handleBusinessPress = () => {
     setTempBusiness(business);
     setBusinessModalVisible(true);
+  };
+
+  const handleCurrenciesPress = () => {
+    setTempCurrencies(currencies);
+    setCurrenciesModalVisible(true);
+  };
+
+  const handleIvaPress = () => {
+    setIvaInput(iva.toString());
+    setIvaModalVisible(true);
   };
 
   const handleSaveRate = async () => {
@@ -214,6 +261,55 @@ export const SettingsScreen = ({ navigation }) => {
     }
   };
 
+  const handleSaveCurrencies = async () => {
+    const usdValue = parseFloat(tempCurrencies.USD);
+    const euroValue = parseFloat(tempCurrencies.EURO);
+    const usd2Value = parseFloat(tempCurrencies.USD2);
+    if (
+      isNaN(usdValue) ||
+      usdValue <= 0 ||
+      isNaN(euroValue) ||
+      euroValue <= 0 ||
+      isNaN(usd2Value) ||
+      usd2Value <= 0
+    ) {
+      Alert.alert("Error", "Ingresa valores válidos mayores a 0");
+      return;
+    }
+
+    try {
+      const settings = await getSettings();
+      settings.pricing.currencies = tempCurrencies;
+      await saveSettings(settings);
+      setCurrencies(tempCurrencies);
+      Alert.alert("Éxito", "Valores de monedas actualizados");
+      setCurrenciesModalVisible(false);
+    } catch (error) {
+      Alert.alert("Error", "No se pudieron actualizar los valores de monedas");
+      console.error("Error saving currencies:", error);
+    }
+  };
+
+  const handleSaveIva = async () => {
+    const numericValue = parseFloat(ivaInput);
+    if (isNaN(numericValue) || numericValue < 0 || numericValue > 100) {
+      Alert.alert("Error", "Ingresa un porcentaje válido entre 0 y 100");
+      return;
+    }
+
+    try {
+      const settings = await getSettings();
+      settings.pricing.iva = numericValue;
+      await saveSettings(settings);
+      setIva(numericValue);
+      Alert.alert("Éxito", `IVA actualizado a ${numericValue}%`);
+      setIvaModalVisible(false);
+    } catch (error) {
+      Alert.alert("Error", "No se pudo actualizar el IVA");
+      console.error("Error saving IVA:", error);
+    }
+  };
+
   const SettingItem = ({ title, subtitle, onPress }) => (
     <TouchableOpacity style={styles.settingItem} onPress={onPress}>
       <View>
@@ -246,17 +342,23 @@ export const SettingsScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Precios</Text>
           <SettingItem
             title="Moneda Base"
-            subtitle={
-              rate
-                ? `1 USD = ${rate.toFixed(2)} Bs`
-                : "Configurar tasa de cambio"
-            }
+            subtitle={`Moneda actual: ${baseCurrency} (${currencies[baseCurrency]} Bs)`}
             onPress={handleCurrencyBasePress}
           />
           <SettingItem
             title="Margen por Defecto"
             subtitle={`${margin}%`}
             onPress={handleMarginPress}
+          />
+          <SettingItem
+            title="Monedas"
+            subtitle="Configurar monedas disponibles"
+            onPress={handleCurrenciesPress}
+          />
+          <SettingItem
+            title="IVA"
+            subtitle={`${iva}%`}
+            onPress={handleIvaPress}
           />
         </View>
 
@@ -466,6 +568,101 @@ export const SettingsScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={currenciesModalVisible}
+        onRequestClose={() => setCurrenciesModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Configurar Valores de Monedas</Text>
+            <Text style={styles.inputLabel}>Valor del USD (Bs):</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Valor del USD"
+              value={tempCurrencies.USD.toString()}
+              onChangeText={(text) =>
+                setTempCurrencies({ ...tempCurrencies, USD: text })
+              }
+              keyboardType="decimal-pad"
+            />
+            <Text style={styles.inputLabel}>Valor del EURO (Bs):</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Valor del EURO"
+              value={tempCurrencies.EURO.toString()}
+              onChangeText={(text) =>
+                setTempCurrencies({ ...tempCurrencies, EURO: text })
+              }
+              keyboardType="decimal-pad"
+            />
+            <Text style={styles.inputLabel}>Valor del USD2 (Bs):</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Valor del USD2"
+              value={tempCurrencies.USD2.toString()}
+              onChangeText={(text) =>
+                setTempCurrencies({ ...tempCurrencies, USD2: text })
+              }
+              keyboardType="decimal-pad"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={() => setCurrenciesModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.saveButton]}
+                onPress={handleSaveCurrencies}
+              >
+                <Text style={styles.saveButtonText}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={ivaModalVisible}
+        onRequestClose={() => setIvaModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Configurar IVA</Text>
+            <Text style={styles.modalSubtitle}>
+              Ingresa el porcentaje de IVA.
+            </Text>
+            <Text style={styles.modalSubtitle}>IVA actual: {iva}%</Text>
+            <TextInput
+              style={styles.textInput}
+              value={ivaInput}
+              onChangeText={setIvaInput}
+              keyboardType="decimal-pad"
+              placeholder="Ej: 16"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={() => setIvaModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.saveButton]}
+                onPress={handleSaveIva}
+              >
+                <Text style={styles.saveButtonText}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 };
@@ -551,6 +748,12 @@ const styles = StyleSheet.create({
     padding: 10,
     fontSize: 16,
     marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 5,
   },
   modalButtons: {
     flexDirection: "row",
