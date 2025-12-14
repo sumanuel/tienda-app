@@ -7,33 +7,17 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
-import { getSettings, updateSetting } from "../../services/database/settings";
+import { getSettings } from "../../services/database/settings";
 import RateDisplay from "../../components/exchange/RateDisplay";
 import CurrencyConverter from "../../components/exchange/CurrencyConverter";
-import AutoUpdateToggle from "../../components/exchange/AutoUpdateToggle";
 
 /**
  * Pantalla de gestión de tasas de cambio
  */
 export const ExchangeRateScreen = () => {
   const { rate, loading, lastUpdate, updateRate } = useExchangeRate({
-    autoUpdate: true,
+    autoUpdate: false,
   });
-  const [autoUpdate, setAutoUpdate] = React.useState(true);
-  const [updateInterval, setUpdateInterval] = React.useState(30);
-
-  const handleUpdateRate = async () => {
-    try {
-      await updateRate("BCV");
-    } catch (error) {
-      console.error("Error updating rate:", error);
-    }
-  };
-
-  const handleToggleAutoUpdate = async (value) => {
-    setAutoUpdate(value);
-    await updateSetting("exchange.autoUpdate", value);
-  };
 
   return (
     <ScrollView style={styles.container}>
@@ -46,7 +30,8 @@ export const ExchangeRateScreen = () => {
         style={styles.section}
       />
 
-      <TouchableOpacity
+      {/* Botón de actualizar oculto según requerimiento */}
+      {/* <TouchableOpacity
         style={styles.updateButton}
         onPress={handleUpdateRate}
         disabled={loading}
@@ -54,14 +39,15 @@ export const ExchangeRateScreen = () => {
         <Text style={styles.updateButtonText}>
           {loading ? "Actualizando..." : "Actualizar Ahora"}
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
-      <AutoUpdateToggle
+      {/* Sección de actualización automática oculta según requerimiento */}
+      {/* <AutoUpdateToggle
         enabled={autoUpdate}
         onToggle={handleToggleAutoUpdate}
         interval={updateInterval}
         style={styles.section}
-      />
+      /> */}
 
       <CurrencyConverter exchangeRate={rate} style={styles.section} />
     </ScrollView>
