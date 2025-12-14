@@ -19,10 +19,8 @@ import AddProductScreen from "./src/screens/main/AddProductScreen";
 import EditProductScreen from "./src/screens/main/EditProductScreen";
 
 // Database initialization
-import { initDatabase } from "./src/services/database/products";
-import { initSalesTable } from "./src/services/database/sales";
-import { initCustomersTable } from "./src/services/database/customers";
-import { initExchangeRatesTable } from "./src/services/database/exchangeRates";
+import { initAllTables } from "./src/services/database/db";
+import { initSettingsTable } from "./src/services/database/settings";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -105,11 +103,11 @@ export default function App() {
    */
   const initializeApp = async () => {
     try {
-      // Inicializar tablas de la base de datos
-      await initDatabase();
-      await initSalesTable();
-      await initCustomersTable();
-      await initExchangeRatesTable();
+      // Inicializar todas las tablas en una sola transacción
+      await initAllTables();
+
+      // Inicializar settings con valores por defecto
+      await initSettingsTable();
 
       console.log("Database initialized successfully");
       setIsReady(true);

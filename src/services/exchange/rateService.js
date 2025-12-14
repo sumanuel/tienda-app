@@ -54,6 +54,7 @@ export const setManualRate = async (rate) => {
       throw new Error("Invalid rate value");
     }
 
+    console.log("Saving manual rate to DB:", rate);
     await insertExchangeRate("MANUAL", rate);
 
     return {
@@ -62,6 +63,7 @@ export const setManualRate = async (rate) => {
       updatedAt: new Date().toISOString(),
     };
   } catch (error) {
+    console.error("Error in setManualRate:", error);
     throw new Error(`Failed to set manual rate: ${error.message}`);
   }
 };

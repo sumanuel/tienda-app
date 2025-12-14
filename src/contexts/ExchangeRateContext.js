@@ -16,9 +16,12 @@ export const ExchangeRateProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
 
-  // Cargar tasa inicial
+  // Cargar tasa inicial con un pequeño delay para asegurar que las tablas existan
   useEffect(() => {
-    loadCurrentRate();
+    const timer = setTimeout(() => {
+      loadCurrentRate();
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   /**
@@ -32,8 +35,11 @@ export const ExchangeRateProvider = ({ children }) => {
       const currentRate = await getCurrentRate();
 
       if (currentRate) {
+        console.log("Loaded rate from DB:", currentRate.rate);
         setRate(currentRate.rate);
         setLastUpdate(new Date(currentRate.createdAt));
+      } else {
+        console.log("No rate found in DB, using default");
       }
     } catch (err) {
       setError(err.message);

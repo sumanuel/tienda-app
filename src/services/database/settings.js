@@ -1,14 +1,46 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { db } from "./db";
 
-const SETTINGS_KEY = "@tienda_settings";
+/**
+ * Inicializa la tabla de configuraciones con valores por defecto
+ */
+export const initSettingsTable = async () => {
+  try {
+    // Verificar si ya existen configuraciones
+    const existing = await db.getFirstAsync(
+      "SELECT value FROM settings WHERE key = 'app_settings';"
+    );
+
+    // Solo insertar si no existen
+    if (!existing) {
+      const defaultSettings = getDefaultSettings();
+      const settingsJson = JSON.stringify(defaultSettings);
+
+      await db.runAsync(
+        `INSERT INTO settings (key, value) VALUES ('app_settings', ?);`,
+        [settingsJson]
+      );
+      console.log("Default settings inserted");
+    }
+  } catch (error) {
+    console.error("Error initializing settings:", error);
+    throw error;
+  }
+};
 
 /**
  * Obtiene todas las configuraciones
  */
 export const getSettings = async () => {
   try {
-    const settings = await AsyncStorage.getItem(SETTINGS_KEY);
-    return settings ? JSON.parse(settings) : getDefaultSettings();
+    const result = await db.getFirstAsync(
+      "SELECT value FROM settings WHERE key = 'app_settings';"
+    );
+
+    if (result && result.value) {
+      return JSON.parse(result.value);
+    }
+
+    return getDefaultSettings();
   } catch (error) {
     console.error("Error getting settings:", error);
     return getDefaultSettings();
@@ -20,7 +52,12 @@ export const getSettings = async () => {
  */
 export const saveSettings = async (settings) => {
   try {
-    await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    const settingsJson = JSON.stringify(settings);
+    await db.runAsync(
+      `INSERT OR REPLACE INTO settings (key, value, updatedAt) 
+       VALUES ('app_settings', ?, datetime('now'));`,
+      [settingsJson]
+    );
     return true;
   } catch (error) {
     console.error("Error saving settings:", error);
@@ -62,6 +99,12 @@ const getDefaultSettings = () => ({
     maxMargin: 200,
     roundPrices: true,
     roundTo: 0.5,
+    currencies: {
+      USD: 280,
+      EURO: 300,
+      USD2: 350,
+    },
+    iva: 16,
   },
   exchange: {
     autoUpdate: true,
@@ -102,6 +145,7 @@ export const resetSettings = async () => {
 };
 
 export default {
+  initSettingsTable,
   getSettings,
   saveSettings,
   updateSetting,

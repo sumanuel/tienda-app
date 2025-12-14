@@ -17,7 +17,7 @@ import { getSettings, saveSettings } from "../../services/database/settings";
  * Pantalla de ajustes
  */
 export const SettingsScreen = ({ navigation }) => {
-  const { rate, setManualRate, updateRateLocal } = useExchangeRate();
+  const { rate, setManualRate } = useExchangeRate();
   const [modalVisible, setModalVisible] = useState(false);
   const [inputValue, setInputValue] = useState(rate?.toString() || "");
   const [margin, setMargin] = useState(30);
@@ -64,13 +64,30 @@ export const SettingsScreen = ({ navigation }) => {
         }
       );
       setBaseCurrency(settings.pricing?.baseCurrency || "USD");
-      setCurrencies(
-        settings.pricing?.currencies || { USD: 280, EURO: 300, USD2: 350 }
-      );
+
+      // Sincronizar tasa del contexto (SQLite exchange_rates) con settings (SQLite settings)
+      let syncedCurrencies = settings.pricing?.currencies || {
+        USD: 280,
+        EURO: 300,
+        USD2: 350,
+      };
+      if (rate && rate !== syncedCurrencies.USD) {
+        console.log(
+          `Syncing rate from exchange_rates table (${rate}) to settings table`
+        );
+        syncedCurrencies.USD = rate;
+        // Actualizar settings con la tasa de la tabla exchange_rates
+        if (!settings.pricing) settings.pricing = {};
+        if (!settings.pricing.currencies) settings.pricing.currencies = {};
+        settings.pricing.currencies.USD = rate;
+        await saveSettings(settings);
+      }
+      setCurrencies(syncedCurrencies);
+
       setIva(settings.pricing?.iva || 16);
     };
     loadSettings();
-  }, []);
+  }, [rate]);
 
   const handleCurrencyBasePress = () => {
     Alert.alert(
@@ -293,11 +310,11 @@ export const SettingsScreen = ({ navigation }) => {
       await saveSettings(settings);
       setCurrencies(tempCurrencies);
 
-      // Actualizar el contexto localmente si se cambió USD (sin tocar BD para evitar lock)
+      // Actualizar la tasa en la BD si se cambió USD
       const newUsdValue = parseFloat(tempCurrencies.USD);
       if (!isNaN(newUsdValue) && newUsdValue !== rate) {
-        updateRateLocal(newUsdValue);
-        console.log("Rate updated locally to:", newUsdValue);
+        await setManualRate(newUsdValue);
+        console.log("Rate saved to DB:", newUsdValue);
       }
 
       Alert.alert("Éxito", "Valores de monedas actualizados");

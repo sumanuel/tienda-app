@@ -1,6 +1,4 @@
-import * as SQLite from "expo-sqlite";
-
-const db = SQLite.openDatabaseSync("tienda.db");
+import { db } from "./db";
 
 /**
  * Inicializa la base de datos y crea las tablas necesarias

@@ -1,6 +1,4 @@
-import * as SQLite from "expo-sqlite";
-
-const db = SQLite.openDatabaseSync("tienda.db");
+import { db } from "./db";
 
 /**
  * Inicializa la tabla de tasas de cambio
@@ -47,6 +45,8 @@ export const getActiveExchangeRate = async () => {
  */
 export const insertExchangeRate = async (source, rate) => {
   try {
+    console.log(`Inserting exchange rate: ${source} = ${rate}`);
+
     // Desactivar todas las tasas anteriores
     await db.runAsync("UPDATE exchange_rates SET isActive = 0;");
 
@@ -56,8 +56,11 @@ export const insertExchangeRate = async (source, rate) => {
        VALUES (?, ?, 'USD', 'VES', 1);`,
       [source, rate]
     );
+
+    console.log(`Exchange rate inserted with ID: ${result.lastInsertRowId}`);
     return result.lastInsertRowId;
   } catch (error) {
+    console.error("Error inserting exchange rate:", error);
     throw error;
   }
 };
