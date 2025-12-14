@@ -1,17 +1,40 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { formatCurrency } from "../../utils/currency";
+import { getSettings } from "../../services/database/settings";
 
 /**
  * Componente para mostrar precio en múltiples monedas
  */
 export const MultiCurrencyPrice = ({
   priceUSD,
-  priceVES,
+  priceVES, // Opcional, si no se proporciona se calcula
   showBoth = true,
   style,
 }) => {
-  if (!priceUSD && !priceVES) {
+  const [settings, setSettings] = useState({});
+  const [calculatedVES, setCalculatedVES] = useState(priceVES);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const s = await getSettings();
+      setSettings(s);
+    };
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    if (priceUSD && !priceVES && settings.pricing?.currencies?.USD) {
+      const exchangeRate = settings.pricing.currencies.USD;
+      setCalculatedVES(priceUSD * exchangeRate);
+    } else if (priceVES) {
+      setCalculatedVES(priceVES);
+    }
+  }, [priceUSD, priceVES, settings]);
+
+  const displayPriceVES = calculatedVES || priceVES;
+
+  if (!priceUSD && !displayPriceVES) {
     return null;
   }
 
@@ -28,14 +51,14 @@ export const MultiCurrencyPrice = ({
           <View style={styles.priceRow}>
             <Text style={styles.currencyLabel}>VES</Text>
             <Text style={styles.priceVES}>
-              {formatCurrency(priceVES, "VES")}
+              {formatCurrency(displayPriceVES, "VES")}
             </Text>
           </View>
         </>
       ) : (
         <View style={styles.priceRow}>
           <Text style={styles.singlePrice}>
-            {formatCurrency(priceVES, "VES")}
+            {formatCurrency(displayPriceVES, "VES")}
           </Text>
         </View>
       )}

@@ -79,6 +79,7 @@ export const AddProductScreen = ({ navigation }) => {
   const nameRef = useRef(null);
   const categoryRef = useRef(null);
   const costRef = useRef(null);
+  const marginRef = useRef(null);
   const stockRef = useRef(null);
   const descriptionRef = useRef(null);
   const scrollViewRef = useRef(null);
@@ -102,7 +103,6 @@ export const AddProductScreen = ({ navigation }) => {
     name: "",
     category: "",
     priceUSD: calculatedPrices.usd,
-    priceVES: calculatedPrices.ves,
     stock: "",
     description: "",
   });
@@ -112,7 +112,6 @@ export const AddProductScreen = ({ navigation }) => {
     setFormData((prev) => ({
       ...prev,
       priceUSD: calculatedPrices.usd,
-      priceVES: calculatedPrices.ves,
     }));
   }, [calculatedPrices]);
 
@@ -155,7 +154,6 @@ export const AddProductScreen = ({ navigation }) => {
         cost: parseFloat(cost),
         costCurrency: costCurrency,
         priceUSD: parseFloat(calculatedPrices.usd),
-        priceVES: parseFloat(calculatedPrices.ves),
         margin: margin,
         stock: parseInt(formData.stock),
         minStock: 0,
@@ -247,7 +245,7 @@ export const AddProductScreen = ({ navigation }) => {
               value={cost}
               onChangeText={setCost}
               returnKeyType="next"
-              onSubmitEditing={() => stockRef.current?.focus()}
+              onSubmitEditing={() => marginRef.current?.focus()}
               blurOnSubmit={false}
             />
           </View>
@@ -255,11 +253,15 @@ export const AddProductScreen = ({ navigation }) => {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Margen (%)</Text>
             <TextInput
+              ref={marginRef}
               style={styles.input}
               placeholder="30"
               keyboardType="numeric"
               value={margin.toString()}
               onChangeText={(value) => setMargin(parseFloat(value) || 0)}
+              returnKeyType="next"
+              onSubmitEditing={() => stockRef.current?.focus()}
+              blurOnSubmit={false}
             />
           </View>
 

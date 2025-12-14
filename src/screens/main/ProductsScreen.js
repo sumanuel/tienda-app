@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useProducts } from "../../hooks/useProducts";
+import { getSettings } from "../../services/database/settings";
 
 /**
  * Pantalla de gestión de productos
@@ -19,6 +20,16 @@ export const ProductsScreen = ({ navigation }) => {
   const { products, loading, search, loadProducts, removeProduct } =
     useProducts();
   const [searchQuery, setSearchQuery] = useState("");
+  const [settings, setSettings] = useState({});
+
+  // Cargar settings al montar
+  useEffect(() => {
+    const loadSettings = async () => {
+      const s = await getSettings();
+      setSettings(s);
+    };
+    loadSettings();
+  }, []);
 
   // Recargar productos cuando la pantalla se enfoque
   useFocusEffect(
@@ -65,41 +76,47 @@ export const ProductsScreen = ({ navigation }) => {
     );
   };
 
-  const renderProduct = ({ item }) => (
-    <View style={styles.productCard}>
-      <TouchableOpacity
-        style={styles.productInfo}
-        onPress={() => handleEditProduct(item)}
-      >
-        <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productCategory}>{item.category}</Text>
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>$ {item.priceUSD?.toFixed(2)}</Text>
-          <Text style={styles.price}>Bs. {item.priceVES?.toFixed(2)}</Text>
-        </View>
-      </TouchableOpacity>
-      <View style={styles.actionsContainer}>
-        <View style={styles.stockBadge}>
-          <Text style={styles.stockLabel}>Cant:</Text>
-          <Text style={styles.stockText}>{item.stock}</Text>
-        </View>
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.editButton]}
-            onPress={() => handleEditProduct(item)}
-          >
-            <Text style={styles.editButtonText}>✏️</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleDeleteProduct(item)}
-          >
-            <Text style={styles.deleteButtonText}>🗑️</Text>
-          </TouchableOpacity>
+  const renderProduct = ({ item }) => {
+    // Calcular precio en VES dinámicamente usando el tipo de cambio actual
+    const exchangeRate = settings.pricing?.currencies?.USD || 280;
+    const priceVES = item.priceUSD * exchangeRate;
+
+    return (
+      <View style={styles.productCard}>
+        <TouchableOpacity
+          style={styles.productInfo}
+          onPress={() => handleEditProduct(item)}
+        >
+          <Text style={styles.productName}>{item.name}</Text>
+          <Text style={styles.productCategory}>{item.category}</Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>$ {item.priceUSD?.toFixed(2)}</Text>
+            <Text style={styles.price}>Bs. {priceVES?.toFixed(2)}</Text>
+          </View>
+        </TouchableOpacity>
+        <View style={styles.actionsContainer}>
+          <View style={styles.stockBadge}>
+            <Text style={styles.stockLabel}>Cant:</Text>
+            <Text style={styles.stockText}>{item.stock}</Text>
+          </View>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() => handleEditProduct(item)}
+            >
+              <Text style={styles.editButtonText}>✏️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => handleDeleteProduct(item)}
+            >
+              <Text style={styles.deleteButtonText}>🗑️</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>

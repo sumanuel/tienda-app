@@ -26,7 +26,6 @@ export const EditProductScreen = ({ navigation, route }) => {
   const nameRef = useRef(null);
   const categoryRef = useRef(null);
   const priceUSDRef = useRef(null);
-  const priceVESRef = useRef(null);
   const stockRef = useRef(null);
   const descriptionRef = useRef(null);
   const scrollViewRef = useRef(null);
@@ -50,7 +49,6 @@ export const EditProductScreen = ({ navigation, route }) => {
     name: "",
     category: "",
     priceUSD: "",
-    priceVES: "",
     stock: "",
     description: "",
   });
@@ -62,7 +60,6 @@ export const EditProductScreen = ({ navigation, route }) => {
         name: product.name || "",
         category: product.category || "",
         priceUSD: product.priceUSD?.toString() || "",
-        priceVES: product.priceVES?.toString() || "",
         stock: product.stock?.toString() || "",
         description: product.description || "",
       });
@@ -70,19 +67,6 @@ export const EditProductScreen = ({ navigation, route }) => {
   }, [product]);
 
   // Actualizar precio VES automáticamente cuando cambie precio USD o tasa
-  useEffect(() => {
-    if (formData.priceUSD && exchangeRate) {
-      const usdPrice = parseFloat(formData.priceUSD);
-      if (!isNaN(usdPrice)) {
-        const vesPrice = convertUSDToVES(usdPrice, exchangeRate);
-        setFormData((prev) => ({
-          ...prev,
-          priceVES: vesPrice.toFixed(2),
-        }));
-      }
-    }
-  }, [formData.priceUSD, exchangeRate]);
-
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
@@ -124,7 +108,6 @@ export const EditProductScreen = ({ navigation, route }) => {
         category: formData.category.trim() || "General",
         cost: usdPrice, // El costo base es en USD
         priceUSD: usdPrice,
-        priceVES: vesPrice,
         margin: product.margin || 0, // Mantener margen existente
         stock: parseInt(formData.stock),
         minStock: product.minStock || 0,
@@ -199,21 +182,6 @@ export const EditProductScreen = ({ navigation, route }) => {
               keyboardType="numeric"
               value={formData.priceUSD}
               onChangeText={(value) => handleInputChange("priceUSD", value)}
-              returnKeyType="next"
-              onSubmitEditing={() => priceVESRef.current?.focus()}
-              blurOnSubmit={false}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Precio en VES</Text>
-            <TextInput
-              ref={priceVESRef}
-              style={styles.input}
-              placeholder="0.00"
-              keyboardType="numeric"
-              value={formData.priceVES}
-              onChangeText={(value) => handleInputChange("priceVES", value)}
               returnKeyType="next"
               onSubmitEditing={() => stockRef.current?.focus()}
               blurOnSubmit={false}
