@@ -21,6 +21,7 @@ import EditProductScreen from "./src/screens/main/EditProductScreen";
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
 import { initSettingsTable } from "./src/services/database/settings";
+import { initSampleProducts } from "./src/services/database/products";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -108,6 +109,9 @@ export default function App() {
 
       // Inicializar settings con valores por defecto
       await initSettingsTable();
+
+      // Inicializar productos de ejemplo si no existen
+      await initSampleProducts();
 
       console.log("Database initialized successfully");
       setIsReady(true);

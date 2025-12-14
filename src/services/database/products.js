@@ -214,6 +214,106 @@ export const getLowStockProducts = async () => {
 };
 
 /**
+ * Inicializa productos de ejemplo
+ */
+export const initSampleProducts = async () => {
+  try {
+    // Verificar si ya hay productos
+    const existingProducts = await db.getAllAsync(
+      "SELECT COUNT(*) as count FROM products;"
+    );
+    if (existingProducts[0].count > 0) {
+      console.log("Productos ya existen, saltando inicialización");
+      return;
+    }
+
+    console.log("Inicializando productos de ejemplo...");
+
+    const sampleProducts = [
+      {
+        name: "Leche Entera 1L",
+        priceUSD: 2.5,
+        category: "Lácteos",
+        stock: 50,
+      },
+      { name: "Pan Francés", priceUSD: 1.2, category: "Panadería", stock: 30 },
+      { name: "Arroz 1Kg", priceUSD: 1.8, category: "Granos", stock: 40 },
+      {
+        name: "Aceite de Oliva 500ml",
+        priceUSD: 4.5,
+        category: "Aceites",
+        stock: 25,
+      },
+      { name: "Huevos Docena", priceUSD: 3.0, category: "Huevos", stock: 20 },
+      {
+        name: "Queso Cheddar 200g",
+        priceUSD: 5.2,
+        category: "Lácteos",
+        stock: 15,
+      },
+      { name: "Manzanas 1Kg", priceUSD: 2.8, category: "Frutas", stock: 35 },
+      {
+        name: "Pollo Entero 1Kg",
+        priceUSD: 6.5,
+        category: "Carnes",
+        stock: 12,
+      },
+      { name: "Pasta 500g", priceUSD: 1.5, category: "Pastas", stock: 28 },
+      { name: "Café Molido 250g", priceUSD: 4.0, category: "Café", stock: 18 },
+      { name: "Azúcar 1Kg", priceUSD: 2.2, category: "Endulzantes", stock: 45 },
+      { name: "Sal 500g", priceUSD: 0.8, category: "Condimentos", stock: 60 },
+      {
+        name: "Jabón en Polvo 1Kg",
+        priceUSD: 3.8,
+        category: "Limpieza",
+        stock: 22,
+      },
+      {
+        name: "Detergente Líquido 1L",
+        priceUSD: 2.9,
+        category: "Limpieza",
+        stock: 16,
+      },
+      {
+        name: "Cereal de Maíz 500g",
+        priceUSD: 2.1,
+        category: "Cereales",
+        stock: 32,
+      },
+      {
+        name: "Yogurt Natural 150g",
+        priceUSD: 1.0,
+        category: "Lácteos",
+        stock: 40,
+      },
+      {
+        name: "Mantequilla 200g",
+        priceUSD: 3.5,
+        category: "Lácteos",
+        stock: 14,
+      },
+      { name: "Tomates 1Kg", priceUSD: 2.0, category: "Verduras", stock: 38 },
+      { name: "Cebollas 1Kg", priceUSD: 1.6, category: "Verduras", stock: 42 },
+      { name: "Papas 1Kg", priceUSD: 1.4, category: "Verduras", stock: 50 },
+    ];
+
+    await db.withTransactionAsync(async () => {
+      for (const product of sampleProducts) {
+        await db.runAsync(
+          "INSERT INTO products (name, priceUSD, category, stock, active) VALUES (?, ?, ?, ?, ?);",
+          [product.name, product.priceUSD, product.category, product.stock, 1]
+        );
+      }
+    });
+
+    console.log("Productos de ejemplo inicializados correctamente");
+  } catch (error) {
+    console.error("Error inicializando productos:", error);
+    throw error;
+  }
+};
+
+/**
  * Actualiza todos los precios VES basados en la nueva tasa de cambio
  * @param {number} exchangeRate - Nueva tasa de cambio USD → VES
  */
@@ -242,6 +342,8 @@ export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
 
 export default {
   initDatabase,
+  checkTableExists,
+  initSampleProducts,
   getAllProducts,
   getProductByBarcode,
   searchProducts,
