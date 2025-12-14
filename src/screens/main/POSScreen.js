@@ -14,6 +14,7 @@ import {
 import { useProducts } from "../../hooks/useProducts";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
+import { updateProductStock } from "../../services/database/products";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -21,7 +22,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
  * Pantalla de punto de venta (POS)
  */
 export const POSScreen = () => {
-  const { products, loading: productsLoading } = useProducts();
+  const { products, loading: productsLoading, refresh: refreshProducts } = useProducts();
   const { registerSale: addSale } = useSales();
   const { rate: exchangeRate } = useExchangeRate();
 
@@ -175,6 +176,18 @@ export const POSScreen = () => {
       }));
 
       await addSale(saleData, saleItems);
+
+      // Actualizar stock de productos vendidos
+      for (const item of cart) {
+        const newStock = item.product.stock - item.quantity;
+        await updateProductStock(item.product.id, newStock);
+        console.log(
+          `Stock actualizado: ${item.name} - Nuevo stock: ${newStock}`
+        );
+      }
+
+      // Recargar productos para reflejar el nuevo stock
+      await refreshProducts();
 
       Alert.alert(
         "✓ Venta completada",
