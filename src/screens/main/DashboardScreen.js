@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -22,9 +22,16 @@ export const DashboardScreen = ({ navigation }) => {
     lastUpdate,
     updateRate,
   } = useExchangeRate({ autoUpdate: true, updateInterval: 30 });
-  const { todayStats, loading: salesLoading } = useSales();
+  const { todayStats, loading: salesLoading, loadTodayStats } = useSales();
   const { stats: inventoryStats, loading: inventoryLoading } = useInventory();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Recargar estadísticas cuando cambie el tipo de cambio
+  useEffect(() => {
+    if (rate) {
+      loadTodayStats();
+    }
+  }, [rate, loadTodayStats]);
 
   const onRefresh = async () => {
     setRefreshing(true);

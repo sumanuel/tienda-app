@@ -5,6 +5,9 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, View, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// Context
+import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
+
 // Screens
 import DashboardScreen from "./src/screens/main/DashboardScreen";
 import POSScreen from "./src/screens/main/POSScreen";
@@ -125,56 +128,58 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen
-          name="Main"
-          component={MainTabs}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="ExchangeRate"
-          component={ExchangeRateScreen}
-          options={{
-            title: "Tasa de Cambio",
-            headerStyle: {
-              backgroundColor: "#4CAF50",
-            },
-            headerTintColor: "#fff",
-            headerTitleStyle: {
-              fontWeight: "bold",
-            },
-          }}
-        />
-        <Stack.Screen
-          name="AddProduct"
-          component={AddProductScreen}
-          options={{
-            title: "Nuevo Producto",
-            headerStyle: {
-              backgroundColor: "#4CAF50",
-            },
-            headerTintColor: "#fff",
-            headerTitleStyle: {
-              fontWeight: "bold",
-            },
-          }}
-        />
-        <Stack.Screen
-          name="EditProduct"
-          component={EditProductScreen}
-          options={{
-            title: "Editar Producto",
-            headerStyle: {
-              backgroundColor: "#4CAF50",
-            },
-            headerTintColor: "#fff",
-            headerTitleStyle: {
-              fontWeight: "bold",
-            },
-          }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <ExchangeRateProvider>
+      <NavigationContainer>
+        <Stack.Navigator>
+          <Stack.Screen
+            name="Main"
+            component={MainTabs}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="ExchangeRate"
+            component={ExchangeRateScreen}
+            options={{
+              title: "Tasa de Cambio",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AddProduct"
+            component={AddProductScreen}
+            options={{
+              title: "Nuevo Producto",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="EditProduct"
+            component={EditProductScreen}
+            options={{
+              title: "Editar Producto",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ExchangeRateProvider>
   );
 }

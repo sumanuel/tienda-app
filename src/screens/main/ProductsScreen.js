@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useProducts } from "../../hooks/useProducts";
 import { getSettings } from "../../services/database/settings";
+import { useExchangeRate } from "../../hooks/useExchangeRate";
 
 /**
  * Pantalla de gestión de productos
@@ -21,6 +22,7 @@ export const ProductsScreen = ({ navigation }) => {
     useProducts();
   const [searchQuery, setSearchQuery] = useState("");
   const [settings, setSettings] = useState({});
+  const { rate: exchangeRate } = useExchangeRate();
 
   // Cargar settings al montar
   useEffect(() => {
@@ -31,10 +33,16 @@ export const ProductsScreen = ({ navigation }) => {
     loadSettings();
   }, []);
 
-  // Recargar productos cuando la pantalla se enfoque
+  // Recargar productos y settings cuando la pantalla se enfoque
   useFocusEffect(
     useCallback(() => {
       loadProducts();
+      // Recargar settings también por si cambió el tipo de cambio
+      const loadSettings = async () => {
+        const s = await getSettings();
+        setSettings(s);
+      };
+      loadSettings();
     }, [loadProducts])
   );
 
@@ -78,8 +86,8 @@ export const ProductsScreen = ({ navigation }) => {
 
   const renderProduct = ({ item }) => {
     // Calcular precio en VES dinámicamente usando el tipo de cambio actual
-    const exchangeRate = settings.pricing?.currencies?.USD || 280;
-    const priceVES = item.priceUSD * exchangeRate;
+    const rate = exchangeRate || settings.pricing?.currencies?.USD || 280;
+    const priceVES = item.priceUSD * rate;
 
     return (
       <View style={styles.productCard}>

@@ -99,6 +99,7 @@ export const useSales = () => {
     error,
     todayStats,
     loadSales,
+    loadTodayStats,
     registerSale,
     getSaleDetails,
     getPeriodTotals,
