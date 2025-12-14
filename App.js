@@ -21,7 +21,6 @@ import EditProductScreen from "./src/screens/main/EditProductScreen";
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
 import { initSettingsTable } from "./src/services/database/settings";
-import { initSampleProducts } from "./src/services/database/products";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();

@@ -36,124 +36,16 @@ export const initDatabase = async () => {
 };
 
 /**
- * Inicializa productos de ejemplo
+ * Verifica si la tabla products existe
  */
-export const initSampleProducts = async () => {
+export const checkTableExists = async () => {
   try {
-    // Verificar si ya hay productos
-    const existing = await db.getAllAsync("SELECT id FROM products LIMIT 1;");
-    if (existing.length > 0) {
-      console.log("Products already exist, skipping sample data");
-      return;
-    }
-
-    const sampleProducts = [
-      {
-        name: "Coca Cola 350ml",
-        barcode: "1234567890123",
-        category: "Bebidas",
-        description: "Refresco de cola",
-        cost: 1.50,
-        priceUSD: 2.00,
-        priceVES: 50.00,
-        margin: 25,
-        stock: 100,
-        minStock: 10,
-        active: 1
-      },
-      {
-        name: "Papas Fritas Lays",
-        barcode: "1234567890124",
-        category: "Snacks",
-        description: "Papas fritas clásicas",
-        cost: 2.00,
-        priceUSD: 3.00,
-        priceVES: 75.00,
-        margin: 25,
-        stock: 50,
-        minStock: 5,
-        active: 1
-      },
-      {
-        name: "Pan Integral",
-        barcode: "1234567890125",
-        category: "Panadería",
-        description: "Pan integral fresco",
-        cost: 1.00,
-        priceUSD: 1.50,
-        priceVES: 37.50,
-        margin: 25,
-        stock: 30,
-        minStock: 3,
-        active: 1
-      },
-      {
-        name: "Leche Entera 1L",
-        barcode: "1234567890126",
-        category: "Lácteos",
-        description: "Leche entera pasteurizada",
-        cost: 2.50,
-        priceUSD: 3.50,
-        priceVES: 87.50,
-        margin: 20,
-        stock: 25,
-        minStock: 5,
-        active: 1
-      },
-      {
-        name: "Arroz 1Kg",
-        barcode: "1234567890127",
-        category: "Granos",
-        description: "Arroz blanco de primera",
-        cost: 1.80,
-        priceUSD: 2.50,
-        priceVES: 62.50,
-        margin: 28,
-        stock: 40,
-        minStock: 8,
-        active: 1
-      },
-      {
-        name: "Aceite de Oliva 500ml",
-        barcode: "1234567890128",
-        category: "Aceites",
-        description: "Aceite de oliva extra virgen",
-        cost: 8.00,
-        priceUSD: 12.00,
-        priceVES: 300.00,
-        margin: 25,
-        stock: 15,
-        minStock: 3,
-        active: 1
-      }
-    ];
-
-    for (const product of sampleProducts) {
-      await db.runAsync(
-        `INSERT INTO products (name, barcode, category, description, cost, priceUSD, priceVES, margin, stock, minStock, active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        [
-          product.name,
-          product.barcode,
-          product.category,
-          product.description,
-          product.cost,
-          product.priceUSD,
-          product.priceVES,
-          product.margin,
-          product.stock,
-          product.minStock,
-          product.active
-        ]
-      );
-    }
-
-    console.log("Sample products inserted successfully");
+    const result = await db.getAllAsync(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='products';"
+    );
+    return result.length > 0;
   } catch (error) {
-    console.error("Error inserting sample products:", error);
-    throw error;
-  }
-};
+    console.error("Error checking table:", error);
     return false;
   }
 };
