@@ -40,15 +40,15 @@ export const getAllCustomers = async () => {
 };
 
 /**
- * Busca clientes por nombre o teléfono
+ * Busca clientes por nombre, teléfono o cédula
  */
 export const searchCustomers = async (query) => {
   try {
     const result = await db.getAllAsync(
       `SELECT * FROM customers
-       WHERE (name LIKE ? OR phone LIKE ?) AND active = 1
+       WHERE (name LIKE ? OR phone LIKE ? OR documentNumber LIKE ?) AND active = 1
        ORDER BY name;`,
-      [`%${query}%`, `%${query}%`]
+      [`%${query}%`, `%${query}%`, `%${query}%`]
     );
     return result;
   } catch (error) {

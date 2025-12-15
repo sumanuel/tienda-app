@@ -1,0 +1,119 @@
+import { useState, useEffect, useCallback } from "react";
+import {
+  getAllCustomers,
+  searchCustomers,
+  insertCustomer,
+  updateCustomer,
+  deleteCustomer,
+} from "../services/database/customers";
+
+/**
+ * Hook para gestionar clientes
+ */
+export const useCustomers = () => {
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  const loadCustomers = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getAllCustomers();
+      setCustomers(data);
+    } catch (err) {
+      setError(err.message);
+      console.error("Error loading customers:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const search = useCallback(
+    async (query) => {
+      try {
+        setError(null);
+        if (!query.trim()) {
+          await loadCustomers();
+          return;
+        }
+        const data = await searchCustomers(query);
+        setCustomers(data);
+      } catch (err) {
+        setError(err.message);
+        console.error("Error searching customers:", err);
+      }
+    },
+    [loadCustomers]
+  );
+
+  const addCustomer = useCallback(
+    async (customerData) => {
+      try {
+        setError(null);
+        await insertCustomer(customerData);
+        await loadCustomers();
+      } catch (err) {
+        setError(err.message);
+        console.error("Error adding customer:", err);
+        throw err;
+      }
+    },
+    [loadCustomers]
+  );
+
+  const editCustomer = useCallback(
+    async (id, customerData) => {
+      try {
+        setError(null);
+        await updateCustomer(id, customerData);
+        await loadCustomers();
+      } catch (err) {
+        setError(err.message);
+        console.error("Error editing customer:", err);
+        throw err;
+      }
+    },
+    [loadCustomers]
+  );
+
+  const removeCustomer = useCallback(
+    async (id) => {
+      try {
+        setError(null);
+        await deleteCustomer(id);
+        await loadCustomers();
+      } catch (err) {
+        setError(err.message);
+        console.error("Error removing customer:", err);
+        throw err;
+      }
+    },
+    [loadCustomers]
+  );
+
+  const getCustomerStats = useCallback(() => {
+    const total = customers.length;
+    const active = customers.filter((c) => c.active !== 0).length;
+    return { total, active };
+  }, [customers]);
+
+  return {
+    customers,
+    loading,
+    error,
+    loadCustomers,
+    search,
+    addCustomer,
+    editCustomer,
+    removeCustomer,
+    getCustomerStats,
+    refresh: loadCustomers,
+  };
+};
+
+export default useCustomers;

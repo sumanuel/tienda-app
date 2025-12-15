@@ -10,6 +10,7 @@ import {
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useSales } from "../../hooks/useSales";
 import { useInventory } from "../../hooks/useInventory";
+import { useCustomers } from "../../hooks/useCustomers";
 import RateDisplay from "../../components/exchange/RateDisplay";
 
 /**
@@ -28,6 +29,7 @@ export const DashboardScreen = ({ navigation }) => {
     loading: inventoryLoading,
     refresh: refreshInventory,
   } = useInventory();
+  const { customers, loading: customersLoading } = useCustomers();
   const [refreshing, setRefreshing] = useState(false);
 
   // Recargar estadísticas cuando cambie el tipo de cambio
@@ -117,6 +119,23 @@ export const DashboardScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {/* Estadísticas de Clientes */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Clientes</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>{customers?.length || 0}</Text>
+            <Text style={styles.statLabel}>Total</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>
+              {customers?.filter((c) => c.active !== 0).length || 0}
+            </Text>
+            <Text style={styles.statLabel}>Activos</Text>
+          </View>
+        </View>
+      </View>
+
       {/* Accesos Rápidos */}
       <View style={styles.quickActions}>
         <TouchableOpacity
@@ -137,7 +156,7 @@ export const DashboardScreen = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => navigation.navigate("Clients")}
+          onPress={() => navigation.navigate("Customers")}
         >
           <Text style={styles.actionIcon}>👥</Text>
           <Text style={styles.actionText}>Clientes</Text>
