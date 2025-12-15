@@ -57,6 +57,44 @@ export const searchCustomers = async (query) => {
 };
 
 /**
+ * Busca un cliente por número de cédula
+ */
+export const getCustomerByDocumentNumber = async (documentNumber) => {
+  try {
+    const result = await db.getAllAsync(
+      "SELECT * FROM customers WHERE documentNumber = ? AND active = 1;",
+      [documentNumber]
+    );
+    return result[0] || null;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Crea el cliente genérico si no existe
+ */
+export const createGenericCustomer = async () => {
+  try {
+    // Verificar si ya existe el cliente genérico
+    const existing = await getCustomerByDocumentNumber("1");
+    if (existing) {
+      return existing.id;
+    }
+
+    // Crear cliente genérico
+    const result = await db.runAsync(
+      `INSERT INTO customers (name, documentNumber, documentType)
+       VALUES (?, ?, ?);`,
+      ["Cliente Genérico", "1", "V"]
+    );
+    return result.lastInsertRowId;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Inserta un nuevo cliente
  */
 export const insertCustomer = async (customer) => {
@@ -124,6 +162,8 @@ export default {
   initCustomersTable,
   getAllCustomers,
   searchCustomers,
+  getCustomerByDocumentNumber,
+  createGenericCustomer,
   insertCustomer,
   updateCustomer,
   deleteCustomer,

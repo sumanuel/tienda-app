@@ -1,4 +1,5 @@
 import * as SQLite from "expo-sqlite";
+import { createGenericCustomer } from "./customers";
 
 /**
  * Instancia única de la base de datos
@@ -64,6 +65,10 @@ export const initAllTables = async () => {
           email TEXT,
           phone TEXT,
           address TEXT,
+          documentType TEXT,
+          documentNumber TEXT,
+          totalPurchases REAL DEFAULT 0,
+          active INTEGER DEFAULT 1,
           createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
           updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
         );
@@ -142,6 +147,9 @@ export const initAllTables = async () => {
       CREATE INDEX IF NOT EXISTS idx_accounts_payable_status ON accounts_payable(status, dueDate);
       CREATE INDEX IF NOT EXISTS idx_active_rate ON exchange_rates(isActive, createdAt);
     `);
+
+    // Crear cliente genérico si no existe
+    await createGenericCustomer();
 
     tablesInitialized = true;
     console.log("All tables created successfully");

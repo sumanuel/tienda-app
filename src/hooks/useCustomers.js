@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import {
   getAllCustomers,
   searchCustomers,
+  getCustomerByDocumentNumber,
+  createGenericCustomer,
   insertCustomer,
   updateCustomer,
   deleteCustomer,
@@ -50,6 +52,30 @@ export const useCustomers = () => {
     },
     [loadCustomers]
   );
+
+  const getCustomerByDocument = useCallback(async (documentNumber) => {
+    try {
+      setError(null);
+      const customer = await getCustomerByDocumentNumber(documentNumber);
+      return customer;
+    } catch (err) {
+      setError(err.message);
+      console.error("Error getting customer by document:", err);
+      throw err;
+    }
+  }, []);
+
+  const ensureGenericCustomer = useCallback(async () => {
+    try {
+      setError(null);
+      const customerId = await createGenericCustomer();
+      return customerId;
+    } catch (err) {
+      setError(err.message);
+      console.error("Error creating generic customer:", err);
+      throw err;
+    }
+  }, []);
 
   const addCustomer = useCallback(
     async (customerData) => {
@@ -108,6 +134,8 @@ export const useCustomers = () => {
     error,
     loadCustomers,
     search,
+    getCustomerByDocument,
+    ensureGenericCustomer,
     addCustomer,
     editCustomer,
     removeCustomer,

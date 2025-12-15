@@ -15,6 +15,7 @@ import { useProducts } from "../../hooks/useProducts";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useAccounts } from "../../hooks/useAccounts";
+import { useCustomers } from "../../hooks/useCustomers";
 import { updateProductStock } from "../../services/database/products";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -31,14 +32,19 @@ export const POSScreen = () => {
   const { registerSale: addSale } = useSales();
   const { rate: exchangeRate } = useExchangeRate();
   const { addAccountReceivable } = useAccounts();
+  const { getCustomerByDocument, ensureGenericCustomer, addCustomer } =
+    useCustomers();
 
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [customerName, setCustomerName] = useState("");
+  const [customerDocument, setCustomerDocument] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [showCart, setShowCart] = useState(false);
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [pendingSaleData, setPendingSaleData] = useState(null);
 
   // Calcular total cuando cambie el carrito
   useEffect(() => {
@@ -156,9 +162,54 @@ export const POSScreen = () => {
     }
 
     try {
+      let customerId = null;
+      let customerName = "Cliente";
+
+      // Si se especificó una cédula
+      if (customerDocument.trim()) {
+        if (customerDocument === "1") {
+          // Cliente genérico
+          customerId = await ensureGenericCustomer();
+          customerName = "Cliente Genérico";
+        } else {
+          // Buscar cliente por cédula
+          const existingCustomer = await getCustomerByDocument(
+            customerDocument
+          );
+          if (existingCustomer) {
+            customerId = existingCustomer.id;
+            customerName = existingCustomer.name;
+          } else {
+            // Cliente no existe, mostrar modal para crear
+            setPendingSaleData({
+              subtotal: total,
+              tax: 0,
+              discount: 0,
+              total: total,
+              currency: "VES",
+              exchangeRate: exchangeRate,
+              paymentMethod: paymentMethod,
+              paid: total,
+              change: 0,
+              status: "completed",
+              notes: `Cliente: ${customerDocument}`,
+              saleItems: cart.map((item) => ({
+                productId: item.product.id,
+                productName: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                subtotal: item.subtotal,
+              })),
+            });
+            setShowNewCustomerModal(true);
+            return;
+          }
+        }
+      }
+
       // Preparar datos de la venta
       const saleData = {
-        customerId: null, // Por ahora no tenemos clientes
+        customerId: customerId,
         subtotal: total,
         tax: 0,
         discount: 0,
@@ -169,7 +220,7 @@ export const POSScreen = () => {
         paid: total,
         change: 0,
         status: "completed",
-        notes: `Cliente: ${customerName.trim() || "Cliente"}`,
+        notes: `Cliente: ${customerName}`,
       };
 
       // Preparar items de la venta
@@ -216,19 +267,17 @@ export const POSScreen = () => {
 
       // Limpiar carrito y cerrar modal primero
       setCart([]);
-      setCustomerName("");
+      setCustomerDocument("");
       setTotal(0);
       setShowCart(false);
 
       // Mostrar confirmación
       const confirmationMessage =
         paymentMethod === "por_cobrar"
-          ? `Total: VES. ${total.toFixed(2)}\nCliente: ${
-              customerName.trim() || "Cliente"
-            }\n\n✅ Cuenta por cobrar creada automáticamente`
-          : `Total: VES. ${total.toFixed(2)}\nCliente: ${
-              customerName.trim() || "Cliente"
-            }`;
+          ? `Total: VES. ${total.toFixed(
+              2
+            )}\nCliente: ${customerName}\n\n✅ Cuenta por cobrar creada automáticamente`
+          : `Total: VES. ${total.toFixed(2)}\nCliente: ${customerName}`;
 
       Alert.alert("✓ Venta completada", confirmationMessage);
     } catch (error) {
@@ -238,7 +287,100 @@ export const POSScreen = () => {
   };
 
   /**
-   * Renderiza un producto en la grilla
+   * Crea un nuevo cliente y completa la venta pendiente
+   */
+  const createCustomerAndCompleteSale = async () => {
+    if (!newCustomerName.trim()) {
+      Alert.alert("Error", "El nombre del cliente es obligatorio");
+      return;
+    }
+
+    try {
+      // Crear el nuevo cliente
+      const customerData = {
+        name: newCustomerName.trim(),
+        documentNumber: customerDocument,
+        documentType: "V", // Venezolano por defecto
+      };
+
+      const newCustomerId = await addCustomer(customerData);
+
+      // Completar la venta con el nuevo cliente
+      const saleData = {
+        ...pendingSaleData,
+        customerId: newCustomerId,
+        notes: `Cliente: ${newCustomerName.trim()}`,
+      };
+
+      await addSale(saleData, pendingSaleData.saleItems);
+
+      // Actualizar stock de productos vendidos
+      for (const item of cart) {
+        const newStock = item.product.stock - item.quantity;
+        await updateProductStock(item.product.id, newStock);
+        console.log(
+          `Stock actualizado: ${item.name} - Nuevo stock: ${newStock}`
+        );
+      }
+
+      // Recargar productos para reflejar el nuevo stock
+      await refreshProducts();
+
+      // Si el método de pago es "por_cobrar", crear cuenta por cobrar automáticamente
+      if (pendingSaleData.paymentMethod === "por_cobrar") {
+        try {
+          const accountData = {
+            customerName: newCustomerName.trim(),
+            amount: pendingSaleData.total,
+            description: `Venta a crédito - ${cart.length} producto(s): ${cart
+              .map((item) => item.name)
+              .join(", ")}`,
+            dueDate: null,
+          };
+          await addAccountReceivable(accountData);
+          console.log("Cuenta por cobrar creada automáticamente");
+        } catch (accountError) {
+          console.error("Error creando cuenta por cobrar:", accountError);
+        }
+      }
+
+      // Limpiar estados
+      setCart([]);
+      setCustomerDocument("");
+      setTotal(0);
+      setShowCart(false);
+      setShowNewCustomerModal(false);
+      setNewCustomerName("");
+      setPendingSaleData(null);
+
+      // Mostrar confirmación
+      const confirmationMessage =
+        pendingSaleData.paymentMethod === "por_cobrar"
+          ? `Total: VES. ${pendingSaleData.total.toFixed(
+              2
+            )}\nCliente: ${newCustomerName.trim()}\n\n✅ Cliente creado y cuenta por cobrar generada`
+          : `Total: VES. ${pendingSaleData.total.toFixed(
+              2
+            )}\nCliente: ${newCustomerName.trim()}\n\n✅ Cliente creado exitosamente`;
+
+      Alert.alert("✓ Venta completada", confirmationMessage);
+    } catch (error) {
+      console.error("Error creating customer and completing sale:", error);
+      Alert.alert("Error", "No se pudo crear el cliente y completar la venta");
+    }
+  };
+
+  /**
+   * Cancela la creación de cliente y vuelve al carrito
+   */
+  const cancelNewCustomer = () => {
+    setShowNewCustomerModal(false);
+    setNewCustomerName("");
+    setPendingSaleData(null);
+  };
+
+  /**
+   * Renderiza un producto
    */
   const renderProduct = ({ item }) => {
     const isOutOfStock = item.stock <= 0;
@@ -446,11 +588,22 @@ export const POSScreen = () => {
               <Text style={styles.sectionTitle}>👤 Cliente</Text>
               <TextInput
                 style={styles.customerInput}
-                placeholder="Nombre del cliente (opcional)"
-                value={customerName}
-                onChangeText={setCustomerName}
+                placeholder="Cédula del cliente (opcional)"
+                value={customerDocument}
+                onChangeText={(text) => {
+                  // Solo permitir números
+                  const numericText = text.replace(/[^0-9]/g, "");
+                  setCustomerDocument(numericText);
+                }}
+                keyboardType="numeric"
+                maxLength={10}
                 placeholderTextColor="#999"
               />
+              {customerDocument === "1" && (
+                <Text style={styles.genericCustomerText}>
+                  Cliente genérico para operaciones rápidas
+                </Text>
+              )}
             </View>
 
             {/* Items del carrito */}
@@ -614,6 +767,49 @@ export const POSScreen = () => {
                 disabled={cart.length === 0}
               >
                 <Text style={styles.checkoutText}>✓ Completar Venta</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para crear nuevo cliente */}
+      <Modal
+        visible={showNewCustomerModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={cancelNewCustomer}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.newCustomerModalContent}>
+            <Text style={styles.modalTitle}>👤 Nuevo Cliente</Text>
+            <Text style={styles.newCustomerInfo}>
+              La cédula {customerDocument} no está registrada.{"\n"}
+              Ingresa el nombre para crear el cliente:
+            </Text>
+
+            <TextInput
+              style={styles.newCustomerInput}
+              placeholder="Nombre completo del cliente *"
+              value={newCustomerName}
+              onChangeText={setNewCustomerName}
+              autoFocus={true}
+              placeholderTextColor="#999"
+            />
+
+            <View style={styles.newCustomerButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={cancelNewCustomer}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={createCustomerAndCompleteSale}
+              >
+                <Text style={styles.saveButtonText}>Crear y Vender</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1101,6 +1297,44 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  newCustomerModalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    width: "90%",
+    maxWidth: 400,
+    padding: 20,
+  },
+  newCustomerInfo: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  newCustomerInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  newCustomerButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  genericCustomerText: {
+    fontSize: 12,
+    color: "#4CAF50",
+    fontStyle: "italic",
+    marginTop: 4,
   },
 });
 
