@@ -24,7 +24,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 /**
  * Pantalla de punto de venta (POS)
  */
-export const POSScreen = () => {
+export const POSScreen = ({ navigation }) => {
   const {
     products,
     loading: productsLoading,
@@ -104,6 +104,17 @@ export const POSScreen = () => {
       }, 100); // Pequeño delay para asegurar que el modal esté completamente abierto
     }
   }, [showCart]);
+
+  // Recargar productos cuando se vuelve a la pantalla POS
+  useEffect(() => {
+    if (navigation) {
+      const unsubscribe = navigation.addListener("focus", () => {
+        console.log("Volviendo a POS, recargando productos...");
+        refreshProducts();
+      });
+      return unsubscribe;
+    }
+  }, [navigation, refreshProducts]);
 
   // Obtener categorías únicas
   const categories = [
