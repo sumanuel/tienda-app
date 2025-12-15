@@ -51,6 +51,7 @@ export const POSScreen = () => {
   // Animación para el campo de referencia
   const referenceAnimation = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef(null);
+  const paymentSectionRef = useRef(null);
 
   // Calcular total cuando cambie el carrito
   useEffect(() => {
@@ -68,13 +69,41 @@ export const POSScreen = () => {
       useNativeDriver: false,
     }).start(() => {
       // Auto-scroll después de que termine la animación
-      if (shouldShow && scrollViewRef.current) {
+      if (scrollViewRef.current) {
         setTimeout(() => {
-          scrollViewRef.current.scrollToEnd({ animated: true });
+          if (shouldShow) {
+            // Scroll hacia abajo para mostrar el campo de referencia
+            scrollViewRef.current.scrollToEnd({ animated: true });
+          } else {
+            // Scroll hacia la sección de métodos de pago
+            if (paymentSectionRef.current) {
+              paymentSectionRef.current.measure(
+                (x, y, width, height, pageX, pageY) => {
+                  scrollViewRef.current.scrollTo({
+                    x: 0,
+                    y: pageY - 50,
+                    animated: true,
+                  });
+                }
+              );
+            } else {
+              // Fallback si no hay referencia
+              scrollViewRef.current.scrollTo({ x: 0, y: 200, animated: true });
+            }
+          }
         }, 100); // Pequeño delay para asegurar que el layout esté listo
       }
     });
   }, [paymentMethod, referenceAnimation]);
+
+  // Scroll hacia arriba cuando se abre el carrito
+  useEffect(() => {
+    if (showCart && scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
+      }, 100); // Pequeño delay para asegurar que el modal esté completamente abierto
+    }
+  }, [showCart]);
 
   // Obtener categorías únicas
   const categories = [
@@ -669,7 +698,7 @@ export const POSScreen = () => {
 
             {/* Método de pago */}
             {cart.length > 0 && (
-              <View style={styles.paymentSection}>
+              <View style={styles.paymentSection} ref={paymentSectionRef}>
                 <Text style={styles.sectionTitle}>💳 Método de Pago</Text>
                 <ScrollView
                   horizontal
