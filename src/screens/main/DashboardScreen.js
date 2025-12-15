@@ -12,6 +12,7 @@ import { useSales } from "../../hooks/useSales";
 import { useInventory } from "../../hooks/useInventory";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useSuppliers } from "../../hooks/useSuppliers";
+import { useAccounts } from "../../hooks/useAccounts";
 import RateDisplay from "../../components/exchange/RateDisplay";
 
 /**
@@ -32,6 +33,11 @@ export const DashboardScreen = ({ navigation }) => {
   } = useInventory();
   const { customers, loading: customersLoading } = useCustomers();
   const { suppliers, loading: suppliersLoading } = useSuppliers();
+  const {
+    receivableStats,
+    payableStats,
+    loading: accountsLoading,
+  } = useAccounts();
   const [refreshing, setRefreshing] = useState(false);
 
   // Recargar estadísticas cuando cambie el tipo de cambio
@@ -142,9 +148,58 @@ export const DashboardScreen = ({ navigation }) => {
       </View>
       */}
 
+      {/* Estadísticas de Cuentas por Cobrar */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Cuentas por Cobrar</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>
+              VES. {(receivableStats?.pending || 0).toFixed(2)}
+            </Text>
+            <Text style={styles.statLabel}>Pendiente</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text
+              style={[
+                styles.statValue,
+                (receivableStats?.overdue || 0) > 0 && styles.warning,
+              ]}
+            >
+              VES. {(receivableStats?.overdue || 0).toFixed(2)}
+            </Text>
+            <Text style={styles.statLabel}>Vencidas</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Estadísticas de Cuentas por Pagar */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Cuentas por Pagar</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>
+              VES. {(payableStats?.pending || 0).toFixed(2)}
+            </Text>
+            <Text style={styles.statLabel}>Pendiente</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text
+              style={[
+                styles.statValue,
+                (payableStats?.overdue || 0) > 0 && styles.warning,
+              ]}
+            >
+              VES. {(payableStats?.overdue || 0).toFixed(2)}
+            </Text>
+            <Text style={styles.statLabel}>Vencidas</Text>
+          </View>
+        </View>
+      </View>
+
       {/* Accesos Rápidos */}
       <View style={styles.quickActions}>
         <TouchableOpacity
+          key="pos"
           style={styles.actionButton}
           onPress={() => navigation.navigate("POS")}
         >
@@ -153,6 +208,7 @@ export const DashboardScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
+          key="products"
           style={styles.actionButton}
           onPress={() => navigation.navigate("Products")}
         >
@@ -161,22 +217,7 @@ export const DashboardScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate("Customers")}
-        >
-          <Text style={styles.actionIcon}>👥</Text>
-          <Text style={styles.actionText}>Clientes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate("Suppliers")}
-        >
-          <Text style={styles.actionIcon}>🏢</Text>
-          <Text style={styles.actionText}>Proveedores</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
+          key="exchange"
           style={styles.actionButton}
           onPress={() => navigation.getParent().navigate("ExchangeRate")}
         >
@@ -185,11 +226,30 @@ export const DashboardScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
+          key="sales"
           style={styles.actionButton}
           onPress={() => navigation.navigate("Sales")}
         >
           <Text style={styles.actionIcon}>📊</Text>
           <Text style={styles.actionText}>Ventas</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          key="customers"
+          style={styles.actionButton}
+          onPress={() => navigation.navigate("Customers")}
+        >
+          <Text style={styles.actionIcon}>👥</Text>
+          <Text style={styles.actionText}>Clientes</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          key="suppliers"
+          style={styles.actionButton}
+          onPress={() => navigation.navigate("Suppliers")}
+        >
+          <Text style={styles.actionIcon}>🏢</Text>
+          <Text style={styles.actionText}>Proveedores</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

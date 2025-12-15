@@ -83,6 +83,34 @@ export const initAllTables = async () => {
           updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
+        -- Tabla de cuentas por cobrar
+        CREATE TABLE IF NOT EXISTS accounts_receivable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customerId INTEGER,
+          customerName TEXT NOT NULL,
+          amount REAL NOT NULL,
+          description TEXT,
+          dueDate TEXT,
+          status TEXT DEFAULT 'pending',
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (customerId) REFERENCES customers (id)
+        );
+
+        -- Tabla de cuentas por pagar
+        CREATE TABLE IF NOT EXISTS accounts_payable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          supplierId INTEGER,
+          supplierName TEXT NOT NULL,
+          amount REAL NOT NULL,
+          description TEXT,
+          dueDate TEXT,
+          status TEXT DEFAULT 'pending',
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (supplierId) REFERENCES suppliers (id)
+        );
+
         -- Tabla de tasas de cambio
         CREATE TABLE IF NOT EXISTS exchange_rates (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,6 +138,8 @@ export const initAllTables = async () => {
       CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(createdAt);
       CREATE INDEX IF NOT EXISTS idx_customer_name ON customers(name);
       CREATE INDEX IF NOT EXISTS idx_supplier_name ON suppliers(name);
+      CREATE INDEX IF NOT EXISTS idx_accounts_receivable_status ON accounts_receivable(status, dueDate);
+      CREATE INDEX IF NOT EXISTS idx_accounts_payable_status ON accounts_payable(status, dueDate);
       CREATE INDEX IF NOT EXISTS idx_active_rate ON exchange_rates(isActive, createdAt);
     `);
 
