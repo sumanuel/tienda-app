@@ -18,6 +18,7 @@ import SettingsScreen from "./src/screens/main/SettingsScreen";
 import AddProductScreen from "./src/screens/main/AddProductScreen";
 import EditProductScreen from "./src/screens/main/EditProductScreen";
 import CustomersScreen from "./src/screens/main/CustomersScreen";
+import SuppliersScreen from "./src/screens/main/SuppliersScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
@@ -186,6 +187,20 @@ export default function App() {
             component={CustomersScreen}
             options={{
               title: "Clientes",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="Suppliers"
+            component={SuppliersScreen}
+            options={{
+              title: "Proveedores",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },

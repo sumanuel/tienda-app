@@ -11,6 +11,7 @@ import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useSales } from "../../hooks/useSales";
 import { useInventory } from "../../hooks/useInventory";
 import { useCustomers } from "../../hooks/useCustomers";
+import { useSuppliers } from "../../hooks/useSuppliers";
 import RateDisplay from "../../components/exchange/RateDisplay";
 
 /**
@@ -30,6 +31,7 @@ export const DashboardScreen = ({ navigation }) => {
     refresh: refreshInventory,
   } = useInventory();
   const { customers, loading: customersLoading } = useCustomers();
+  const { suppliers, loading: suppliersLoading } = useSuppliers();
   const [refreshing, setRefreshing] = useState(false);
 
   // Recargar estadísticas cuando cambie el tipo de cambio

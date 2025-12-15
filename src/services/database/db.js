@@ -68,6 +68,21 @@ export const initAllTables = async () => {
           updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
+        -- Tabla de proveedores
+        CREATE TABLE IF NOT EXISTS suppliers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          documentNumber TEXT NOT NULL,
+          name TEXT NOT NULL,
+          email TEXT,
+          phone TEXT,
+          address TEXT,
+          contactPerson TEXT,
+          paymentTerms TEXT,
+          active INTEGER DEFAULT 1,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
         -- Tabla de tasas de cambio
         CREATE TABLE IF NOT EXISTS exchange_rates (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,6 +109,7 @@ export const initAllTables = async () => {
       CREATE INDEX IF NOT EXISTS idx_barcode ON products(barcode);
       CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(createdAt);
       CREATE INDEX IF NOT EXISTS idx_customer_name ON customers(name);
+      CREATE INDEX IF NOT EXISTS idx_supplier_name ON suppliers(name);
       CREATE INDEX IF NOT EXISTS idx_active_rate ON exchange_rates(isActive, createdAt);
     `);
 
