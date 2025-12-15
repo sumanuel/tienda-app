@@ -202,7 +202,7 @@ export const POSScreen = () => {
       // Mostrar confirmación
       Alert.alert(
         "✓ Venta completada",
-        `Total: Bs. ${total.toFixed(2)}\nCliente: ${
+        `Total: VES. ${total.toFixed(2)}\nCliente: ${
           customerName.trim() || "Cliente"
         }`
       );
@@ -236,7 +236,7 @@ export const POSScreen = () => {
         <Text style={styles.productCategory}>{item.category}</Text>
         <View style={styles.productFooter}>
           <Text style={styles.productPrice}>
-            Bs. {(item.priceVES || item.priceUSD * exchangeRate).toFixed(2)}
+            VES. {(item.priceVES || item.priceUSD * exchangeRate).toFixed(2)}
           </Text>
           <Text
             style={[
@@ -261,10 +261,10 @@ export const POSScreen = () => {
           {item.name}
         </Text>
         <Text style={styles.cartItemPrice}>
-          Bs. {item.price.toFixed(2)} x {item.quantity}
+          VES. {item.price.toFixed(2)} x {item.quantity}
         </Text>
         <Text style={styles.cartItemSubtotal}>
-          Subtotal: Bs. {item.subtotal.toFixed(2)}
+          Subtotal: VES. {item.subtotal.toFixed(2)}
         </Text>
       </View>
 
@@ -383,7 +383,7 @@ export const POSScreen = () => {
         <View style={styles.cartSummary}>
           <View style={styles.cartSummaryLeft}>
             <Text style={styles.cartSummaryLabel}>Total:</Text>
-            <Text style={styles.cartSummaryTotal}>Bs. {total.toFixed(2)}</Text>
+            <Text style={styles.cartSummaryTotal}>VES. {total.toFixed(2)}</Text>
           </View>
           <TouchableOpacity
             style={styles.viewCartButton}
@@ -522,7 +522,7 @@ export const POSScreen = () => {
           <View style={styles.modalFooter}>
             <View style={styles.totalSection}>
               <Text style={styles.totalLabel}>Total a Pagar:</Text>
-              <Text style={styles.totalAmount}>Bs. {total.toFixed(2)}</Text>
+              <Text style={styles.totalAmount}>VES. {total.toFixed(2)}</Text>
             </View>
 
             <View style={styles.actionButtons}>

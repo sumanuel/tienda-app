@@ -79,8 +79,10 @@ export const generateSalesReportPDF = async (sales, summary, business) => {
         <div class="summary">
           <h3>Resumen</h3>
           <p><strong>Total Ventas:</strong> ${summary.count}</p>
-          <p><strong>Total Ingreso:</strong> Bs. ${summary.total.toFixed(2)}</p>
-          <p><strong>Promedio por Venta:</strong> Bs. ${summary.average.toFixed(
+          <p><strong>Total Ingreso:</strong> VES. ${summary.total.toFixed(
+            2
+          )}</p>
+          <p><strong>Promedio por Venta:</strong> VES. ${summary.average.toFixed(
             2
           )}</p>
         </div>
@@ -101,7 +103,7 @@ export const generateSalesReportPDF = async (sales, summary, business) => {
               <tr>
                 <td>${sale.id}</td>
                 <td>${new Date(sale.createdAt).toLocaleString()}</td>
-                <td>Bs. ${sale.total.toFixed(2)}</td>
+                <td>VES. ${sale.total.toFixed(2)}</td>
                 <td>${sale.paymentMethod}</td>
               </tr>
             `

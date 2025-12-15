@@ -85,7 +85,7 @@ export const DashboardScreen = ({ navigation }) => {
           </View>
           <View style={styles.stat}>
             <Text style={styles.statValue}>
-              Bs. {(todayStats?.total || 0).toFixed(2)}
+              VES. {(todayStats?.total || 0).toFixed(2)}
             </Text>
             <Text style={styles.statLabel}>Total</Text>
           </View>

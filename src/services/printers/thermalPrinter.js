@@ -54,11 +54,11 @@ export const printSalesReport = async (sales, summary, business) => {
         </div>
         <div class="row">
           <span>Total Ingreso:</span>
-          <span>Bs. ${summary.total.toFixed(2)}</span>
+          <span>VES. ${summary.total.toFixed(2)}</span>
         </div>
         <div class="row">
           <span>Promedio:</span>
-          <span>Bs. ${summary.average.toFixed(2)}</span>
+          <span>VES. ${summary.average.toFixed(2)}</span>
         </div>
         <div class="line"></div>
         <p style="text-align:center;font-size:10px;">${new Date().toLocaleString()}</p>

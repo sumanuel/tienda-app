@@ -61,7 +61,7 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
       </TouchableOpacity>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.currencyLabel}>VES (Bs.)</Text>
+        <Text style={styles.currencyLabel}>VES </Text>
         <TextInput
           style={[styles.input, activeField === "VES" && styles.activeInput]}
           value={vesAmount}
@@ -73,7 +73,7 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
 
       {exchangeRate && (
         <Text style={styles.rateInfo}>
-          1 USD = Bs. {exchangeRate.toFixed(2)}
+          1 USD = VES. {exchangeRate.toFixed(2)}
         </Text>
       )}
     </View>

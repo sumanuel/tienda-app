@@ -95,7 +95,7 @@ export const SalesScreen = () => {
             {item.itemCount || 0} producto{item.itemCount !== 1 ? "s" : ""}
           </Text>
         </View>
-        <Text style={styles.saleAmount}>Bs. {item.total.toFixed(2)}</Text>
+        <Text style={styles.saleAmount}>VES. {item.total.toFixed(2)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -108,11 +108,11 @@ export const SalesScreen = () => {
       <View style={styles.detailItemInfo}>
         <Text style={styles.detailItemName}>{item.productName}</Text>
         <Text style={styles.detailItemQuantity}>
-          {item.quantity} x Bs. {item.price.toFixed(2)}
+          {item.quantity} x VES. {item.price.toFixed(2)}
         </Text>
       </View>
       <Text style={styles.detailItemSubtotal}>
-        Bs. {item.subtotal.toFixed(2)}
+        VES. {item.subtotal.toFixed(2)}
       </Text>
     </View>
   );
@@ -158,7 +158,7 @@ export const SalesScreen = () => {
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>
-              Bs. {(todayStats?.total || 0).toFixed(2)}
+              VES. {(todayStats?.total || 0).toFixed(2)}
             </Text>
             <Text style={styles.statLabel}>Total</Text>
           </View>
@@ -222,7 +222,7 @@ export const SalesScreen = () => {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Total:</Text>
                 <Text style={styles.summaryTotal}>
-                  Bs. {selectedSale.total.toFixed(2)}
+                  VES. {selectedSale.total.toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -237,11 +237,11 @@ export const SalesScreen = () => {
                         {item.productName}
                       </Text>
                       <Text style={styles.detailItemQuantity}>
-                        {item.quantity} x Bs. {item.price.toFixed(2)}
+                        {item.quantity} x VES. {item.price.toFixed(2)}
                       </Text>
                     </View>
                     <Text style={styles.detailItemSubtotal}>
-                      Bs. {item.subtotal.toFixed(2)}
+                      VES. {item.subtotal.toFixed(2)}
                     </Text>
                   </View>
                 ))

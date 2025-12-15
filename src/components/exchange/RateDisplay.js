@@ -28,7 +28,7 @@ export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
 
       <View style={styles.rateContainer}>
         <Text style={styles.currency}>1 USD =</Text>
-        <Text style={styles.rate}>Bs. {formatExchangeRate(rate)}</Text>
+        <Text style={styles.rate}>VES. {formatExchangeRate(rate)}</Text>
       </View>
 
       <Text style={styles.lastUpdate}>

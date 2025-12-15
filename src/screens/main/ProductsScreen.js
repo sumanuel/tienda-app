@@ -108,7 +108,7 @@ export const ProductsScreen = ({ navigation }) => {
           <Text style={styles.productCategory}>{item.category}</Text>
           <View style={styles.priceRow}>
             <Text style={styles.price}>$ {item.priceUSD?.toFixed(2)}</Text>
-            <Text style={styles.price}>Bs. {priceVES?.toFixed(2)}</Text>
+            <Text style={styles.price}>VES. {priceVES?.toFixed(2)}</Text>
           </View>
         </TouchableOpacity>
         <View style={styles.actionsContainer}>

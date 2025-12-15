@@ -2,7 +2,7 @@
 export const CURRENCIES = {
   VES: {
     code: "VES",
-    symbol: "Bs.",
+    symbol: "VES.",
     name: "Bolívares",
     decimals: 2,
     position: "before", // before o after del monto
