@@ -49,11 +49,26 @@ export const SalesScreen = () => {
   // Filtrar ventas según la pestaña activa
   const getFilteredSales = () => {
     if (activeTab === "today") {
-      const today = new Date();
-      const todayString = today.toISOString().split("T")[0];
+      // Crear rango para el día actual (00:00:00 a 23:59:59)
+      const now = new Date();
+      const startOfDay = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      const endOfDay = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23,
+        59,
+        59,
+        999
+      );
+
       return sales.filter((sale) => {
-        const saleDate = new Date(sale.createdAt).toISOString().split("T")[0];
-        return saleDate === todayString;
+        const saleDate = new Date(sale.createdAt);
+        return saleDate >= startOfDay && saleDate <= endOfDay;
       });
     } else {
       // Filtrar por rango de fechas para la pestaña "Todas"
@@ -713,7 +728,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#fff",
     marginHorizontal: 16,
-    marginTop: 16,
+    marginTop: 8,
     borderRadius: 12,
     elevation: 2,
     shadowColor: "#000",
