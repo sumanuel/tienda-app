@@ -66,7 +66,14 @@ export const POSScreen = () => {
       toValue: shouldShow ? 1 : 0,
       duration: 300,
       useNativeDriver: false,
-    }).start();
+    }).start(() => {
+      // Auto-scroll después de que termine la animación
+      if (shouldShow && scrollViewRef.current) {
+        setTimeout(() => {
+          scrollViewRef.current.scrollToEnd({ animated: true });
+        }, 100); // Pequeño delay para asegurar que el layout esté listo
+      }
+    });
   }, [paymentMethod, referenceAnimation]);
 
   // Obtener categorías únicas
@@ -611,7 +618,7 @@ export const POSScreen = () => {
             <View style={{ width: 80 }} />
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} ref={scrollViewRef}>
             {/* Información del cliente */}
             <View style={styles.customerSection}>
               <Text style={styles.sectionTitle}>👤 Cliente</Text>
