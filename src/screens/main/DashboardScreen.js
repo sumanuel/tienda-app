@@ -251,6 +251,24 @@ export const DashboardScreen = ({ navigation }) => {
           <Text style={styles.actionIcon}>🏢</Text>
           <Text style={styles.actionText}>Proveedores</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          key="accounts-receivable"
+          style={styles.actionButton}
+          onPress={() => navigation.navigate("AccountsReceivable")}
+        >
+          <Text style={styles.actionIcon}>💰</Text>
+          <Text style={styles.actionText}>Cuentas por Cobrar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          key="accounts-payable"
+          style={styles.actionButton}
+          onPress={() => navigation.navigate("AccountsPayable")}
+        >
+          <Text style={styles.actionIcon}>💳</Text>
+          <Text style={styles.actionText}>Cuentas por Pagar</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );

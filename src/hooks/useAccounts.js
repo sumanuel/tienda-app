@@ -4,6 +4,14 @@ import {
   getAllAccountsPayable,
   getAccountsReceivableStats,
   getAccountsPayableStats,
+  createAccountReceivable,
+  createAccountPayable,
+  updateAccountReceivable,
+  updateAccountPayable,
+  markAccountReceivableAsPaid,
+  markAccountPayableAsPaid,
+  deleteAccountReceivable,
+  deleteAccountPayable,
 } from "../services/database/accounts";
 
 /**
@@ -60,6 +68,104 @@ export const useAccounts = () => {
     await loadAccounts();
   }, [loadAccounts]);
 
+  // CRUD functions for accounts receivable
+  const addAccountReceivable = useCallback(
+    async (accountData) => {
+      try {
+        await createAccountReceivable(accountData);
+        await refresh();
+      } catch (error) {
+        throw error;
+      }
+    },
+    [refresh]
+  );
+
+  const editAccountReceivable = useCallback(
+    async (id, accountData) => {
+      try {
+        await updateAccountReceivable(id, accountData);
+        await refresh();
+      } catch (error) {
+        throw error;
+      }
+    },
+    [refresh]
+  );
+
+  const removeAccountReceivable = useCallback(
+    async (id) => {
+      try {
+        await deleteAccountReceivable(id);
+        await refresh();
+      } catch (error) {
+        throw error;
+      }
+    },
+    [refresh]
+  );
+
+  const markReceivableAsPaid = useCallback(
+    async (id) => {
+      try {
+        await markAccountReceivableAsPaid(id);
+        await refresh();
+      } catch (error) {
+        throw error;
+      }
+    },
+    [refresh]
+  );
+
+  // CRUD functions for accounts payable
+  const addAccountPayable = useCallback(
+    async (accountData) => {
+      try {
+        await createAccountPayable(accountData);
+        await refresh();
+      } catch (error) {
+        throw error;
+      }
+    },
+    [refresh]
+  );
+
+  const editAccountPayable = useCallback(
+    async (id, accountData) => {
+      try {
+        await updateAccountPayable(id, accountData);
+        await refresh();
+      } catch (error) {
+        throw error;
+      }
+    },
+    [refresh]
+  );
+
+  const removeAccountPayable = useCallback(
+    async (id) => {
+      try {
+        await deleteAccountPayable(id);
+        await refresh();
+      } catch (error) {
+        throw error;
+      }
+    },
+    [refresh]
+  );
+
+  const markPayableAsPaid = useCallback(
+    async (id) => {
+      try {
+        await markAccountPayableAsPaid(id);
+        await refresh();
+      } catch (error) {
+        throw error;
+      }
+    },
+    [refresh]
+  );
+
   return {
     accountsReceivable,
     accountsPayable,
@@ -69,6 +175,16 @@ export const useAccounts = () => {
     error,
     loadAccounts,
     refresh,
+    // Accounts receivable CRUD
+    addAccountReceivable,
+    editAccountReceivable,
+    removeAccountReceivable,
+    markReceivableAsPaid,
+    // Accounts payable CRUD
+    addAccountPayable,
+    editAccountPayable,
+    removeAccountPayable,
+    markPayableAsPaid,
   };
 };
 

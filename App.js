@@ -19,6 +19,8 @@ import AddProductScreen from "./src/screens/main/AddProductScreen";
 import EditProductScreen from "./src/screens/main/EditProductScreen";
 import CustomersScreen from "./src/screens/main/CustomersScreen";
 import SuppliersScreen from "./src/screens/main/SuppliersScreen";
+import AccountsReceivableScreen from "./src/screens/main/AccountsReceivableScreen";
+import AccountsPayableScreen from "./src/screens/main/AccountsPayableScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
@@ -201,6 +203,34 @@ export default function App() {
             component={SuppliersScreen}
             options={{
               title: "Proveedores",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AccountsReceivable"
+            component={AccountsReceivableScreen}
+            options={{
+              title: "Cuentas por Cobrar",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AccountsPayable"
+            component={AccountsPayableScreen}
+            options={{
+              title: "Cuentas por Pagar",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },

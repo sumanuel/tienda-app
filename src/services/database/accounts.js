@@ -66,9 +66,139 @@ export const getAccountsPayableStats = async () => {
   }
 };
 
+/**
+ * Crea una nueva cuenta por cobrar
+ */
+export const createAccountReceivable = async (accountData) => {
+  try {
+    const { customerName, amount, description, dueDate } = accountData;
+    const result = await db.runAsync(
+      `INSERT INTO accounts_receivable (customerName, amount, description, dueDate, status, createdAt)
+       VALUES (?, ?, ?, ?, 'pending', datetime('now'))`,
+      [customerName, amount, description || null, dueDate || null]
+    );
+    return result.lastInsertRowId;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Crea una nueva cuenta por pagar
+ */
+export const createAccountPayable = async (accountData) => {
+  try {
+    const { supplierName, amount, description, dueDate } = accountData;
+    const result = await db.runAsync(
+      `INSERT INTO accounts_payable (supplierName, amount, description, dueDate, status, createdAt)
+       VALUES (?, ?, ?, ?, 'pending', datetime('now'))`,
+      [supplierName, amount, description || null, dueDate || null]
+    );
+    return result.lastInsertRowId;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Actualiza una cuenta por cobrar
+ */
+export const updateAccountReceivable = async (id, accountData) => {
+  try {
+    const { customerName, amount, description, dueDate } = accountData;
+    await db.runAsync(
+      `UPDATE accounts_receivable
+       SET customerName = ?, amount = ?, description = ?, dueDate = ?, updatedAt = datetime('now')
+       WHERE id = ?`,
+      [customerName, amount, description || null, dueDate || null, id]
+    );
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Actualiza una cuenta por pagar
+ */
+export const updateAccountPayable = async (id, accountData) => {
+  try {
+    const { supplierName, amount, description, dueDate } = accountData;
+    await db.runAsync(
+      `UPDATE accounts_payable
+       SET supplierName = ?, amount = ?, description = ?, dueDate = ?, updatedAt = datetime('now')
+       WHERE id = ?`,
+      [supplierName, amount, description || null, dueDate || null, id]
+    );
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Marca una cuenta por cobrar como pagada
+ */
+export const markAccountReceivableAsPaid = async (id) => {
+  try {
+    await db.runAsync(
+      `UPDATE accounts_receivable
+       SET status = 'paid', paidAt = datetime('now'), updatedAt = datetime('now')
+       WHERE id = ?`,
+      [id]
+    );
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Marca una cuenta por pagar como pagada
+ */
+export const markAccountPayableAsPaid = async (id) => {
+  try {
+    await db.runAsync(
+      `UPDATE accounts_payable
+       SET status = 'paid', paidAt = datetime('now'), updatedAt = datetime('now')
+       WHERE id = ?`,
+      [id]
+    );
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Elimina una cuenta por cobrar
+ */
+export const deleteAccountReceivable = async (id) => {
+  try {
+    await db.runAsync("DELETE FROM accounts_receivable WHERE id = ?", [id]);
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Elimina una cuenta por pagar
+ */
+export const deleteAccountPayable = async (id) => {
+  try {
+    await db.runAsync("DELETE FROM accounts_payable WHERE id = ?", [id]);
+  } catch (error) {
+    throw error;
+  }
+};
+
 export default {
   getAllAccountsReceivable,
   getAllAccountsPayable,
   getAccountsReceivableStats,
   getAccountsPayableStats,
+  createAccountReceivable,
+  createAccountPayable,
+  updateAccountReceivable,
+  updateAccountPayable,
+  markAccountReceivableAsPaid,
+  markAccountPayableAsPaid,
+  deleteAccountReceivable,
+  deleteAccountPayable,
 };
