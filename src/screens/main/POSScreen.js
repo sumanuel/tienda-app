@@ -122,15 +122,17 @@ export const POSScreen = ({ navigation }) => {
     ...new Set(products.map((p) => p.category).filter(Boolean)),
   ];
 
-  // Filtrar productos
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "Todos" || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Filtrar productos (ordenados alfabéticamente)
+  const filteredProducts = products
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .filter((product) => {
+      const matchesSearch = product.name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const matchesCategory =
+        selectedCategory === "Todos" || product.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
 
   /**
    * Agrega un producto al carrito

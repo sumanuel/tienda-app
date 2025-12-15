@@ -155,7 +155,7 @@ export const ProductsScreen = ({ navigation }) => {
       />
 
       <FlatList
-        data={products}
+        data={products.sort((a, b) => a.name.localeCompare(b.name))}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.list}
