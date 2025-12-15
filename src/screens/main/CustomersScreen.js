@@ -189,7 +189,7 @@ export const CustomersScreen = () => {
       </View>
 
       <FlatList
-        data={customers}
+        data={customers.sort((a, b) => a.name.localeCompare(b.name))}
         renderItem={renderCustomer}
         keyExtractor={(item) => item.id.toString()}
         ListEmptyComponent={renderEmpty}

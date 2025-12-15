@@ -200,7 +200,7 @@ export const SuppliersScreen = () => {
       </View>
 
       <FlatList
-        data={suppliers}
+        data={suppliers.sort((a, b) => a.name.localeCompare(b.name))}
         renderItem={renderSupplier}
         keyExtractor={(item) => item.id.toString()}
         ListEmptyComponent={renderEmpty}
