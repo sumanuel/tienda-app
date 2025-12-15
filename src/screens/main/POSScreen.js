@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TextInput,
   Modal,
   Dimensions,
+  Animated,
 } from "react-native";
 import { useProducts } from "../../hooks/useProducts";
 import { useSales } from "../../hooks/useSales";
@@ -39,6 +40,7 @@ export const POSScreen = () => {
   const [total, setTotal] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [customerDocument, setCustomerDocument] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [showCart, setShowCart] = useState(false);
@@ -46,11 +48,26 @@ export const POSScreen = () => {
   const [newCustomerName, setNewCustomerName] = useState("");
   const [pendingSaleData, setPendingSaleData] = useState(null);
 
+  // Animación para el campo de referencia
+  const referenceAnimation = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef(null);
+
   // Calcular total cuando cambie el carrito
   useEffect(() => {
     const newTotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
     setTotal(newTotal);
   }, [cart]);
+
+  // Animación del campo de referencia
+  useEffect(() => {
+    const shouldShow =
+      paymentMethod === "transfer" || paymentMethod === "pago_movil";
+    Animated.timing(referenceAnimation, {
+      toValue: shouldShow ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [paymentMethod, referenceAnimation]);
 
   // Obtener categorías únicas
   const categories = [
@@ -198,7 +215,9 @@ export const POSScreen = () => {
               paid: total,
               change: 0,
               status: "completed",
-              notes: `Cliente: ${customerDocument}`,
+              notes: `Cliente: ${customerDocument}${
+                referenceNumber ? ` - Ref: ${referenceNumber}` : ""
+              }`,
               saleItems: cart.map((item) => ({
                 productId: item.product.id,
                 productName: item.name,
@@ -226,7 +245,9 @@ export const POSScreen = () => {
         paid: total,
         change: 0,
         status: "completed",
-        notes: `Cliente: ${customerName}`,
+        notes: `Cliente: ${customerName}${
+          referenceNumber ? ` - Ref: ${referenceNumber}` : ""
+        }`,
       };
 
       // Preparar items de la venta
@@ -274,6 +295,7 @@ export const POSScreen = () => {
       // Limpiar carrito y cerrar modal primero
       setCart([]);
       setCustomerDocument("");
+      setReferenceNumber("");
       setTotal(0);
       setShowCart(false);
 
@@ -353,6 +375,7 @@ export const POSScreen = () => {
       // Limpiar estados
       setCart([]);
       setCustomerDocument("");
+      setReferenceNumber("");
       setTotal(0);
       setShowCart(false);
       setShowNewCustomerModal(false);
@@ -741,6 +764,50 @@ export const POSScreen = () => {
                     </Text>
                   </TouchableOpacity>
                 </ScrollView>
+
+                {/* Número de referencia para transferencias y pago móvil */}
+                <Animated.View
+                  style={[
+                    styles.referenceContainer,
+                    {
+                      opacity: referenceAnimation,
+                      transform: [
+                        {
+                          scale: referenceAnimation.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.95, 1],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <View style={styles.referenceSection}>
+                    <Text style={styles.referenceLabel}>
+                      📄 Número de Referencia
+                      <Text style={styles.optionalText}> (opcional)</Text>
+                    </Text>
+                    <TextInput
+                      style={styles.referenceInput}
+                      placeholder={`Ingrese referencia de ${
+                        paymentMethod === "transfer"
+                          ? "transferencia"
+                          : "pago móvil"
+                      }`}
+                      value={referenceNumber}
+                      onChangeText={setReferenceNumber}
+                      keyboardType="numeric"
+                      maxLength={20}
+                      placeholderTextColor="#999"
+                      autoFocus={true}
+                    />
+                    <Text style={styles.referenceHint}>
+                      {paymentMethod === "transfer"
+                        ? "Ingrese el número de referencia de la transferencia bancaria"
+                        : "Ingrese el número de referencia del pago móvil"}
+                    </Text>
+                  </View>
+                </Animated.View>
               </View>
             )}
           </ScrollView>
@@ -1341,6 +1408,45 @@ const styles = StyleSheet.create({
     color: "#4CAF50",
     fontStyle: "italic",
     marginTop: 4,
+  },
+  referenceSection: {
+    marginTop: 15,
+  },
+  referenceLabel: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 8,
+  },
+  optionalText: {
+    fontSize: 12,
+    fontWeight: "normal",
+    color: "#666",
+    fontStyle: "italic",
+  },
+  referenceInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: "#fff",
+    marginBottom: 8,
+  },
+  referenceHint: {
+    fontSize: 12,
+    color: "#666",
+    fontStyle: "italic",
+    lineHeight: 16,
+  },
+  referenceContainer: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 10,
+    padding: 15,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+    overflow: "hidden",
   },
 });
 
