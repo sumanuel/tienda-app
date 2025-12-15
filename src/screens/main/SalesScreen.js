@@ -26,6 +26,15 @@ export const SalesScreen = () => {
   } = useSales();
   const [selectedSale, setSelectedSale] = useState(null);
   const [saleDetails, setSaleDetails] = useState(null);
+  const [activeTab, setActiveTab] = useState("today"); // "today" o "all"
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1); // Primer día del mes
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0); // Último día del mes
+  });
 
   // Recargar ventas cuando la pantalla gane focus
   useEffect(() => {
@@ -36,6 +45,69 @@ export const SalesScreen = () => {
 
     return unsubscribe;
   }, [navigation]);
+
+  // Filtrar ventas según la pestaña activa
+  const getFilteredSales = () => {
+    if (activeTab === "today") {
+      const today = new Date();
+      const todayString = today.toISOString().split("T")[0];
+      return sales.filter((sale) => {
+        const saleDate = new Date(sale.createdAt).toISOString().split("T")[0];
+        return saleDate === todayString;
+      });
+    } else {
+      // Filtrar por rango de fechas para la pestaña "Todas"
+      return sales.filter((sale) => {
+        const saleDate = new Date(sale.createdAt);
+        return saleDate >= startDate && saleDate <= endDate;
+      });
+    }
+  };
+
+  // Calcular estadísticas según la pestaña activa
+  const getCurrentStats = () => {
+    if (activeTab === "today") {
+      return todayStats;
+    } else {
+      // Calcular estadísticas de todas las ventas
+      const filteredSales = getFilteredSales();
+      const total = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
+      const count = filteredSales.length;
+      return { count, total };
+    }
+  };
+
+  /**
+   * Cambia la pestaña activa
+   */
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+  };
+
+  /**
+   * Formatea fecha para mostrar
+   */
+  const formatDate = (date) => {
+    return date.toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  /**
+   * Cambia la fecha de inicio
+   */
+  const changeStartDate = (date) => {
+    setStartDate(date);
+  };
+
+  /**
+   * Cambia la fecha de fin
+   */
+  const changeEndDate = (date) => {
+    setEndDate(date);
+  };
 
   /**
    * Muestra detalles de una venta
@@ -147,37 +219,155 @@ export const SalesScreen = () => {
         <Text style={styles.title}>Historial de Ventas</Text>
       </View>
 
-      {/* Estadísticas del día */}
+      {/* Estadísticas */}
       <View style={styles.statsCard}>
-        <Text style={styles.statsTitle}>📊 Resumen de Hoy</Text>
+        <Text style={styles.statsTitle}>
+          📊 Resumen {activeTab === "today" ? "de Hoy" : "del Período"}
+        </Text>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{todayStats?.count || 0}</Text>
+            <Text style={styles.statValue}>
+              {getCurrentStats()?.count || 0}
+            </Text>
             <Text style={styles.statLabel}>Ventas</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>
-              VES. {(todayStats?.total || 0).toFixed(2)}
+              VES. {(getCurrentStats()?.total || 0).toFixed(2)}
             </Text>
             <Text style={styles.statLabel}>Total</Text>
           </View>
         </View>
       </View>
 
+      {/* Pestañas */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "today" && styles.activeTab]}
+          onPress={() => switchTab("today")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "today" && styles.activeTabText,
+            ]}
+          >
+            Hoy
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "all" && styles.activeTab]}
+          onPress={() => switchTab("all")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "all" && styles.activeTabText,
+            ]}
+          >
+            Histórico
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Controles de fecha para la pestaña Histórico */}
+      {activeTab === "all" && (
+        <View style={styles.dateFilters}>
+          <View style={styles.dateRow}>
+            <View style={styles.dateInput}>
+              <Text style={styles.dateLabel}>Desde:</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => {
+                  // Cambiar al mes anterior
+                  const newDate = new Date(startDate);
+                  newDate.setMonth(newDate.getMonth() - 1);
+                  changeStartDate(newDate);
+                }}
+              >
+                <Text style={styles.dateButtonText}>
+                  ◀ {formatDate(startDate)}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.dateInput}>
+              <Text style={styles.dateLabel}>Hasta:</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => {
+                  // Cambiar al mes siguiente
+                  const newDate = new Date(endDate);
+                  newDate.setMonth(newDate.getMonth() + 1);
+                  changeEndDate(newDate);
+                }}
+              >
+                <Text style={styles.dateButtonText}>
+                  {formatDate(endDate)} ▶
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={styles.quickFilters}>
+            <TouchableOpacity
+              style={styles.quickFilter}
+              onPress={() => {
+                const now = new Date();
+                setStartDate(new Date(now.getFullYear(), now.getMonth(), 1));
+                setEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+              }}
+            >
+              <Text style={styles.quickFilterText}>Este Mes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickFilter}
+              onPress={() => {
+                const now = new Date();
+                setStartDate(
+                  new Date(now.getFullYear(), now.getMonth() - 1, 1)
+                );
+                setEndDate(new Date(now.getFullYear(), now.getMonth(), 0));
+              }}
+            >
+              <Text style={styles.quickFilterText}>Mes Anterior</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickFilter}
+              onPress={() => {
+                const now = new Date();
+                const weekStart = new Date(now);
+                weekStart.setDate(now.getDate() - now.getDay());
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+                setStartDate(weekStart);
+                setEndDate(weekEnd);
+              }}
+            >
+              <Text style={styles.quickFilterText}>Esta Semana</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Lista de ventas o detalles */}
       {!selectedSale ? (
         <FlatList
-          data={sales}
+          data={getFilteredSales()}
           renderItem={renderSale}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyEmoji}>📋</Text>
-              <Text style={styles.emptyText}>No hay ventas registradas</Text>
+              <Text style={styles.emptyText}>
+                {activeTab === "today"
+                  ? "No hay ventas registradas hoy"
+                  : "No hay ventas registradas"}
+              </Text>
               <Text style={styles.emptySubtext}>
-                Las ventas aparecerán aquí cuando completes tu primera venta
+                {activeTab === "today"
+                  ? "Las ventas de hoy aparecerán aquí"
+                  : "Las ventas aparecerán aquí cuando completes tu primera venta"}
               </Text>
             </View>
           }
@@ -286,14 +476,20 @@ const styles = StyleSheet.create({
   statsCard: {
     backgroundColor: "#4CAF50",
     margin: 16,
-    padding: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   statsTitle: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
-    marginBottom: 16,
+    marginBottom: 8,
   },
   statsRow: {
     flexDirection: "row",
@@ -305,17 +501,17 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: "#fff",
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "bold",
   },
   statLabel: {
     color: "#fff",
-    fontSize: 16,
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: 1,
   },
   statDivider: {
     width: 1,
-    height: 40,
+    height: 28,
     backgroundColor: "rgba(255,255,255,0.3)",
     marginHorizontal: 20,
   },
@@ -512,6 +708,95 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#999",
     marginTop: 20,
+  },
+  tabsContainer: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderRadius: 12,
+  },
+  activeTab: {
+    backgroundColor: "#4CAF50",
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#666",
+  },
+  activeTabText: {
+    color: "#fff",
+  },
+  dateFilters: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  dateRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  dateInput: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  dateLabel: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 4,
+    fontWeight: "500",
+  },
+  dateButton: {
+    backgroundColor: "#f5f5f5",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  dateButtonText: {
+    fontSize: 14,
+    color: "#333",
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  quickFilters: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  quickFilter: {
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    flex: 1,
+    marginHorizontal: 2,
+  },
+  quickFilterText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });
 
