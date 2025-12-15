@@ -98,7 +98,10 @@ export const insertSale = async (sale, items) => {
 export const getAllSales = async (limit = 100) => {
   try {
     const result = await db.getAllAsync(
-      "SELECT * FROM sales ORDER BY createdAt DESC LIMIT ?;",
+      `SELECT s.*, 
+              (SELECT COUNT(*) FROM sale_items si WHERE si.saleId = s.id) as itemCount 
+       FROM sales s 
+       ORDER BY s.createdAt DESC LIMIT ?;`,
       [limit]
     );
     return result;
