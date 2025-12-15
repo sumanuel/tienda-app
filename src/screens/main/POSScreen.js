@@ -14,6 +14,7 @@ import {
 import { useProducts } from "../../hooks/useProducts";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
+import { useAccounts } from "../../hooks/useAccounts";
 import { updateProductStock } from "../../services/database/products";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -29,6 +30,7 @@ export const POSScreen = () => {
   } = useProducts();
   const { registerSale: addSale } = useSales();
   const { rate: exchangeRate } = useExchangeRate();
+  const { addAccountReceivable } = useAccounts();
 
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
@@ -193,6 +195,25 @@ export const POSScreen = () => {
       // Recargar productos para reflejar el nuevo stock
       await refreshProducts();
 
+      // Si el método de pago es "por_cobrar", crear cuenta por cobrar automáticamente
+      if (paymentMethod === "por_cobrar") {
+        try {
+          const accountData = {
+            customerName: customerName.trim() || "Cliente",
+            amount: total,
+            description: `Venta a crédito - ${cart.length} producto(s): ${cart
+              .map((item) => item.name)
+              .join(", ")}`,
+            dueDate: null, // Sin fecha de vencimiento por defecto
+          };
+          await addAccountReceivable(accountData);
+          console.log("Cuenta por cobrar creada automáticamente");
+        } catch (accountError) {
+          console.error("Error creando cuenta por cobrar:", accountError);
+          // No fallar la venta por error en cuenta por cobrar
+        }
+      }
+
       // Limpiar carrito y cerrar modal primero
       setCart([]);
       setCustomerName("");
@@ -200,12 +221,16 @@ export const POSScreen = () => {
       setShowCart(false);
 
       // Mostrar confirmación
-      Alert.alert(
-        "✓ Venta completada",
-        `Total: VES. ${total.toFixed(2)}\nCliente: ${
-          customerName.trim() || "Cliente"
-        }`
-      );
+      const confirmationMessage =
+        paymentMethod === "por_cobrar"
+          ? `Total: VES. ${total.toFixed(2)}\nCliente: ${
+              customerName.trim() || "Cliente"
+            }\n\n✅ Cuenta por cobrar creada automáticamente`
+          : `Total: VES. ${total.toFixed(2)}\nCliente: ${
+              customerName.trim() || "Cliente"
+            }`;
+
+      Alert.alert("✓ Venta completada", confirmationMessage);
     } catch (error) {
       console.error("Error completing sale:", error);
       Alert.alert("Error", "No se pudo completar la venta");
@@ -457,7 +482,12 @@ export const POSScreen = () => {
             {cart.length > 0 && (
               <View style={styles.paymentSection}>
                 <Text style={styles.sectionTitle}>💳 Método de Pago</Text>
-                <View style={styles.paymentButtons}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.paymentButtonsScroll}
+                  contentContainerStyle={styles.paymentButtons}
+                >
                   <TouchableOpacity
                     style={[
                       styles.paymentButton,
@@ -513,7 +543,45 @@ export const POSScreen = () => {
                       Transferencia
                     </Text>
                   </TouchableOpacity>
-                </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentButton,
+                      paymentMethod === "pago_movil" &&
+                        styles.paymentButtonActive,
+                    ]}
+                    onPress={() => setPaymentMethod("pago_movil")}
+                  >
+                    <Text style={styles.paymentButtonIcon}>📱</Text>
+                    <Text
+                      style={[
+                        styles.paymentButtonText,
+                        paymentMethod === "pago_movil" &&
+                          styles.paymentButtonTextActive,
+                      ]}
+                    >
+                      Pago Móvil
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentButton,
+                      paymentMethod === "por_cobrar" &&
+                        styles.paymentButtonActive,
+                    ]}
+                    onPress={() => setPaymentMethod("por_cobrar")}
+                  >
+                    <Text style={styles.paymentButtonIcon}>⏳</Text>
+                    <Text
+                      style={[
+                        styles.paymentButtonText,
+                        paymentMethod === "por_cobrar" &&
+                          styles.paymentButtonTextActive,
+                      ]}
+                    >
+                      Por Cobrar
+                    </Text>
+                  </TouchableOpacity>
+                </ScrollView>
               </View>
             )}
           </ScrollView>
@@ -940,17 +1008,22 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 2,
   },
+  paymentButtonsScroll: {
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+  },
   paymentButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    paddingVertical: 8,
+    paddingRight: 16,
   },
   paymentButton: {
-    flex: 1,
+    width: 100,
     padding: 16,
     borderWidth: 2,
     borderColor: "#ddd",
     borderRadius: 12,
-    marginHorizontal: 4,
+    marginHorizontal: 6,
     alignItems: "center",
     backgroundColor: "#f9f9f9",
   },
