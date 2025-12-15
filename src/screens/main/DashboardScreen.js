@@ -61,6 +61,7 @@ export const DashboardScreen = ({ navigation }) => {
   return (
     <ScrollView
       style={styles.container}
+      contentContainerStyle={styles.scrollContent}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
@@ -136,6 +137,22 @@ export const DashboardScreen = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.actionButton}
+          onPress={() => navigation.navigate("Clients")}
+        >
+          <Text style={styles.actionIcon}>👥</Text>
+          <Text style={styles.actionText}>Clientes</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate("Suppliers")}
+        >
+          <Text style={styles.actionIcon}>🏢</Text>
+          <Text style={styles.actionText}>Proveedores</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
           onPress={() => navigation.getParent().navigate("ExchangeRate")}
         >
           <Text style={styles.actionIcon}>💱</Text>
@@ -160,6 +177,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
     padding: 16,
     paddingBottom: 100,
+  },
+  scrollContent: {
+    paddingBottom: 120, // Espacio adicional para el menú de pestañas
   },
   title: {
     fontSize: 28,
