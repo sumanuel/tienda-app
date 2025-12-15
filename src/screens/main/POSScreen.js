@@ -161,6 +161,12 @@ export const POSScreen = () => {
       return;
     }
 
+    // Validar que se haya especificado la cédula del cliente
+    if (!customerDocument.trim()) {
+      Alert.alert("Error", "Debe especificar la cédula del cliente");
+      return;
+    }
+
     try {
       let customerId = null;
       let customerName = "Cliente";
@@ -588,7 +594,7 @@ export const POSScreen = () => {
               <Text style={styles.sectionTitle}>👤 Cliente</Text>
               <TextInput
                 style={styles.customerInput}
-                placeholder="Cédula del cliente (opcional)"
+                placeholder="Cédula del cliente (obligatorio)*"
                 value={customerDocument}
                 onChangeText={(text) => {
                   // Solo permitir números
