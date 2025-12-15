@@ -37,6 +37,7 @@ export const DashboardScreen = ({ navigation }) => {
     receivableStats,
     payableStats,
     loading: accountsLoading,
+    refresh: refreshAccounts,
   } = useAccounts();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -47,14 +48,15 @@ export const DashboardScreen = ({ navigation }) => {
     }
   }, [rate, loadTodayStats]);
 
-  // Listener para cuando se vuelve a la pantalla (recargar inventario)
+  // Listener para cuando se vuelve a la pantalla (recargar inventario y cuentas)
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
       refreshInventory();
+      refreshAccounts();
     });
 
     return unsubscribe;
-  }, [navigation, refreshInventory]);
+  }, [navigation, refreshInventory, refreshAccounts]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -62,6 +64,7 @@ export const DashboardScreen = ({ navigation }) => {
       await updateRate("BCV");
       await refreshInventory();
       await loadTodayStats();
+      await refreshAccounts();
     } catch (error) {
       console.error("Error refreshing:", error);
     }
