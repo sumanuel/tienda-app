@@ -97,7 +97,8 @@ export const DashboardScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Estadísticas de Inventario */}
+      {/* Estadísticas de Inventario - OCULTA */}
+      {/*
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Inventario</Text>
         <View style={styles.statsRow}>
@@ -120,8 +121,10 @@ export const DashboardScreen = ({ navigation }) => {
           </View>
         </View>
       </View>
+      */}
 
-      {/* Estadísticas de Clientes */}
+      {/* Estadísticas de Clientes - OCULTA */}
+      {/*
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Clientes</Text>
         <View style={styles.statsRow}>
@@ -137,6 +140,7 @@ export const DashboardScreen = ({ navigation }) => {
           </View>
         </View>
       </View>
+      */}
 
       {/* Accesos Rápidos */}
       <View style={styles.quickActions}>
