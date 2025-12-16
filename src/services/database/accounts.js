@@ -40,7 +40,27 @@ export const searchAccountsReceivable = async (query) => {
 export const getAllAccountsPayable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT * FROM accounts_payable ORDER BY dueDate ASC;"
+      "SELECT * FROM accounts_payable ORDER BY createdAt DESC;"
+    );
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Busca cuentas por pagar por nombre de proveedor, cédula o descripción
+ */
+export const searchAccountsPayable = async (query) => {
+  try {
+    const searchTerm = `%${query}%`;
+    const result = await db.getAllAsync(
+      `SELECT * FROM accounts_payable 
+       WHERE supplierName LIKE ? 
+       OR documentNumber LIKE ? 
+       OR description LIKE ?
+       ORDER BY createdAt DESC;`,
+      [searchTerm, searchTerm, searchTerm]
     );
     return result;
   } catch (error) {
@@ -124,11 +144,27 @@ export const createAccountReceivable = async (accountData) => {
  */
 export const createAccountPayable = async (accountData) => {
   try {
-    const { supplierName, amount, description, dueDate } = accountData;
+    const {
+      supplierName,
+      amount,
+      description,
+      dueDate,
+      documentNumber,
+      invoiceNumber,
+      createdDate,
+    } = accountData;
     const result = await db.runAsync(
-      `INSERT INTO accounts_payable (supplierName, amount, description, dueDate, status, createdAt)
-       VALUES (?, ?, ?, ?, 'pending', datetime('now'))`,
-      [supplierName, amount, description || null, dueDate || null]
+      `INSERT INTO accounts_payable (supplierName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      [
+        supplierName,
+        amount,
+        description || null,
+        dueDate || null,
+        documentNumber || null,
+        invoiceNumber || null,
+        createdDate || new Date().toISOString(),
+      ]
     );
     return result.lastInsertRowId;
   } catch (error) {

@@ -27,6 +27,8 @@ import AccountsReceivableScreen from "./src/screens/main/AccountsReceivableScree
 import AddAccountReceivableScreen from "./src/screens/main/AddAccountReceivableScreen";
 import EditAccountReceivableScreen from "./src/screens/main/EditAccountReceivableScreen";
 import AccountsPayableScreen from "./src/screens/main/AccountsPayableScreen";
+import AddAccountPayableScreen from "./src/screens/main/AddAccountPayableScreen";
+import EditAccountPayableScreen from "./src/screens/main/EditAccountPayableScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
@@ -327,6 +329,34 @@ export default function App() {
             component={AccountsPayableScreen}
             options={{
               title: "Cuentas por Pagar",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AddAccountPayable"
+            component={AddAccountPayableScreen}
+            options={{
+              title: "Nueva Cuenta por Pagar",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="EditAccountPayable"
+            component={EditAccountPayableScreen}
+            options={{
+              title: "Editar Cuenta por Pagar",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },

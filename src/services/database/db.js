@@ -115,6 +115,8 @@ export const initAllTables = async () => {
           amount REAL NOT NULL,
           description TEXT,
           dueDate TEXT,
+          documentNumber TEXT,
+          invoiceNumber TEXT,
           status TEXT DEFAULT 'pending',
           createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
           updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,

@@ -13,6 +13,7 @@ import {
   deleteAccountReceivable,
   deleteAccountPayable,
   searchAccountsReceivable,
+  searchAccountsPayable,
 } from "../services/database/accounts";
 
 /**
@@ -136,6 +137,24 @@ export const useAccounts = () => {
     [loadAccounts]
   );
 
+  const searchPayable = useCallback(
+    async (query) => {
+      try {
+        setError(null);
+        if (!query.trim()) {
+          await loadAccounts();
+          return;
+        }
+        const data = await searchAccountsPayable(query);
+        setAccountsPayable(data);
+      } catch (err) {
+        setError(err.message);
+        console.error("Error searching accounts payable:", err);
+      }
+    },
+    [loadAccounts]
+  );
+
   // CRUD functions for accounts payable
   const addAccountPayable = useCallback(
     async (accountData) => {
@@ -195,6 +214,7 @@ export const useAccounts = () => {
     loadAccounts,
     refresh,
     searchReceivable,
+    searchPayable,
     // Accounts receivable CRUD
     addAccountReceivable,
     editAccountReceivable,
