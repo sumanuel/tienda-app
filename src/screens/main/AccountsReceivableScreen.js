@@ -19,16 +19,26 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     loading,
     error,
     refresh,
+    searchReceivable,
     removeAccountReceivable,
     markReceivableAsPaid,
   } = useAccounts();
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleSearch = useCallback((query) => {
-    setSearchQuery(query);
-    // TODO: Implementar búsqueda
-  }, []);
+  const handleSearch = useCallback(
+    async (query) => {
+      setSearchQuery(query);
+      if (!query.trim()) {
+        // Si no hay búsqueda, recargar todas las cuentas
+        await refresh();
+      } else {
+        // Si hay búsqueda, buscar
+        await searchReceivable(query);
+      }
+    },
+    [searchReceivable, refresh]
+  );
 
   const openAddScreen = useCallback(() => {
     navigation.navigate("AddAccountReceivable");

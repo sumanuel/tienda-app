@@ -17,12 +17,15 @@ let tablesInitialized = false;
  * para evitar bloqueos
  */
 export const initAllTables = async () => {
-  if (tablesInitialized) {
-    console.log("Tables already initialized, skipping...");
-    return;
-  }
-
   try {
+    // Ejecutar migraciones primero (siempre, independientemente del estado de inicialización)
+    await runMigrations();
+
+    if (tablesInitialized) {
+      console.log("Tables already initialized, skipping table creation...");
+      return;
+    }
+
     // Activar WAL mode ANTES de la transacción
     await db.execAsync("PRAGMA journal_mode = WAL;");
 
@@ -156,6 +159,45 @@ export const initAllTables = async () => {
     console.log("All tables created successfully");
   } catch (error) {
     console.error("Error creating tables:", error);
+    throw error;
+  }
+};
+
+/**
+ * Ejecuta migraciones de base de datos
+ * Agrega columnas faltantes a tablas existentes
+ */
+const runMigrations = async () => {
+  try {
+    console.log("Running database migrations...");
+
+    // Verificar y agregar columna documentNumber a accounts_receivable
+    const receivableColumns = await db.getAllAsync(
+      "PRAGMA table_info(accounts_receivable)"
+    );
+    console.log(
+      "Current accounts_receivable columns:",
+      receivableColumns.map((col) => col.name)
+    );
+    const hasDocumentNumber = receivableColumns.some(
+      (col) => col.name === "documentNumber"
+    );
+
+    if (!hasDocumentNumber) {
+      console.log(
+        "Adding documentNumber column to accounts_receivable table..."
+      );
+      await db.runAsync(
+        "ALTER TABLE accounts_receivable ADD COLUMN documentNumber TEXT"
+      );
+      console.log("documentNumber column added successfully");
+    } else {
+      console.log("documentNumber column already exists");
+    }
+
+    console.log("Database migrations completed");
+  } catch (error) {
+    console.error("Error running migrations:", error);
     throw error;
   }
 };

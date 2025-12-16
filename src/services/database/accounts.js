@@ -15,6 +15,26 @@ export const getAllAccountsReceivable = async () => {
 };
 
 /**
+ * Busca cuentas por cobrar por nombre de cliente, cédula o descripción
+ */
+export const searchAccountsReceivable = async (query) => {
+  try {
+    const searchTerm = `%${query}%`;
+    const result = await db.getAllAsync(
+      `SELECT * FROM accounts_receivable 
+       WHERE customerName LIKE ? 
+       OR documentNumber LIKE ? 
+       OR description LIKE ?
+       ORDER BY dueDate ASC;`,
+      [searchTerm, searchTerm, searchTerm]
+    );
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Obtiene todas las cuentas por pagar
  */
 export const getAllAccountsPayable = async () => {
@@ -212,6 +232,7 @@ export const deleteAccountPayable = async (id) => {
 
 export default {
   getAllAccountsReceivable,
+  searchAccountsReceivable,
   getAllAccountsPayable,
   getAccountsReceivableStats,
   getAccountsPayableStats,
