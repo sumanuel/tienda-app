@@ -68,7 +68,7 @@ export const SuppliersScreen = () => {
             navigation.navigate("EditSupplier", { supplier: item })
           }
         >
-          <Text style={styles.supplierName}>{item.name}</Text>
+          <Text style={styles.supplierName}>{item.name.toUpperCase()}</Text>
           <Text style={styles.supplierDocument}>{item.documentNumber}</Text>
           {item.contactPerson && (
             <Text style={styles.supplierContact}>

@@ -68,7 +68,7 @@ export const CustomersScreen = () => {
             navigation.navigate("EditCustomer", { customer: item })
           }
         >
-          <Text style={styles.customerName}>{item.name}</Text>
+          <Text style={styles.customerName}>{item.name.toUpperCase()}</Text>
           <Text style={styles.customerDocument}>{item.documentNumber}</Text>
           <View style={styles.contactRow}>
             {item.phone && (

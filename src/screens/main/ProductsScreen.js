@@ -103,8 +103,10 @@ export const ProductsScreen = ({ navigation }) => {
           style={styles.productInfo}
           onPress={() => handleEditProduct(item)}
         >
-          <Text style={styles.productName}>{item.name}</Text>
-          <Text style={styles.productCategory}>{item.category}</Text>
+          <Text style={styles.productName}>{item.name.toUpperCase()}</Text>
+          <Text style={styles.productCategory}>
+            {item.category?.toUpperCase()}
+          </Text>
           <View style={styles.priceRow}>
             <Text style={styles.price}>$ {item.priceUSD?.toFixed(2)}</Text>
             <Text style={styles.price}>VES. {priceVES?.toFixed(2)}</Text>
