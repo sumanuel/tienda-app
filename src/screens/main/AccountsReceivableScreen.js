@@ -110,6 +110,11 @@ export const AccountsReceivableScreen = ({ navigation }) => {
       >
         <View style={styles.accountInfo}>
           <Text style={styles.customerName}>{item.customerName}</Text>
+          {item.documentNumber && (
+            <Text style={styles.documentNumber}>
+              Cédula: {item.documentNumber}
+            </Text>
+          )}
           <Text style={styles.amount}>VES. {item.amount?.toFixed(2)}</Text>
           {item.description && (
             <Text style={styles.description}>{item.description}</Text>
@@ -274,6 +279,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "#333",
+    marginBottom: 4,
+  },
+  documentNumber: {
+    fontSize: 14,
+    color: "#666",
     marginBottom: 4,
   },
   amount: {

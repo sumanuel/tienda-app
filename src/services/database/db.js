@@ -93,6 +93,7 @@ export const initAllTables = async () => {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           customerId INTEGER,
           customerName TEXT NOT NULL,
+          documentNumber TEXT,
           amount REAL NOT NULL,
           description TEXT,
           dueDate TEXT,

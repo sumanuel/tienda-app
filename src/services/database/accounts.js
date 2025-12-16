@@ -71,11 +71,25 @@ export const getAccountsPayableStats = async () => {
  */
 export const createAccountReceivable = async (accountData) => {
   try {
-    const { customerName, amount, description, dueDate } = accountData;
+    const {
+      customerName,
+      amount,
+      description,
+      dueDate,
+      documentNumber,
+      createdDate,
+    } = accountData;
     const result = await db.runAsync(
-      `INSERT INTO accounts_receivable (customerName, amount, description, dueDate, status, createdAt)
-       VALUES (?, ?, ?, ?, 'pending', datetime('now'))`,
-      [customerName, amount, description || null, dueDate || null]
+      `INSERT INTO accounts_receivable (customerName, amount, description, dueDate, documentNumber, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+      [
+        customerName,
+        amount,
+        description || null,
+        dueDate || null,
+        documentNumber || null,
+        createdDate || new Date().toISOString().split("T")[0],
+      ]
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -105,12 +119,20 @@ export const createAccountPayable = async (accountData) => {
  */
 export const updateAccountReceivable = async (id, accountData) => {
   try {
-    const { customerName, amount, description, dueDate } = accountData;
+    const { customerName, amount, description, dueDate, documentNumber } =
+      accountData;
     await db.runAsync(
       `UPDATE accounts_receivable
-       SET customerName = ?, amount = ?, description = ?, dueDate = ?, updatedAt = datetime('now')
+       SET customerName = ?, amount = ?, description = ?, dueDate = ?, documentNumber = ?, updatedAt = datetime('now')
        WHERE id = ?`,
-      [customerName, amount, description || null, dueDate || null, id]
+      [
+        customerName,
+        amount,
+        description || null,
+        dueDate || null,
+        documentNumber || null,
+        id,
+      ]
     );
   } catch (error) {
     throw error;
