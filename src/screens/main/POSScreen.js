@@ -308,7 +308,8 @@ export const POSScreen = ({ navigation }) => {
         subtotal: item.subtotal,
       }));
 
-      await addSale(saleData, saleItems);
+      // Registrar la venta y obtener el ID
+      const saleId = await addSale(saleData, saleItems);
 
       // Actualizar stock de productos vendidos
       for (const item of cart) {
@@ -332,6 +333,7 @@ export const POSScreen = ({ navigation }) => {
               .map((item) => item.name.toUpperCase())
               .join(", ")}`,
             dueDate: null, // Sin fecha de vencimiento por defecto
+            invoiceNumber: saleId, // Número de la venta
           };
           await addAccountReceivable(accountData);
           console.log("Cuenta por cobrar creada automáticamente");
@@ -389,7 +391,7 @@ export const POSScreen = ({ navigation }) => {
         notes: `Cliente: ${newCustomerName.trim()}`,
       };
 
-      await addSale(saleData, pendingSaleData.saleItems);
+      const saleId = await addSale(saleData, pendingSaleData.saleItems);
 
       // Actualizar stock de productos vendidos
       for (const item of cart) {
@@ -413,6 +415,7 @@ export const POSScreen = ({ navigation }) => {
               .map((item) => item.name.toUpperCase())
               .join(", ")}`,
             dueDate: null,
+            invoiceNumber: saleId, // Número de la venta
           };
           await addAccountReceivable(accountData);
           console.log("Cuenta por cobrar creada automáticamente");

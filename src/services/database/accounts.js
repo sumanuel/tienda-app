@@ -6,7 +6,7 @@ import { db } from "./db";
 export const getAllAccountsReceivable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT * FROM accounts_receivable ORDER BY dueDate ASC;"
+      "SELECT * FROM accounts_receivable ORDER BY createdAt DESC;"
     );
     return result;
   } catch (error) {
@@ -25,7 +25,7 @@ export const searchAccountsReceivable = async (query) => {
        WHERE customerName LIKE ? 
        OR documentNumber LIKE ? 
        OR description LIKE ?
-       ORDER BY dueDate ASC;`,
+       ORDER BY createdAt DESC;`,
       [searchTerm, searchTerm, searchTerm]
     );
     return result;
@@ -110,7 +110,7 @@ export const createAccountReceivable = async (accountData) => {
         dueDate || null,
         documentNumber || null,
         invoiceNumber || null,
-        createdDate || new Date().toISOString().split("T")[0],
+        createdDate || new Date().toISOString(),
       ]
     );
     return result.lastInsertRowId;

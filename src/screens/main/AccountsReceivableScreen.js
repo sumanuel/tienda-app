@@ -131,7 +131,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
           )}
           {item.createdAt && (
             <Text style={styles.createdDate}>
-              Creada: {new Date(item.createdAt).toLocaleDateString()}
+              Creada: {new Date(item.createdAt).toLocaleString()}
             </Text>
           )}
           {item.invoiceNumber && (
