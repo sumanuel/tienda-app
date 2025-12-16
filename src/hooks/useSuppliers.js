@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   getAllSuppliers,
   searchSuppliers,
+  getSupplierByDocumentNumber,
   insertSupplier,
   updateSupplier,
   deleteSupplier,
@@ -50,6 +51,18 @@ export const useSuppliers = () => {
     },
     [loadSuppliers]
   );
+
+  const getSupplierByDocument = useCallback(async (documentNumber) => {
+    try {
+      setError(null);
+      const supplier = await getSupplierByDocumentNumber(documentNumber);
+      return supplier;
+    } catch (err) {
+      setError(err.message);
+      console.error("Error getting supplier by document:", err);
+      throw err;
+    }
+  }, []);
 
   const addSupplier = useCallback(
     async (supplierData) => {
@@ -108,6 +121,7 @@ export const useSuppliers = () => {
     error,
     loadSuppliers,
     search,
+    getSupplierByDocument,
     addSupplier,
     editSupplier,
     removeSupplier,

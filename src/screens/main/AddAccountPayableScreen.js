@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useSuppliers } from "../../hooks/useSuppliers";
+import { insertSupplier } from "../../services/database/suppliers";
 
 /**
  * Pantalla para agregar nueva cuenta por pagar
@@ -87,10 +88,43 @@ export const AddAccountPayableScreen = ({ navigation }) => {
     }
 
     try {
+      const documentNumber = formData.documentNumber?.trim();
+      const supplierName = formData.supplierName?.trim();
+
+      if (!documentNumber || !supplierName) {
+        Alert.alert("Error", "Los datos del proveedor son incompletos");
+        return;
+      }
+
+      // Verificar si el proveedor existe
+      let supplier = await getSupplierByDocument(documentNumber);
+      let supplierId = supplier?.id;
+
+      // Si el proveedor no existe, crearlo
+      if (!supplier) {
+        try {
+          supplierId = await insertSupplier({
+            documentNumber: documentNumber,
+            name: supplierName,
+          });
+        } catch (supplierError) {
+          console.error("Error creando proveedor:", supplierError);
+          // Si falla por duplicado, intentar buscar el proveedor existente
+          if (supplierError.message?.includes("UNIQUE constraint failed")) {
+            supplier = await getSupplierByDocument(documentNumber);
+            supplierId = supplier?.id;
+          } else {
+            Alert.alert("Error", "No se pudo crear el proveedor");
+            return;
+          }
+        }
+      }
+
       const currentDateTime = new Date().toISOString(); // Fecha y hora actual completa
 
       await addAccountPayable({
         ...formData,
+        supplierId: supplierId,
         amount: parseFloat(formData.amount),
         createdAt: currentDateTime, // Agregar fecha y hora de creación
       });
@@ -98,6 +132,7 @@ export const AddAccountPayableScreen = ({ navigation }) => {
         { text: "OK", onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
+      console.error("Error guardando cuenta por pagar:", error);
       Alert.alert("Error", "No se pudo guardar la cuenta por pagar");
     }
   };

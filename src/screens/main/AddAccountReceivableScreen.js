@@ -103,6 +103,7 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
 
       await addAccountReceivable({
         ...formData,
+        customerId: customer.id,
         amount: parseFloat(formData.amount),
         createdAt: currentDateTime, // Agregar fecha y hora de creación
       });

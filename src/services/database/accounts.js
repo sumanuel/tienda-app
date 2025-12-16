@@ -112,6 +112,7 @@ export const getAccountsPayableStats = async () => {
 export const createAccountReceivable = async (accountData) => {
   try {
     const {
+      customerId,
       customerName,
       amount,
       description,
@@ -121,9 +122,10 @@ export const createAccountReceivable = async (accountData) => {
       createdAt,
     } = accountData;
     const result = await db.runAsync(
-      `INSERT INTO accounts_receivable (customerName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      `INSERT INTO accounts_receivable (customerId, customerName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
+        customerId || null,
         customerName,
         amount,
         description || null,
@@ -145,6 +147,7 @@ export const createAccountReceivable = async (accountData) => {
 export const createAccountPayable = async (accountData) => {
   try {
     const {
+      supplierId,
       supplierName,
       amount,
       description,
@@ -154,9 +157,10 @@ export const createAccountPayable = async (accountData) => {
       createdAt,
     } = accountData;
     const result = await db.runAsync(
-      `INSERT INTO accounts_payable (supplierName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      `INSERT INTO accounts_payable (supplierId, supplierName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
+        supplierId || null,
         supplierName,
         amount,
         description || null,

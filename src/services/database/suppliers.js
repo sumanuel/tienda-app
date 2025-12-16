@@ -8,7 +8,7 @@ export const initSuppliersTable = async () => {
     await db.execAsync(
       `CREATE TABLE IF NOT EXISTS suppliers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        documentNumber TEXT NOT NULL,
+        documentNumber TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
         email TEXT,
         phone TEXT,
@@ -122,10 +122,26 @@ export const deleteSupplier = async (id) => {
   }
 };
 
+/**
+ * Obtiene un proveedor por su número de documento
+ */
+export const getSupplierByDocumentNumber = async (documentNumber) => {
+  try {
+    const result = await db.getFirstAsync(
+      "SELECT * FROM suppliers WHERE documentNumber = ? AND active = 1;",
+      [documentNumber]
+    );
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export default {
   initSuppliersTable,
   getAllSuppliers,
   searchSuppliers,
+  getSupplierByDocumentNumber,
   insertSupplier,
   updateSupplier,
   deleteSupplier,
