@@ -20,7 +20,7 @@ import { useCustomers } from "../../hooks/useCustomers";
  */
 export const AddAccountReceivableScreen = ({ navigation }) => {
   const { addAccountReceivable } = useAccounts();
-  const { getCustomerByDocument } = useCustomers();
+  const { getCustomerByDocument, addCustomer } = useCustomers();
 
   const [formData, setFormData] = useState({
     documentNumber: "",
@@ -84,12 +84,27 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
     }
 
     try {
-      const currentDate = new Date().toISOString().split("T")[0]; // Fecha actual en formato YYYY-MM-DD
+      // Verificar si el cliente existe
+      let customer = await getCustomerByDocument(
+        formData.documentNumber.trim()
+      );
+
+      // Si el cliente no existe, crearlo
+      if (!customer) {
+        await addCustomer({
+          documentNumber: formData.documentNumber.trim(),
+          name: formData.customerName.trim(),
+        });
+        // Volver a buscar el cliente recién creado
+        customer = await getCustomerByDocument(formData.documentNumber.trim());
+      }
+
+      const currentDateTime = new Date().toISOString(); // Fecha y hora actual completa
 
       await addAccountReceivable({
         ...formData,
         amount: parseFloat(formData.amount),
-        createdDate: currentDate, // Agregar fecha de creación
+        createdAt: currentDateTime, // Agregar fecha y hora de creación
       });
       Alert.alert("Éxito", "Cuenta por cobrar agregada correctamente", [
         { text: "OK", onPress: () => navigation.goBack() },

@@ -8,6 +8,7 @@ import {
   Alert,
   TextInput,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { useAccounts } from "../../hooks/useAccounts";
 
 /**
@@ -194,6 +195,13 @@ export const AccountsReceivableScreen = ({ navigation }) => {
           : "No hay cuentas por cobrar registradas"}
       </Text>
     </View>
+  );
+
+  // Refrescar la lista cuando la pantalla recibe foco
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
   );
 
   if (loading) {

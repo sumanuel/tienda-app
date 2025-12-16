@@ -87,12 +87,12 @@ export const AddAccountPayableScreen = ({ navigation }) => {
     }
 
     try {
-      const currentDate = new Date().toISOString(); // Fecha y hora actual
+      const currentDateTime = new Date().toISOString(); // Fecha y hora actual completa
 
       await addAccountPayable({
         ...formData,
         amount: parseFloat(formData.amount),
-        createdDate: currentDate, // Agregar fecha de creación
+        createdAt: currentDateTime, // Agregar fecha y hora de creación
       });
       Alert.alert("Éxito", "Cuenta por pagar agregada correctamente", [
         { text: "OK", onPress: () => navigation.goBack() },

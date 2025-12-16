@@ -118,7 +118,7 @@ export const createAccountReceivable = async (accountData) => {
       dueDate,
       documentNumber,
       invoiceNumber,
-      createdDate,
+      createdAt,
     } = accountData;
     const result = await db.runAsync(
       `INSERT INTO accounts_receivable (customerName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
@@ -130,7 +130,7 @@ export const createAccountReceivable = async (accountData) => {
         dueDate || null,
         documentNumber || null,
         invoiceNumber || null,
-        createdDate || new Date().toISOString(),
+        createdAt || new Date().toISOString(),
       ]
     );
     return result.lastInsertRowId;
@@ -151,7 +151,7 @@ export const createAccountPayable = async (accountData) => {
       dueDate,
       documentNumber,
       invoiceNumber,
-      createdDate,
+      createdAt,
     } = accountData;
     const result = await db.runAsync(
       `INSERT INTO accounts_payable (supplierName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
@@ -163,7 +163,7 @@ export const createAccountPayable = async (accountData) => {
         dueDate || null,
         documentNumber || null,
         invoiceNumber || null,
-        createdDate || new Date().toISOString(),
+        createdAt || new Date().toISOString(),
       ]
     );
     return result.lastInsertRowId;
