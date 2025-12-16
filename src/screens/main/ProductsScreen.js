@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   Alert,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -136,23 +135,21 @@ export const ProductsScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Productos</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar productos..."
+          value={searchQuery}
+          onChangeText={handleSearch}
+        />
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => navigation.getParent().navigate("AddProduct")}
+          onPress={() => navigation.navigate("AddProduct")}
         >
           <Text style={styles.addButtonText}>+ Nuevo</Text>
         </TouchableOpacity>
       </View>
-
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Buscar productos..."
-        value={searchQuery}
-        onChangeText={handleSearch}
-      />
 
       <FlatList
         data={products.sort((a, b) => a.name.localeCompare(b.name))}
@@ -163,7 +160,7 @@ export const ProductsScreen = ({ navigation }) => {
           <Text style={styles.emptyText}>No hay productos</Text>
         }
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -175,19 +172,11 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    padding: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
   },
   addButton: {
     backgroundColor: "#4CAF50",
@@ -200,11 +189,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   searchInput: {
-    margin: 16,
-    backgroundColor: "#fff",
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#ddd",
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    marginRight: 12,
+    backgroundColor: "#f9f9f9",
   },
   list: {
     padding: 16,
