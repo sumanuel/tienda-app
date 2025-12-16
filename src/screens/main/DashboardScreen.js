@@ -80,6 +80,7 @@ export const DashboardScreen = ({ navigation }) => {
       }
     >
       <Text style={styles.title}>Dashboard</Text>
+      <Text style={styles.subtitle}>Resumen general de tu negocio</Text>
 
       {/* Tasa de Cambio */}
       <TouchableOpacity
@@ -225,7 +226,7 @@ export const DashboardScreen = ({ navigation }) => {
       <View style={styles.quickActions}>
         <TouchableOpacity
           key="pos"
-          style={styles.actionButton}
+          style={[styles.modernActionCard, { backgroundColor: "#c4b5fd" }]}
           onPress={() => navigation.navigate("POS")}
         >
           <Text style={styles.actionIcon}>🛒</Text>
@@ -234,7 +235,7 @@ export const DashboardScreen = ({ navigation }) => {
 
         <TouchableOpacity
           key="products"
-          style={styles.actionButton}
+          style={[styles.modernActionCard, { backgroundColor: "#fca5a5" }]}
           onPress={() => navigation.navigate("Products")}
         >
           <Text style={styles.actionIcon}>📦</Text>
@@ -243,7 +244,7 @@ export const DashboardScreen = ({ navigation }) => {
 
         <TouchableOpacity
           key="exchange"
-          style={styles.actionButton}
+          style={[styles.modernActionCard, { backgroundColor: "#fdba74" }]}
           onPress={() => navigation.getParent().navigate("ExchangeRate")}
         >
           <Text style={styles.actionIcon}>💱</Text>
@@ -252,7 +253,7 @@ export const DashboardScreen = ({ navigation }) => {
 
         <TouchableOpacity
           key="sales"
-          style={styles.actionButton}
+          style={[styles.modernActionCard, { backgroundColor: "#86efac" }]}
           onPress={() => navigation.navigate("Sales")}
         >
           <Text style={styles.actionIcon}>📊</Text>
@@ -261,7 +262,7 @@ export const DashboardScreen = ({ navigation }) => {
 
         <TouchableOpacity
           key="customers"
-          style={styles.actionButton}
+          style={[styles.modernActionCard, { backgroundColor: "#7dd3fc" }]}
           onPress={() => navigation.navigate("Customers")}
         >
           <Text style={styles.actionIcon}>👥</Text>
@@ -270,7 +271,7 @@ export const DashboardScreen = ({ navigation }) => {
 
         <TouchableOpacity
           key="suppliers"
-          style={styles.actionButton}
+          style={[styles.modernActionCard, { backgroundColor: "#d2b48c" }]}
           onPress={() => navigation.navigate("Suppliers")}
         >
           <Text style={styles.actionIcon}>🏢</Text>
@@ -279,7 +280,7 @@ export const DashboardScreen = ({ navigation }) => {
 
         <TouchableOpacity
           key="accounts-receivable"
-          style={styles.actionButton}
+          style={[styles.modernActionCard, { backgroundColor: "#f9a8d4" }]}
           onPress={() => navigation.navigate("AccountsReceivable")}
         >
           <Text style={styles.actionIcon}>💰</Text>
@@ -288,7 +289,7 @@ export const DashboardScreen = ({ navigation }) => {
 
         <TouchableOpacity
           key="accounts-payable"
-          style={styles.actionButton}
+          style={[styles.modernActionCard, { backgroundColor: "#a7f3d0" }]}
           onPress={() => navigation.navigate("AccountsPayable")}
         >
           <Text style={styles.actionIcon}>💳</Text>
@@ -313,10 +314,17 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "700",
     color: "#1a1a1a",
-    marginBottom: 24,
+    marginBottom: 8,
     marginTop: 20,
     textAlign: "center",
     letterSpacing: 0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#6b7280",
+    marginBottom: 24,
+    textAlign: "center",
+    fontWeight: "400",
   },
   modernCard: {
     borderRadius: 20,
@@ -415,23 +423,27 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 8,
   },
-  actionButton: {
+  modernActionCard: {
     width: "48%",
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
     alignItems: "center",
     marginBottom: 16,
-    elevation: 2,
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
   },
   actionIcon: {
-    fontSize: 40,
+    fontSize: 32,
     marginBottom: 8,
   },
   actionText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#333",
+    color: "#1f2937",
+    textAlign: "center",
   },
 });
 
