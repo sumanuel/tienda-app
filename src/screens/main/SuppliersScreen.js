@@ -69,9 +69,8 @@ export const SuppliersScreen = () => {
             navigation.navigate("EditSupplier", { supplier: item })
           }
         >
-          <Text style={styles.supplierName}>
-            {item.documentNumber} - {item.name}
-          </Text>
+          <Text style={styles.supplierName}>{item.name}</Text>
+          <Text style={styles.supplierDocument}>{item.documentNumber}</Text>
           {item.contactPerson && (
             <Text style={styles.supplierContact}>
               Contacto: {item.contactPerson}
@@ -237,6 +236,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "#333",
+    marginBottom: 4,
+  },
+  supplierDocument: {
+    fontSize: 14,
+    color: "#666",
     marginBottom: 4,
   },
   supplierContact: {
