@@ -55,7 +55,7 @@ export const ProductsScreen = ({ navigation }) => {
   };
 
   const handleEditProduct = (product) => {
-    navigation.getParent().navigate("EditProduct", { product });
+    navigation.navigate("EditProduct", { product });
   };
 
   const handleDeleteProduct = (product) => {

@@ -37,31 +37,6 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 /**
- * Stack Navigator para Productos
- */
-function ProductsStack() {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen
-        name="ProductsList"
-        component={ProductsScreen}
-        options={{
-          title: "Productos",
-          headerStyle: {
-            backgroundColor: "#4CAF50",
-          },
-          headerTintColor: "#fff",
-          headerTitleStyle: {
-            fontWeight: "bold",
-          },
-          headerBackTitleVisible: false,
-        }}
-      />
-    </Stack.Navigator>
-  );
-}
-
-/**
  * Tabs de navegación principal
  */
 function MainTabs() {
@@ -94,14 +69,6 @@ function MainTabs() {
         options={{
           tabBarLabel: "Venta",
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🛒</Text>,
-        }}
-      />
-      <Tab.Screen
-        name="Products"
-        component={ProductsStack}
-        options={{
-          tabBarLabel: "Productos",
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📦</Text>,
         }}
       />
       <Tab.Screen
@@ -188,7 +155,7 @@ export default function App() {
             }}
           />
           <Stack.Screen
-            name="ProductsStack"
+            name="Products"
             component={ProductsScreen}
             options={{
               title: "Productos",
