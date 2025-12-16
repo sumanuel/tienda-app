@@ -7,104 +7,39 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
-  Modal,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { useAccounts } from "../../hooks/useAccounts";
 
-export const AccountsReceivableScreen = () => {
+/**
+ * Pantalla de gestión de cuentas por cobrar
+ */
+export const AccountsReceivableScreen = ({ navigation }) => {
   const {
     accountsReceivable,
     loading,
     error,
     refresh,
-    addAccountReceivable,
-    editAccountReceivable,
     removeAccountReceivable,
     markReceivableAsPaid,
   } = useAccounts();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingAccount, setEditingAccount] = useState(null);
-  const [formData, setFormData] = useState({
-    customerName: "",
-    amount: "",
-    description: "",
-    dueDate: "",
-  });
 
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
     // TODO: Implementar búsqueda
   }, []);
 
-  const openAddModal = useCallback(() => {
-    setEditingAccount(null);
-    setFormData({
-      customerName: "",
-      amount: "",
-      description: "",
-      dueDate: "",
-    });
-    setModalVisible(true);
-  }, []);
+  const openAddScreen = useCallback(() => {
+    navigation.navigate("AddAccountReceivable");
+  }, [navigation]);
 
-  const openEditModal = useCallback((account) => {
-    setEditingAccount(account);
-    setFormData({
-      customerName: account.customerName || "",
-      amount: account.amount?.toString() || "",
-      description: account.description || "",
-      dueDate: account.dueDate || "",
-    });
-    setModalVisible(true);
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (!formData.customerName.trim()) {
-      Alert.alert("Error", "El nombre del cliente es obligatorio");
-      return;
-    }
-    if (!formData.amount.trim() || isNaN(parseFloat(formData.amount))) {
-      Alert.alert("Error", "El monto debe ser un número válido");
-      return;
-    }
-
-    try {
-      const accountData = {
-        customerName: formData.customerName.trim(),
-        amount: parseFloat(formData.amount),
-        description: formData.description.trim(),
-        dueDate: formData.dueDate.trim() || null,
-      };
-
-      if (editingAccount) {
-        await editAccountReceivable(editingAccount.id, accountData);
-      } else {
-        await addAccountReceivable(accountData);
-      }
-
-      Alert.alert(
-        "Éxito",
-        editingAccount
-          ? "Cuenta actualizada correctamente"
-          : "Cuenta agregada correctamente"
-      );
-      setModalVisible(false);
-      refresh();
-    } catch (error) {
-      Alert.alert("Error", "No se pudo guardar la cuenta");
-    }
-  }, [
-    formData,
-    editingAccount,
-    addAccountReceivable,
-    editAccountReceivable,
-    refresh,
-  ]);
+  const openEditScreen = useCallback(
+    (account) => {
+      navigation.navigate("EditAccountReceivable", { account });
+    },
+    [navigation]
+  );
 
   const handleMarkAsPaid = useCallback(
     (account) => {
@@ -171,7 +106,7 @@ export const AccountsReceivableScreen = () => {
     ({ item }) => (
       <TouchableOpacity
         style={styles.accountCard}
-        onPress={() => openEditModal(item)}
+        onPress={() => openEditScreen(item)}
       >
         <View style={styles.accountInfo}>
           <Text style={styles.customerName}>{item.customerName}</Text>
@@ -214,7 +149,7 @@ export const AccountsReceivableScreen = () => {
       </TouchableOpacity>
     ),
     [
-      openEditModal,
+      openEditScreen,
       handleMarkAsPaid,
       handleDelete,
       getStatusColor,
@@ -252,10 +187,7 @@ export const AccountsReceivableScreen = () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <View style={styles.container}>
       <View style={styles.header}>
         <TextInput
           style={styles.searchInput}
@@ -263,7 +195,7 @@ export const AccountsReceivableScreen = () => {
           value={searchQuery}
           onChangeText={handleSearch}
         />
-        <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
+        <TouchableOpacity style={styles.addButton} onPress={openAddScreen}>
           <Text style={styles.addButtonText}>+ Agregar</Text>
         </TouchableOpacity>
       </View>
@@ -276,83 +208,7 @@ export const AccountsReceivableScreen = () => {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       />
-
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {editingAccount
-                ? "Editar Cuenta por Cobrar"
-                : "Nueva Cuenta por Cobrar"}
-            </Text>
-
-            <ScrollView style={styles.formContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre del Cliente *"
-                value={formData.customerName}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, customerName: text }))
-                }
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Monto *"
-                value={formData.amount}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, amount: text }))
-                }
-                keyboardType="numeric"
-              />
-
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Descripción"
-                value={formData.description}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, description: text }))
-                }
-                multiline
-                numberOfLines={3}
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Fecha de vencimiento (YYYY-MM-DD)"
-                value={formData.dueDate}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, dueDate: text }))
-                }
-              />
-            </ScrollView>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleSave}
-              >
-                <Text style={styles.saveButtonText}>
-                  {editingAccount ? "Actualizar" : "Guardar"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -495,67 +351,6 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: "#fff",
-    fontWeight: "bold",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    width: "90%",
-    maxHeight: "80%",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    textAlign: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  formContainer: {
-    padding: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: "top",
-  },
-  modalButtons: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-  },
-  modalButton: {
-    flex: 1,
-    padding: 16,
-    alignItems: "center",
-  },
-  cancelButton: {
-    borderRightWidth: 1,
-    borderRightColor: "#e0e0e0",
-  },
-  cancelButtonText: {
-    color: "#666",
-    fontSize: 16,
-  },
-  saveButton: {
-    backgroundColor: "#007AFF",
-  },
-  saveButtonText: {
-    color: "#fff",
-    fontSize: 16,
     fontWeight: "bold",
   },
 });

@@ -24,6 +24,8 @@ import { EditCustomerScreen } from "./src/screens/main/EditCustomerScreen";
 import { AddSupplierScreen } from "./src/screens/main/AddSupplierScreen";
 import { EditSupplierScreen } from "./src/screens/main/EditSupplierScreen";
 import AccountsReceivableScreen from "./src/screens/main/AccountsReceivableScreen";
+import AddAccountReceivableScreen from "./src/screens/main/AddAccountReceivableScreen";
+import EditAccountReceivableScreen from "./src/screens/main/EditAccountReceivableScreen";
 import AccountsPayableScreen from "./src/screens/main/AccountsPayableScreen";
 
 // Database initialization
@@ -277,6 +279,34 @@ export default function App() {
             component={AccountsReceivableScreen}
             options={{
               title: "Cuentas por Cobrar",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AddAccountReceivable"
+            component={AddAccountReceivableScreen}
+            options={{
+              title: "Nueva Cuenta por Cobrar",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="EditAccountReceivable"
+            component={EditAccountReceivableScreen}
+            options={{
+              title: "Editar Cuenta por Cobrar",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },
