@@ -7,14 +7,13 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
-  Modal,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
+  SafeAreaView,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useSuppliers } from "../../hooks/useSuppliers";
 
 export const SuppliersScreen = () => {
+  const navigation = useNavigation();
   const {
     suppliers,
     loading,
@@ -27,17 +26,6 @@ export const SuppliersScreen = () => {
   } = useSuppliers();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingSupplier, setEditingSupplier] = useState(null);
-  const [formData, setFormData] = useState({
-    documentNumber: "",
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    contactPerson: "",
-    paymentTerms: "",
-  });
 
   const handleSearch = useCallback(
     (query) => {
@@ -47,59 +35,7 @@ export const SuppliersScreen = () => {
     [search]
   );
 
-  const openAddModal = useCallback(() => {
-    setEditingSupplier(null);
-    setFormData({
-      documentNumber: "",
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      contactPerson: "",
-      paymentTerms: "",
-    });
-    setModalVisible(true);
-  }, []);
-
-  const openEditModal = useCallback((supplier) => {
-    setEditingSupplier(supplier);
-    setFormData({
-      documentNumber: supplier.documentNumber || "",
-      name: supplier.name || "",
-      email: supplier.email || "",
-      phone: supplier.phone || "",
-      address: supplier.address || "",
-      contactPerson: supplier.contactPerson || "",
-      paymentTerms: supplier.paymentTerms || "",
-    });
-    setModalVisible(true);
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (!formData.documentNumber.trim()) {
-      Alert.alert("Error", "El RIF/Cédula del proveedor es obligatorio");
-      return;
-    }
-    if (!formData.name.trim()) {
-      Alert.alert("Error", "El nombre del proveedor es obligatorio");
-      return;
-    }
-
-    try {
-      if (editingSupplier) {
-        await editSupplier(editingSupplier.id, formData);
-        Alert.alert("Éxito", "Proveedor actualizado correctamente");
-      } else {
-        await addSupplier(formData);
-        Alert.alert("Éxito", "Proveedor agregado correctamente");
-      }
-      setModalVisible(false);
-    } catch (error) {
-      Alert.alert("Error", "No se pudo guardar el proveedor");
-    }
-  }, [formData, editingSupplier, addSupplier, editSupplier]);
-
-  const handleDelete = useCallback(
+  const confirmDeleteSupplier = useCallback(
     (supplier) => {
       Alert.alert(
         "Confirmar eliminación",
@@ -126,11 +62,13 @@ export const SuppliersScreen = () => {
 
   const renderSupplier = useCallback(
     ({ item }) => (
-      <TouchableOpacity
-        style={styles.supplierCard}
-        onPress={() => openEditModal(item)}
-      >
-        <View style={styles.supplierInfo}>
+      <View style={styles.supplierCard}>
+        <TouchableOpacity
+          style={styles.supplierInfo}
+          onPress={() =>
+            navigation.navigate("EditSupplier", { supplier: item })
+          }
+        >
           <Text style={styles.supplierName}>
             {item.documentNumber} - {item.name}
           </Text>
@@ -139,18 +77,36 @@ export const SuppliersScreen = () => {
               Contacto: {item.contactPerson}
             </Text>
           )}
-          {item.phone && <Text style={styles.supplierPhone}>{item.phone}</Text>}
-          {item.email && <Text style={styles.supplierEmail}>{item.email}</Text>}
-        </View>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDelete(item)}
-        >
-          <Text style={styles.deleteButtonText}>×</Text>
+          <View style={styles.contactRow}>
+            {item.phone && (
+              <Text style={styles.contactText}>📞 {item.phone}</Text>
+            )}
+            {item.email && (
+              <Text style={styles.contactText}>✉️ {item.email}</Text>
+            )}
+          </View>
         </TouchableOpacity>
-      </TouchableOpacity>
+        <View style={styles.actionsContainer}>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() =>
+                navigation.navigate("EditSupplier", { supplier: item })
+              }
+            >
+              <Text style={styles.editButtonText}>✏️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => confirmDeleteSupplier(item)}
+            >
+              <Text style={styles.deleteButtonText}>🗑️</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
     ),
-    [openEditModal, handleDelete]
+    [navigation, confirmDeleteSupplier]
   );
 
   const renderEmpty = () => (
@@ -183,142 +139,40 @@ export const SuppliersScreen = () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar proveedores..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
-        <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
-          <Text style={styles.addButtonText}>+ Agregar</Text>
+        <Text style={styles.title}>Proveedores</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate("AddSupplier")}
+        >
+          <Text style={styles.addButtonText}>+ Nuevo</Text>
         </TouchableOpacity>
       </View>
+
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Buscar proveedores..."
+        value={searchQuery}
+        onChangeText={handleSearch}
+      />
 
       <FlatList
         data={suppliers.sort((a, b) => a.name.localeCompare(b.name))}
         renderItem={renderSupplier}
         keyExtractor={(item) => item.id.toString()}
         ListEmptyComponent={renderEmpty}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
       />
-
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {editingSupplier ? "Editar Proveedor" : "Nuevo Proveedor"}
-            </Text>
-
-            <ScrollView style={styles.formContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="RIF/Cédula *"
-                value={formData.documentNumber}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, documentNumber: text }))
-                }
-                keyboardType="default"
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre/Razón Social *"
-                value={formData.name}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, name: text }))
-                }
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Persona de Contacto"
-                value={formData.contactPerson}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, contactPerson: text }))
-                }
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Teléfono"
-                value={formData.phone}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, phone: text }))
-                }
-                keyboardType="phone-pad"
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                value={formData.email}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, email: text }))
-                }
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Dirección"
-                value={formData.address}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, address: text }))
-                }
-                multiline
-                numberOfLines={3}
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Términos de Pago"
-                value={formData.paymentTerms}
-                onChangeText={(text) =>
-                  setFormData((prev) => ({ ...prev, paymentTerms: text }))
-                }
-              />
-            </ScrollView>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleSave}
-              >
-                <Text style={styles.saveButtonText}>
-                  {editingSupplier ? "Actualizar" : "Guardar"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+    paddingBottom: 20,
   },
   centerContainer: {
     flex: 1,
@@ -328,34 +182,40 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    padding: 16,
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: "#eee",
   },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginRight: 12,
-    backgroundColor: "#f9f9f9",
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
   },
   addButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#4CAF50",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 8,
-    justifyContent: "center",
   },
   addButtonText: {
     color: "#fff",
-    fontWeight: "bold",
+    fontWeight: "600",
   },
-  listContainer: {
+  searchInput: {
+    margin: 16,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  list: {
     padding: 16,
+    paddingBottom: 100,
   },
   supplierCard: {
     backgroundColor: "#fff",
@@ -393,107 +253,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
   },
+  contactRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  contactText: {
+    fontSize: 14,
+    color: "#666",
+    marginRight: 16,
+    marginBottom: 2,
+  },
+  actionsContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingLeft: 16,
+  },
+  actionButtons: {
+    flexDirection: "row",
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 4,
+  },
+  editButton: {
+    backgroundColor: "#007AFF",
+  },
+  editButtonText: {
+    color: "#fff",
+    fontSize: 18,
+  },
   deleteButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#FF3B30",
     justifyContent: "center",
     alignItems: "center",
+    marginHorizontal: 4,
   },
   deleteButtonText: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "bold",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-  },
-  errorText: {
-    fontSize: 16,
-    color: "#FF3B30",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    width: "90%",
-    maxHeight: "80%",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    textAlign: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  formContainer: {
-    padding: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: "top",
-  },
-  modalButtons: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-  },
-  modalButton: {
-    flex: 1,
-    padding: 16,
-    alignItems: "center",
-  },
-  cancelButton: {
-    borderRightWidth: 1,
-    borderRightColor: "#e0e0e0",
-  },
-  cancelButtonText: {
-    color: "#666",
-    fontSize: 16,
-  },
-  saveButton: {
-    backgroundColor: "#007AFF",
-  },
-  saveButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
   },
 });
-
-export default SuppliersScreen;

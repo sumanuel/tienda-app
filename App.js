@@ -17,8 +17,12 @@ import ExchangeRateScreen from "./src/screens/main/ExchangeRateScreen";
 import SettingsScreen from "./src/screens/main/SettingsScreen";
 import AddProductScreen from "./src/screens/main/AddProductScreen";
 import EditProductScreen from "./src/screens/main/EditProductScreen";
-import CustomersScreen from "./src/screens/main/CustomersScreen";
-import SuppliersScreen from "./src/screens/main/SuppliersScreen";
+import { CustomersScreen } from "./src/screens/main/CustomersScreen";
+import { SuppliersScreen } from "./src/screens/main/SuppliersScreen";
+import { AddCustomerScreen } from "./src/screens/main/AddCustomerScreen";
+import { EditCustomerScreen } from "./src/screens/main/EditCustomerScreen";
+import { AddSupplierScreen } from "./src/screens/main/AddSupplierScreen";
+import { EditSupplierScreen } from "./src/screens/main/EditSupplierScreen";
 import AccountsReceivableScreen from "./src/screens/main/AccountsReceivableScreen";
 import AccountsPayableScreen from "./src/screens/main/AccountsPayableScreen";
 
@@ -175,6 +179,62 @@ export default function App() {
             component={EditProductScreen}
             options={{
               title: "Editar Producto",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AddCustomer"
+            component={AddCustomerScreen}
+            options={{
+              title: "Nuevo Cliente",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="EditCustomer"
+            component={EditCustomerScreen}
+            options={{
+              title: "Editar Cliente",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AddSupplier"
+            component={AddSupplierScreen}
+            options={{
+              title: "Nuevo Proveedor",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="EditSupplier"
+            component={EditSupplierScreen}
+            options={{
+              title: "Editar Proveedor",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },
