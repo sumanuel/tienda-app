@@ -315,7 +315,7 @@ export const POSScreen = ({ navigation }) => {
         const newStock = item.product.stock - item.quantity;
         await updateProductStock(item.product.id, newStock);
         console.log(
-          `Stock actualizado: ${item.name} - Nuevo stock: ${newStock}`
+          `Stock actualizado: ${item.name.toUpperCase()} - Nuevo stock: ${newStock}`
         );
       }
 
@@ -329,7 +329,7 @@ export const POSScreen = ({ navigation }) => {
             customerName: customerName.trim() || "Cliente",
             amount: total,
             description: `Venta a crédito - ${cart.length} producto(s): ${cart
-              .map((item) => item.name)
+              .map((item) => item.name.toUpperCase())
               .join(", ")}`,
             dueDate: null, // Sin fecha de vencimiento por defecto
           };
@@ -396,7 +396,7 @@ export const POSScreen = ({ navigation }) => {
         const newStock = item.product.stock - item.quantity;
         await updateProductStock(item.product.id, newStock);
         console.log(
-          `Stock actualizado: ${item.name} - Nuevo stock: ${newStock}`
+          `Stock actualizado: ${item.name.toUpperCase()} - Nuevo stock: ${newStock}`
         );
       }
 
@@ -410,7 +410,7 @@ export const POSScreen = ({ navigation }) => {
             customerName: newCustomerName.trim(),
             amount: pendingSaleData.total,
             description: `Venta a crédito - ${cart.length} producto(s): ${cart
-              .map((item) => item.name)
+              .map((item) => item.name.toUpperCase())
               .join(", ")}`,
             dueDate: null,
           };
@@ -470,7 +470,7 @@ export const POSScreen = ({ navigation }) => {
       >
         <View style={styles.productHeader}>
           <Text style={styles.productName} numberOfLines={2}>
-            {item.name}
+            {item.name.toUpperCase()}
           </Text>
           {isOutOfStock && (
             <View style={styles.outOfStockBadge}>
@@ -503,7 +503,7 @@ export const POSScreen = ({ navigation }) => {
     <View style={styles.cartItem}>
       <View style={styles.cartItemLeft}>
         <Text style={styles.cartItemName} numberOfLines={1}>
-          {item.name}
+          {item.name.toUpperCase()}
         </Text>
         <Text style={styles.cartItemPrice}>
           VES. {item.price.toFixed(2)} x {item.quantity}

@@ -55,7 +55,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     (account) => {
       Alert.alert(
         "Marcar como pagada",
-        `¿Confirmar que la cuenta de ${account.customerName} por VES. ${account.amount} ha sido pagada?`,
+        `¿Confirmar que la cuenta de ${account.customerName.toUpperCase()} por VES. ${account.amount} ha sido pagada?`,
         [
           { text: "Cancelar", style: "cancel" },
           {
@@ -79,7 +79,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     (account) => {
       Alert.alert(
         "Eliminar cuenta",
-        `¿Estás seguro de que quieres eliminar la cuenta de ${account.customerName}?`,
+        `¿Estás seguro de que quieres eliminar la cuenta de ${account.customerName.toUpperCase()}?`,
         [
           { text: "Cancelar", style: "cancel" },
           {
@@ -119,7 +119,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         onPress={() => openEditScreen(item)}
       >
         <View style={styles.accountInfo}>
-          <Text style={styles.customerName}>{item.customerName}</Text>
+          <Text style={styles.customerName}>{item.customerName.toUpperCase()}</Text>
           {item.documentNumber && (
             <Text style={styles.documentNumber}>
               Cédula: {item.documentNumber}
