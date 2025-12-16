@@ -82,29 +82,45 @@ export const DashboardScreen = ({ navigation }) => {
       <Text style={styles.title}>Dashboard</Text>
 
       {/* Tasa de Cambio */}
-      <RateDisplay
-        rate={rate}
-        source="BCV"
-        lastUpdate={lastUpdate}
-        style={styles.card}
-      />
+      <TouchableOpacity
+        style={[styles.modernCard, { backgroundColor: "#6366f1" }]}
+        onPress={() => navigation.navigate("ExchangeRate")}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardIcon}>💱</Text>
+          <Text style={styles.cardTitle}>Tasa de Cambio</Text>
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={styles.mainValue}>
+            {rate ? `VES. ${rate.toFixed(2)}` : "Cargando..."}
+          </Text>
+          <Text style={styles.cardSubtitle}>
+            {lastUpdate
+              ? `Actualizado: ${new Date(lastUpdate).toLocaleTimeString()}`
+              : ""}
+          </Text>
+        </View>
+      </TouchableOpacity>
 
       {/* Estadísticas de Ventas Hoy */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Ventas de Hoy</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{todayStats?.count || 0}</Text>
-            <Text style={styles.statLabel}>Ventas</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>
-              VES. {(todayStats?.total || 0).toFixed(2)}
-            </Text>
-            <Text style={styles.statLabel}>Total</Text>
+      <TouchableOpacity
+        style={[styles.modernCard, { backgroundColor: "#ec4899" }]}
+        onPress={() => navigation.navigate("Sales")}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardIcon}>💰</Text>
+          <Text style={styles.cardTitle}>Ventas de Hoy</Text>
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={styles.mainValue}>
+            VES. {(todayStats?.total || 0).toFixed(2)}
+          </Text>
+          <View style={styles.secondaryStats}>
+            <Text style={styles.secondaryValue}>{todayStats?.count || 0}</Text>
+            <Text style={styles.secondaryLabel}>ventas</Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Estadísticas de Inventario - OCULTA */}
       {/*
@@ -152,52 +168,58 @@ export const DashboardScreen = ({ navigation }) => {
       */}
 
       {/* Estadísticas de Cuentas por Cobrar */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Cuentas por Cobrar</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>
-              VES. {(receivableStats?.pending || 0).toFixed(2)}
-            </Text>
-            <Text style={styles.statLabel}>Pendiente</Text>
-          </View>
-          <View style={styles.stat}>
+      <TouchableOpacity
+        style={[styles.modernCard, { backgroundColor: "#06b6d4" }]}
+        onPress={() => navigation.navigate("AccountsReceivable")}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardIcon}>📈</Text>
+          <Text style={styles.cardTitle}>Cuentas por Cobrar</Text>
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={styles.mainValue}>
+            VES. {(receivableStats?.pending || 0).toFixed(2)}
+          </Text>
+          <View style={styles.secondaryStats}>
             <Text
               style={[
-                styles.statValue,
-                (receivableStats?.overdue || 0) > 0 && styles.warning,
+                styles.secondaryValue,
+                (receivableStats?.overdue || 0) > 0 && styles.warningValue,
               ]}
             >
               VES. {(receivableStats?.overdue || 0).toFixed(2)}
             </Text>
-            <Text style={styles.statLabel}>Vencidas</Text>
+            <Text style={styles.secondaryLabel}>vencidas</Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Estadísticas de Cuentas por Pagar */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Cuentas por Pagar</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>
-              VES. {(payableStats?.pending || 0).toFixed(2)}
-            </Text>
-            <Text style={styles.statLabel}>Pendiente</Text>
-          </View>
-          <View style={styles.stat}>
+      <TouchableOpacity
+        style={[styles.modernCard, { backgroundColor: "#10b981" }]}
+        onPress={() => navigation.navigate("AccountsPayable")}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardIcon}>📉</Text>
+          <Text style={styles.cardTitle}>Cuentas por Pagar</Text>
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={styles.mainValue}>
+            VES. {(payableStats?.pending || 0).toFixed(2)}
+          </Text>
+          <View style={styles.secondaryStats}>
             <Text
               style={[
-                styles.statValue,
-                (payableStats?.overdue || 0) > 0 && styles.warning,
+                styles.secondaryValue,
+                (payableStats?.overdue || 0) > 0 && styles.warningValue,
               ]}
             >
               VES. {(payableStats?.overdue || 0).toFixed(2)}
             </Text>
-            <Text style={styles.statLabel}>Vencidas</Text>
+            <Text style={styles.secondaryLabel}>vencidas</Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Accesos Rápidos */}
       <View style={styles.quickActions}>
@@ -280,32 +302,92 @@ export const DashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f8f9fa",
     padding: 16,
     paddingBottom: 100,
   },
   scrollContent: {
-    paddingBottom: 120, // Espacio adicional para el menú de pestañas
+    paddingBottom: 120,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    marginBottom: 24,
     marginTop: 20,
+    textAlign: "center",
+    letterSpacing: 0.5,
   },
+  modernCard: {
+    borderRadius: 20,
+    marginBottom: 20,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    padding: 24,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  cardIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#ffffff",
+    opacity: 0.9,
+  },
+  cardContent: {
+    alignItems: "center",
+  },
+  mainValue: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#ffffff",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: "#ffffff",
+    opacity: 0.8,
+    textAlign: "center",
+  },
+  secondaryStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  secondaryValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ffffff",
+    opacity: 0.9,
+    marginRight: 4,
+  },
+  secondaryLabel: {
+    fontSize: 12,
+    color: "#ffffff",
+    opacity: 0.7,
+    textTransform: "lowercase",
+  },
+  warningValue: {
+    color: "#ffeb3b",
+    opacity: 1,
+  },
+  // Estilos antiguos mantenidos para compatibilidad
   card: {
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 16,
   },
   statsRow: {
     flexDirection: "row",
