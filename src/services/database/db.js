@@ -213,6 +213,58 @@ const runMigrations = async () => {
       console.log("invoiceNumber column already exists");
     }
 
+    // Verificar y agregar columnas faltantes a accounts_payable
+    const payableColumns = await db.getAllAsync(
+      "PRAGMA table_info(accounts_payable)"
+    );
+    console.log(
+      "Current accounts_payable columns:",
+      payableColumns.map((col) => col.name)
+    );
+    const hasPayableSupplierId = payableColumns.some(
+      (col) => col.name === "supplierId"
+    );
+    const hasPayableDocumentNumber = payableColumns.some(
+      (col) => col.name === "documentNumber"
+    );
+    const hasPayableInvoiceNumber = payableColumns.some(
+      (col) => col.name === "invoiceNumber"
+    );
+
+    if (!hasPayableSupplierId) {
+      console.log("Adding supplierId column to accounts_payable table...");
+      await db.runAsync(
+        "ALTER TABLE accounts_payable ADD COLUMN supplierId INTEGER REFERENCES suppliers (id)"
+      );
+      console.log("supplierId column added successfully to accounts_payable");
+    } else {
+      console.log("supplierId column already exists in accounts_payable");
+    }
+
+    if (!hasPayableDocumentNumber) {
+      console.log("Adding documentNumber column to accounts_payable table...");
+      await db.runAsync(
+        "ALTER TABLE accounts_payable ADD COLUMN documentNumber TEXT"
+      );
+      console.log(
+        "documentNumber column added successfully to accounts_payable"
+      );
+    } else {
+      console.log("documentNumber column already exists in accounts_payable");
+    }
+
+    if (!hasPayableInvoiceNumber) {
+      console.log("Adding invoiceNumber column to accounts_payable table...");
+      await db.runAsync(
+        "ALTER TABLE accounts_payable ADD COLUMN invoiceNumber TEXT"
+      );
+      console.log(
+        "invoiceNumber column added successfully to accounts_payable"
+      );
+    } else {
+      console.log("invoiceNumber column already exists in accounts_payable");
+    }
+
     console.log("Database migrations completed");
   } catch (error) {
     console.error("Error running migrations:", error);
