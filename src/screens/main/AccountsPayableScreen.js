@@ -221,18 +221,15 @@ export const AccountsPayableScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.addButton} onPress={openAddScreen}>
-          <Text style={styles.addButtonText}>+ Nueva Cuenta</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar por nombre, cédula o descripción..."
+          placeholder="Buscar cuentas..."
           value={searchQuery}
           onChangeText={handleSearch}
         />
+        <TouchableOpacity style={styles.addButton} onPress={openAddScreen}>
+          <Text style={styles.addButtonText}>+ Agregar</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -266,34 +263,32 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   header: {
+    flexDirection: "row",
     padding: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
   },
   addButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 8,
-    alignItems: "center",
+    justifyContent: "center",
   },
   addButtonText: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  searchContainer: {
-    padding: 16,
-    backgroundColor: "#fff",
+    fontWeight: "bold",
   },
   searchInput: {
+    flex: 1,
+    height: 40,
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#fafafa",
+    paddingHorizontal: 12,
+    marginRight: 12,
+    backgroundColor: "#f9f9f9",
   },
   listContainer: {
     padding: 16,
