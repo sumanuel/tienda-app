@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
-  SafeAreaView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSuppliers } from "../../hooks/useSuppliers";
@@ -138,9 +137,14 @@ export const SuppliersScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Proveedores</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar proveedores..."
+          value={searchQuery}
+          onChangeText={handleSearch}
+        />
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate("AddSupplier")}
@@ -148,13 +152,6 @@ export const SuppliersScreen = () => {
           <Text style={styles.addButtonText}>+ Nuevo</Text>
         </TouchableOpacity>
       </View>
-
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Buscar proveedores..."
-        value={searchQuery}
-        onChangeText={handleSearch}
-      />
 
       <FlatList
         data={suppliers.sort((a, b) => a.name.localeCompare(b.name))}
@@ -164,7 +161,7 @@ export const SuppliersScreen = () => {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 const styles = StyleSheet.create({
@@ -181,19 +178,11 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    padding: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
   },
   addButton: {
     backgroundColor: "#4CAF50",
@@ -206,11 +195,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   searchInput: {
-    margin: 16,
-    backgroundColor: "#fff",
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#ddd",
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    marginRight: 12,
+    backgroundColor: "#f9f9f9",
   },
   list: {
     padding: 16,
