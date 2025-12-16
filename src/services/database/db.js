@@ -99,6 +99,7 @@ export const initAllTables = async () => {
           documentNumber TEXT,
           amount REAL NOT NULL,
           description TEXT,
+          invoiceNumber TEXT,
           dueDate TEXT,
           status TEXT DEFAULT 'pending',
           createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -182,6 +183,9 @@ const runMigrations = async () => {
     const hasDocumentNumber = receivableColumns.some(
       (col) => col.name === "documentNumber"
     );
+    const hasInvoiceNumber = receivableColumns.some(
+      (col) => col.name === "invoiceNumber"
+    );
 
     if (!hasDocumentNumber) {
       console.log(
@@ -193,6 +197,18 @@ const runMigrations = async () => {
       console.log("documentNumber column added successfully");
     } else {
       console.log("documentNumber column already exists");
+    }
+
+    if (!hasInvoiceNumber) {
+      console.log(
+        "Adding invoiceNumber column to accounts_receivable table..."
+      );
+      await db.runAsync(
+        "ALTER TABLE accounts_receivable ADD COLUMN invoiceNumber TEXT"
+      );
+      console.log("invoiceNumber column added successfully");
+    } else {
+      console.log("invoiceNumber column already exists");
     }
 
     console.log("Database migrations completed");

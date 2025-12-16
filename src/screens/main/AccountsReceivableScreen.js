@@ -125,6 +125,16 @@ export const AccountsReceivableScreen = ({ navigation }) => {
               Cédula: {item.documentNumber}
             </Text>
           )}
+          {item.createdAt && (
+            <Text style={styles.createdDate}>
+              Creada: {new Date(item.createdAt).toLocaleDateString()}
+            </Text>
+          )}
+          {item.invoiceNumber && (
+            <Text style={styles.invoiceNumber}>
+              Factura: {item.invoiceNumber}
+            </Text>
+          )}
           <Text style={styles.amount}>VES. {item.amount?.toFixed(2)}</Text>
           {item.description && (
             <Text style={styles.description}>{item.description}</Text>
@@ -294,6 +304,17 @@ const styles = StyleSheet.create({
   documentNumber: {
     fontSize: 14,
     color: "#666",
+    marginBottom: 4,
+  },
+  createdDate: {
+    fontSize: 12,
+    color: "#888",
+    marginBottom: 4,
+  },
+  invoiceNumber: {
+    fontSize: 14,
+    color: "#007AFF",
+    fontWeight: "500",
     marginBottom: 4,
   },
   amount: {

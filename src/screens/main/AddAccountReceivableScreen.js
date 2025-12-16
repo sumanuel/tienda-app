@@ -28,6 +28,7 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
     amount: "",
     description: "",
     dueDate: "",
+    invoiceNumber: "",
   });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -144,6 +145,13 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
               onChangeText={(value) => updateFormData("description", value)}
               multiline
               numberOfLines={3}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Número de Factura (opcional)"
+              value={formData.invoiceNumber}
+              onChangeText={(value) => updateFormData("invoiceNumber", value)}
             />
 
             <TouchableOpacity
