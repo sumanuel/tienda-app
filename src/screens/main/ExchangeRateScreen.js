@@ -20,68 +20,63 @@ export const ExchangeRateScreen = () => {
   });
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Tasa de Cambio</Text>
-
-      <RateDisplay
-        rate={rate}
-        source="BCV"
-        lastUpdate={lastUpdate}
-        style={styles.section}
-      />
-
-      {/* Botón de actualizar oculto según requerimiento */}
-      {/* <TouchableOpacity
-        style={styles.updateButton}
-        onPress={handleUpdateRate}
-        disabled={loading}
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.updateButtonText}>
-          {loading ? "Actualizando..." : "Actualizar Ahora"}
-        </Text>
-      </TouchableOpacity> */}
+        <View style={styles.header}>
+          <Text style={styles.title}>💱 Tasa de Cambio</Text>
+          <Text style={styles.subtitle}>Gestión de divisas</Text>
+        </View>
 
-      {/* Sección de actualización automática oculta según requerimiento */}
-      {/* <AutoUpdateToggle
-        enabled={autoUpdate}
-        onToggle={handleToggleAutoUpdate}
-        interval={updateInterval}
-        style={styles.section}
-      /> */}
+        <RateDisplay
+          rate={rate}
+          source="BCV"
+          lastUpdate={lastUpdate}
+          style={styles.rateCard}
+        />
 
-      <CurrencyConverter exchangeRate={rate} style={styles.section} />
-    </ScrollView>
+        <CurrencyConverter exchangeRate={rate} style={styles.converterCard} />
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
-    padding: 16,
+    backgroundColor: "#f8fafc",
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 20,
     paddingBottom: 100,
+  },
+  header: {
+    marginBottom: 24,
+    alignItems: "center",
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
-    marginTop: 20,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 4,
+    letterSpacing: 0.5,
   },
-  section: {
-    marginBottom: 16,
-  },
-  updateButton: {
-    backgroundColor: "#2196F3",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  updateButtonText: {
-    color: "#fff",
+  subtitle: {
     fontSize: 16,
-    fontWeight: "600",
+    color: "#64748b",
+    fontWeight: "500",
+  },
+  rateCard: {
+    marginBottom: 20,
+  },
+  converterCard: {
+    marginBottom: 20,
   },
 });
 

@@ -43,7 +43,7 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
 
   return (
     <View style={[styles.container, style]}>
-      <Text style={styles.title}>Convertidor de Monedas</Text>
+      <Text style={styles.title}>🔄 Convertidor de Monedas</Text>
 
       <View style={styles.inputContainer}>
         <Text style={styles.currencyLabel}>USD</Text>
@@ -73,7 +73,7 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
 
       {exchangeRate && (
         <Text style={styles.rateInfo}>
-          1 USD = VES. {exchangeRate.toFixed(2)}
+          💱 Tasa actual: 1 USD = VES. {exchangeRate.toFixed(2)}
         </Text>
       )}
     </View>
@@ -83,54 +83,84 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
   },
   title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 20,
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 24,
     textAlign: "center",
+    letterSpacing: 0.5,
   },
   inputContainer: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   currencyLabel: {
     fontSize: 14,
-    color: "#666",
+    color: "#64748b",
     marginBottom: 8,
-    fontWeight: "500",
+    fontWeight: "600",
+    letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
     padding: 16,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: "#1e293b",
     borderWidth: 2,
-    borderColor: "transparent",
+    borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   activeInput: {
-    borderColor: "#2196F3",
-    backgroundColor: "#E3F2FD",
+    borderColor: "#6366f1",
+    backgroundColor: "#eef2ff",
+    shadowColor: "#6366f1",
+    shadowOpacity: 0.1,
   },
   swapButton: {
     alignSelf: "center",
-    padding: 8,
-    marginVertical: 8,
+    backgroundColor: "#6366f1",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 12,
+    shadowColor: "#6366f1",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   swapIcon: {
-    fontSize: 24,
-    color: "#2196F3",
+    fontSize: 20,
+    color: "#fff",
+    fontWeight: "bold",
   },
   rateInfo: {
-    fontSize: 12,
-    color: "#999",
+    fontSize: 14,
+    color: "#64748b",
     textAlign: "center",
-    marginTop: 16,
+    marginTop: 20,
+    fontWeight: "500",
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    borderRadius: 8,
   },
 });
 

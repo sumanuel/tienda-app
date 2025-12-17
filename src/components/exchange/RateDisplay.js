@@ -10,7 +10,11 @@ export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
   if (!rate) {
     return (
       <View style={[styles.container, style]}>
-        <Text style={styles.noRate}>Tasa no disponible</Text>
+        <View style={styles.header}>
+          <Text style={styles.label}>💱 Tasa Actual</Text>
+          <Text style={styles.source}>BCV</Text>
+        </View>
+        <Text style={styles.noRate}>⚠️ Tasa no disponible</Text>
       </View>
     );
   }
@@ -22,17 +26,17 @@ export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
   return (
     <View style={[styles.container, style]}>
       <View style={styles.header}>
-        <Text style={styles.label}>Tasa de Cambio</Text>
+        <Text style={styles.label}>💱 Tasa Actual</Text>
         {source && <Text style={styles.source}>{source}</Text>}
       </View>
 
       <View style={styles.rateContainer}>
-        <Text style={styles.currency}>1 USD =</Text>
+        <Text style={styles.currency}>1 USD equivale a</Text>
         <Text style={styles.rate}>VES. {formatExchangeRate(rate)}</Text>
       </View>
 
       <Text style={styles.lastUpdate}>
-        Última actualización: {formattedDate}
+        📅 Última actualización: {formattedDate}
       </Text>
     </View>
   );
@@ -41,54 +45,65 @@ export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    elevation: 2,
+    borderRadius: 16,
+    padding: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   label: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "500",
+    fontSize: 16,
+    color: "#64748b",
+    fontWeight: "600",
+    letterSpacing: 0.5,
   },
   source: {
     fontSize: 12,
-    color: "#4CAF50",
-    fontWeight: "600",
+    color: "#10b981",
+    fontWeight: "700",
     textTransform: "uppercase",
+    backgroundColor: "#dcfce7",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   rateContainer: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 8,
+    alignItems: "center",
+    marginBottom: 16,
   },
   currency: {
-    fontSize: 16,
-    color: "#333",
+    fontSize: 18,
+    color: "#475569",
+    fontWeight: "500",
+    marginBottom: 8,
   },
   rate: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2196F3",
+    fontSize: 36,
+    fontWeight: "700",
+    color: "#6366f1",
+    letterSpacing: 1,
   },
   lastUpdate: {
-    fontSize: 11,
-    color: "#999",
-    marginTop: 8,
+    fontSize: 12,
+    color: "#94a3b8",
+    textAlign: "center",
+    fontWeight: "500",
   },
   noRate: {
     fontSize: 16,
-    color: "#999",
+    color: "#94a3b8",
     textAlign: "center",
+    fontWeight: "500",
   },
 });
 
