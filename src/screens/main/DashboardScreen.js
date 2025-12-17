@@ -13,6 +13,7 @@ import { useInventory } from "../../hooks/useInventory";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import { useAccounts } from "../../hooks/useAccounts";
+import { getSettings } from "../../services/database/settings";
 import RateDisplay from "../../components/exchange/RateDisplay";
 
 /**
@@ -40,6 +41,16 @@ export const DashboardScreen = ({ navigation }) => {
     refresh: refreshAccounts,
   } = useAccounts();
   const [refreshing, setRefreshing] = useState(false);
+  const [businessName, setBusinessName] = useState("");
+
+  // Cargar nombre del negocio
+  useEffect(() => {
+    const loadBusinessInfo = async () => {
+      const settings = await getSettings();
+      setBusinessName(settings.business?.name || "Mi Negocio");
+    };
+    loadBusinessInfo();
+  }, []);
 
   // Recargar estadísticas cuando cambie el tipo de cambio
   useEffect(() => {
@@ -71,6 +82,19 @@ export const DashboardScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
+  const formatDate = () => {
+    const now = new Date();
+    const options = {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    };
+    return now.toLocaleString("es-VE", options);
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -79,221 +103,166 @@ export const DashboardScreen = ({ navigation }) => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={styles.title}>Dashboard</Text>
-      <Text style={styles.subtitle}>Resumen general de tu negocio</Text>
-
-      {/* Tasa de Cambio */}
-      <TouchableOpacity
-        style={[styles.modernCard, { backgroundColor: "#6366f1" }]}
-        onPress={() => navigation.navigate("ExchangeRate")}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardIcon}>💱</Text>
-          <Text style={styles.cardTitle}>Tasa de Cambio</Text>
-        </View>
-        <View style={styles.cardContent}>
-          <Text style={styles.mainValue}>
-            {rate ? `VES. ${rate.toFixed(2)}` : "Cargando..."}
-          </Text>
-          <Text style={styles.cardSubtitle}>
-            {lastUpdate
-              ? `Actualizado: ${new Date(lastUpdate).toLocaleTimeString()}`
-              : ""}
-          </Text>
-        </View>
-      </TouchableOpacity>
-
-      {/* Estadísticas de Ventas Hoy */}
-      <TouchableOpacity
-        style={[styles.modernCard, { backgroundColor: "#ec4899" }]}
-        onPress={() => navigation.navigate("Sales")}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardIcon}>💰</Text>
-          <Text style={styles.cardTitle}>Ventas de Hoy</Text>
-        </View>
-        <View style={styles.cardContent}>
-          <Text style={styles.mainValue}>
-            VES. {(todayStats?.total || 0).toFixed(2)}
-          </Text>
-          <View style={styles.secondaryStats}>
-            <Text style={styles.secondaryValue}>{todayStats?.count || 0}</Text>
-            <Text style={styles.secondaryLabel}>ventas</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-
-      {/* Estadísticas de Inventario - OCULTA */}
-      {/*
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Inventario</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>
-              {inventoryStats?.totalItems || 0}
-            </Text>
-            <Text style={styles.statLabel}>Items</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text
-              style={[
-                styles.statValue,
-                inventoryStats?.lowStockCount > 0 && styles.warning,
-              ]}
-            >
-              {inventoryStats?.lowStockCount || 0}
-            </Text>
-            <Text style={styles.statLabel}>Stock Bajo</Text>
-          </View>
+      {/* Header con información del negocio */}
+      <View style={styles.header}>
+        <Text style={styles.businessName}>{businessName.toUpperCase()}</Text>
+        <Text style={styles.lastSession}>Última Sesión: {formatDate()}</Text>
+        <View style={styles.currencyButtons}>
+          <TouchableOpacity style={styles.currencyButtonActive}>
+            <Text style={styles.currencyButtonTextActive}>VES (Bs.)</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.currencyButton}
+            onPress={() => navigation.navigate("ExchangeRate")}
+          >
+            <Text style={styles.currencyButtonText}>USD ($)</Text>
+          </TouchableOpacity>
         </View>
       </View>
-      */}
 
-      {/* Estadísticas de Clientes - OCULTA */}
-      {/*
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Clientes</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{customers?.length || 0}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>
-              {customers?.filter((c) => c.active !== 0).length || 0}
+      {/* Tarjeta Principal - Balance del Día */}
+      <View style={styles.mainCard}>
+        <View style={styles.mainCardHeader}>
+          <View>
+            <Text style={styles.mainCardTitle}>Balance del Día</Text>
+            <Text style={styles.accountNumber}>
+              Ventas •{" "}
+              {new Date().toLocaleDateString("es-VE", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })}
             </Text>
-            <Text style={styles.statLabel}>Activos</Text>
           </View>
+          <TouchableOpacity onPress={() => navigation.navigate("Sales")}>
+            <Text style={styles.shareIcon}>📊</Text>
+          </TouchableOpacity>
         </View>
-      </View>
-      */}
 
-      {/* Estadísticas de Cuentas por Cobrar */}
-      <TouchableOpacity
-        style={[styles.modernCard, { backgroundColor: "#06b6d4" }]}
-        onPress={() => navigation.navigate("AccountsReceivable")}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardIcon}>📈</Text>
-          <Text style={styles.cardTitle}>Cuentas por Cobrar</Text>
-        </View>
-        <View style={styles.cardContent}>
-          <Text style={styles.mainValue}>
-            VES. {(receivableStats?.pending || 0).toFixed(2)}
+        <View style={styles.balanceSection}>
+          <Text style={styles.balanceLabel}>TOTAL DE VENTAS</Text>
+          <Text style={styles.balanceAmount}>
+            Bs.{" "}
+            {(todayStats?.total || 0).toLocaleString("es-VE", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </Text>
-          <View style={styles.secondaryStats}>
-            <Text
-              style={[
-                styles.secondaryValue,
-                (receivableStats?.overdue || 0) > 0 && styles.warningValue,
-              ]}
-            >
-              VES. {(receivableStats?.overdue || 0).toFixed(2)}
-            </Text>
-            <Text style={styles.secondaryLabel}>vencidas</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-
-      {/* Estadísticas de Cuentas por Pagar */}
-      <TouchableOpacity
-        style={[styles.modernCard, { backgroundColor: "#10b981" }]}
-        onPress={() => navigation.navigate("AccountsPayable")}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardIcon}>📉</Text>
-          <Text style={styles.cardTitle}>Cuentas por Pagar</Text>
-        </View>
-        <View style={styles.cardContent}>
-          <Text style={styles.mainValue}>
-            VES. {(payableStats?.pending || 0).toFixed(2)}
+          <Text style={styles.salesCount}>
+            {todayStats?.count || 0}{" "}
+            {todayStats?.count === 1 ? "venta realizada" : "ventas realizadas"}
           </Text>
-          <View style={styles.secondaryStats}>
-            <Text
-              style={[
-                styles.secondaryValue,
-                (payableStats?.overdue || 0) > 0 && styles.warningValue,
-              ]}
-            >
-              VES. {(payableStats?.overdue || 0).toFixed(2)}
-            </Text>
-            <Text style={styles.secondaryLabel}>vencidas</Text>
-          </View>
         </View>
-      </TouchableOpacity>
-
-      {/* Accesos Rápidos */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity
-          key="pos"
-          style={[styles.modernActionCard, { backgroundColor: "#c4b5fd" }]}
-          onPress={() => navigation.navigate("POS")}
-        >
-          <Text style={styles.actionIcon}>🛒</Text>
-          <Text style={styles.actionText}>Nueva Venta</Text>
-        </TouchableOpacity>
 
         <TouchableOpacity
-          key="products"
-          style={[styles.modernActionCard, { backgroundColor: "#fca5a5" }]}
-          onPress={() => navigation.navigate("Products")}
-        >
-          <Text style={styles.actionIcon}>📦</Text>
-          <Text style={styles.actionText}>Productos</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          key="exchange"
-          style={[styles.modernActionCard, { backgroundColor: "#fdba74" }]}
-          onPress={() => navigation.getParent().navigate("ExchangeRate")}
-        >
-          <Text style={styles.actionIcon}>💱</Text>
-          <Text style={styles.actionText}>Tasa</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          key="sales"
-          style={[styles.modernActionCard, { backgroundColor: "#86efac" }]}
+          style={styles.viewDetailsButton}
           onPress={() => navigation.navigate("Sales")}
         >
-          <Text style={styles.actionIcon}>📊</Text>
-          <Text style={styles.actionText}>Ventas</Text>
+          <Text style={styles.viewDetailsButtonText}>VER TODAS LAS VENTAS</Text>
         </TouchableOpacity>
+      </View>
 
+      {/* Sección de Estadísticas */}
+      <Text style={styles.sectionTitle}>Resumen General</Text>
+
+      <View style={styles.statsGrid}>
+        {/* Tasa de Cambio */}
         <TouchableOpacity
-          key="customers"
-          style={[styles.modernActionCard, { backgroundColor: "#7dd3fc" }]}
-          onPress={() => navigation.navigate("Customers")}
+          style={styles.statCard}
+          onPress={() => navigation.navigate("ExchangeRate")}
         >
-          <Text style={styles.actionIcon}>👥</Text>
-          <Text style={styles.actionText}>Clientes</Text>
+          <Text style={styles.statIcon}>💱</Text>
+          <Text style={styles.statLabel}>Tasa de Cambio</Text>
+          <Text style={styles.statValue}>
+            {rate ? `${rate.toFixed(2)} Bs.` : "Cargando..."}
+          </Text>
         </TouchableOpacity>
 
+        {/* Cuentas por Cobrar */}
         <TouchableOpacity
-          key="suppliers"
-          style={[styles.modernActionCard, { backgroundColor: "#d2b48c" }]}
-          onPress={() => navigation.navigate("Suppliers")}
-        >
-          <Text style={styles.actionIcon}>🏢</Text>
-          <Text style={styles.actionText}>Proveedores</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          key="accounts-receivable"
-          style={[styles.modernActionCard, { backgroundColor: "#f9a8d4" }]}
+          style={styles.statCard}
           onPress={() => navigation.navigate("AccountsReceivable")}
         >
-          <Text style={styles.actionIcon}>💰</Text>
-          <Text style={styles.actionText}>Cuentas por Cobrar</Text>
+          <Text style={styles.statIcon}>📈</Text>
+          <Text style={styles.statLabel}>Por Cobrar</Text>
+          <Text style={styles.statValue}>
+            {(receivableStats?.pending || 0).toFixed(2)} Bs.
+          </Text>
+          {(receivableStats?.overdue || 0) > 0 && (
+            <Text style={styles.statWarning}>
+              {(receivableStats?.overdue || 0).toFixed(2)} vencidas
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Cuentas por Pagar */}
+        <TouchableOpacity
+          style={styles.statCard}
+          onPress={() => navigation.navigate("AccountsPayable")}
+        >
+          <Text style={styles.statIcon}>📉</Text>
+          <Text style={styles.statLabel}>Por Pagar</Text>
+          <Text style={styles.statValue}>
+            {(payableStats?.pending || 0).toFixed(2)} Bs.
+          </Text>
+          {(payableStats?.overdue || 0) > 0 && (
+            <Text style={styles.statWarning}>
+              {(payableStats?.overdue || 0).toFixed(2)} vencidas
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Inventario */}
+        <TouchableOpacity
+          style={styles.statCard}
+          onPress={() => navigation.navigate("Products")}
+        >
+          <Text style={styles.statIcon}>📦</Text>
+          <Text style={styles.statLabel}>Productos</Text>
+          <Text style={styles.statValue}>
+            {inventoryStats?.totalItems || 0}
+          </Text>
+          {(inventoryStats?.lowStockCount || 0) > 0 && (
+            <Text style={styles.statWarning}>
+              {inventoryStats?.lowStockCount} stock bajo
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Accesos Rápidos */}
+      <Text style={styles.sectionTitle}>Accesos Rápidos</Text>
+      <View style={styles.quickActions}>
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => navigation.navigate("POS")}
+        >
+          <Text style={styles.quickActionIcon}>🛒</Text>
+          <Text style={styles.quickActionText}>Nueva Venta</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          key="accounts-payable"
-          style={[styles.modernActionCard, { backgroundColor: "#a7f3d0" }]}
-          onPress={() => navigation.navigate("AccountsPayable")}
+          style={styles.quickActionCard}
+          onPress={() => navigation.navigate("Products")}
         >
-          <Text style={styles.actionIcon}>💳</Text>
-          <Text style={styles.actionText}>Cuentas por Pagar</Text>
+          <Text style={styles.quickActionIcon}>📦</Text>
+          <Text style={styles.quickActionText}>Productos</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => navigation.navigate("Customers")}
+        >
+          <Text style={styles.quickActionIcon}>👥</Text>
+          <Text style={styles.quickActionText}>Clientes</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => navigation.navigate("Suppliers")}
+        >
+          <Text style={styles.quickActionIcon}>🏢</Text>
+          <Text style={styles.quickActionText}>Proveedores</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -303,146 +272,217 @@ export const DashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
-    padding: 16,
-    paddingBottom: 100,
+    backgroundColor: "#e8edf2",
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 100,
   },
-  title: {
-    fontSize: 32,
+
+  // Header styles
+  header: {
+    backgroundColor: "#4CAF50",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    padding: 20,
+    paddingTop: 50,
+    paddingBottom: 24,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  businessName: {
+    fontSize: 18,
     fontWeight: "700",
-    color: "#1a1a1a",
-    marginBottom: 8,
-    marginTop: 20,
-    textAlign: "center",
+    color: "#ffffff",
     letterSpacing: 0.5,
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#6b7280",
-    marginBottom: 24,
-    textAlign: "center",
-    fontWeight: "400",
+  lastSession: {
+    fontSize: 12,
+    color: "#ffffff",
+    opacity: 0.9,
+    marginTop: 4,
+    marginBottom: 16,
   },
-  modernCard: {
+  currencyButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  currencyButtonActive: {
+    backgroundColor: "#ffffff",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
     borderRadius: 20,
-    marginBottom: 20,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    padding: 24,
   },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  cardIcon: {
-    fontSize: 28,
-    marginRight: 12,
-  },
-  cardTitle: {
-    fontSize: 18,
+  currencyButtonTextActive: {
+    color: "#4CAF50",
     fontWeight: "600",
+    fontSize: 13,
+  },
+  currencyButton: {
+    backgroundColor: "transparent",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#ffffff",
+  },
+  currencyButtonText: {
     color: "#ffffff",
-    opacity: 0.9,
+    fontWeight: "600",
+    fontSize: 13,
   },
-  cardContent: {
-    alignItems: "center",
+
+  // Main Card styles
+  mainCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    margin: 16,
+    marginTop: 20,
+    padding: 20,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
-  mainValue: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#ffffff",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: "#ffffff",
-    opacity: 0.8,
-    textAlign: "center",
-  },
-  secondaryStats: {
+  mainCardHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 20,
   },
-  secondaryValue: {
+  mainCardTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#ffffff",
-    opacity: 0.9,
-    marginRight: 4,
+    color: "#333",
   },
-  secondaryLabel: {
+  accountNumber: {
     fontSize: 12,
-    color: "#ffffff",
-    opacity: 0.7,
-    textTransform: "lowercase",
-  },
-  warningValue: {
-    color: "#ffeb3b",
-    opacity: 1,
-  },
-  // Estilos antiguos mantenidos para compatibilidad
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 2,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  stat: {
-    alignItems: "center",
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#4CAF50",
-  },
-  statLabel: {
-    fontSize: 14,
     color: "#666",
     marginTop: 4,
   },
-  warning: {
-    color: "#FF9800",
+  shareIcon: {
+    fontSize: 24,
   },
+  balanceSection: {
+    alignItems: "center",
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  balanceLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#999",
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  balanceAmount: {
+    fontSize: 36,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 8,
+  },
+  salesCount: {
+    fontSize: 13,
+    color: "#666",
+  },
+  viewDetailsButton: {
+    backgroundColor: "#f5f5f5",
+    paddingVertical: 14,
+    borderRadius: 8,
+    marginTop: 16,
+    alignItems: "center",
+  },
+  viewDetailsButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4CAF50",
+    letterSpacing: 0.5,
+  },
+
+  // Section Title
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginLeft: 16,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+
+  // Stats Grid
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  statCard: {
+    width: "47%",
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 16,
+    margin: 8,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+  },
+  statIcon: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 4,
+    fontWeight: "500",
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#333",
+  },
+  statWarning: {
+    fontSize: 11,
+    color: "#ff9800",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+
+  // Quick Actions
   quickActions: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginTop: 8,
+    paddingHorizontal: 8,
+    marginBottom: 20,
   },
-  modernActionCard: {
-    width: "48%",
-    borderRadius: 16,
+  quickActionCard: {
+    width: "47%",
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
     padding: 20,
+    margin: 8,
     alignItems: "center",
-    marginBottom: 16,
-    elevation: 6,
+    elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
   },
-  actionIcon: {
+  quickActionIcon: {
     fontSize: 32,
     marginBottom: 8,
   },
-  actionText: {
-    fontSize: 14,
+  quickActionText: {
+    fontSize: 13,
     fontWeight: "600",
-    color: "#1f2937",
+    color: "#333",
     textAlign: "center",
   },
 });
