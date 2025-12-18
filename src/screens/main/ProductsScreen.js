@@ -138,7 +138,7 @@ export const ProductsScreen = ({ navigation }) => {
         style={styles.fab}
         onPress={() => navigation.navigate("AddProduct")}
       >
-        <Text style={styles.fabIcon}>👤</Text>
+        <Text style={styles.fabIcon}>�</Text>
       </TouchableOpacity>
     </View>
   );

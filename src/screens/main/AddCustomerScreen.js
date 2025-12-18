@@ -58,51 +58,69 @@ export const AddCustomerScreen = ({ navigation }) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView style={styles.scrollContainer}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Nuevo Cliente</Text>
-          </View>
+          <View style={styles.formCard}>
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Cédula de Identidad</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ingresa la cédula"
+                placeholderTextColor="#999"
+                value={formData.documentNumber}
+                onChangeText={(value) =>
+                  updateFormData("documentNumber", value)
+                }
+                keyboardType="numeric"
+              />
+            </View>
 
-          <View style={styles.form}>
-            <TextInput
-              style={styles.input}
-              placeholder="Cédula *"
-              value={formData.documentNumber}
-              onChangeText={(value) => updateFormData("documentNumber", value)}
-              keyboardType="numeric"
-            />
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Nombre y Apellido</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ingresa el nombre completo"
+                placeholderTextColor="#999"
+                value={formData.name}
+                onChangeText={(value) => updateFormData("name", value)}
+              />
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre *"
-              value={formData.name}
-              onChangeText={(value) => updateFormData("name", value)}
-            />
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Número de Teléfono</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ingresa el teléfono"
+                placeholderTextColor="#999"
+                value={formData.phone}
+                onChangeText={(value) => updateFormData("phone", value)}
+                keyboardType="phone-pad"
+              />
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Teléfono"
-              value={formData.phone}
-              onChangeText={(value) => updateFormData("phone", value)}
-              keyboardType="phone-pad"
-            />
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ingresa el email"
+                placeholderTextColor="#999"
+                value={formData.email}
+                onChangeText={(value) => updateFormData("email", value)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              value={formData.email}
-              onChangeText={(value) => updateFormData("email", value)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Dirección"
-              value={formData.address}
-              onChangeText={(value) => updateFormData("address", value)}
-              multiline
-              numberOfLines={3}
-            />
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Dirección</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Ingresa la dirección"
+                placeholderTextColor="#999"
+                value={formData.address}
+                onChangeText={(value) => updateFormData("address", value)}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
           </View>
 
           <View style={styles.buttonContainer}>
@@ -129,25 +147,30 @@ export const AddCustomerScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#e8edf2",
   },
   scrollContainer: {
     flex: 1,
   },
-  header: {
-    padding: 20,
+  formCard: {
     backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderRadius: 12,
+    margin: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    textAlign: "center",
+  fieldContainer: {
+    marginBottom: 16,
   },
-  form: {
-    padding: 20,
+  fieldLabel: {
+    fontSize: 12,
+    color: "#999",
+    marginBottom: 6,
+    marginLeft: 4,
   },
   input: {
     borderWidth: 1,

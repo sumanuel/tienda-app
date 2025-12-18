@@ -186,17 +186,14 @@ export const AddProductScreen = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Nuevo Producto</Text>
-        </View>
-
-        <View style={styles.form}>
+        <View style={styles.formCard}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nombre del producto *</Text>
+            <Text style={styles.label}>Nombre del producto</Text>
             <TextInput
               ref={nameRef}
               style={styles.input}
-              placeholder="Ej: Coca Cola 350ml"
+              placeholder="Ingresa el nombre del producto"
+              placeholderTextColor="#999"
               value={formData.name}
               onChangeText={(value) => handleInputChange("name", value)}
               returnKeyType="next"
@@ -211,6 +208,7 @@ export const AddProductScreen = ({ navigation }) => {
               ref={categoryRef}
               style={styles.input}
               placeholder="Ej: Bebidas, Snacks, etc."
+              placeholderTextColor="#999"
               value={formData.category}
               onChangeText={(value) => handleInputChange("category", value)}
               returnKeyType="next"
@@ -236,11 +234,12 @@ export const AddProductScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Costo del producto *</Text>
+            <Text style={styles.label}>Costo del producto</Text>
             <TextInput
               ref={costRef}
               style={styles.input}
               placeholder="0.00"
+              placeholderTextColor="#999"
               keyboardType="numeric"
               value={cost}
               onChangeText={setCost}
@@ -256,6 +255,7 @@ export const AddProductScreen = ({ navigation }) => {
               ref={marginRef}
               style={styles.input}
               placeholder="30"
+              placeholderTextColor="#999"
               keyboardType="numeric"
               value={margin.toString()}
               onChangeText={(value) => setMargin(parseFloat(value) || 0)}
@@ -267,20 +267,22 @@ export const AddProductScreen = ({ navigation }) => {
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Precio USD*</Text>
+              <Text style={styles.label}>Precio USD</Text>
               <TextInput
                 style={[styles.input, styles.readOnly]}
                 placeholder="0.00"
+                placeholderTextColor="#999"
                 value={calculatedPrices.usd}
                 editable={false}
               />
             </View>
 
             <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Precio VES*</Text>
+              <Text style={styles.label}>Precio VES</Text>
               <TextInput
                 style={[styles.input, styles.readOnly]}
                 placeholder="0.00"
+                placeholderTextColor="#999"
                 value={calculatedPrices.ves}
                 editable={false}
               />
@@ -288,11 +290,12 @@ export const AddProductScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Stock inicial *</Text>
+            <Text style={styles.label}>Stock inicial</Text>
             <TextInput
               ref={stockRef}
               style={styles.input}
               placeholder="0"
+              placeholderTextColor="#999"
               keyboardType="numeric"
               value={formData.stock}
               onChangeText={(value) => handleInputChange("stock", value)}
@@ -309,6 +312,7 @@ export const AddProductScreen = ({ navigation }) => {
               ref={descriptionRef}
               style={[styles.input, styles.textArea]}
               placeholder="Descripción opcional del producto"
+              placeholderTextColor="#999"
               multiline
               numberOfLines={3}
               value={formData.description}
@@ -321,7 +325,7 @@ export const AddProductScreen = ({ navigation }) => {
           </View>
 
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitButtonText}>Guardar Producto</Text>
+            <Text style={styles.submitButtonText}>Confirmar</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -330,10 +334,10 @@ export const AddProductScreen = ({ navigation }) => {
           >
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
-
-          {/* Espacio adicional para botones del sistema */}
-          <View style={styles.bottomSpacer} />
         </View>
+
+        {/* Espacio adicional para botones del sistema */}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -342,65 +346,67 @@ export const AddProductScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#e8edf2",
   },
   scrollContainer: {
     flex: 1,
   },
-  header: {
+  formCard: {
     backgroundColor: "#fff",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    textAlign: "center",
-  },
-  form: {
-    padding: 20,
+    borderRadius: 12,
+    margin: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
+    fontSize: 12,
+    color: "#999",
+    marginBottom: 6,
+    marginLeft: 4,
   },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: "#f8f9fa",
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#e8edf2",
+    height: 48,
   },
   textArea: {
     height: 80,
     textAlignVertical: "top",
+    paddingTop: 12,
   },
   pickerContainer: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#e8edf2",
     borderRadius: 8,
-    marginTop: 5,
+    backgroundColor: "#f8f9fa",
   },
   picker: {
-    height: 50,
+    height: 48,
   },
   currencySelector: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#e8edf2",
     borderRadius: 8,
-    padding: 12,
-    marginTop: 5,
-    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#f8f9fa",
+    height: 48,
+    justifyContent: "center",
   },
   currencyText: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#333",
   },
   readOnly: {
@@ -416,19 +422,24 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: "#4CAF50",
-    padding: 15,
+    paddingVertical: 14,
     borderRadius: 8,
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 20,
+    shadowColor: "#4CAF50",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   submitButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
   },
   cancelButton: {
-    backgroundColor: "#f5f5f5",
-    padding: 15,
+    backgroundColor: "#fff",
+    paddingVertical: 14,
     borderRadius: 8,
     alignItems: "center",
     marginTop: 10,
@@ -437,7 +448,8 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: "#666",
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: "600",
   },
   bottomSpacer: {
     height: 100,
