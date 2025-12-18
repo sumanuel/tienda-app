@@ -75,25 +75,23 @@ export const CustomersScreen = () => {
             navigation.navigate("EditCustomer", { customer: item })
           }
         >
-          <Text style={styles.customerName}>{item.name.toUpperCase()}</Text>
-          <Text style={styles.customerDocument}>
-            CÉDULA: {item.documentNumber}
+          <Text style={styles.customerName}>{item.name}</Text>
+          <Text style={styles.customerDetail}>
+            Cédula: {item.documentNumber}
           </Text>
           {item.phone && (
-            <Text style={styles.contactText}>TELÉFONO: {item.phone}</Text>
+            <Text style={styles.customerDetail}>Teléfono: {item.phone}</Text>
           )}
           {item.email && (
-            <Text style={styles.contactText}>EMAIL: {item.email}</Text>
+            <Text style={styles.customerDetail}>Email: {item.email}</Text>
           )}
         </TouchableOpacity>
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => confirmDeleteCustomer(item)}
-          >
-            <Text style={styles.deleteButtonText}>✖</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.deleteIcon}
+          onPress={() => confirmDeleteCustomer(item)}
+        >
+          <Text style={styles.deleteIconText}>🗑️</Text>
+        </TouchableOpacity>
       </View>
     ),
     [navigation, confirmDeleteCustomer]
@@ -130,19 +128,15 @@ export const CustomersScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={styles.searchContainer}>
+        <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar clientes..."
+          placeholder="Buscar cliente"
           value={searchQuery}
           onChangeText={handleSearch}
+          placeholderTextColor="#999"
         />
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate("AddCustomer")}
-        >
-          <Text style={styles.addButtonText}>+ Nuevo</Text>
-        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -153,6 +147,13 @@ export const CustomersScreen = () => {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
       />
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate("AddCustomer")}
+      >
+        <Text style={styles.fabIcon}>👤</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -160,124 +161,93 @@ export const CustomersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
-    paddingBottom: 20,
+    backgroundColor: "#e8edf2",
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#e8edf2",
   },
-  header: {
+  searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 20,
     backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addButton: {
-    backgroundColor: "#10b981",
-    paddingHorizontal: 20,
+    margin: 16,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  addButtonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 14,
+  searchIcon: {
+    fontSize: 18,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: 44,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginRight: 12,
-    backgroundColor: "#f8fafc",
     fontSize: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    color: "#333",
   },
   list: {
-    padding: 20,
+    paddingHorizontal: 16,
     paddingBottom: 100,
   },
   customerCard: {
     flexDirection: "row",
     backgroundColor: "#fff",
-    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
+    borderRadius: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    alignItems: "flex-start",
   },
   customerInfo: {
     flex: 1,
   },
   customerName: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#1e293b",
-    marginBottom: 4,
-    letterSpacing: 0.5,
-  },
-  customerDocument: {
-    fontSize: 14,
-    color: "#64748b",
-    marginBottom: 8,
     fontWeight: "600",
+    color: "#333",
+    marginBottom: 6,
   },
-  contactText: {
-    fontSize: 14,
-    color: "#64748b",
-    fontWeight: "500",
-    marginBottom: 4,
+  customerDetail: {
+    fontSize: 13,
+    color: "#666",
+    marginBottom: 3,
   },
-  actionsContainer: {
+  deleteIcon: {
+    padding: 8,
+  },
+  deleteIconText: {
+    fontSize: 20,
+  },
+  fab: {
+    position: "absolute",
+    bottom: 80,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#4CAF50",
     justifyContent: "center",
     alignItems: "center",
-  },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  deleteButton: {
-    backgroundColor: "#ef4444",
-  },
-  deleteButtonText: {
+  fabIcon: {
+    fontSize: 24,
     color: "#fff",
-    fontSize: 14,
-    fontWeight: "bold",
   },
   emptyContainer: {
     flex: 1,
@@ -286,10 +256,9 @@ const styles = StyleSheet.create({
     paddingTop: 100,
   },
   emptyText: {
-    fontSize: 18,
-    color: "#94a3b8",
+    fontSize: 16,
+    color: "#999",
     textAlign: "center",
-    fontWeight: "500",
   },
   errorText: {
     fontSize: 16,
