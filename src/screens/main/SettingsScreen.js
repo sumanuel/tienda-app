@@ -348,26 +348,6 @@ export const SettingsScreen = () => {
           </View>
         </View>
 
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Moneda base</Text>
-            <Text style={styles.summaryValue}>{baseCurrency}</Text>
-            <Text style={styles.summaryHint}>
-              {formatCurrency(currencies[baseCurrency])}
-            </Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Margen estándar</Text>
-            <Text style={styles.summaryValue}>{margin}%</Text>
-            <Text style={styles.summaryHint}>Aplicado al crear productos</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Stock bajo</Text>
-            <Text style={styles.summaryValue}>{lowStockThreshold}</Text>
-            <Text style={styles.summaryHint}>Unidades de alerta</Text>
-          </View>
-        </View>
-
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <View>
@@ -815,39 +795,6 @@ const styles = StyleSheet.create({
     color: "#5b6472",
     lineHeight: 20,
   },
-  summaryRow: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    gap: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#7a8796",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  summaryValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  summaryHint: {
-    fontSize: 12,
-    color: "#6f7c8c",
-  },
   sectionCard: {
     backgroundColor: "#fff",
     borderRadius: 22,
@@ -879,6 +826,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
+    flexShrink: 0,
+    marginLeft: 16,
+    minWidth: 110,
+    alignItems: "center",
   },
   headerButtonText: {
     fontSize: 13,

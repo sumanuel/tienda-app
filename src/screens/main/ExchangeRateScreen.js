@@ -15,13 +15,11 @@ import RateDisplay from "../../components/exchange/RateDisplay";
 import CurrencyConverter from "../../components/exchange/CurrencyConverter";
 
 export const ExchangeRateScreen = () => {
-  const { rate, loading, lastUpdate, updateRate, setManualRate } =
-    useExchangeRate({
-      autoUpdate: false,
-    });
+  const { rate, lastUpdate, setManualRate } = useExchangeRate({
+    autoUpdate: false,
+  });
   const [manualValue, setManualValue] = useState("0");
   const [saving, setSaving] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (rate) {
@@ -42,19 +40,6 @@ export const ExchangeRateScreen = () => {
       }
     )}`;
   }, [lastUpdate]);
-
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-      await updateRate("BCV");
-      Alert.alert("Éxito", "Tasa actualizada con datos del BCV");
-    } catch (error) {
-      Alert.alert("Error", "No pudimos sincronizar con el BCV");
-      console.error("Error refreshing rate:", error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const handleManualSave = async () => {
     const numericValue = parseFloat(manualValue.replace(",", "."));
@@ -96,41 +81,15 @@ export const ExchangeRateScreen = () => {
           </View>
         </View>
 
-        <View style={styles.summaryGrid}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Tasa actual</Text>
-            <View style={styles.summaryValueRow}>
-              <Text style={styles.summaryValue}>
-                {rate ? rate.toFixed(2) : "—"}
-              </Text>
-              <Text style={styles.summaryValueUnit}>VES</Text>
-            </View>
-            <Text style={styles.summaryHint}>Por cada 1 USD</Text>
-          </View>
-
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Última actualización</Text>
-            <Text style={styles.summaryValueSmall}>{formattedLastUpdate}</Text>
-            <Text style={styles.summaryHint}>Referencia BCV</Text>
-          </View>
-        </View>
-
-        <View style={styles.actionCard}>
-          <View style={styles.actionHeader}>
-            <Text style={styles.actionTitle}>Sincronización BCV</Text>
-            {refreshing && <ActivityIndicator color="#2f5ae0" />}
-          </View>
-          <Text style={styles.actionDescription}>
-            Carga el último valor disponible del Banco Central de Venezuela.
-          </Text>
-          <TouchableOpacity
-            style={[styles.primaryButton, refreshing && styles.buttonDisabled]}
-            onPress={handleRefresh}
-            disabled={refreshing || loading}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.primaryButtonText}>Actualizar desde BCV</Text>
-          </TouchableOpacity>
+        <View style={styles.moduleCard}>
+          <Text style={styles.moduleTitle}>Referencia visual</Text>
+          <Text style={styles.moduleSubtitle}>{formattedLastUpdate}</Text>
+          <RateDisplay
+            rate={rate}
+            source="BCV"
+            lastUpdate={lastUpdate}
+            style={styles.rateDisplay}
+          />
         </View>
 
         <View style={styles.manualCard}>
@@ -164,16 +123,6 @@ export const ExchangeRateScreen = () => {
               </Text>
             )}
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.moduleCard}>
-          <Text style={styles.moduleTitle}>Referencia visual</Text>
-          <RateDisplay
-            rate={rate}
-            source="BCV"
-            lastUpdate={lastUpdate}
-            style={styles.rateDisplay}
-          />
         </View>
 
         <View style={styles.moduleCard}>
@@ -231,91 +180,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#5b6472",
     lineHeight: 20,
-  },
-  summaryGrid: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    gap: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#7a8796",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  summaryValueRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 6,
-  },
-  summaryValue: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  summaryValueUnit: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2f5ae0",
-  },
-  summaryValueSmall: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1f2633",
-  },
-  summaryHint: {
-    fontSize: 12,
-    color: "#6f7c8c",
-  },
-  actionCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 22,
-    gap: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  actionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  actionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  actionDescription: {
-    fontSize: 14,
-    color: "#5b6472",
-    lineHeight: 20,
-  },
-  primaryButton: {
-    backgroundColor: "#2f5ae0",
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 15,
   },
   manualCard: {
     backgroundColor: "#fff",
@@ -393,6 +257,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: "#1f2633",
+  },
+  moduleSubtitle: {
+    fontSize: 13,
+    color: "#6f7c8c",
   },
   rateDisplay: {
     marginTop: 4,
