@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
+  FlatList,
   Alert,
-  ScrollView,
+  SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSales } from "../../hooks/useSales";
 
 /**
- * Pantalla de ventas
+ * Historial de ventas con estética de dashboard
  */
 export const SalesScreen = () => {
   const navigation = useNavigation();
@@ -24,37 +25,39 @@ export const SalesScreen = () => {
     loadSales,
     loadTodayStats,
   } = useSales();
-  const [selectedSale, setSelectedSale] = useState(null);
-  const [saleDetails, setSaleDetails] = useState(null);
-  const [activeTab, setActiveTab] = useState("today"); // "today" o "all"
+
+  const [activeTab, setActiveTab] = useState("today");
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1); // Primer día del mes
+    return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [endDate, setEndDate] = useState(() => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + 1, 0); // Último día del mes
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0);
   });
+  const [selectedSale, setSelectedSale] = useState(null);
+  const [saleDetails, setSaleDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
-  // Recargar ventas cuando la pantalla gane focus
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
       loadSales();
       loadTodayStats();
     });
-
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, loadSales, loadTodayStats]);
 
-  // Filtrar ventas según la pestaña activa
-  const getFilteredSales = () => {
+  const filteredSales = useMemo(() => {
     if (activeTab === "today") {
-      // Crear rango para el día actual (00:00:00 a 23:59:59)
       const now = new Date();
       const startOfDay = new Date(
         now.getFullYear(),
         now.getMonth(),
-        now.getDate()
+        now.getDate(),
+        0,
+        0,
+        0,
+        0
       );
       const endOfDay = new Date(
         now.getFullYear(),
@@ -65,148 +68,98 @@ export const SalesScreen = () => {
         59,
         999
       );
-
       return sales.filter((sale) => {
         const saleDate = new Date(sale.createdAt);
         return saleDate >= startOfDay && saleDate <= endOfDay;
       });
-    } else {
-      // Filtrar por rango de fechas para la pestaña "Todas"
-      return sales.filter((sale) => {
-        const saleDate = new Date(sale.createdAt);
-        return saleDate >= startDate && saleDate <= endDate;
-      });
     }
-  };
 
-  // Calcular estadísticas según la pestaña activa
-  const getCurrentStats = () => {
-    if (activeTab === "today") {
-      return todayStats;
-    } else {
-      // Calcular estadísticas de todas las ventas
-      const filteredSales = getFilteredSales();
-      const total = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
-      const count = filteredSales.length;
-      return { count, total };
-    }
-  };
-
-  /**
-   * Cambia la pestaña activa
-   */
-  const switchTab = (tab) => {
-    setActiveTab(tab);
-  };
-
-  /**
-   * Formatea fecha para mostrar
-   */
-  const formatDate = (date) => {
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
+    return sales.filter((sale) => {
+      const saleDate = new Date(sale.createdAt);
+      return saleDate >= startDate && saleDate <= endDate;
     });
+  }, [sales, activeTab, startDate, endDate]);
+
+  const summary = useMemo(() => {
+    if (activeTab === "today") {
+      return {
+        count: todayStats?.count || 0,
+        total: todayStats?.total || 0,
+      };
+    }
+
+    const total = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
+    return {
+      count: filteredSales.length,
+      total,
+    };
+  }, [activeTab, todayStats, filteredSales]);
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat("es-VE", {
+      style: "currency",
+      currency: "VES",
+      minimumFractionDigits: 2,
+    }).format(value || 0);
   };
 
-  /**
-   * Cambia la fecha de inicio
-   */
-  const changeStartDate = (date) => {
-    setStartDate(date);
-  };
-
-  /**
-   * Cambia la fecha de fin
-   */
-  const changeEndDate = (date) => {
-    setEndDate(date);
-  };
-
-  /**
-   * Muestra detalles de una venta
-   */
-  const showSaleDetails = async (sale) => {
+  const handleShowDetails = async (sale) => {
     try {
-      console.log("Cargando detalles de venta #", sale.id);
+      setDetailsLoading(true);
       const details = await getSaleDetails(sale.id);
-      console.log("Detalles obtenidos:", details);
-      console.log("Items de la venta:", details?.items);
       setSelectedSale(sale);
       setSaleDetails(details);
     } catch (error) {
-      console.error("Error cargando detalles:", error);
-      Alert.alert("Error", "No se pudieron cargar los detalles de la venta");
+      console.error("Error obteniendo detalles de venta:", error);
+      Alert.alert("Error", "No pudimos cargar el detalle de la venta");
+    } finally {
+      setDetailsLoading(false);
     }
   };
 
-  /**
-   * Cierra los detalles de venta
-   */
-  const closeSaleDetails = () => {
+  const closeDetails = () => {
     setSelectedSale(null);
     setSaleDetails(null);
   };
 
-  /**
-   * Renderiza una venta en la lista
-   */
-  const renderSale = ({ item }) => (
-    <TouchableOpacity
-      style={styles.saleCard}
-      onPress={() => showSaleDetails(item)}
-    >
-      <View style={styles.saleHeader}>
-        <View>
-          <Text style={styles.saleId}>Venta #{item.id}</Text>
-          <Text style={styles.saleDate}>
-            {new Date(item.createdAt).toLocaleDateString()} -{" "}
-            {new Date(item.createdAt).toLocaleTimeString()}
-          </Text>
-        </View>
-        <View style={styles.saleStatus}>
-          <Text style={styles.saleMethod}>
-            {getPaymentMethodText(item.paymentMethod)}
-          </Text>
-        </View>
-      </View>
+  const handleQuickRange = (type) => {
+    const now = new Date();
+    if (type === "currentMonth") {
+      setStartDate(new Date(now.getFullYear(), now.getMonth(), 1));
+      setEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    } else if (type === "lastMonth") {
+      setStartDate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+      setEndDate(new Date(now.getFullYear(), now.getMonth(), 0));
+    } else if (type === "week") {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      setStartDate(weekStart);
+      setEndDate(weekEnd);
+    }
+  };
 
-      <View style={styles.saleDetails}>
-        <View style={styles.saleInfo}>
-          <Text style={styles.saleCustomer}>
-            Cliente:{" "}
-            {item.notes ? item.notes.replace("Cliente: ", "") : "Sin nombre"}
-          </Text>
-          <Text style={styles.saleItems}>
-            {item.itemCount || 0} producto{item.itemCount !== 1 ? "s" : ""}
-          </Text>
-        </View>
-        <Text style={styles.saleAmount}>VES. {item.total.toFixed(2)}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const changeStartDate = (direction) => {
+    const newDate = new Date(startDate);
+    newDate.setMonth(newDate.getMonth() + direction);
+    setStartDate(newDate);
+  };
 
-  /**
-   * Renderiza un item de la venta en los detalles
-   */
-  const renderSaleItem = ({ item }) => (
-    <View style={styles.detailItem}>
-      <View style={styles.detailItemInfo}>
-        <Text style={styles.detailItemName}>{item.productName}</Text>
-        <Text style={styles.detailItemQuantity}>
-          {item.quantity} x VES. {item.price.toFixed(2)}
-        </Text>
-      </View>
-      <Text style={styles.detailItemSubtotal}>
-        VES. {item.subtotal.toFixed(2)}
-      </Text>
-    </View>
-  );
+  const changeEndDate = (direction) => {
+    const newDate = new Date(endDate);
+    newDate.setMonth(newDate.getMonth() + direction);
+    setEndDate(newDate);
+  };
 
-  /**
-   * Obtiene el texto del método de pago
-   */
+  const formatDate = (date) => {
+    return date.toLocaleDateString("es-VE", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
   const getPaymentMethodText = (method) => {
     switch (method) {
       case "cash":
@@ -216,602 +169,759 @@ export const SalesScreen = () => {
       case "transfer":
         return "Transferencia";
       default:
-        return method;
+        return method || "—";
     }
   };
 
+  const renderSale = ({ item }) => (
+    <TouchableOpacity
+      style={styles.saleCard}
+      onPress={() => handleShowDetails(item)}
+      activeOpacity={0.85}
+    >
+      <View style={styles.saleHeader}>
+        <View style={styles.saleIcon}>
+          <Text style={styles.saleIconText}>🧾</Text>
+        </View>
+        <View style={styles.saleInfo}>
+          <Text style={styles.saleNumber}>Venta #{item.id}</Text>
+          <Text style={styles.saleDate}>
+            {new Date(item.createdAt).toLocaleDateString()} ·{" "}
+            {new Date(item.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Text>
+        </View>
+        <View style={styles.saleAmountBadge}>
+          <Text style={styles.saleAmountText}>
+            {formatCurrency(item.total)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.saleMeta}>
+        <View style={styles.metaBlock}>
+          <Text style={styles.metaLabel}>Cliente</Text>
+          <Text style={styles.metaValue} numberOfLines={1}>
+            {item.notes ? item.notes.replace("Cliente: ", "") : "Sin nombre"}
+          </Text>
+        </View>
+        <View style={styles.metaSeparator} />
+        <View style={styles.metaBlock}>
+          <Text style={styles.metaLabel}>Productos</Text>
+          <Text style={styles.metaValue}>{item.itemCount || 0}</Text>
+        </View>
+        <View style={styles.metaSeparator} />
+        <View style={styles.metaBlock}>
+          <Text style={styles.metaLabel}>Pago</Text>
+          <Text style={styles.metaValue}>
+            {getPaymentMethodText(item.paymentMethod)}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderDetailItem = ({ item, index }) => (
+    <View style={[styles.detailItem, index !== 0 && styles.detailItemSpacing]}>
+      <View style={styles.detailItemInfo}>
+        <Text style={styles.detailItemName}>{item.productName}</Text>
+        <Text style={styles.detailItemQuantity}>
+          {item.quantity} × {formatCurrency(item.price)}
+        </Text>
+      </View>
+      <Text style={styles.detailItemTotal}>
+        {formatCurrency(item.subtotal)}
+      </Text>
+    </View>
+  );
+
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Cargando ventas...</Text>
-      </View>
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2f5ae0" />
+        <Text style={styles.loadingText}>Sincronizando historial...</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Historial de Ventas</Text>
-      </View>
-
-      {/* Estadísticas */}
-      <View style={styles.statsCard}>
-        <Text style={styles.statsTitle}>
-          📊 Resumen {activeTab === "today" ? "de Hoy" : "del Período"}
-        </Text>
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {getCurrentStats()?.count || 0}
-            </Text>
-            <Text style={styles.statLabel}>Ventas</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              VES. {(getCurrentStats()?.total || 0).toFixed(2)}
-            </Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Pestañas */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "today" && styles.activeTab]}
-          onPress={() => switchTab("today")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "today" && styles.activeTabText,
-            ]}
-          >
-            Hoy
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "all" && styles.activeTab]}
-          onPress={() => switchTab("all")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "all" && styles.activeTabText,
-            ]}
-          >
-            Histórico
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Controles de fecha para la pestaña Histórico */}
-      {activeTab === "all" && (
-        <View style={styles.dateFilters}>
-          <View style={styles.dateRow}>
-            <View style={styles.dateInput}>
-              <Text style={styles.dateLabel}>Desde:</Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => {
-                  // Cambiar al mes anterior
-                  const newDate = new Date(startDate);
-                  newDate.setMonth(newDate.getMonth() - 1);
-                  changeStartDate(newDate);
-                }}
-              >
-                <Text style={styles.dateButtonText}>
-                  ◀ {formatDate(startDate)}
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={filteredSales}
+        renderItem={renderSale}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View style={styles.headerContent}>
+            <View style={styles.heroCard}>
+              <View style={styles.heroIcon}>
+                <Text style={styles.heroIconText}>📈</Text>
+              </View>
+              <View style={styles.heroCopy}>
+                <Text style={styles.heroTitle}>Historial de ventas</Text>
+                <Text style={styles.heroSubtitle}>
+                  Visualiza el desempeño de tus ventas y explora los detalles
+                  con un toque.
                 </Text>
-              </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.dateInput}>
-              <Text style={styles.dateLabel}>Hasta:</Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => {
-                  // Cambiar al mes siguiente
-                  const newDate = new Date(endDate);
-                  newDate.setMonth(newDate.getMonth() + 1);
-                  changeEndDate(newDate);
-                }}
-              >
-                <Text style={styles.dateButtonText}>
-                  {formatDate(endDate)} ▶
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={styles.quickFilters}>
-            <TouchableOpacity
-              style={styles.quickFilter}
-              onPress={() => {
-                const now = new Date();
-                setStartDate(new Date(now.getFullYear(), now.getMonth(), 1));
-                setEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-              }}
-            >
-              <Text style={styles.quickFilterText}>Este Mes</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.quickFilter}
-              onPress={() => {
-                const now = new Date();
-                setStartDate(
-                  new Date(now.getFullYear(), now.getMonth() - 1, 1)
-                );
-                setEndDate(new Date(now.getFullYear(), now.getMonth(), 0));
-              }}
-            >
-              <Text style={styles.quickFilterText}>Mes Anterior</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.quickFilter}
-              onPress={() => {
-                const now = new Date();
-                const weekStart = new Date(now);
-                weekStart.setDate(now.getDate() - now.getDay());
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 6);
-                setStartDate(weekStart);
-                setEndDate(weekEnd);
-              }}
-            >
-              <Text style={styles.quickFilterText}>Esta Semana</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
 
-      {/* Lista de ventas o detalles */}
-      {!selectedSale ? (
-        <FlatList
-          data={getFilteredSales()}
-          renderItem={renderSale}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.list}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>📋</Text>
-              <Text style={styles.emptyText}>
-                {activeTab === "today"
-                  ? "No hay ventas registradas hoy"
-                  : "No hay ventas registradas"}
-              </Text>
-              <Text style={styles.emptySubtext}>
-                {activeTab === "today"
-                  ? "Las ventas de hoy aparecerán aquí"
-                  : "Las ventas aparecerán aquí cuando completes tu primera venta"}
-              </Text>
-            </View>
-          }
-        />
-      ) : (
-        <View style={styles.detailsContainer}>
-          <View style={styles.detailsHeader}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={closeSaleDetails}
-            >
-              <Text style={styles.backButtonText}>← Volver</Text>
-            </TouchableOpacity>
-            <Text style={styles.detailsTitle}>
-              Detalles de Venta #{selectedSale.id}
-            </Text>
-          </View>
-
-          <ScrollView style={styles.detailsScroll}>
-            <View style={styles.saleSummary}>
+            <View style={styles.summaryCard}>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Cliente:</Text>
-                <Text style={styles.summaryValue}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Ventas</Text>
+                  <Text style={styles.summaryValue}>{summary.count}</Text>
+                  <Text style={styles.summaryHint}>
+                    {activeTab === "today"
+                      ? "Registradas hoy"
+                      : "En el período"}
+                  </Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Total facturado</Text>
+                  <Text style={styles.summaryValue}>
+                    {formatCurrency(summary.total)}
+                  </Text>
+                  <Text style={styles.summaryHint}>Monto acumulado</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.tabGroup}>
+              {[
+                { key: "today", label: "Hoy" },
+                { key: "all", label: "Histórico" },
+              ].map((tab) => {
+                const active = activeTab === tab.key;
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={[styles.tabChip, active && styles.tabChipActive]}
+                    onPress={() => setActiveTab(tab.key)}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={[
+                        styles.tabChipText,
+                        active && styles.tabChipTextActive,
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {activeTab === "all" && (
+              <View style={styles.dateCard}>
+                <View style={styles.dateRow}>
+                  <View style={styles.dateColumn}>
+                    <Text style={styles.dateLabel}>Desde</Text>
+                    <View style={styles.dateSelector}>
+                      <TouchableOpacity
+                        style={styles.dateArrow}
+                        onPress={() => changeStartDate(-1)}
+                      >
+                        <Text style={styles.dateArrowText}>◀</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.dateValue}>
+                        {formatDate(startDate)}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.dateArrow}
+                        onPress={() => changeStartDate(1)}
+                      >
+                        <Text style={styles.dateArrowText}>▶</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.dateColumn}>
+                    <Text style={styles.dateLabel}>Hasta</Text>
+                    <View style={styles.dateSelector}>
+                      <TouchableOpacity
+                        style={styles.dateArrow}
+                        onPress={() => changeEndDate(-1)}
+                      >
+                        <Text style={styles.dateArrowText}>◀</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.dateValue}>
+                        {formatDate(endDate)}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.dateArrow}
+                        onPress={() => changeEndDate(1)}
+                      >
+                        <Text style={styles.dateArrowText}>▶</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.quickFilters}>
+                  <TouchableOpacity
+                    style={styles.quickFilter}
+                    onPress={() => handleQuickRange("currentMonth")}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.quickFilterText}>Este mes</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickFilter}
+                    onPress={() => handleQuickRange("lastMonth")}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.quickFilterText}>Mes anterior</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickFilter}
+                    onPress={() => handleQuickRange("week")}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.quickFilterText}>Esta semana</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>🧾</Text>
+            <Text style={styles.emptyTitle}>
+              {activeTab === "today"
+                ? "No hay ventas registradas hoy"
+                : "No encontramos ventas en este rango"}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {activeTab === "today"
+                ? "Registra una venta y aparecerá aquí al instante."
+                : "Ajusta el rango o sincroniza tus ventas recientes."}
+            </Text>
+          </View>
+        }
+      />
+
+      {selectedSale && (
+        <View style={styles.detailOverlay}>
+          <View style={styles.detailCard}>
+            <View style={styles.detailHeader}>
+              <TouchableOpacity
+                style={styles.detailBack}
+                onPress={closeDetails}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.detailBackText}>←</Text>
+              </TouchableOpacity>
+              <View style={styles.detailHeaderInfo}>
+                <Text style={styles.detailTitle}>Venta #{selectedSale.id}</Text>
+                <Text style={styles.detailSubtitle}>
+                  {new Date(selectedSale.createdAt).toLocaleDateString()} ·{" "}
+                  {new Date(selectedSale.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+              <View style={styles.detailAmountChip}>
+                <Text style={styles.detailAmountText}>
+                  {formatCurrency(selectedSale.total)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.detailSummary}>
+              <View style={styles.detailSummaryItem}>
+                <Text style={styles.detailSummaryLabel}>Cliente</Text>
+                <Text style={styles.detailSummaryValue} numberOfLines={1}>
                   {selectedSale.notes
                     ? selectedSale.notes.replace("Cliente: ", "")
                     : "Sin nombre"}
                 </Text>
               </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Fecha:</Text>
-                <Text style={styles.summaryValue}>
-                  {new Date(selectedSale.createdAt).toLocaleDateString()}{" "}
-                  {new Date(selectedSale.createdAt).toLocaleTimeString()}
-                </Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Pago:</Text>
-                <Text style={styles.summaryValue}>
+              <View style={styles.detailSummaryItem}>
+                <Text style={styles.detailSummaryLabel}>Pago</Text>
+                <Text style={styles.detailSummaryValue}>
                   {getPaymentMethodText(selectedSale.paymentMethod)}
                 </Text>
               </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Total:</Text>
-                <Text style={styles.summaryTotal}>
-                  VES. {selectedSale.total.toFixed(2)}
+              <View style={styles.detailSummaryItem}>
+                <Text style={styles.detailSummaryLabel}>Productos</Text>
+                <Text style={styles.detailSummaryValue}>
+                  {selectedSale.itemCount || saleDetails?.items?.length || 0}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.itemsSection}>
-              <Text style={styles.itemsTitle}>Productos Vendidos</Text>
-              {saleDetails?.items && saleDetails.items.length > 0 ? (
-                saleDetails.items.map((item, index) => (
-                  <View key={index} style={styles.detailItem}>
-                    <View style={styles.detailItemInfo}>
-                      <Text style={styles.detailItemName}>
-                        {item.productName}
-                      </Text>
-                      <Text style={styles.detailItemQuantity}>
-                        {item.quantity} x VES. {item.price.toFixed(2)}
-                      </Text>
-                    </View>
-                    <Text style={styles.detailItemSubtotal}>
-                      VES. {item.subtotal.toFixed(2)}
+            {detailsLoading ? (
+              <View style={styles.detailsLoader}>
+                <ActivityIndicator color="#2f5ae0" />
+              </View>
+            ) : (
+              <FlatList
+                data={saleDetails?.items || []}
+                renderItem={renderDetailItem}
+                keyExtractor={(_, index) => `detail-${index}`}
+                ItemSeparatorComponent={() => (
+                  <View style={styles.detailDivider} />
+                )}
+                ListEmptyComponent={
+                  <View style={styles.detailEmpty}>
+                    <Text style={styles.detailEmptyText}>
+                      No se encontraron productos para esta venta.
                     </Text>
                   </View>
-                ))
-              ) : (
-                <Text style={styles.noItemsText}>No se encontraron items</Text>
-              )}
-            </View>
-          </ScrollView>
+                }
+              />
+            )}
+          </View>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#e8edf2",
   },
-  loadingContainer: {
-    flex: 1,
+  listContent: {
+    padding: 24,
+    paddingBottom: 110,
+    gap: 18,
+  },
+  headerContent: {
+    gap: 24,
+    marginBottom: 8,
+  },
+  heroCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 22,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  heroIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: "#f3f8ff",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    marginRight: 18,
   },
-  loadingText: {
-    fontSize: 18,
-    color: "#666",
+  heroIconText: {
+    fontSize: 30,
   },
-  header: {
-    padding: 16,
-    paddingTop: 50,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  statsCard: {
-    backgroundColor: "#4CAF50",
-    margin: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statsTitle: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  statItem: {
+  heroCopy: {
     flex: 1,
-    alignItems: "center",
+    gap: 6,
   },
-  statValue: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-  statLabel: {
-    color: "#fff",
-    fontSize: 12,
-    marginTop: 1,
-  },
-  statDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: "rgba(255,255,255,0.3)",
-    marginHorizontal: 20,
-  },
-  list: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  saleCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  saleHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  saleId: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  saleDate: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 4,
-  },
-  saleStatus: {
-    alignItems: "flex-end",
-  },
-  saleMethod: {
-    fontSize: 14,
-    color: "#4CAF50",
-    fontWeight: "600",
-    backgroundColor: "#e8f5e8",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  saleDetails: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  saleInfo: {
-    flex: 1,
-  },
-  saleCustomer: {
-    fontSize: 16,
-    color: "#333",
-    marginBottom: 4,
-  },
-  saleItems: {
-    fontSize: 14,
-    color: "#666",
-  },
-  saleAmount: {
+  heroTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#4CAF50",
+    fontWeight: "700",
+    color: "#1f2633",
   },
-  emptyContainer: {
-    alignItems: "center",
-    marginTop: 60,
-    paddingHorizontal: 32,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 18,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  emptySubtext: {
+  heroSubtitle: {
     fontSize: 14,
-    color: "#999",
-    textAlign: "center",
+    color: "#5b6472",
     lineHeight: 20,
   },
-  detailsContainer: {
-    flex: 1,
-  },
-  detailsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
+  summaryCard: {
     backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 16,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: "#4CAF50",
-    fontWeight: "600",
-  },
-  detailsTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  saleSummary: {
-    backgroundColor: "#fff",
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    elevation: 2,
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 6,
+    gap: 16,
   },
   summaryRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    gap: 16,
+  },
+  summaryItem: {
+    flex: 1,
+    backgroundColor: "#f8f9fc",
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    gap: 6,
   },
   summaryLabel: {
-    fontSize: 16,
-    color: "#666",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   summaryValue: {
-    fontSize: 16,
-    color: "#333",
-    fontWeight: "500",
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2633",
   },
-  summaryTotal: {
-    fontSize: 18,
-    color: "#4CAF50",
-    fontWeight: "bold",
+  summaryHint: {
+    fontSize: 12,
+    color: "#6f7c8c",
   },
-  itemsTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 12,
-  },
-  itemsSection: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 16,
-  },
-  detailsScroll: {
-    flex: 1,
-  },
-  itemsList: {
-    flex: 1,
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 16,
-  },
-  detailItem: {
+  tabGroup: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    backgroundColor: "#f3f5fa",
+    borderRadius: 16,
+    padding: 8,
+    gap: 8,
   },
-  detailItemInfo: {
+  tabChip: {
     flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
   },
-  detailItemName: {
-    fontSize: 16,
-    color: "#333",
-    marginBottom: 4,
+  tabChipActive: {
+    backgroundColor: "#2f5ae0",
+    shadowColor: "#2f5ae0",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  detailItemQuantity: {
+  tabChipText: {
     fontSize: 14,
-    color: "#666",
-  },
-  detailItemSubtotal: {
-    fontSize: 16,
-    color: "#4CAF50",
     fontWeight: "600",
+    color: "#5b6472",
   },
-  noItemsText: {
-    textAlign: "center",
-    color: "#999",
-    marginTop: 20,
-  },
-  tabsContainer: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderRadius: 12,
-  },
-  activeTab: {
-    backgroundColor: "#4CAF50",
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#666",
-  },
-  activeTabText: {
+  tabChipTextActive: {
     color: "#fff",
   },
-  dateFilters: {
+  dateCard: {
     backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-    elevation: 2,
+    borderRadius: 18,
+    padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
+    gap: 18,
   },
   dateRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
+    gap: 16,
   },
-  dateInput: {
+  dateColumn: {
     flex: 1,
-    marginHorizontal: 4,
+    gap: 10,
   },
   dateLabel: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
-    fontWeight: "500",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#8492a6",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
-  dateButton: {
-    backgroundColor: "#f5f5f5",
-    padding: 12,
+  dateSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8f9fc",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 12,
+  },
+  dateArrow: {
+    width: 28,
+    height: 28,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ddd",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e2e7f1",
   },
-  dateButtonText: {
-    fontSize: 14,
-    color: "#333",
+  dateArrowText: {
+    color: "#2f5ae0",
+    fontWeight: "700",
+  },
+  dateValue: {
+    flex: 1,
     textAlign: "center",
-    fontWeight: "500",
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1f2633",
   },
   quickFilters: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
+    gap: 10,
   },
   quickFilter: {
-    backgroundColor: "#4CAF50",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
     flex: 1,
-    marginHorizontal: 2,
+    backgroundColor: "#f3f8ff",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
   },
   quickFilterText: {
+    color: "#2f5ae0",
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  saleCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 18,
+    gap: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  saleHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  saleIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#f3f8ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saleIconText: {
+    fontSize: 24,
+  },
+  saleInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  saleNumber: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  saleDate: {
+    fontSize: 12,
+    color: "#6f7c8c",
+  },
+  saleAmountBadge: {
+    backgroundColor: "#2f5ae0",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  saleAmountText: {
     color: "#fff",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  saleMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  metaBlock: {
+    flex: 1,
+    gap: 6,
+  },
+  metaLabel: {
     fontSize: 11,
     fontWeight: "600",
+    color: "#8492a6",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  metaValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1f2633",
+  },
+  metaSeparator: {
+    width: 1,
+    height: 32,
+    backgroundColor: "#e4e9f2",
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  emptyEmoji: {
+    fontSize: 42,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2633",
     textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: "#6f7c8c",
+    textAlign: "center",
+    paddingHorizontal: 24,
+  },
+  detailOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(13, 22, 38, 0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  detailCard: {
+    width: "100%",
+    maxHeight: "85%",
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 22,
+    gap: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  detailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  detailBack: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: "#f0f3fa",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailBackText: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#2f5ae0",
+  },
+  detailHeaderInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  detailTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  detailSubtitle: {
+    fontSize: 13,
+    color: "#6f7c8c",
+  },
+  detailAmountChip: {
+    backgroundColor: "#2fb176",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  detailAmountText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  detailSummary: {
+    flexDirection: "row",
+    backgroundColor: "#f8f9fc",
+    borderRadius: 16,
+    padding: 16,
+    gap: 14,
+  },
+  detailSummaryItem: {
+    flex: 1,
+    gap: 6,
+  },
+  detailSummaryLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  detailSummaryValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1f2633",
+  },
+  detailsLoader: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  detailItemSpacing: {
+    marginTop: 12,
+  },
+  detailItemInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  detailItemName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1f2633",
+  },
+  detailItemQuantity: {
+    fontSize: 13,
+    color: "#6f7c8c",
+  },
+  detailItemTotal: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  detailDivider: {
+    height: 1,
+    backgroundColor: "#e4e9f2",
+    marginTop: 12,
+  },
+  detailEmpty: {
+    paddingVertical: 30,
+    alignItems: "center",
+  },
+  detailEmptyText: {
+    fontSize: 13,
+    color: "#6f7c8c",
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#e8edf2",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#4c5767",
   },
 });
 
