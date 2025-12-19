@@ -14,20 +14,20 @@ import {
 } from "react-native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useSuppliers } from "../../hooks/useSuppliers";
-import { insertSupplier } from "../../services/database/suppliers";
 
 /**
  * Pantalla para agregar nueva cuenta por pagar
  */
 export const AddAccountPayableScreen = ({ navigation }) => {
   const { addAccountPayable } = useAccounts();
-  const { getSupplierByDocument } = useSuppliers();
+  const { getSupplierByDocument, addSupplier } = useSuppliers();
 
   const [formData, setFormData] = useState({
     documentNumber: "",
     supplierName: "",
     amount: "",
     description: "",
+    invoiceNumber: "",
     dueDate: "",
   });
 
@@ -44,11 +44,7 @@ export const AddAccountPayableScreen = ({ navigation }) => {
     if (documentNumber.trim()) {
       try {
         const supplier = await getSupplierByDocument(documentNumber.trim());
-        if (supplier) {
-          updateFormData("supplierName", supplier.name);
-        } else {
-          updateFormData("supplierName", "");
-        }
+        updateFormData("supplierName", supplier ? supplier.name : "");
       } catch (error) {
         console.error("Error buscando proveedor:", error);
         updateFormData("supplierName", "");
@@ -60,79 +56,74 @@ export const AddAccountPayableScreen = ({ navigation }) => {
 
   const handleDateSelect = (date) => {
     setSelectedDate(date);
-    const formattedDate = date.toISOString().split("T")[0]; // YYYY-MM-DD format
+    const formattedDate = date.toISOString().split("T")[0];
     updateFormData("dueDate", formattedDate);
     setShowDatePicker(false);
   };
 
   const showDatePickerModal = () => {
+    if (formData.dueDate) {
+      const [year, month, day] = formData.dueDate.split("-").map(Number);
+      if (year && month && day) {
+        const parsed = new Date(year, month - 1, day);
+        if (!Number.isNaN(parsed.getTime())) {
+          setSelectedDate(parsed);
+        }
+      }
+    }
     setShowDatePicker(true);
   };
 
   const handleSave = async () => {
     if (!formData.documentNumber.trim()) {
-      Alert.alert("Error", "La cédula es obligatoria");
+      Alert.alert("Error", "El RIF o cédula es obligatorio");
       return;
     }
     if (!formData.supplierName.trim()) {
       Alert.alert("Error", "El nombre del proveedor es obligatorio");
       return;
     }
-    if (!formData.amount.trim()) {
-      Alert.alert("Error", "El monto es obligatorio");
+
+    const amountValue = parseFloat(formData.amount.replace(",", "."));
+    if (Number.isNaN(amountValue) || amountValue <= 0) {
+      Alert.alert("Error", "El monto debe ser un número positivo");
       return;
     }
+
     if (!formData.dueDate.trim()) {
       Alert.alert("Error", "La fecha de vencimiento es obligatoria");
       return;
     }
 
     try {
-      const documentNumber = formData.documentNumber?.trim();
-      const supplierName = formData.supplierName?.trim();
+      let supplier = await getSupplierByDocument(
+        formData.documentNumber.trim()
+      );
 
-      if (!documentNumber || !supplierName) {
-        Alert.alert("Error", "Los datos del proveedor son incompletos");
-        return;
-      }
-
-      // Verificar si el proveedor existe
-      let supplier = await getSupplierByDocument(documentNumber);
-      let supplierId = supplier?.id;
-
-      // Si el proveedor no existe, crearlo
       if (!supplier) {
-        try {
-          supplierId = await insertSupplier({
-            documentNumber: documentNumber,
-            name: supplierName,
-          });
-        } catch (supplierError) {
-          console.error("Error creando proveedor:", supplierError);
-          // Si falla por duplicado, intentar buscar el proveedor existente
-          if (supplierError.message?.includes("UNIQUE constraint failed")) {
-            supplier = await getSupplierByDocument(documentNumber);
-            supplierId = supplier?.id;
-          } else {
-            Alert.alert("Error", "No se pudo crear el proveedor");
-            return;
-          }
-        }
+        await addSupplier({
+          documentNumber: formData.documentNumber.trim(),
+          name: formData.supplierName.trim(),
+        });
+        supplier = await getSupplierByDocument(formData.documentNumber.trim());
       }
-
-      const currentDateTime = new Date().toISOString(); // Fecha y hora actual completa
 
       await addAccountPayable({
-        ...formData,
-        supplierId: supplierId,
-        amount: parseFloat(formData.amount),
-        createdAt: currentDateTime, // Agregar fecha y hora de creación
+        supplierId: supplier?.id,
+        supplierName: formData.supplierName.trim(),
+        amount: amountValue,
+        description: formData.description.trim(),
+        invoiceNumber: formData.invoiceNumber.trim(),
+        dueDate: formData.dueDate,
+        documentNumber: formData.documentNumber.trim(),
+        createdAt: new Date().toISOString(),
       });
+
       Alert.alert("Éxito", "Cuenta por pagar agregada correctamente", [
         { text: "OK", onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      console.error("Error guardando cuenta por pagar:", error);
+      console.error("Error agregando cuenta por pagar:", error);
       Alert.alert("Error", "No se pudo guardar la cuenta por pagar");
     }
   };
@@ -141,66 +132,80 @@ export const AddAccountPayableScreen = ({ navigation }) => {
     <Modal
       visible={showDatePicker}
       transparent={true}
-      animationType="slide"
+      animationType="fade"
       onRequestClose={() => setShowDatePicker(false)}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.datePickerContainer}>
+        <View style={styles.modalCard}>
           <Text style={styles.modalTitle}>
-            Seleccionar Fecha de Vencimiento
+            Selecciona la fecha de vencimiento
           </Text>
 
-          <View style={styles.datePicker}>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => {
-                const today = new Date();
-                handleDateSelect(today);
-              }}
-            >
-              <Text style={styles.dateButtonText}>Hoy</Text>
-            </TouchableOpacity>
+          <View style={styles.modalInputs}>
+            <View style={styles.modalInputGroup}>
+              <Text style={styles.modalLabel}>Día</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={selectedDate.getDate().toString()}
+                onChangeText={(value) => {
+                  const day = parseInt(value, 10) || 1;
+                  const next = new Date(selectedDate);
+                  next.setDate(Math.min(Math.max(day, 1), 31));
+                  setSelectedDate(next);
+                }}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
 
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                handleDateSelect(tomorrow);
-              }}
-            >
-              <Text style={styles.dateButtonText}>Mañana</Text>
-            </TouchableOpacity>
+            <View style={styles.modalInputGroup}>
+              <Text style={styles.modalLabel}>Mes</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={(selectedDate.getMonth() + 1).toString()}
+                onChangeText={(value) => {
+                  const month = parseInt(value, 10) || 1;
+                  const next = new Date(selectedDate);
+                  next.setMonth(Math.min(Math.max(month - 1, 0), 11));
+                  setSelectedDate(next);
+                }}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
 
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => {
-                const week = new Date();
-                week.setDate(week.getDate() + 7);
-                handleDateSelect(week);
-              }}
-            >
-              <Text style={styles.dateButtonText}>En 1 semana</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => {
-                const month = new Date();
-                month.setMonth(month.getMonth() + 1);
-                handleDateSelect(month);
-              }}
-            >
-              <Text style={styles.dateButtonText}>En 1 mes</Text>
-            </TouchableOpacity>
+            <View style={styles.modalInputGroup}>
+              <Text style={styles.modalLabel}>Año</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={selectedDate.getFullYear().toString()}
+                onChangeText={(value) => {
+                  const year = parseInt(value, 10) || new Date().getFullYear();
+                  const next = new Date(selectedDate);
+                  next.setFullYear(year);
+                  setSelectedDate(next);
+                }}
+                keyboardType="numeric"
+                maxLength={4}
+              />
+            </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setShowDatePicker(false)}
-          >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalSecondary]}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={styles.modalSecondaryText}>Cancelar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalPrimary]}
+              onPress={() => handleDateSelect(selectedDate)}
+            >
+              <Text style={styles.modalPrimaryText}>Seleccionar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -209,70 +214,147 @@ export const AddAccountPayableScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Text style={styles.title}>Nueva Cuenta por Pagar</Text>
-
-          <View style={styles.form}>
-            <Text style={styles.label}>Cédula del Proveedor</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.documentNumber}
-              onChangeText={handleDocumentChange}
-              placeholder="Ingrese cédula"
-              keyboardType="numeric"
-            />
-
-            <Text style={styles.label}>Nombre del Proveedor</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.supplierName}
-              onChangeText={(value) => updateFormData("supplierName", value)}
-              placeholder="Nombre del proveedor"
-            />
-
-            <Text style={styles.label}>Monto (VES)</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.amount}
-              onChangeText={(value) => updateFormData("amount", value)}
-              placeholder="0.00"
-              keyboardType="numeric"
-            />
-
-            <Text style={styles.label}>Descripción</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.description}
-              onChangeText={(value) => updateFormData("description", value)}
-              placeholder="Descripción de la cuenta"
-              multiline
-              numberOfLines={3}
-            />
-
-            <Text style={styles.label}>Fecha de Vencimiento</Text>
-            <TouchableOpacity
-              style={styles.dateInput}
-              onPress={showDatePickerModal}
-            >
-              <Text style={styles.dateText}>
-                {formData.dueDate || "Seleccionar fecha"}
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.heroCard}>
+            <View style={styles.heroIcon}>
+              <Text style={styles.heroIconText}>📑</Text>
+            </View>
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroTitle}>Nueva cuenta por pagar</Text>
+              <Text style={styles.heroSubtitle}>
+                Registra compromisos con proveedores y mantén tu flujo de caja
+                bajo control.
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={styles.buttonContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Datos del proveedor</Text>
+            <Text style={styles.sectionHint}>
+              Usa el documento para autocompletar proveedores registrados.
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>RIF/Cédula *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="J123456789"
+                placeholderTextColor="#9aa2b1"
+                value={formData.documentNumber}
+                onChangeText={handleDocumentChange}
+                autoCapitalize="characters"
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Nombre del proveedor *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Empresa o persona"
+                placeholderTextColor="#9aa2b1"
+                value={formData.supplierName}
+                onChangeText={(value) => updateFormData("supplierName", value)}
+              />
+            </View>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Detalle de la obligación</Text>
+            <Text style={styles.sectionHint}>
+              Describe el concepto para reconocer la cuenta rápidamente.
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Monto (Bs) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                placeholderTextColor="#9aa2b1"
+                value={formData.amount}
+                onChangeText={(value) => updateFormData("amount", value)}
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Descripción</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Factura de inventario, pago de servicios, etc."
+                placeholderTextColor="#9aa2b1"
+                value={formData.description}
+                onChangeText={(value) => updateFormData("description", value)}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>
+                Número de factura (opcional)
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="FAC-001"
+                placeholderTextColor="#9aa2b1"
+                value={formData.invoiceNumber}
+                onChangeText={(value) => updateFormData("invoiceNumber", value)}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Fecha de vencimiento *</Text>
+              <TouchableOpacity
+                style={[styles.input, styles.dateTrigger]}
+                onPress={showDatePickerModal}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={
+                    formData.dueDate ? styles.dateValue : styles.datePlaceholder
+                  }
+                >
+                  {formData.dueDate || "Selecciona la fecha"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {formData.dueDate ? (
+              <Text style={styles.helperText}>
+                Anticípate a la fecha y evita recargos con recordatorios
+                oportunos.
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.actionButton, styles.secondaryButton]}
               onPress={() => navigation.goBack()}
+              activeOpacity={0.85}
             >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
+              <Text style={styles.secondaryText}>Cancelar</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-              <Text style={styles.saveButtonText}>Guardar</Text>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.primaryButton]}
+              onPress={handleSave}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.primaryText}>Guardar cuenta</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -286,131 +368,241 @@ export const AddAccountPayableScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#e8edf2",
   },
-  scrollContent: {
-    padding: 20,
+  flex: {
+    flex: 1,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
-    textAlign: "center",
+  content: {
+    padding: 24,
+    paddingBottom: 60,
+    gap: 24,
   },
-  form: {
+  heroCard: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: 18,
+    padding: 22,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 8,
   },
-  label: {
+  heroIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: "#fff5f3",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 18,
+  },
+  heroIconText: {
+    fontSize: 30,
+  },
+  heroCopy: {
+    flex: 1,
+    gap: 6,
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: "#5b6472",
+    lineHeight: 20,
+  },
+  sectionHeader: {
+    paddingHorizontal: 4,
+    gap: 4,
+  },
+  sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
+    color: "#1f2633",
+  },
+  sectionHint: {
+    fontSize: 12,
+    color: "#6f7c8c",
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
+    gap: 20,
+  },
+  fieldGroup: {
+    gap: 8,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#8492a6",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 16,
-    backgroundColor: "#fafafa",
+    borderColor: "#d9e0eb",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#1f2633",
+    backgroundColor: "#f8f9fc",
   },
   textArea: {
-    height: 80,
+    minHeight: 88,
     textAlignVertical: "top",
   },
-  dateInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+  dateTrigger: {
+    justifyContent: "center",
+  },
+  dateValue: {
+    fontSize: 15,
+    color: "#1f2633",
+  },
+  datePlaceholder: {
+    fontSize: 15,
+    color: "#9aa2b1",
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#5a2e2e",
+    backgroundColor: "#fff4f2",
     padding: 12,
-    backgroundColor: "#fafafa",
-    marginBottom: 16,
+    borderRadius: 12,
+    lineHeight: 18,
   },
-  dateText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  buttonContainer: {
+  buttonRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 12,
   },
-  cancelButton: {
-    backgroundColor: "#f44336",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+  actionButton: {
     flex: 1,
-    marginRight: 10,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  cancelButtonText: {
-    color: "#fff",
-    fontSize: 16,
+  secondaryButton: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#c3cad5",
+  },
+  secondaryText: {
+    color: "#4c5767",
     fontWeight: "600",
-    textAlign: "center",
+    fontSize: 15,
   },
-  saveButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    flex: 1,
-    marginLeft: 10,
+  primaryButton: {
+    backgroundColor: "#ef5350",
+    shadowColor: "#ef5350",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  saveButtonText: {
+  primaryText: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
+    fontWeight: "700",
+    fontSize: 15,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(10, 19, 36, 0.45)",
     justifyContent: "center",
     alignItems: "center",
+    padding: 24,
   },
-  datePickerContainer: {
+  modalCard: {
+    width: "100%",
+    maxWidth: 360,
     backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 20,
-    width: "80%",
-    maxWidth: 400,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
+    elevation: 12,
+    gap: 20,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
+    fontWeight: "700",
+    color: "#1f2633",
     textAlign: "center",
   },
-  datePicker: {
+  modalInputs: {
     flexDirection: "row",
-    flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 20,
+    gap: 12,
   },
-  dateButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-    minWidth: "45%",
-    alignItems: "center",
+  modalInputGroup: {
+    flex: 1,
+    gap: 6,
   },
-  dateButtonText: {
-    color: "#fff",
-    fontSize: 14,
+  modalLabel: {
+    fontSize: 12,
     fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#d9e0eb",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    textAlign: "center",
+    fontSize: 15,
+    color: "#1f2633",
+    backgroundColor: "#f8f9fc",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalSecondary: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#c3cad5",
+  },
+  modalSecondaryText: {
+    color: "#4c5767",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  modalPrimary: {
+    backgroundColor: "#ef5350",
+    shadowColor: "#ef5350",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  modalPrimaryText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
 });
 

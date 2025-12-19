@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -18,10 +18,9 @@ export const SuppliersScreen = () => {
     loading,
     error,
     search,
-    addSupplier,
-    editSupplier,
     removeSupplier,
     refresh,
+    getSupplierStats,
   } = useSuppliers();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,46 +65,142 @@ export const SuppliersScreen = () => {
     [removeSupplier]
   );
 
+  const stats = useMemo(() => getSupplierStats(), [getSupplierStats]);
+  const contactStats = useMemo(
+    () => ({
+      contact: suppliers.filter((s) => Boolean(s.contactPerson)).length,
+      terms: suppliers.filter((s) => Boolean(s.paymentTerms)).length,
+    }),
+    [suppliers]
+  );
+
+  const sortedSuppliers = useMemo(() => {
+    return [...suppliers].sort((a, b) => a.name.localeCompare(b.name));
+  }, [suppliers]);
+
   const renderSupplier = useCallback(
-    ({ item }) => (
-      <View style={styles.supplierCard}>
-        <TouchableOpacity
-          style={styles.supplierInfo}
-          onPress={() =>
-            navigation.navigate("EditSupplier", { supplier: item })
-          }
-        >
-          <Text style={styles.supplierName}>{item.name}</Text>
-          <Text style={styles.supplierDetail}>RIF: {item.documentNumber}</Text>
-          {item.contactPerson && (
-            <Text style={styles.supplierDetail}>
-              Contacto: {item.contactPerson}
-            </Text>
-          )}
-          {item.phone && (
-            <Text style={styles.supplierDetail}>Teléfono: {item.phone}</Text>
-          )}
-          {item.email && (
-            <Text style={styles.supplierDetail}>Email: {item.email}</Text>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.deleteIcon}
-          onPress={() => confirmDeleteSupplier(item)}
-        >
-          <Text style={styles.deleteIconText}>🗑️</Text>
-        </TouchableOpacity>
-      </View>
-    ),
+    ({ item }) => {
+      const hasContact = Boolean(item.contactPerson);
+      const hasTerms = Boolean(item.paymentTerms);
+
+      return (
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.cardBody}
+            onPress={() =>
+              navigation.navigate("EditSupplier", { supplier: item })
+            }
+            activeOpacity={0.85}
+          >
+            <View style={styles.cardHeader}>
+              <Text style={styles.supplierName}>{item.name}</Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{item.documentNumber}</Text>
+              </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Contacto</Text>
+              <Text style={styles.infoValue}>
+                {hasContact ? item.contactPerson : "No asignado"}
+              </Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Teléfono</Text>
+              <Text style={styles.infoValue}>
+                {item.phone || "Sin registro"}
+              </Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Términos</Text>
+              <Text style={styles.infoValue}>
+                {hasTerms ? item.paymentTerms : "No definidos"}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => confirmDeleteSupplier(item)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.deleteButtonText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    },
     [navigation, confirmDeleteSupplier]
   );
 
+  const renderHeader = () => (
+    <View style={styles.headerContent}>
+      <View style={styles.heroCard}>
+        <View style={styles.heroIcon}>
+          <Text style={styles.heroIconText}>🏢</Text>
+        </View>
+        <View style={styles.heroTextContainer}>
+          <Text style={styles.heroTitle}>Proveedores y aliados</Text>
+          <Text style={styles.heroSubtitle}>
+            Organiza tus proveedores clave, términos de pago y contactos
+            directos.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.metricRow}>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Proveedores</Text>
+          <Text style={styles.metricValue}>{stats.total}</Text>
+          <Text style={styles.metricHint}>Registrados en tu red</Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Activos</Text>
+          <Text style={styles.metricValue}>{stats.active}</Text>
+          <Text style={styles.metricHint}>Disponibles para compras</Text>
+        </View>
+      </View>
+
+      <View style={styles.metricRow}>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Con contacto</Text>
+          <Text style={styles.metricValue}>{contactStats.contact}</Text>
+          <Text style={styles.metricHint}>Responsable identificado</Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Con términos</Text>
+          <Text style={styles.metricValue}>{contactStats.terms}</Text>
+          <Text style={styles.metricHint}>Términos de pago definidos</Text>
+        </View>
+      </View>
+
+      <View style={styles.searchCard}>
+        <Text style={styles.searchTitle}>Buscar proveedor</Text>
+        <View style={styles.searchInputWrapper}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Nombre, RIF o contacto"
+            value={searchQuery}
+            onChangeText={handleSearch}
+            placeholderTextColor="#9aa2b1"
+          />
+        </View>
+      </View>
+    </View>
+  );
+
   const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>
+    <View style={styles.emptyCard}>
+      <Text style={styles.emptyTitle}>
         {searchQuery
           ? "No se encontraron proveedores"
-          : "No hay proveedores registrados"}
+          : "Aún no hay proveedores registrados"}
+      </Text>
+      <Text style={styles.emptySubtitle}>
+        Registra proveedores para vincularlos con tus compras y cuentas por
+        pagar.
       </Text>
     </View>
   );
@@ -113,7 +208,7 @@ export const SuppliersScreen = () => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <Text>Cargando proveedores...</Text>
+        <Text style={styles.loadingText}>Cargando proveedores...</Text>
       </View>
     );
   }
@@ -131,21 +226,11 @@ export const SuppliersScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar proveedor"
-          value={searchQuery}
-          onChangeText={handleSearch}
-          placeholderTextColor="#999"
-        />
-      </View>
-
       <FlatList
-        data={suppliers.sort((a, b) => a.name.localeCompare(b.name))}
+        data={sortedSuppliers}
         renderItem={renderSupplier}
         keyExtractor={(item) => item.id.toString()}
+        ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
@@ -154,8 +239,9 @@ export const SuppliersScreen = () => {
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate("AddSupplier")}
+        activeOpacity={0.85}
       >
-        <Text style={styles.fabIcon}>🏢</Text>
+        <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
     </View>
   );
@@ -171,65 +257,194 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#e8edf2",
   },
-  searchContainer: {
+  loadingText: {
+    fontSize: 16,
+    color: "#4c5767",
+  },
+  list: {
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+    gap: 16,
+  },
+  headerContent: {
+    gap: 24,
+    marginBottom: 8,
+  },
+  heroCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    margin: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 18,
+    padding: 22,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  heroIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: "#fff5f3",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 18,
+  },
+  heroIconText: {
+    fontSize: 30,
+  },
+  heroTextContainer: {
+    flex: 1,
+    gap: 6,
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: "#5b6472",
+    lineHeight: 20,
+  },
+  metricRow: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+    gap: 4,
+  },
+  metricLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  metricValue: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  metricHint: {
+    fontSize: 12,
+    color: "#6f7c8c",
+  },
+  searchCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
+    gap: 14,
+  },
+  searchTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1f2633",
+  },
+  searchInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8f9fc",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#d9e0eb",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
   },
   searchIcon: {
     fontSize: 18,
-    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    color: "#333",
+    fontSize: 15,
+    color: "#1f2633",
   },
-  list: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
-  },
-  supplierCard: {
+  card: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
     alignItems: "flex-start",
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+    gap: 16,
   },
-  supplierInfo: {
+  cardBody: {
     flex: 1,
+    gap: 12,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
   },
   supplierName: {
+    flex: 1,
     fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "#fff5f3",
+  },
+  badgeText: {
+    fontSize: 12,
     fontWeight: "600",
-    color: "#333",
-    marginBottom: 6,
+    color: "#d55335",
   },
-  supplierDetail: {
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  infoLabel: {
     fontSize: 13,
-    color: "#666",
-    marginBottom: 3,
+    fontWeight: "600",
+    color: "#7a8796",
   },
-  deleteIcon: {
-    padding: 8,
+  infoValue: {
+    fontSize: 13,
+    color: "#4c5767",
+    flex: 1,
+    textAlign: "right",
   },
-  deleteIconText: {
-    fontSize: 20,
+  deleteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#fff0f0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteButtonText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#d62828",
   },
   fab: {
     position: "absolute",
@@ -248,19 +463,34 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   fabIcon: {
-    fontSize: 24,
+    fontSize: 28,
     color: "#fff",
+    fontWeight: "700",
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
+  emptyCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 24,
     alignItems: "center",
-    paddingTop: 100,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+    marginTop: 40,
   },
-  emptyText: {
-    fontSize: 16,
-    color: "#999",
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1f2633",
     textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: "#6f7c8c",
+    textAlign: "center",
+    lineHeight: 20,
   },
   errorText: {
     fontSize: 16,

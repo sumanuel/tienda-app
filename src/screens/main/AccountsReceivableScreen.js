@@ -7,13 +7,12 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAccounts } from "../../hooks/useAccounts";
+import { formatCurrency } from "../../utils/currency";
 
-/**
- * Pantalla de gestión de cuentas por cobrar
- */
 export const AccountsReceivableScreen = ({ navigation }) => {
   const {
     accountsReceivable,
@@ -23,6 +22,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     searchReceivable,
     removeAccountReceivable,
     markReceivableAsPaid,
+    receivableStats,
   } = useAccounts();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,14 +31,12 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     async (query) => {
       setSearchQuery(query);
       if (!query.trim()) {
-        // Si no hay búsqueda, recargar todas las cuentas
         await refresh();
       } else {
-        // Si hay búsqueda, buscar
         await searchReceivable(query);
       }
     },
-    [searchReceivable, refresh]
+    [refresh, searchReceivable]
   );
 
   const openAddScreen = useCallback(() => {
@@ -56,9 +54,9 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     (account) => {
       Alert.alert(
         "Marcar como pagada",
-        `¿Confirmar que la cuenta de ${account.customerName.toUpperCase()} por VES. ${
-          account.amount
-        } ha sido pagada?`,
+        `¿Confirmar que la cuenta de ${
+          account.customerName
+        } por ${formatCurrency(account.amount || 0, "VES")} ha sido pagada?`,
         [
           { text: "Cancelar", style: "cancel" },
           {
@@ -67,7 +65,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
               try {
                 await markReceivableAsPaid(account.id);
                 Alert.alert("Éxito", "Cuenta marcada como pagada");
-              } catch (error) {
+              } catch (err) {
                 Alert.alert("Error", "No se pudo actualizar la cuenta");
               }
             },
@@ -82,7 +80,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     (account) => {
       Alert.alert(
         "Eliminar cuenta",
-        `¿Estás seguro de que quieres eliminar la cuenta de ${account.customerName.toUpperCase()}?`,
+        `¿Eliminar la cuenta de ${account.customerName}?`,
         [
           { text: "Cancelar", style: "cancel" },
           {
@@ -92,7 +90,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
               try {
                 await removeAccountReceivable(account.id);
                 Alert.alert("Éxito", "Cuenta eliminada correctamente");
-              } catch (error) {
+              } catch (err) {
                 Alert.alert("Error", "No se pudo eliminar la cuenta");
               }
             },
@@ -103,101 +101,187 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     [removeAccountReceivable]
   );
 
-  const getStatusColor = useCallback((status, dueDate) => {
-    if (status === "paid") return "#4CAF50";
-    if (dueDate && new Date(dueDate) < new Date()) return "#FF3B30";
-    return "#FF9800";
-  }, []);
+  const totalAmount = receivableStats?.totalAmount || 0;
+  const pendingCount = receivableStats?.pending || 0;
+  const overdueCount = receivableStats?.overdue || 0;
+  const totalCount =
+    typeof receivableStats?.total === "number"
+      ? receivableStats.total
+      : accountsReceivable.length;
 
-  const getStatusText = useCallback((status, dueDate) => {
-    if (status === "paid") return "Pagada";
-    if (dueDate && new Date(dueDate) < new Date()) return "Vencida";
-    return "Pendiente";
+  const getStatusAppearance = useCallback((status, dueDate) => {
+    if (status === "paid") {
+      return {
+        label: "Pagada",
+        backgroundColor: "#e5f7ed",
+        color: "#2e7d32",
+      };
+    }
+
+    if (dueDate && new Date(dueDate) < new Date()) {
+      return {
+        label: "Vencida",
+        backgroundColor: "#fdecea",
+        color: "#c62828",
+      };
+    }
+
+    return {
+      label: "Pendiente",
+      backgroundColor: "#fff4e5",
+      color: "#ef6c00",
+    };
   }, []);
 
   const renderAccount = useCallback(
-    ({ item }) => (
-      <TouchableOpacity
-        style={styles.accountCard}
-        onPress={() => openEditScreen(item)}
-      >
-        <View style={styles.accountInfo}>
-          <Text style={styles.customerName}>
-            {item.customerName.toUpperCase()}
-          </Text>
-          {item.documentNumber && (
-            <Text style={styles.documentNumber}>
-              Cédula: {item.documentNumber}
-            </Text>
-          )}
-          {item.createdAt && (
-            <Text style={styles.createdDate}>
-              Creada: {new Date(item.createdAt).toLocaleString()}
-            </Text>
-          )}
-          {item.invoiceNumber && (
-            <Text style={styles.invoiceNumber}>
-              Factura: {item.invoiceNumber}
-            </Text>
-          )}
-          <Text style={styles.amount}>VES. {item.amount?.toFixed(2)}</Text>
-          {item.description && (
-            <Text style={styles.description}>{item.description}</Text>
-          )}
-          <View style={styles.statusContainer}>
-            <Text
+    ({ item }) => {
+      const appearance = getStatusAppearance(item.status, item.dueDate);
+
+      return (
+        <TouchableOpacity
+          style={styles.accountCard}
+          activeOpacity={0.9}
+          onPress={() => openEditScreen(item)}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.customerName}>{item.customerName}</Text>
+            <View
               style={[
-                styles.status,
-                { color: getStatusColor(item.status, item.dueDate) },
+                styles.statusBadge,
+                { backgroundColor: appearance.backgroundColor },
               ]}
             >
-              {getStatusText(item.status, item.dueDate)}
-            </Text>
-            {item.dueDate && (
-              <Text style={styles.dueDate}>
-                Vence: {new Date(item.dueDate).toLocaleDateString()}
+              <Text style={[styles.statusText, { color: appearance.color }]}>
+                {appearance.label}
               </Text>
-            )}
+            </View>
           </View>
-        </View>
-        <View style={styles.actionsContainer}>
-          {item.status !== "paid" && (
+
+          <View style={styles.amountRow}>
+            <Text style={styles.amount}>
+              {formatCurrency(item.amount || 0, item.currency || "VES")}
+            </Text>
+            {item.dueDate ? (
+              <Text style={styles.dueDate}>
+                Vence {new Date(item.dueDate).toLocaleDateString()}
+              </Text>
+            ) : null}
+          </View>
+
+          {item.invoiceNumber ? (
+            <Text style={styles.invoiceNumber}>
+              Factura {item.invoiceNumber}
+            </Text>
+          ) : null}
+          {item.documentNumber ? (
+            <Text style={styles.metaText}>Cédula: {item.documentNumber}</Text>
+          ) : null}
+          {item.description ? (
+            <Text style={styles.description}>{item.description}</Text>
+          ) : null}
+          {item.createdAt ? (
+            <Text style={styles.metaText}>
+              Registrada {new Date(item.createdAt).toLocaleDateString()}
+            </Text>
+          ) : null}
+
+          <View style={styles.cardFooter}>
+            {item.status !== "paid" ? (
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => handleMarkAsPaid(item)}
+              >
+                <Text style={styles.secondaryButtonText}>Registrar pago</Text>
+              </TouchableOpacity>
+            ) : null}
+
             <TouchableOpacity
-              style={[styles.actionButton, styles.payButton]}
-              onPress={() => handleMarkAsPaid(item)}
+              style={[
+                styles.iconButton,
+                item.status === "paid" && styles.iconButtonAlone,
+              ]}
+              onPress={() => handleDelete(item)}
             >
-              <Text style={styles.payButtonText}>✓ Pagar</Text>
+              <Text style={styles.iconButtonText}>🗑️</Text>
             </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleDelete(item)}
-          >
-            <Text style={styles.deleteButtonText}>×</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    ),
-    [
-      openEditScreen,
-      handleMarkAsPaid,
-      handleDelete,
-      getStatusColor,
-      getStatusText,
-    ]
+          </View>
+        </TouchableOpacity>
+      );
+    },
+    [getStatusAppearance, handleDelete, handleMarkAsPaid, openEditScreen]
   );
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>
-        {searchQuery
-          ? "No se encontraron cuentas"
-          : "No hay cuentas por cobrar registradas"}
-      </Text>
+  const renderHeader = () => (
+    <View>
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryHeader}>
+          <View style={styles.summaryIcon}>
+            <Text style={styles.summaryIconText}>📥</Text>
+          </View>
+          <View>
+            <Text style={styles.summaryTitle}>Cuentas por Cobrar</Text>
+            <Text style={styles.summarySubtitle}>
+              {totalCount} {totalCount === 1 ? "registro" : "registros"}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.summaryAmount}>
+          {formatCurrency(totalAmount, "VES")}
+        </Text>
+
+        <View style={styles.summaryRow}>
+          <View style={[styles.summaryItem, styles.summaryItemSpacing]}>
+            <Text style={styles.summaryItemLabel}>Pendientes</Text>
+            <Text style={styles.summaryItemValue}>{pendingCount}</Text>
+          </View>
+          <View style={[styles.summaryItem, styles.summaryItemSpacing]}>
+            <Text style={styles.summaryItemLabel}>Vencidas</Text>
+            <Text style={styles.summaryItemValue}>{overdueCount}</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryItemLabel}>Registradas</Text>
+            <Text style={styles.summaryItemValue}>{totalCount}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.controlsCard}>
+        <View style={styles.searchWrapper}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar cuentas..."
+            placeholderTextColor="#9aa6b5"
+            value={searchQuery}
+            onChangeText={handleSearch}
+            returnKeyType="search"
+          />
+        </View>
+
+        <TouchableOpacity style={styles.primaryButton} onPress={openAddScreen}>
+          <Text style={styles.primaryButtonText}>+ Nueva cuenta</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
-  // Refrescar la lista cuando la pantalla recibe foco
+  const renderEmpty = () => (
+    <View style={styles.emptyState}>
+      <View style={styles.emptyCard}>
+        <Text style={styles.emptyIcon}>🗒️</Text>
+        <Text style={styles.emptyTitle}>
+          {searchQuery ? "Sin resultados" : "Aún no tienes cuentas"}
+        </Text>
+        <Text style={styles.emptySubtitle}>
+          {searchQuery
+            ? "Ajusta los términos de búsqueda para intentarlo de nuevo."
+            : "Registra tu primera cuenta por cobrar desde el botón superior."}
+        </Text>
+      </View>
+    </View>
+  );
+
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -207,7 +291,8 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <Text>Cargando cuentas por cobrar...</Text>
+        <ActivityIndicator size="large" color="#4CAF50" />
+        <Text style={styles.loadingText}>Cargando cuentas por cobrar...</Text>
       </View>
     );
   }
@@ -215,7 +300,9 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   if (error) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Error: {error}</Text>
+        <Text style={styles.errorText}>
+          Ocurrió un error al cargar la información.
+        </Text>
         <TouchableOpacity style={styles.retryButton} onPress={refresh}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
@@ -225,25 +312,16 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar cuentas..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
-        <TouchableOpacity style={styles.addButton} onPress={openAddScreen}>
-          <Text style={styles.addButtonText}>+ Agregar</Text>
-        </TouchableOpacity>
-      </View>
-
       <FlatList
         data={accountsReceivable}
         renderItem={renderAccount}
         keyExtractor={(item) => item.id.toString()}
-        ListEmptyComponent={renderEmpty}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
+        refreshing={loading}
+        onRefresh={refresh}
       />
     </View>
   );
@@ -252,159 +330,293 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#e8edf2",
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#e8edf2",
+    paddingHorizontal: 24,
   },
-  header: {
-    flexDirection: "row",
-    padding: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginRight: 12,
-    backgroundColor: "#f9f9f9",
-  },
-  addButton: {
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    justifyContent: "center",
-  },
-  addButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  listContainer: {
-    padding: 16,
-  },
-  accountCard: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  accountInfo: {
-    flex: 1,
-  },
-  customerName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 4,
-  },
-  documentNumber: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
-  },
-  createdDate: {
-    fontSize: 12,
-    color: "#888",
-    marginBottom: 4,
-  },
-  invoiceNumber: {
-    fontSize: 14,
-    color: "#007AFF",
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  amount: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#4CAF50",
-    marginBottom: 4,
-  },
-  description: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-  },
-  statusContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  status: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  dueDate: {
-    fontSize: 12,
-    color: "#666",
-  },
-  actionsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  payButton: {
-    backgroundColor: "#4CAF50",
-  },
-  payButtonText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  deleteButton: {
-    backgroundColor: "#FF3B30",
-  },
-  deleteButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: "#6c7a8a",
   },
   errorText: {
-    fontSize: 16,
-    color: "#FF3B30",
+    fontSize: 15,
+    color: "#c62828",
     textAlign: "center",
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: "#4CAF50",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 2,
   },
   retryButtonText: {
     color: "#fff",
-    fontWeight: "bold",
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 36,
+  },
+  summaryCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 20,
+    marginBottom: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  summaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  summaryIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: "#ecf4ef",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  summaryIconText: {
+    fontSize: 24,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2f3a4c",
+  },
+  summarySubtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#6c7a8a",
+  },
+  summaryAmount: {
+    fontSize: 30,
+    fontWeight: "700",
+    color: "#2f3a4c",
+    marginBottom: 16,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  summaryItem: {
+    flex: 1,
+    backgroundColor: "#f5faf8",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  summaryItemSpacing: {
+    marginRight: 12,
+  },
+  summaryItemLabel: {
+    fontSize: 12,
+    color: "#6c7a8a",
+  },
+  summaryItemValue: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#2f3a4c",
+    marginTop: 6,
+  },
+  controlsCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  searchWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f4f7fb",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#dde4ed",
+    paddingHorizontal: 14,
+    height: 48,
+  },
+  searchIcon: {
+    fontSize: 18,
+    color: "#6c7a8a",
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#2f3a4c",
+  },
+  primaryButton: {
+    marginTop: 14,
+    backgroundColor: "#4CAF50",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    shadowColor: "#4CAF50",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  accountCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2f3a4c",
+    flex: 1,
+    marginRight: 12,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 18,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  amountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    marginBottom: 10,
+  },
+  amount: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#2e7d32",
+  },
+  dueDate: {
+    fontSize: 13,
+    color: "#6c7a8a",
+    fontWeight: "500",
+  },
+  invoiceNumber: {
+    fontSize: 13,
+    color: "#4f6bed",
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  metaText: {
+    fontSize: 13,
+    color: "#6c7a8a",
+    marginBottom: 4,
+  },
+  description: {
+    fontSize: 13,
+    color: "#4c5c6e",
+    lineHeight: 19,
+    marginBottom: 8,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 14,
+  },
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: "#edf8ef",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    color: "#2e7d32",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  iconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#fdecea",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 12,
+  },
+  iconButtonAlone: {
+    marginLeft: "auto",
+  },
+  iconButtonText: {
+    fontSize: 20,
+  },
+  emptyState: {
+    paddingTop: 40,
+    alignItems: "center",
+  },
+  emptyCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  emptyIcon: {
+    fontSize: 32,
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2f3a4c",
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#6c7a8a",
+    textAlign: "center",
+    lineHeight: 20,
   },
 });
 

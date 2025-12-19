@@ -2,7 +2,14 @@ import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { ActivityIndicator, View, Text, TouchableOpacity } from "react-native";
+import {
+  ActivityIndicator,
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  StyleSheet,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Context
@@ -29,6 +36,7 @@ import EditAccountReceivableScreen from "./src/screens/main/EditAccountReceivabl
 import AccountsPayableScreen from "./src/screens/main/AccountsPayableScreen";
 import AddAccountPayableScreen from "./src/screens/main/AddAccountPayableScreen";
 import EditAccountPayableScreen from "./src/screens/main/EditAccountPayableScreen";
+import CapitalScreen from "./src/screens/main/CapitalScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
@@ -41,57 +49,227 @@ const Tab = createBottomTabNavigator();
 /**
  * Tabs de navegación principal
  */
-function MainTabs() {
+function MainTabs({ navigation }) {
   const insets = useSafeAreaInsets();
+  const [showAccountsMenu, setShowAccountsMenu] = useState(false);
+  const [showFichaMenu, setShowFichaMenu] = useState(false);
+  const bottomOffset = insets.bottom + 62;
+
+  const handleNavigate = (routeName) => {
+    setShowAccountsMenu(false);
+    setShowFichaMenu(false);
+    navigation.navigate(routeName);
+  };
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        tabBarActiveTintColor: "#4CAF50",
-        tabBarInactiveTintColor: "#999",
-        tabBarStyle: {
-          paddingBottom: insets.bottom + 5,
-          height: 60 + insets.bottom,
-          paddingTop: 5,
-        },
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen
-        name="Dashboard"
-        component={DashboardScreen}
-        options={{
-          tabBarLabel: "Inicio",
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🏠</Text>,
+    <>
+      <Tab.Navigator
+        screenOptions={{
+          tabBarActiveTintColor: "#4CAF50",
+          tabBarInactiveTintColor: "#999",
+          tabBarStyle: {
+            paddingBottom: insets.bottom + 5,
+            height: 60 + insets.bottom,
+            paddingTop: 5,
+          },
+          headerShown: false,
         }}
+      >
+        <Tab.Screen
+          name="Dashboard"
+          component={DashboardScreen}
+          options={{
+            tabBarLabel: "Inicio",
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🏠</Text>,
+          }}
+        />
+        <Tab.Screen
+          name="POS"
+          component={POSScreen}
+          options={{
+            tabBarLabel: "Cuentas",
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>💼</Text>,
+          }}
+          listeners={{
+            tabPress: (e) => {
+              e.preventDefault();
+              setShowAccountsMenu(true);
+              setShowFichaMenu(false);
+            },
+          }}
+        />
+        <Tab.Screen
+          name="Sales"
+          component={SalesScreen}
+          options={{
+            tabBarLabel: "Ficha",
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📂</Text>,
+          }}
+          listeners={{
+            tabPress: (e) => {
+              e.preventDefault();
+              setShowFichaMenu(true);
+              setShowAccountsMenu(false);
+            },
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{
+            tabBarLabel: "Ajustes",
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚙️</Text>,
+          }}
+        />
+      </Tab.Navigator>
+
+      <QuickActionMenu
+        visible={showAccountsMenu}
+        onClose={() => setShowAccountsMenu(false)}
+        bottomOffset={bottomOffset}
+        items={[
+          {
+            key: "accountsReceivable",
+            icon: "📥",
+            label: "Cuentas por Cobrar",
+            onPress: () => handleNavigate("AccountsReceivable"),
+          },
+          {
+            key: "accountsPayable",
+            icon: "📤",
+            label: "Cuentas por Pagar",
+            onPress: () => handleNavigate("AccountsPayable"),
+          },
+          {
+            key: "capital",
+            icon: "🏦",
+            label: "Capital",
+            onPress: () => handleNavigate("Capital"),
+          },
+        ]}
       />
-      <Tab.Screen
-        name="POS"
-        component={POSScreen}
-        options={{
-          tabBarLabel: "Venta",
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🛒</Text>,
-        }}
+
+      <QuickActionMenu
+        visible={showFichaMenu}
+        onClose={() => setShowFichaMenu(false)}
+        bottomOffset={bottomOffset}
+        items={[
+          {
+            key: "products",
+            icon: "📦",
+            label: "Productos",
+            onPress: () => handleNavigate("Products"),
+          },
+          {
+            key: "suppliers",
+            icon: "🏢",
+            label: "Proveedores",
+            onPress: () => handleNavigate("Suppliers"),
+          },
+          {
+            key: "customers",
+            icon: "👥",
+            label: "Clientes",
+            onPress: () => handleNavigate("Customers"),
+          },
+        ]}
       />
-      <Tab.Screen
-        name="Sales"
-        component={SalesScreen}
-        options={{
-          tabBarLabel: "Ventas",
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📊</Text>,
-        }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarLabel: "Ajustes",
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚙️</Text>,
-        }}
-      />
-    </Tab.Navigator>
+    </>
   );
 }
+
+const QuickActionMenu = ({ visible, onClose, items, bottomOffset }) => (
+  <Modal
+    visible={visible}
+    transparent
+    animationType="fade"
+    onRequestClose={onClose}
+  >
+    <View style={tabStyles.modalContainer}>
+      <TouchableOpacity
+        style={tabStyles.backdrop}
+        activeOpacity={1}
+        onPress={onClose}
+      />
+      <View style={[tabStyles.menuWrapper, { marginBottom: bottomOffset }]}>
+        <View style={tabStyles.menuCard}>
+          {items.map((item, index) => (
+            <TouchableOpacity
+              key={item.key}
+              style={[tabStyles.menuItem, index > 0 && tabStyles.menuDivider]}
+              activeOpacity={0.85}
+              onPress={item.onPress}
+            >
+              <View style={tabStyles.menuIcon}>
+                <Text style={tabStyles.menuIconText}>{item.icon}</Text>
+              </View>
+              <Text style={tabStyles.menuLabel}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </View>
+  </Modal>
+);
+
+const tabStyles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  backdrop: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
+  },
+  menuWrapper: {
+    width: "100%",
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  menuCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  menuDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e5eaf0",
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#ecf4ef",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  menuIconText: {
+    fontSize: 22,
+  },
+  menuLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2f3a4c",
+  },
+});
 
 /**
  * Componente principal de la aplicación
@@ -329,6 +507,20 @@ export default function App() {
             component={AccountsPayableScreen}
             options={{
               title: "Cuentas por Pagar",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="Capital"
+            component={CapitalScreen}
+            options={{
+              title: "Capital",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },

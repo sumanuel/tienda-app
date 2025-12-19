@@ -122,56 +122,100 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        style={styles.container}
+        style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <ScrollView style={styles.scrollContainer}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Nueva Cuenta por Cobrar</Text>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.heroCard}>
+            <View style={styles.heroIcon}>
+              <Text style={styles.heroIconText}>💳</Text>
+            </View>
+            <View style={styles.heroTextContainer}>
+              <Text style={styles.heroTitle}>Nueva cuenta por cobrar</Text>
+              <Text style={styles.heroSubtitle}>
+                Registra la obligación del cliente y mantén el flujo de caja
+                controlado.
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.form}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Datos del cliente</Text>
+            <Text style={styles.sectionHint}>
+              La cédula intentará autocompletar el nombre del cliente existente.
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.label}>Cédula del cliente *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Cédula *"
+              placeholder="Ej: V12345678"
+              placeholderTextColor="#9aa2b1"
               value={formData.documentNumber}
               onChangeText={handleDocumentChange}
               keyboardType="numeric"
             />
 
+            <Text style={styles.label}>Nombre completo *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Nombre del Cliente *"
+              placeholder="Ingresa el nombre"
+              placeholderTextColor="#9aa2b1"
               value={formData.customerName}
               onChangeText={(value) => updateFormData("customerName", value)}
+              autoCapitalize="words"
             />
+          </View>
 
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Detalle de la cuenta</Text>
+            <Text style={styles.sectionHint}>
+              Usa montos positivos. Puedes asociar la factura para un mejor
+              seguimiento.
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.label}>Monto *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Monto *"
+              placeholder="0.00"
+              placeholderTextColor="#9aa2b1"
               value={formData.amount}
               onChangeText={(value) => updateFormData("amount", value)}
               keyboardType="numeric"
             />
 
+            <Text style={styles.label}>Descripción</Text>
             <TextInput
-              style={styles.input}
-              placeholder="Descripción"
+              style={[styles.input, styles.textArea]}
+              placeholder="Describe el motivo de la cuenta"
+              placeholderTextColor="#9aa2b1"
               value={formData.description}
               onChangeText={(value) => updateFormData("description", value)}
               multiline
               numberOfLines={3}
             />
 
+            <Text style={styles.label}>Número de factura (opcional)</Text>
             <TextInput
               style={styles.input}
-              placeholder="Número de Factura (opcional)"
+              placeholder="Ingresa el número de factura"
+              placeholderTextColor="#9aa2b1"
               value={formData.invoiceNumber}
               onChangeText={(value) => updateFormData("invoiceNumber", value)}
             />
 
+            <Text style={styles.label}>Fecha de vencimiento *</Text>
             <TouchableOpacity
-              style={styles.dateInput}
+              style={[styles.input, styles.datePickerTrigger]}
               onPress={showDatePickerModal}
             >
               <Text
@@ -179,109 +223,115 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
                   formData.dueDate ? styles.dateText : styles.datePlaceholder
                 }
               >
-                {formData.dueDate ? formData.dueDate : "Fecha de vencimiento *"}
+                {formData.dueDate || "Selecciona la fecha"}
               </Text>
             </TouchableOpacity>
+            {formData.dueDate ? (
+              <Text style={styles.helperInfo}>
+                Programar recordatorios con anticipación ayuda a reducir la
+                morosidad.
+              </Text>
+            ) : null}
           </View>
 
-          <Modal
-            visible={showDatePicker}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={() => setShowDatePicker(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.datePickerModal}>
-                <Text style={styles.modalTitle}>
-                  Seleccionar Fecha de Vencimiento
-                </Text>
-
-                <View style={styles.datePickerContainer}>
-                  <View style={styles.dateRow}>
-                    <Text style={styles.dateLabel}>Día:</Text>
-                    <TextInput
-                      style={styles.dateInputSmall}
-                      value={selectedDate.getDate().toString()}
-                      onChangeText={(text) => {
-                        const day = parseInt(text) || 1;
-                        const newDate = new Date(selectedDate);
-                        newDate.setDate(Math.min(day, 31));
-                        setSelectedDate(newDate);
-                      }}
-                      keyboardType="numeric"
-                      maxLength={2}
-                    />
-                  </View>
-
-                  <View style={styles.dateRow}>
-                    <Text style={styles.dateLabel}>Mes:</Text>
-                    <TextInput
-                      style={styles.dateInputSmall}
-                      value={(selectedDate.getMonth() + 1).toString()}
-                      onChangeText={(text) => {
-                        const month = parseInt(text) || 1;
-                        const newDate = new Date(selectedDate);
-                        newDate.setMonth(Math.min(Math.max(month - 1, 0), 11));
-                        setSelectedDate(newDate);
-                      }}
-                      keyboardType="numeric"
-                      maxLength={2}
-                    />
-                  </View>
-
-                  <View style={styles.dateRow}>
-                    <Text style={styles.dateLabel}>Año:</Text>
-                    <TextInput
-                      style={styles.dateInputSmall}
-                      value={selectedDate.getFullYear().toString()}
-                      onChangeText={(text) => {
-                        const year = parseInt(text) || new Date().getFullYear();
-                        const newDate = new Date(selectedDate);
-                        newDate.setFullYear(year);
-                        setSelectedDate(newDate);
-                      }}
-                      keyboardType="numeric"
-                      maxLength={4}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.cancelButton]}
-                    onPress={() => setShowDatePicker(false)}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancelar</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.saveButton]}
-                    onPress={() => handleDateSelect(selectedDate)}
-                  >
-                    <Text style={styles.saveButtonText}>Seleccionar</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
-
-          <View style={styles.buttonContainer}>
+          <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+              style={[styles.actionButton, styles.secondaryButton]}
               onPress={() => navigation.goBack()}
             >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
+              <Text style={styles.secondaryButtonText}>Cancelar</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
+              style={[styles.actionButton, styles.primaryButton]}
               onPress={handleSave}
             >
-              <Text style={styles.saveButtonText}>Guardar</Text>
+              <Text style={styles.primaryButtonText}>Guardar cuenta</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showDatePicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.datePickerModal}>
+            <Text style={styles.modalTitle}>
+              Selecciona la fecha de vencimiento
+            </Text>
+
+            <View style={styles.datePickerContainer}>
+              <View style={styles.dateRow}>
+                <Text style={styles.dateLabel}>Día</Text>
+                <TextInput
+                  style={styles.dateInputSmall}
+                  value={selectedDate.getDate().toString()}
+                  onChangeText={(text) => {
+                    const day = parseInt(text, 10) || 1;
+                    const newDate = new Date(selectedDate);
+                    newDate.setDate(Math.min(day, 31));
+                    setSelectedDate(newDate);
+                  }}
+                  keyboardType="numeric"
+                  maxLength={2}
+                />
+              </View>
+
+              <View style={styles.dateRow}>
+                <Text style={styles.dateLabel}>Mes</Text>
+                <TextInput
+                  style={styles.dateInputSmall}
+                  value={(selectedDate.getMonth() + 1).toString()}
+                  onChangeText={(text) => {
+                    const month = parseInt(text, 10) || 1;
+                    const newDate = new Date(selectedDate);
+                    newDate.setMonth(Math.min(Math.max(month - 1, 0), 11));
+                    setSelectedDate(newDate);
+                  }}
+                  keyboardType="numeric"
+                  maxLength={2}
+                />
+              </View>
+
+              <View style={styles.dateRow}>
+                <Text style={styles.dateLabel}>Año</Text>
+                <TextInput
+                  style={styles.dateInputSmall}
+                  value={selectedDate.getFullYear().toString()}
+                  onChangeText={(text) => {
+                    const year = parseInt(text, 10) || new Date().getFullYear();
+                    const newDate = new Date(selectedDate);
+                    newDate.setFullYear(year);
+                    setSelectedDate(newDate);
+                  }}
+                  keyboardType="numeric"
+                  maxLength={4}
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalSecondaryButton]}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.modalSecondaryText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalPrimaryButton]}
+                onPress={() => handleDateSelect(selectedDate)}
+              >
+                <Text style={styles.modalPrimaryText}>Seleccionar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -289,131 +339,229 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#e8edf2",
   },
-  scrollContainer: {
+  flex: {
     flex: 1,
   },
-  header: {
-    padding: 20,
+  content: {
+    padding: 24,
+    paddingBottom: 40,
+    gap: 24,
+  },
+  heroCard: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    textAlign: "center",
-  },
-  form: {
+    borderRadius: 16,
     padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  heroIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#f3f8ff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  heroIconText: {
+    fontSize: 28,
+  },
+  heroTextContainer: {
+    flex: 1,
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2633",
+    marginBottom: 6,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: "#5b6472",
+    lineHeight: 20,
+  },
+  sectionHeader: {
+    paddingHorizontal: 4,
+    gap: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1f2633",
+  },
+  sectionHint: {
+    fontSize: 12,
+    color: "#6f7c8c",
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
+    gap: 12,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#8492a6",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
-    backgroundColor: "#fff",
+    borderColor: "#d9e0eb",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#1f2633",
+    backgroundColor: "#f8f9fc",
   },
-  dateInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    backgroundColor: "#fff",
+  textArea: {
+    minHeight: 90,
+    textAlignVertical: "top",
+  },
+  datePickerTrigger: {
     justifyContent: "center",
   },
   dateText: {
-    fontSize: 16,
-    color: "#333",
+    fontSize: 15,
+    color: "#1f2633",
   },
   datePlaceholder: {
-    fontSize: 16,
-    color: "#999",
+    fontSize: 15,
+    color: "#9aa2b1",
+  },
+  helperInfo: {
+    fontSize: 12,
+    color: "#4c5767",
+    backgroundColor: "#f3f7ff",
+    padding: 12,
+    borderRadius: 10,
+    lineHeight: 18,
+  },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: "#c3cad5",
+    backgroundColor: "#fff",
+  },
+  secondaryButtonText: {
+    color: "#4c5767",
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  primaryButton: {
+    backgroundColor: "#2fb176",
+    shadowColor: "#2fb176",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(10, 19, 36, 0.45)",
     justifyContent: "center",
     alignItems: "center",
+    padding: 24,
   },
   datePickerModal: {
+    width: "100%",
+    maxWidth: 360,
     backgroundColor: "#fff",
-    borderRadius: 12,
-    width: "80%",
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
+    gap: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 12,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "700",
+    color: "#1f2633",
     textAlign: "center",
-    marginBottom: 20,
-    color: "#333",
   },
   datePickerContainer: {
-    marginBottom: 20,
+    gap: 14,
   },
   dateRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    gap: 12,
   },
   dateLabel: {
-    flex: 1,
-    fontSize: 16,
-    color: "#333",
+    width: 70,
+    fontSize: 14,
+    color: "#4c5767",
+    fontWeight: "600",
   },
   dateInputSmall: {
-    flex: 2,
+    flex: 1,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 6,
-    padding: 8,
-    fontSize: 16,
+    borderColor: "#d9e0eb",
+    borderRadius: 10,
+    paddingVertical: 10,
     textAlign: "center",
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#f8f9fc",
+    fontSize: 15,
+    color: "#1f2633",
   },
   modalButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 12,
   },
   modalButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: "center",
-    marginHorizontal: 8,
+    justifyContent: "center",
   },
-  buttonContainer: {
-    flexDirection: "row",
-    padding: 20,
-    paddingBottom: 40,
+  modalSecondaryButton: {
+    borderWidth: 1,
+    borderColor: "#c3cad5",
+    backgroundColor: "#fff",
   },
-  button: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    marginHorizontal: 8,
+  modalSecondaryText: {
+    color: "#4c5767",
+    fontWeight: "600",
   },
-  cancelButton: {
-    backgroundColor: "#666",
+  modalPrimaryButton: {
+    backgroundColor: "#2fb176",
   },
-  cancelButtonText: {
+  modalPrimaryText: {
     color: "#fff",
-    fontSize: 16,
-  },
-  saveButton: {
-    backgroundColor: "#4CAF50",
-  },
-  saveButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "700",
   },
 });
 

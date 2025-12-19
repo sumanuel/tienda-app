@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { useProducts } from "../../hooks/useProducts";
 import { useExchangeRate } from "../../hooks/useExchangeRate";
-import { convertUSDToVES } from "../../utils/currency";
 import { getSettings } from "../../services/database/settings";
 
 /**
@@ -31,51 +30,6 @@ export const AddProductScreen = ({ navigation }) => {
     ves: "",
   });
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      const s = await getSettings();
-      setSettings(s);
-      setMargin(s.pricing?.defaultMargin || 30);
-    };
-    loadSettings();
-  }, []);
-
-  useEffect(() => {
-    if (cost && settings.pricing) {
-      const costValue = parseFloat(cost);
-      if (!isNaN(costValue)) {
-        const baseCurrency = settings.pricing?.baseCurrency || "USD";
-        const currencies = settings.pricing?.currencies || {
-          USD: 280,
-          EURO: 300,
-          USD2: 350,
-        };
-
-        // Calculate selling price in cost currency
-        const sellingPriceInCostCurrency = costValue * (1 + margin / 100);
-
-        // Convert to USD and VES
-        let usdPrice, vesPrice;
-        if (costCurrency === "USD") {
-          usdPrice = sellingPriceInCostCurrency;
-          vesPrice = usdPrice * currencies.USD;
-        } else {
-          // Bs
-          vesPrice = sellingPriceInCostCurrency;
-          usdPrice = vesPrice / currencies.USD;
-        }
-
-        setCalculatedPrices({
-          usd: usdPrice.toFixed(2),
-          ves: vesPrice.toFixed(2),
-        });
-      }
-    } else {
-      setCalculatedPrices({ usd: "", ves: "" });
-    }
-  }, [cost, costCurrency, margin, settings]);
-
-  // Refs para navegación entre campos
   const nameRef = useRef(null);
   const categoryRef = useRef(null);
   const costRef = useRef(null);
@@ -84,14 +38,56 @@ export const AddProductScreen = ({ navigation }) => {
   const descriptionRef = useRef(null);
   const scrollViewRef = useRef(null);
 
-  // Función para hacer scroll automático al campo enfocado
+  useEffect(() => {
+    const loadSettings = async () => {
+      const data = await getSettings();
+      setSettings(data);
+      setMargin(data?.pricing?.defaultMargin || 30);
+    };
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    const currencies = settings?.pricing?.currencies || { USD: 280 };
+    const usdRate = currencies.USD || 0;
+
+    if (cost && usdRate) {
+      const costValue = parseFloat(cost);
+      if (!Number.isNaN(costValue)) {
+        const sellingPriceInCostCurrency = costValue * (1 + margin / 100);
+
+        let usdPrice = 0;
+        let vesPrice = 0;
+
+        if (costCurrency === "USD") {
+          usdPrice = sellingPriceInCostCurrency;
+          vesPrice = usdPrice * usdRate;
+        } else {
+          vesPrice = sellingPriceInCostCurrency;
+          usdPrice = vesPrice / usdRate;
+        }
+
+        setCalculatedPrices({
+          usd: usdPrice.toFixed(2),
+          ves: vesPrice.toFixed(2),
+        });
+        return;
+      }
+    }
+
+    setCalculatedPrices({ usd: "", ves: "" });
+  }, [cost, costCurrency, margin, settings]);
+
   const scrollToField = (ref) => {
-    if (ref.current && scrollViewRef.current) {
+    if (ref?.current && scrollViewRef?.current) {
       setTimeout(() => {
         ref.current.measureLayout(
           scrollViewRef.current,
           (x, y) => {
-            scrollViewRef.current.scrollTo({ y: y - 100, animated: true });
+            scrollViewRef.current.scrollTo({
+              y: Math.max(y - 120, 0),
+              animated: true,
+            });
           },
           () => {}
         );
@@ -107,7 +103,6 @@ export const AddProductScreen = ({ navigation }) => {
     description: "",
   });
 
-  // Actualizar precios calculados en formData
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
@@ -123,13 +118,12 @@ export const AddProductScreen = ({ navigation }) => {
   };
 
   const handleSubmit = async () => {
-    // Validación básica
     if (!formData.name.trim()) {
       Alert.alert("Error", "El nombre del producto es obligatorio");
       return;
     }
 
-    if (!cost || isNaN(parseFloat(cost))) {
+    if (!cost || Number.isNaN(parseFloat(cost))) {
       Alert.alert("Error", "El costo del producto debe ser un número válido");
       return;
     }
@@ -137,12 +131,12 @@ export const AddProductScreen = ({ navigation }) => {
     if (!calculatedPrices.usd || !calculatedPrices.ves) {
       Alert.alert(
         "Error",
-        "No se pudieron calcular los precios. Verifique la configuración"
+        "No se pudieron calcular los precios. Revisa la configuración de tasas"
       );
       return;
     }
 
-    if (!formData.stock || isNaN(parseInt(formData.stock))) {
+    if (!formData.stock || Number.isNaN(parseInt(formData.stock, 10))) {
       Alert.alert("Error", "El stock debe ser un número válido");
       return;
     }
@@ -152,10 +146,10 @@ export const AddProductScreen = ({ navigation }) => {
         name: formData.name.trim(),
         category: formData.category.trim() || "General",
         cost: parseFloat(cost),
-        costCurrency: costCurrency,
+        costCurrency,
         priceUSD: parseFloat(calculatedPrices.usd),
-        margin: margin,
-        stock: parseInt(formData.stock),
+        margin,
+        stock: parseInt(formData.stock, 10),
         minStock: 0,
         description: formData.description.trim(),
       };
@@ -163,10 +157,7 @@ export const AddProductScreen = ({ navigation }) => {
       await addProduct(productData);
 
       Alert.alert("Éxito", "Producto agregado correctamente", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
+        { text: "OK", onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
       console.error("Error adding product:", error);
@@ -174,170 +165,258 @@ export const AddProductScreen = ({ navigation }) => {
     }
   };
 
+  const pricingSummary = useMemo(() => {
+    const usd = calculatedPrices.usd ? parseFloat(calculatedPrices.usd) : 0;
+    const ves = calculatedPrices.ves ? parseFloat(calculatedPrices.ves) : 0;
+    const inferredRate = usd ? ves / usd : exchangeRate || 0;
+
+    return {
+      usd,
+      ves,
+      rate: inferredRate,
+    };
+  }, [calculatedPrices, exchangeRate]);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "padding"}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 80}
     >
       <ScrollView
         ref={scrollViewRef}
-        style={styles.scrollContainer}
+        style={styles.flex}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.formCard}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nombre del producto</Text>
+        <View style={styles.heroCard}>
+          <View style={styles.heroIcon}>
+            <Text style={styles.heroIconText}>🛒</Text>
+          </View>
+          <View style={styles.heroTextContainer}>
+            <Text style={styles.heroTitle}>Nuevo producto</Text>
+            <Text style={styles.heroSubtitle}>
+              Calculamos automáticamente el precio sugerido según el margen
+              configurado.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Precio sugerido (USD)</Text>
+              <Text style={styles.summaryValue}>
+                {pricingSummary.usd ? `$${pricingSummary.usd.toFixed(2)}` : "—"}
+              </Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Precio sugerido (Bs)</Text>
+              <Text style={styles.summaryValue}>
+                {pricingSummary.ves
+                  ? `Bs ${pricingSummary.ves.toFixed(2)}`
+                  : "—"}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.summaryHint}>
+            Margen aplicado {margin || 0}%
+            {pricingSummary.rate
+              ? ` • Tasa ${pricingSummary.rate.toFixed(2)}`
+              : ""}
+          </Text>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Detalles del producto</Text>
+          <Text style={styles.sectionHint}>
+            Esta información se mostrará en el catálogo y comprobantes de venta.
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Nombre *</Text>
             <TextInput
               ref={nameRef}
               style={styles.input}
               placeholder="Ingresa el nombre del producto"
-              placeholderTextColor="#999"
+              placeholderTextColor="#9aa2b1"
               value={formData.name}
               onChangeText={(value) => handleInputChange("name", value)}
               returnKeyType="next"
+              onFocus={() => scrollToField(nameRef)}
               onSubmitEditing={() => categoryRef.current?.focus()}
-              blurOnSubmit={false}
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Categoría</Text>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Categoría</Text>
             <TextInput
               ref={categoryRef}
               style={styles.input}
-              placeholder="Ej: Bebidas, Snacks, etc."
-              placeholderTextColor="#999"
+              placeholder="Ej: Bebidas, Hogar, Limpieza"
+              placeholderTextColor="#9aa2b1"
               value={formData.category}
               onChangeText={(value) => handleInputChange("category", value)}
               returnKeyType="next"
-              onSubmitEditing={() => costRef.current?.focus()}
-              blurOnSubmit={false}
+              onFocus={() => scrollToField(categoryRef)}
+              onSubmitEditing={() => descriptionRef.current?.focus()}
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Moneda del costo</Text>
-            <TouchableOpacity
-              style={styles.currencySelector}
-              onPress={() => {
-                Alert.alert("Seleccionar Moneda", "Elige la moneda del costo", [
-                  { text: "USD", onPress: () => setCostCurrency("USD") },
-                  { text: "Bs", onPress: () => setCostCurrency("Bs") },
-                  { text: "Cancelar", style: "cancel" },
-                ]);
-              }}
-            >
-              <Text style={styles.currencyText}>{costCurrency}</Text>
-            </TouchableOpacity>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Descripción</Text>
+            <TextInput
+              ref={descriptionRef}
+              style={[styles.input, styles.textArea]}
+              placeholder="Características, presentación o notas internas"
+              placeholderTextColor="#9aa2b1"
+              value={formData.description}
+              onChangeText={(value) => handleInputChange("description", value)}
+              multiline
+              numberOfLines={4}
+              onFocus={() => scrollToField(descriptionRef)}
+            />
+          </View>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Precio y margen</Text>
+          <Text style={styles.sectionHint}>
+            Ajusta el costo base y el margen para definir el precio sugerido.
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.currencySwitch}>
+            {[
+              { code: "USD", label: "Costo en USD" },
+              { code: "Bs", label: "Costo en Bs" },
+            ].map((option) => {
+              const active = costCurrency === option.code;
+              return (
+                <TouchableOpacity
+                  key={option.code}
+                  style={[
+                    styles.currencyChip,
+                    active ? styles.currencyChipActive : null,
+                  ]}
+                  onPress={() => setCostCurrency(option.code)}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[
+                      styles.currencyChipText,
+                      active ? styles.currencyChipTextActive : null,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Costo del producto</Text>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Costo *</Text>
             <TextInput
               ref={costRef}
               style={styles.input}
               placeholder="0.00"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
+              placeholderTextColor="#9aa2b1"
               value={cost}
               onChangeText={setCost}
+              keyboardType="decimal-pad"
               returnKeyType="next"
+              onFocus={() => scrollToField(costRef)}
               onSubmitEditing={() => marginRef.current?.focus()}
-              blurOnSubmit={false}
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Margen (%)</Text>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Margen (%)</Text>
             <TextInput
               ref={marginRef}
               style={styles.input}
               placeholder="30"
-              placeholderTextColor="#999"
+              placeholderTextColor="#9aa2b1"
+              value={String(margin)}
+              onChangeText={(value) => setMargin(Number(value) || 0)}
               keyboardType="numeric"
-              value={margin.toString()}
-              onChangeText={(value) => setMargin(parseFloat(value) || 0)}
-              returnKeyType="next"
+              returnKeyType="done"
+              onFocus={() => scrollToField(marginRef)}
               onSubmitEditing={() => stockRef.current?.focus()}
-              blurOnSubmit={false}
             />
           </View>
 
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Precio USD</Text>
-              <TextInput
-                style={[styles.input, styles.readOnly]}
-                placeholder="0.00"
-                placeholderTextColor="#999"
-                value={calculatedPrices.usd}
-                editable={false}
-              />
+          <View style={styles.priceGrid}>
+            <View style={styles.priceCard}>
+              <Text style={styles.priceLabel}>USD</Text>
+              <Text style={styles.priceValue}>
+                {calculatedPrices.usd ? `$${calculatedPrices.usd}` : "—"}
+              </Text>
+              <Text style={styles.priceHint}>Incluye margen aplicado</Text>
             </View>
-
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Precio VES</Text>
-              <TextInput
-                style={[styles.input, styles.readOnly]}
-                placeholder="0.00"
-                placeholderTextColor="#999"
-                value={calculatedPrices.ves}
-                editable={false}
-              />
+            <View style={styles.priceCard}>
+              <Text style={styles.priceLabel}>Bs</Text>
+              <Text style={styles.priceValue}>
+                {calculatedPrices.ves ? `Bs ${calculatedPrices.ves}` : "—"}
+              </Text>
+              <Text style={styles.priceHint}>Conversión con tasa vigente</Text>
             </View>
           </View>
+        </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Stock inicial</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Inventario inicial</Text>
+          <Text style={styles.sectionHint}>
+            Define cuántas unidades ya tienes en stock para iniciar los
+            controles.
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Cantidad *</Text>
             <TextInput
               ref={stockRef}
               style={styles.input}
               placeholder="0"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
+              placeholderTextColor="#9aa2b1"
               value={formData.stock}
               onChangeText={(value) => handleInputChange("stock", value)}
-              returnKeyType="next"
-              onSubmitEditing={() => descriptionRef.current?.focus()}
-              onFocus={() => scrollToField(stockRef)}
-              blurOnSubmit={false}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Descripción</Text>
-            <TextInput
-              ref={descriptionRef}
-              style={[styles.input, styles.textArea]}
-              placeholder="Descripción opcional del producto"
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={3}
-              value={formData.description}
-              onChangeText={(value) => handleInputChange("description", value)}
+              keyboardType="numeric"
               returnKeyType="done"
+              onFocus={() => scrollToField(stockRef)}
               onSubmitEditing={handleSubmit}
-              onFocus={() => scrollToField(descriptionRef)}
-              blurOnSubmit={false}
             />
           </View>
 
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitButtonText}>Confirmar</Text>
+          <Text style={styles.helperText}>
+            Puedes ajustar el stock y margen luego desde la pantalla de edición
+            del producto.
+          </Text>
+        </View>
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.secondaryButton]}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.secondaryButtonText}>Cancelar</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => navigation.goBack()}
+            style={[styles.actionButton, styles.primaryButton]}
+            onPress={handleSubmit}
+            activeOpacity={0.85}
           >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+            <Text style={styles.primaryButtonText}>Guardar producto</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Espacio adicional para botones del sistema */}
-        <View style={styles.bottomSpacer} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -348,111 +427,233 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#e8edf2",
   },
-  scrollContainer: {
+  flex: {
     flex: 1,
   },
-  formCard: {
+  content: {
+    padding: 24,
+    paddingBottom: 70,
+    gap: 24,
+  },
+  heroCard: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 12,
-    margin: 16,
-    padding: 16,
+    borderRadius: 18,
+    padding: 22,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 8,
   },
-  inputGroup: {
-    marginBottom: 16,
+  heroIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: "#f3f8ff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 18,
   },
-  label: {
+  heroIconText: {
+    fontSize: 30,
+  },
+  heroTextContainer: {
+    flex: 1,
+    gap: 6,
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: "#5b6472",
+    lineHeight: 20,
+  },
+  summaryCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 5,
+    gap: 16,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  summaryItem: {
+    flex: 1,
+    backgroundColor: "#f8f9fc",
+    borderRadius: 14,
+    padding: 16,
+    gap: 6,
+  },
+  summaryLabel: {
     fontSize: 12,
-    color: "#999",
-    marginBottom: 6,
-    marginLeft: 4,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  summaryHint: {
+    fontSize: 12,
+    color: "#6f7c8c",
+  },
+  sectionHeader: {
+    gap: 4,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1f2633",
+  },
+  sectionHint: {
+    fontSize: 12,
+    color: "#6f7c8c",
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+    gap: 20,
+  },
+  fieldGroup: {
+    gap: 8,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#8492a6",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   input: {
-    backgroundColor: "#f8f9fa",
-    borderRadius: 8,
-    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#d9e0eb",
+    borderRadius: 12,
+    paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    borderWidth: 1,
-    borderColor: "#e8edf2",
-    height: 48,
+    color: "#1f2633",
+    backgroundColor: "#f8f9fc",
   },
   textArea: {
-    height: 80,
+    minHeight: 96,
     textAlignVertical: "top",
-    paddingTop: 12,
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: "#e8edf2",
-    borderRadius: 8,
-    backgroundColor: "#f8f9fa",
+  currencySwitch: {
+    flexDirection: "row",
+    backgroundColor: "#f3f5fa",
+    borderRadius: 14,
+    padding: 6,
+    gap: 6,
   },
-  picker: {
-    height: 48,
-  },
-  currencySelector: {
-    borderWidth: 1,
-    borderColor: "#e8edf2",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#f8f9fa",
-    height: 48,
+  currencyChip: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: "center",
     justifyContent: "center",
   },
-  currencyText: {
-    fontSize: 15,
-    color: "#333",
+  currencyChipActive: {
+    backgroundColor: "#2f5ae0",
   },
-  readOnly: {
-    backgroundColor: "#f5f5f5",
-    color: "#666",
+  currencyChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#5b6472",
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  halfWidth: {
-    width: "48%",
-  },
-  submitButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 20,
-    shadowColor: "#4CAF50",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  submitButtonText: {
+  currencyChipTextActive: {
     color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
   },
-  cancelButton: {
-    backgroundColor: "#fff",
-    paddingVertical: 14,
-    borderRadius: 8,
+  priceGrid: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  priceCard: {
+    flex: 1,
+    backgroundColor: "#f8f9fc",
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    gap: 6,
+  },
+  priceLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  priceValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  priceHint: {
+    fontSize: 12,
+    color: "#6f7c8c",
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#6f7c8c",
+    backgroundColor: "#f3f8ff",
+    padding: 14,
+    borderRadius: 12,
+    lineHeight: 18,
+  },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: "center",
-    marginTop: 10,
+    justifyContent: "center",
+  },
+  secondaryButton: {
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#c3cad5",
   },
-  cancelButtonText: {
-    color: "#666",
-    fontSize: 15,
+  secondaryButtonText: {
+    color: "#4c5767",
     fontWeight: "600",
+    fontSize: 15,
   },
-  bottomSpacer: {
-    height: 100,
+  primaryButton: {
+    backgroundColor: "#2fb176",
+    shadowColor: "#2fb176",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });
 
