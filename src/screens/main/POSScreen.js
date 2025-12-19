@@ -11,6 +11,8 @@ import {
   Modal,
   Dimensions,
   Animated,
+  SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
 import { useProducts } from "../../hooks/useProducts";
 import { useSales } from "../../hooks/useSales";
@@ -544,101 +546,123 @@ export const POSScreen = ({ navigation }) => {
 
   if (productsLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>⏳ Cargando productos...</Text>
-      </View>
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2f5ae0" />
+        <Text style={styles.loadingText}>Preparando punto de venta...</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header con título y carrito */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>🛒 Punto de Venta</Text>
-        <TouchableOpacity
-          style={styles.cartButton}
-          onPress={() => setShowCart(true)}
-        >
-          <Text style={styles.cartButtonText}>🛍️ Carrito ({cart.length})</Text>
-          {cart.length > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cart.length}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Buscador */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="🔍 Buscar productos..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#999"
-        />
-      </View>
-
-      {/* Filtro de categorías */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoriesContainer}
-        contentContainerStyle={styles.categoriesContent}
-      >
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category}
-            style={[
-              styles.categoryChip,
-              selectedCategory === category && styles.categoryChipActive,
-            ]}
-            onPress={() => setSelectedCategory(category)}
-          >
-            <Text
-              style={[
-                styles.categoryChipText,
-                selectedCategory === category && styles.categoryChipTextActive,
-              ]}
-            >
-              {category}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Lista de productos */}
+    <SafeAreaView style={styles.container}>
       <FlatList
         data={filteredProducts}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.productsGrid}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            <View style={styles.heroCard}>
+              <View style={styles.heroIcon}>
+                <Text style={styles.heroIconText}>🛒</Text>
+              </View>
+              <View style={styles.heroCopy}>
+                <Text style={styles.heroTitle}>Punto de venta</Text>
+                <Text style={styles.heroSubtitle}>
+                  Gestiona tus ventas, clientes y cobros en un solo flujo.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.heroAction,
+                  cart.length === 0 && styles.heroActionDisabled,
+                ]}
+                onPress={() => setShowCart(true)}
+                activeOpacity={0.85}
+                disabled={cart.length === 0}
+              >
+                <Text style={styles.heroActionText}>
+                  {cart.length > 0
+                    ? `Ver carrito (${cart.length})`
+                    : "Carrito vacío"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchCard}>
+              <Text style={styles.searchLabel}>Buscar productos</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Escribe para filtrar por nombre"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholderTextColor="#8692a6"
+              />
+            </View>
+
+            <View style={styles.categoriesCard}>
+              <Text style={styles.sectionLabel}>Categorías</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoriesScroller}
+              >
+                {categories.map((category) => (
+                  <TouchableOpacity
+                    key={category}
+                    style={[
+                      styles.categoryChip,
+                      selectedCategory === category &&
+                        styles.categoryChipActive,
+                    ]}
+                    onPress={() => setSelectedCategory(category)}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        selectedCategory === category &&
+                          styles.categoryChipTextActive,
+                      ]}
+                    >
+                      {category}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        }
+        contentContainerStyle={[
+          styles.productsContent,
+          cart.length > 0 && styles.productsContentWithSummary,
+        ]}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>📦</Text>
             <Text style={styles.emptyText}>No hay productos disponibles</Text>
             <Text style={styles.emptySubtext}>
               {searchQuery
-                ? "Intenta con otra búsqueda"
-                : "Agrega productos desde la sección de Productos"}
+                ? "Intenta con otra búsqueda o limpia el filtro."
+                : "Agrega productos desde la sección de Productos."}
             </Text>
           </View>
         }
       />
 
-      {/* Resumen fijo del carrito en la parte inferior */}
       {cart.length > 0 && (
         <View style={styles.cartSummary}>
-          <View style={styles.cartSummaryLeft}>
-            <Text style={styles.cartSummaryLabel}>Total:</Text>
+          <View style={styles.cartSummaryInfo}>
+            <Text style={styles.cartSummaryLabel}>Total actual</Text>
             <Text style={styles.cartSummaryTotal}>VES. {total.toFixed(2)}</Text>
           </View>
           <TouchableOpacity
-            style={styles.viewCartButton}
+            style={styles.cartSummaryButton}
             onPress={() => setShowCart(true)}
+            activeOpacity={0.85}
           >
-            <Text style={styles.viewCartButtonText}>
-              Ver Carrito ({cart.length})
+            <Text style={styles.cartSummaryButtonText}>
+              Revisar carrito ({cart.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -940,565 +964,651 @@ export const POSScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#e8edf2",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
+    backgroundColor: "#e8edf2",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    justifyContent: "center",
+    gap: 16,
   },
   loadingText: {
-    fontSize: 18,
-    color: "#666",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#4CAF50",
-    padding: 16,
-    paddingTop: 50,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  cartButton: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    position: "relative",
-  },
-  cartButtonText: {
-    color: "#4CAF50",
-    fontWeight: "600",
     fontSize: 14,
+    fontWeight: "600",
+    color: "#4c5767",
   },
-  cartBadge: {
-    position: "absolute",
-    top: -8,
-    right: -8,
-    backgroundColor: "#f44336",
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
+  listHeader: {
+    gap: 24,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 12,
   },
-  cartBadgeText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  searchContainer: {
+  heroCard: {
     backgroundColor: "#fff",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderRadius: 24,
+    padding: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  heroIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: "#f3f8ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroIconText: {
+    fontSize: 30,
+  },
+  heroCopy: {
+    flex: 1,
+    gap: 6,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: "#5b6472",
+    lineHeight: 20,
+  },
+  heroAction: {
+    backgroundColor: "#1f9254",
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  heroActionDisabled: {
+    backgroundColor: "#d5dbe7",
+  },
+  heroActionText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  searchCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 20,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  searchLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   searchInput: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  categoriesContainer: {
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    maxHeight: 60,
-  },
-  categoriesContent: {
-    paddingVertical: 10,
+    backgroundColor: "#f3f5fa",
+    borderRadius: 14,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    alignItems: "center",
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#1f2633",
+  },
+  categoriesCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 20,
+    gap: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  categoriesScroller: {
+    flexDirection: "row",
+    gap: 10,
   },
   categoryChip: {
-    backgroundColor: "#f5f5f5",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    height: 36,
-    minWidth: 70,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: "#f3f5fa",
     alignItems: "center",
-    justifyContent: "center",
   },
   categoryChipActive: {
-    backgroundColor: "#4CAF50",
-    borderColor: "#4CAF50",
+    backgroundColor: "#2f5ae0",
+    shadowColor: "#2f5ae0",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
   },
   categoryChipText: {
-    color: "#666",
-    fontWeight: "500",
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#5b6472",
   },
   categoryChipTextActive: {
     color: "#fff",
-    fontWeight: "600",
   },
-  productsGrid: {
-    padding: 12,
-    paddingBottom: 120,
+  productsContent: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 140,
+    gap: 16,
+  },
+  productsContentWithSummary: {
+    paddingBottom: 240,
   },
   productCard: {
     backgroundColor: "#fff",
-    marginBottom: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    elevation: 2,
+    borderRadius: 20,
+    padding: 20,
+    gap: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    minHeight: 85,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
   },
   productCardDisabled: {
-    opacity: 0.5,
-    backgroundColor: "#f9f9f9",
+    opacity: 0.45,
   },
   productHeader: {
-    marginBottom: 4,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
   },
   productName: {
+    flex: 1,
     fontSize: 15,
     fontWeight: "700",
-    color: "#333",
-    marginBottom: 2,
+    color: "#1f2633",
+  },
+  outOfStockBadge: {
+    backgroundColor: "#f66570",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  outOfStockText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
   },
   productCategory: {
-    fontSize: 11,
-    color: "#666",
-    marginBottom: 6,
+    fontSize: 12,
+    color: "#6f7c8c",
     fontStyle: "italic",
   },
   productFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: "auto",
   },
   productPrice: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#4CAF50",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f9254",
   },
   productStock: {
     fontSize: 12,
-    color: "#666",
-    backgroundColor: "#e8f5e8",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    fontWeight: "600",
+    color: "#2f5ae0",
+    backgroundColor: "#e8f1ff",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   productStockLow: {
-    backgroundColor: "#ffebee",
-    color: "#c62828",
-  },
-  outOfStockBadge: {
-    backgroundColor: "#f44336",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    alignSelf: "flex-start",
-    marginTop: 4,
-  },
-  outOfStockText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "bold",
+    backgroundColor: "#ffe8ec",
+    color: "#d6455d",
   },
   emptyContainer: {
     alignItems: "center",
     marginTop: 80,
     paddingHorizontal: 32,
+    gap: 12,
   },
   emptyEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
+    fontSize: 60,
   },
   emptyText: {
     fontSize: 18,
-    color: "#666",
+    fontWeight: "700",
+    color: "#1f2633",
     textAlign: "center",
-    marginBottom: 8,
-    fontWeight: "600",
   },
   emptySubtext: {
     fontSize: 14,
-    color: "#999",
+    color: "#6f7c8c",
     textAlign: "center",
     lineHeight: 20,
   },
   cartSummary: {
     position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+    left: 24,
+    right: 24,
+    bottom: 24,
     backgroundColor: "#fff",
-    padding: 16,
-    borderTopWidth: 2,
-    borderTopColor: "#4CAF50",
+    borderRadius: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    elevation: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  cartSummaryLeft: {
-    flex: 1,
+  cartSummaryInfo: {
+    gap: 4,
   },
   cartSummaryLabel: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   cartSummaryTotal: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#4CAF50",
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1f2633",
   },
-  viewCartButton: {
-    backgroundColor: "#4CAF50",
-    paddingHorizontal: 24,
+  cartSummaryButton: {
+    backgroundColor: "#2f5ae0",
+    borderRadius: 14,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 12,
   },
-  viewCartButtonText: {
+  cartSummaryButtonText: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
+    fontSize: 14,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#e8edf2",
   },
   modalHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#4CAF50",
-    padding: 16,
-    paddingTop: 50,
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 16,
   },
   backButton: {
-    padding: 8,
+    backgroundColor: "#f0f3fa",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   backButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    color: "#2f5ae0",
+    fontWeight: "700",
+    fontSize: 14,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: "700",
+    color: "#1f2633",
   },
   modalContent: {
     flex: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
   customerSection: {
     backgroundColor: "#fff",
-    padding: 16,
-    marginBottom: 2,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 18,
+    gap: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#333",
-    marginBottom: 12,
+    color: "#1f2633",
   },
   customerInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: "#f3f5fa",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     fontSize: 16,
-    backgroundColor: "#f9f9f9",
+    color: "#1f2633",
+  },
+  genericCustomerText: {
+    fontSize: 12,
+    color: "#1f9254",
+    fontStyle: "italic",
   },
   cartItemsSection: {
     backgroundColor: "#fff",
-    padding: 16,
-    marginBottom: 2,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 18,
+    gap: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
   },
   emptyCartContainer: {
     alignItems: "center",
-    paddingVertical: 40,
+    gap: 8,
+    paddingVertical: 32,
   },
   emptyCartEmoji: {
     fontSize: 48,
-    marginBottom: 12,
   },
   emptyCartText: {
     fontSize: 16,
-    color: "#666",
-    marginBottom: 4,
+    fontWeight: "700",
+    color: "#1f2633",
   },
   emptyCartSubtext: {
     fontSize: 14,
-    color: "#999",
+    color: "#6f7c8c",
   },
   cartItem: {
     flexDirection: "row",
     justifyContent: "space-between",
+    backgroundColor: "#f3f5fa",
+    borderRadius: 16,
     padding: 16,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
+    gap: 12,
   },
   cartItemLeft: {
     flex: 1,
-    marginRight: 12,
+    gap: 6,
   },
   cartItemName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#333",
-    marginBottom: 6,
+    color: "#1f2633",
   },
   cartItemPrice: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
+    fontSize: 13,
+    color: "#6f7c8c",
   },
   cartItemSubtotal: {
-    fontSize: 14,
-    color: "#4CAF50",
+    fontSize: 13,
     fontWeight: "600",
+    color: "#1f9254",
   },
   cartItemRight: {
     alignItems: "flex-end",
-    justifyContent: "space-between",
+    gap: 8,
   },
   quantityControls: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    gap: 12,
   },
   quantityButton: {
-    backgroundColor: "#4CAF50",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: "#2f5ae0",
     alignItems: "center",
+    justifyContent: "center",
   },
   quantityButtonText: {
     color: "#fff",
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  quantityText: {
     fontSize: 18,
     fontWeight: "700",
-    minWidth: 40,
+  },
+  quantityText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2633",
+    minWidth: 36,
     textAlign: "center",
-    color: "#333",
   },
   removeButton: {
-    padding: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: "#ffecef",
+    borderRadius: 10,
   },
   removeButtonText: {
     fontSize: 12,
-    color: "#f44336",
     fontWeight: "600",
+    color: "#d6455d",
   },
   paymentSection: {
     backgroundColor: "#fff",
-    padding: 16,
-    marginBottom: 2,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 18,
+    gap: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
   },
   paymentButtonsScroll: {
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
+    marginHorizontal: -4,
   },
   paymentButtons: {
     flexDirection: "row",
-    paddingVertical: 8,
-    paddingRight: 16,
+    gap: 12,
   },
   paymentButton: {
-    width: 100,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    marginHorizontal: 6,
+    width: 110,
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: "#f3f5fa",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
+    gap: 8,
   },
   paymentButtonActive: {
-    backgroundColor: "#4CAF50",
-    borderColor: "#4CAF50",
+    backgroundColor: "#2f5ae0",
   },
   paymentButtonIcon: {
-    fontSize: 24,
-    marginBottom: 8,
+    fontSize: 26,
   },
   paymentButtonText: {
     fontSize: 13,
-    color: "#666",
     fontWeight: "600",
+    color: "#5b6472",
   },
   paymentButtonTextActive: {
     color: "#fff",
+  },
+  referenceContainer: {
+    backgroundColor: "#f3f5fa",
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e0e5ef",
+  },
+  referenceSection: {
+    gap: 10,
+  },
+  referenceLabel: {
+    fontSize: 14,
     fontWeight: "700",
+    color: "#1f2633",
+  },
+  optionalText: {
+    fontSize: 12,
+    fontWeight: "400",
+    color: "#6f7c8c",
+    fontStyle: "italic",
+  },
+  referenceInput: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: "#1f2633",
+    borderWidth: 1,
+    borderColor: "#d5dbe7",
+  },
+  referenceHint: {
+    fontSize: 12,
+    color: "#6f7c8c",
+    lineHeight: 16,
   },
   modalFooter: {
     backgroundColor: "#fff",
-    padding: 16,
-    borderTopWidth: 2,
-    borderTopColor: "#eee",
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 12,
   },
   totalSection: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   totalLabel: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#333",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   totalAmount: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#4CAF50",
+    fontSize: 26,
+    fontWeight: "700",
+    color: "#1f2633",
   },
   actionButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 12,
   },
   clearButton: {
     flex: 1,
-    backgroundColor: "#ff9800",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: "#f0b429",
+    borderRadius: 14,
     alignItems: "center",
-    marginRight: 8,
+    paddingVertical: 14,
   },
   clearButtonText: {
     color: "#fff",
-    fontSize: 16,
     fontWeight: "700",
+    fontSize: 14,
   },
   checkoutButton: {
-    flex: 2,
-    backgroundColor: "#4CAF50",
-    borderRadius: 12,
-    padding: 16,
+    flex: 1.4,
+    backgroundColor: "#1f9254",
+    borderRadius: 14,
     alignItems: "center",
-  },
-  buttonDisabled: {
-    backgroundColor: "#ccc",
-    opacity: 0.6,
+    paddingVertical: 14,
   },
   checkoutText: {
     color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  buttonDisabled: {
+    opacity: 0.55,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(13, 22, 38, 0.35)",
     justifyContent: "center",
     alignItems: "center",
+    padding: 24,
   },
   newCustomerModalContent: {
     backgroundColor: "#fff",
-    borderRadius: 12,
-    width: "90%",
-    maxWidth: 400,
-    padding: 20,
+    borderRadius: 22,
+    width: "100%",
+    maxWidth: 420,
+    padding: 24,
+    gap: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 10,
   },
   newCustomerInfo: {
-    fontSize: 16,
-    color: "#666",
+    fontSize: 14,
+    color: "#5b6472",
+    lineHeight: 20,
     textAlign: "center",
-    marginBottom: 20,
-    lineHeight: 22,
   },
   newCustomerInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: "#f3f5fa",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     fontSize: 16,
-    marginBottom: 20,
+    color: "#1f2633",
   },
   newCustomerButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 12,
   },
-  genericCustomerText: {
-    fontSize: 12,
-    color: "#4CAF50",
-    fontStyle: "italic",
-    marginTop: 4,
+  modalButton: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
   },
-  referenceSection: {
-    marginTop: 15,
+  cancelButton: {
+    backgroundColor: "#f0f3fa",
   },
-  referenceLabel: {
+  cancelButtonText: {
+    color: "#5b6472",
+    fontWeight: "600",
     fontSize: 14,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 8,
   },
-  optionalText: {
-    fontSize: 12,
-    fontWeight: "normal",
-    color: "#666",
-    fontStyle: "italic",
+  saveButton: {
+    backgroundColor: "#1f9254",
   },
-  referenceInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#fff",
-    marginBottom: 8,
-  },
-  referenceHint: {
-    fontSize: 12,
-    color: "#666",
-    fontStyle: "italic",
-    lineHeight: 16,
-  },
-  referenceContainer: {
-    backgroundColor: "#f8f9fa",
-    borderRadius: 10,
-    padding: 15,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: "#e9ecef",
-    overflow: "hidden",
+  saveButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
 });
 

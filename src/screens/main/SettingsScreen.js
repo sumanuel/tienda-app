@@ -809,7 +809,9 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+    gap: 12,
   },
   sectionTitle: {
     fontSize: 18,
@@ -827,9 +829,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     flexShrink: 0,
-    marginLeft: 16,
-    minWidth: 110,
+    marginLeft: 0,
+    minWidth: 96,
     alignItems: "center",
+    alignSelf: "flex-start",
   },
   headerButtonText: {
     fontSize: 13,
