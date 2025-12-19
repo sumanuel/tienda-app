@@ -44,7 +44,6 @@ export const POSScreen = ({ navigation }) => {
   const [customerDocument, setCustomerDocument] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [showCart, setShowCart] = useState(false);
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
@@ -118,12 +117,6 @@ export const POSScreen = ({ navigation }) => {
     }
   }, [navigation, refreshProducts]);
 
-  // Obtener categorías únicas
-  const categories = [
-    "Todos",
-    ...new Set(products.map((p) => p.category).filter(Boolean)),
-  ];
-
   // Filtrar productos (ordenados alfabéticamente)
   const filteredProducts = products
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -131,9 +124,7 @@ export const POSScreen = ({ navigation }) => {
       const matchesSearch = product.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        selectedCategory === "Todos" || product.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      return matchesSearch;
     });
 
   /**
@@ -563,14 +554,16 @@ export const POSScreen = ({ navigation }) => {
         ListHeaderComponent={
           <View style={styles.listHeader}>
             <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>🛒</Text>
-              </View>
-              <View style={styles.heroCopy}>
-                <Text style={styles.heroTitle}>Punto de venta</Text>
-                <Text style={styles.heroSubtitle}>
-                  Gestiona tus ventas, clientes y cobros en un solo flujo.
-                </Text>
+              <View style={styles.heroHeader}>
+                <View style={styles.heroIcon}>
+                  <Text style={styles.heroIconText}>🛒</Text>
+                </View>
+                <View style={styles.heroCopy}>
+                  <Text style={styles.heroTitle}>Punto de venta</Text>
+                  <Text style={styles.heroSubtitle}>
+                    Gestiona tus ventas, clientes y cobros en un solo flujo.
+                  </Text>
+                </View>
               </View>
               <TouchableOpacity
                 style={[
@@ -598,38 +591,6 @@ export const POSScreen = ({ navigation }) => {
                 onChangeText={setSearchQuery}
                 placeholderTextColor="#8692a6"
               />
-            </View>
-
-            <View style={styles.categoriesCard}>
-              <Text style={styles.sectionLabel}>Categorías</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoriesScroller}
-              >
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    style={[
-                      styles.categoryChip,
-                      selectedCategory === category &&
-                        styles.categoryChipActive,
-                    ]}
-                    onPress={() => setSelectedCategory(category)}
-                    activeOpacity={0.85}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryChipText,
-                        selectedCategory === category &&
-                          styles.categoryChipTextActive,
-                      ]}
-                    >
-                      {category}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
             </View>
           </View>
         }
@@ -990,19 +951,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 12,
+    alignItems: "stretch",
   },
   heroCard: {
     backgroundColor: "#fff",
     borderRadius: 24,
     padding: 22,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 18,
+    width: "100%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
     shadowRadius: 18,
     elevation: 8,
+  },
+  heroHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
   },
   heroIcon: {
     width: 64,
@@ -1011,13 +976,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#f3f8ff",
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 16,
   },
   heroIconText: {
     fontSize: 30,
   },
   heroCopy: {
     flex: 1,
-    gap: 6,
+    minWidth: 0,
   },
   heroTitle: {
     fontSize: 22,
@@ -1028,11 +994,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#5b6472",
     lineHeight: 20,
+    marginTop: 6,
   },
   heroAction: {
+    alignSelf: "flex-start",
+    marginTop: 4,
     backgroundColor: "#1f9254",
     borderRadius: 14,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingVertical: 12,
   },
   heroActionDisabled: {
@@ -1048,6 +1017,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 20,
     gap: 12,
+    width: "100%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
@@ -1070,51 +1040,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#1f2633",
   },
-  categoriesCard: {
-    backgroundColor: "#fff",
-    borderRadius: 22,
-    padding: 20,
-    gap: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#7a8796",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  categoriesScroller: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  categoryChip: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: "#f3f5fa",
-    alignItems: "center",
-  },
-  categoryChipActive: {
-    backgroundColor: "#2f5ae0",
-    shadowColor: "#2f5ae0",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  categoryChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#5b6472",
-  },
-  categoryChipTextActive: {
-    color: "#fff",
-  },
   productsContent: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -1129,6 +1054,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     gap: 12,
+    width: "100%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
