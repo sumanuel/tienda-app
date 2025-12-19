@@ -1,33 +1,27 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
-  Modal,
   TextInput,
-  Button,
+  SafeAreaView,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { getSettings, saveSettings } from "../../services/database/settings";
 
-/**
- * Pantalla de ajustes
- */
-export const SettingsScreen = ({ navigation }) => {
-  const { rate, setManualRate } = useExchangeRate();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [inputValue, setInputValue] = useState(rate?.toString() || "");
-  const [margin, setMargin] = useState(30);
-  const [marginModalVisible, setMarginModalVisible] = useState(false);
-  const [marginInput, setMarginInput] = useState(margin.toString());
-  const [lowStockThreshold, setLowStockThreshold] = useState(10);
-  const [lowStockModalVisible, setLowStockModalVisible] = useState(false);
-  const [lowStockInput, setLowStockInput] = useState(
-    lowStockThreshold.toString()
-  );
+export const SettingsScreen = () => {
+  const {
+    rate,
+    setManualRate,
+    loading: rateLoading,
+    lastUpdate,
+  } = useExchangeRate({ autoUpdate: false });
+  const [isLoading, setIsLoading] = useState(true);
+
   const [business, setBusiness] = useState({
     name: "",
     rif: "",
@@ -35,784 +29,992 @@ export const SettingsScreen = ({ navigation }) => {
     phone: "",
     email: "",
   });
-  const [businessModalVisible, setBusinessModalVisible] = useState(false);
-  const [tempBusiness, setTempBusiness] = useState(business);
+  const [margin, setMargin] = useState(30);
+  const [lowStockThreshold, setLowStockThreshold] = useState(10);
   const [baseCurrency, setBaseCurrency] = useState("USD");
   const [currencies, setCurrencies] = useState({
     USD: 280,
     EURO: 300,
     USD2: 350,
   });
-  const [currenciesModalVisible, setCurrenciesModalVisible] = useState(false);
-  const [tempCurrencies, setTempCurrencies] = useState(currencies);
   const [iva, setIva] = useState(16);
-  const [ivaModalVisible, setIvaModalVisible] = useState(false);
-  const [ivaInput, setIvaInput] = useState(iva.toString());
+
+  const [editingSection, setEditingSection] = useState(null);
+  const [savingSection, setSavingSection] = useState(null);
+
+  const [formBusiness, setFormBusiness] = useState(business);
+  const [formMargin, setFormMargin] = useState("30");
+  const [formLowStock, setFormLowStock] = useState("10");
+  const [formBaseCurrency, setFormBaseCurrency] = useState("USD");
+  const [formCurrencies, setFormCurrencies] = useState({
+    USD: "280",
+    EURO: "300",
+    USD2: "350",
+  });
+  const [formIva, setFormIva] = useState("16");
+  const [manualRateInput, setManualRateInput] = useState("280");
 
   useEffect(() => {
     const loadSettings = async () => {
-      const settings = await getSettings();
-      setMargin(settings.pricing?.defaultMargin || 30);
-      setLowStockThreshold(settings.inventory?.lowStockThreshold || 10);
-      setBusiness(
-        settings.business || {
+      try {
+        setIsLoading(true);
+        const settings = await getSettings();
+
+        const pricing = settings.pricing || {};
+        const inventory = settings.inventory || {};
+        const businessInfo = settings.business || {
           name: "",
           rif: "",
           address: "",
           phone: "",
           email: "",
+        };
+
+        const defaultMargin = pricing.defaultMargin ?? 30;
+        const defaultLowStock = inventory.lowStockThreshold ?? 10;
+        const defaultBaseCurrency = pricing.baseCurrency || "USD";
+        let syncedCurrencies = pricing.currencies || {
+          USD: 280,
+          EURO: 300,
+          USD2: 350,
+        };
+
+        if (rate && rate !== syncedCurrencies.USD) {
+          syncedCurrencies = { ...syncedCurrencies, USD: rate };
+          const updatedSettings = {
+            ...settings,
+            pricing: {
+              ...pricing,
+              currencies: syncedCurrencies,
+            },
+          };
+          await saveSettings(updatedSettings);
         }
-      );
-      setBaseCurrency(settings.pricing?.baseCurrency || "USD");
 
-      // Sincronizar tasa del contexto (SQLite exchange_rates) con settings (SQLite settings)
-      let syncedCurrencies = settings.pricing?.currencies || {
-        USD: 280,
-        EURO: 300,
-        USD2: 350,
-      };
-      if (rate && rate !== syncedCurrencies.USD) {
-        console.log(
-          `Syncing rate from exchange_rates table (${rate}) to settings table`
+        const ivaValue = pricing.iva ?? 16;
+
+        setBusiness(businessInfo);
+        setMargin(defaultMargin);
+        setLowStockThreshold(defaultLowStock);
+        setBaseCurrency(defaultBaseCurrency);
+        setCurrencies(syncedCurrencies);
+        setIva(ivaValue);
+
+        setFormBusiness(businessInfo);
+        setFormMargin(defaultMargin.toString());
+        setFormLowStock(defaultLowStock.toString());
+        setFormBaseCurrency(defaultBaseCurrency);
+        setFormCurrencies({
+          USD: (syncedCurrencies.USD ?? 0).toString(),
+          EURO: (syncedCurrencies.EURO ?? 0).toString(),
+          USD2: (syncedCurrencies.USD2 ?? 0).toString(),
+        });
+        setFormIva(ivaValue.toString());
+        setManualRateInput(
+          rate?.toString() || (syncedCurrencies.USD ?? 0).toString()
         );
-        syncedCurrencies.USD = rate;
-        // Actualizar settings con la tasa de la tabla exchange_rates
-        if (!settings.pricing) settings.pricing = {};
-        if (!settings.pricing.currencies) settings.pricing.currencies = {};
-        settings.pricing.currencies.USD = rate;
-        await saveSettings(settings);
+      } catch (error) {
+        console.error("Error loading settings:", error);
+        Alert.alert(
+          "Error",
+          "No pudimos cargar la configuración. Intenta nuevamente."
+        );
+      } finally {
+        setIsLoading(false);
       }
-      setCurrencies(syncedCurrencies);
-
-      setIva(settings.pricing?.iva || 16);
     };
+
     loadSettings();
   }, [rate]);
 
-  const handleCurrencyBasePress = () => {
-    Alert.alert(
-      "Seleccionar Moneda Base",
-      "Elige la moneda con la que trabajará el sistema",
-      [
-        { text: "USD", onPress: () => saveBaseCurrency("USD") },
-        { text: "EURO", onPress: () => saveBaseCurrency("EURO") },
-        { text: "USD2", onPress: () => saveBaseCurrency("USD2") },
-        { text: "Cancelar", style: "cancel" },
-      ]
-    );
+  useEffect(() => {
+    if (rate) {
+      setManualRateInput(rate.toString());
+    }
+  }, [rate]);
+
+  const formattedLastUpdate = useMemo(() => {
+    if (!lastUpdate) {
+      return "Sin sincronizar";
+    }
+    return `${lastUpdate.toLocaleDateString()} · ${lastUpdate.toLocaleTimeString(
+      [],
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    )}`;
+  }, [lastUpdate]);
+
+  const startEditing = (section) => {
+    if (section === "business") {
+      setFormBusiness(business);
+    }
+    if (section === "pricing") {
+      setFormMargin(margin.toString());
+      setFormBaseCurrency(baseCurrency);
+      setFormCurrencies({
+        USD: (currencies.USD ?? 0).toString(),
+        EURO: (currencies.EURO ?? 0).toString(),
+        USD2: (currencies.USD2 ?? 0).toString(),
+      });
+      setFormIva(iva.toString());
+      setManualRateInput(rate?.toString() || (currencies.USD ?? 0).toString());
+    }
+    if (section === "inventory") {
+      setFormLowStock(lowStockThreshold.toString());
+    }
+    setEditingSection(section);
   };
 
-  const saveBaseCurrency = async (currency) => {
-    try {
-      const settings = await getSettings();
-      settings.pricing.baseCurrency = currency;
-      await saveSettings(settings);
-      setBaseCurrency(currency);
-      Alert.alert("Éxito", `Moneda base cambiada a ${currency}`);
-    } catch (error) {
-      Alert.alert("Error", "No se pudo cambiar la moneda base");
-      console.error("Error saving base currency:", error);
-    }
-  };
-
-  const handleMarginPress = () => {
-    setMarginInput(margin.toString());
-    setMarginModalVisible(true);
-  };
-
-  const handleLowStockPress = () => {
-    setLowStockInput(lowStockThreshold.toString());
-    setLowStockModalVisible(true);
-  };
-
-  const handleBusinessPress = () => {
-    setTempBusiness(business);
-    setBusinessModalVisible(true);
-  };
-
-  const handleCurrenciesPress = () => {
-    setTempCurrencies(currencies);
-    setCurrenciesModalVisible(true);
-  };
-
-  const handleIvaPress = () => {
-    setIvaInput(iva.toString());
-    setIvaModalVisible(true);
-  };
-
-  const handleSaveRate = async () => {
-    const numericValue = parseFloat(inputValue);
-    if (isNaN(numericValue) || numericValue <= 0) {
-      Alert.alert("Error", "Ingresa un valor válido mayor a 0");
-      return;
-    }
-
-    // Validación adicional para valores muy bajos o muy altos
-    if (numericValue < 10) {
-      Alert.alert(
-        "Valor muy bajo",
-        "El valor parece muy bajo para una tasa de cambio. ¿Estás seguro?",
-        [
-          { text: "Revisar", style: "cancel" },
-          {
-            text: "Confirmar",
-            onPress: async () => {
-              try {
-                await setManualRate(numericValue);
-                Alert.alert(
-                  "Éxito",
-                  `Tasa de cambio actualizada:\n1 USD = ${numericValue.toFixed(
-                    2
-                  )} VES\n\nEsta tasa se usará en toda la aplicación.`
-                );
-                setModalVisible(false);
-              } catch (error) {
-                Alert.alert("Error", "No se pudo actualizar la tasa de cambio");
-                console.error("Error setting manual rate:", error);
-              }
-            },
-          },
-        ]
-      );
-      return;
-    }
-
-    if (numericValue > 100000) {
-      Alert.alert(
-        "Valor muy alto",
-        "El valor parece muy alto para una tasa de cambio. ¿Estás seguro?",
-        [
-          { text: "Revisar", style: "cancel" },
-          {
-            text: "Confirmar",
-            onPress: async () => {
-              try {
-                await setManualRate(numericValue);
-                Alert.alert(
-                  "Éxito",
-                  `Tasa de cambio actualizada:\n1 USD = ${numericValue.toFixed(
-                    2
-                  )} VES\n\nEsta tasa se usará en toda la aplicación.`
-                );
-                setModalVisible(false);
-              } catch (error) {
-                Alert.alert("Error", "No se pudo actualizar la tasa de cambio");
-                console.error("Error setting manual rate:", error);
-              }
-            },
-          },
-        ]
-      );
-      return;
-    }
-
-    try {
-      await setManualRate(numericValue);
-
-      // También actualizar los settings para sincronizar
-      const settings = await getSettings();
-      if (!settings.pricing) settings.pricing = {};
-      if (!settings.pricing.currencies) settings.pricing.currencies = {};
-      settings.pricing.currencies.USD = numericValue;
-      await saveSettings(settings);
-      setCurrencies({ ...currencies, USD: numericValue });
-
-      Alert.alert(
-        "Éxito",
-        `Tasa de cambio actualizada:\n1 USD = ${numericValue.toFixed(
-          2
-        )} VES\n\nEsta tasa se usará en toda la aplicación.`
-      );
-      setModalVisible(false);
-    } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar la tasa de cambio");
-      console.error("Error setting manual rate:", error);
-    }
-  };
-
-  const handleSaveMargin = async () => {
-    const numericValue = parseFloat(marginInput);
-    if (isNaN(numericValue) || numericValue < 0 || numericValue > 200) {
-      Alert.alert("Error", "Ingresa un valor válido entre 0 y 200");
-      return;
-    }
-
-    try {
-      const settings = await getSettings();
-      settings.pricing.defaultMargin = numericValue;
-      await saveSettings(settings);
-      setMargin(numericValue);
-      Alert.alert("Éxito", `Margen por defecto actualizado a ${numericValue}%`);
-      setMarginModalVisible(false);
-    } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar el margen");
-      console.error("Error saving margin:", error);
-    }
-  };
-
-  const handleSaveLowStock = async () => {
-    const numericValue = parseInt(lowStockInput);
-    if (isNaN(numericValue) || numericValue < 0) {
-      Alert.alert("Error", "Ingresa un valor válido mayor o igual a 0");
-      return;
-    }
-
-    try {
-      const settings = await getSettings();
-      settings.inventory.lowStockThreshold = numericValue;
-      await saveSettings(settings);
-      setLowStockThreshold(numericValue);
-      Alert.alert(
-        "Éxito",
-        `Umbral de stock bajo actualizado a ${numericValue} unidades`
-      );
-      setLowStockModalVisible(false);
-    } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar el umbral de stock");
-      console.error("Error saving low stock threshold:", error);
-    }
+  const cancelEditing = () => {
+    setEditingSection(null);
+    setSavingSection(null);
+    setFormBusiness(business);
+    setFormMargin(margin.toString());
+    setFormLowStock(lowStockThreshold.toString());
+    setFormBaseCurrency(baseCurrency);
+    setFormCurrencies({
+      USD: (currencies.USD ?? 0).toString(),
+      EURO: (currencies.EURO ?? 0).toString(),
+      USD2: (currencies.USD2 ?? 0).toString(),
+    });
+    setFormIva(iva.toString());
+    setManualRateInput(rate?.toString() || (currencies.USD ?? 0).toString());
   };
 
   const handleSaveBusiness = async () => {
     try {
+      setSavingSection("business");
       const settings = await getSettings();
-      settings.business = tempBusiness;
-      await saveSettings(settings);
-      setBusiness(tempBusiness);
+      const updatedSettings = {
+        ...settings,
+        business: formBusiness,
+      };
+      await saveSettings(updatedSettings);
+      setBusiness(formBusiness);
+      setEditingSection(null);
       Alert.alert("Éxito", "Información del negocio actualizada");
-      setBusinessModalVisible(false);
     } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar la información del negocio");
       console.error("Error saving business info:", error);
+      Alert.alert("Error", "No se pudo actualizar la información del negocio");
+    } finally {
+      setSavingSection(null);
     }
   };
 
-  const handleSaveCurrencies = async () => {
-    const usdValue = parseFloat(tempCurrencies.USD);
-    const euroValue = parseFloat(tempCurrencies.EURO);
-    const usd2Value = parseFloat(tempCurrencies.USD2);
+  const handleSavePricing = async () => {
+    const numericMargin = parseFloat(formMargin.replace(",", "."));
+    const numericUsd = parseFloat(formCurrencies.USD.replace(",", "."));
+    const numericEuro = parseFloat(formCurrencies.EURO.replace(",", "."));
+    const numericUsd2 = parseFloat(formCurrencies.USD2.replace(",", "."));
+    const numericIva = parseFloat(formIva.replace(",", "."));
+    const numericManualRate = parseFloat(manualRateInput.replace(",", "."));
+
     if (
-      isNaN(usdValue) ||
-      usdValue <= 0 ||
-      isNaN(euroValue) ||
-      euroValue <= 0 ||
-      isNaN(usd2Value) ||
-      usd2Value <= 0
+      Number.isNaN(numericMargin) ||
+      numericMargin < 0 ||
+      numericMargin > 200
     ) {
-      Alert.alert("Error", "Ingresa valores válidos mayores a 0");
+      Alert.alert("Valor inválido", "Ingresa un margen entre 0 y 200");
+      return;
+    }
+
+    if (
+      [numericUsd, numericEuro, numericUsd2].some(
+        (value) => Number.isNaN(value) || value <= 0
+      )
+    ) {
+      Alert.alert("Valor inválido", "Verifica los valores de las monedas");
+      return;
+    }
+
+    if (Number.isNaN(numericIva) || numericIva < 0 || numericIva > 100) {
+      Alert.alert("Valor inválido", "Ingresa un IVA entre 0 y 100");
+      return;
+    }
+
+    if (Number.isNaN(numericManualRate) || numericManualRate <= 0) {
+      Alert.alert("Valor inválido", "Ingresa una tasa manual válida para USD");
       return;
     }
 
     try {
-      // Primero guardar en settings
+      setSavingSection("pricing");
       const settings = await getSettings();
-      settings.pricing.currencies = tempCurrencies;
-      await saveSettings(settings);
-      setCurrencies(tempCurrencies);
+      const updatedSettings = {
+        ...settings,
+        pricing: {
+          ...(settings.pricing || {}),
+          defaultMargin: numericMargin,
+          baseCurrency: formBaseCurrency,
+          currencies: {
+            USD: numericUsd,
+            EURO: numericEuro,
+            USD2: numericUsd2,
+          },
+          iva: numericIva,
+        },
+      };
+      await saveSettings(updatedSettings);
 
-      // Actualizar la tasa en la BD si se cambió USD
-      const newUsdValue = parseFloat(tempCurrencies.USD);
-      if (!isNaN(newUsdValue) && newUsdValue !== rate) {
-        await setManualRate(newUsdValue);
-        console.log("Rate saved to DB:", newUsdValue);
+      setMargin(numericMargin);
+      setBaseCurrency(formBaseCurrency);
+      setCurrencies({
+        USD: numericUsd,
+        EURO: numericEuro,
+        USD2: numericUsd2,
+      });
+      setIva(numericIva);
+
+      if (!Number.isNaN(numericManualRate) && numericManualRate !== rate) {
+        await setManualRate(numericManualRate);
       }
 
-      Alert.alert("Éxito", "Valores de monedas actualizados");
-      setCurrenciesModalVisible(false);
+      setEditingSection(null);
+      Alert.alert("Éxito", "Configuración de precios actualizada");
     } catch (error) {
-      Alert.alert("Error", "No se pudieron actualizar los valores de monedas");
-      console.error("Error saving currencies:", error);
+      console.error("Error saving pricing settings:", error);
+      Alert.alert("Error", "No pudimos actualizar los datos de precios");
+    } finally {
+      setSavingSection(null);
     }
   };
 
-  const handleSaveIva = async () => {
-    const numericValue = parseFloat(ivaInput);
-    if (isNaN(numericValue) || numericValue < 0 || numericValue > 100) {
-      Alert.alert("Error", "Ingresa un porcentaje válido entre 0 y 100");
+  const handleSaveInventory = async () => {
+    const numericLowStock = parseInt(formLowStock, 10);
+    if (Number.isNaN(numericLowStock) || numericLowStock < 0) {
+      Alert.alert("Valor inválido", "Ingresa un umbral mayor o igual a 0");
       return;
     }
 
     try {
+      setSavingSection("inventory");
       const settings = await getSettings();
-      settings.pricing.iva = numericValue;
-      await saveSettings(settings);
-      setIva(numericValue);
-      Alert.alert("Éxito", `IVA actualizado a ${numericValue}%`);
-      setIvaModalVisible(false);
+      const updatedSettings = {
+        ...settings,
+        inventory: {
+          ...(settings.inventory || {}),
+          lowStockThreshold: numericLowStock,
+        },
+      };
+      await saveSettings(updatedSettings);
+      setLowStockThreshold(numericLowStock);
+      setEditingSection(null);
+      Alert.alert("Éxito", "Umbral de stock bajo actualizado");
     } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar el IVA");
-      console.error("Error saving IVA:", error);
+      console.error("Error saving inventory settings:", error);
+      Alert.alert("Error", "No pudimos actualizar el umbral de stock");
+    } finally {
+      setSavingSection(null);
     }
   };
 
-  const SettingItem = ({ title, subtitle, onPress }) => (
-    <TouchableOpacity style={styles.settingItem} onPress={onPress}>
-      <View>
-        <Text style={styles.settingTitle}>{title}</Text>
-        {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
-      </View>
-      <Text style={styles.arrow}>›</Text>
-    </TouchableOpacity>
-  );
+  const formatCurrency = (value) => {
+    if (value == null) {
+      return "—";
+    }
+    return new Intl.NumberFormat("es-VE", {
+      style: "currency",
+      currency: "VES",
+      minimumFractionDigits: 2,
+    }).format(value);
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2f5ae0" />
+        <Text style={styles.loadingText}>Cargando configuración...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <>
-      <ScrollView style={styles.container}>
-        <Text style={styles.title}>Configuración</Text>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Negocio</Text>
-          <SettingItem
-            title="Información del Negocio"
-            subtitle="Nombre, RIF, dirección"
-            onPress={handleBusinessPress}
-          />
-          <SettingItem
-            title="Impresora"
-            subtitle="Configurar impresora de recibos"
-          />
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.heroCard}>
+          <View style={styles.heroIcon}>
+            <Text style={styles.heroIconText}>⚙️</Text>
+          </View>
+          <View style={styles.heroInfo}>
+            <Text style={styles.heroTitle}>Configuración general</Text>
+            <Text style={styles.heroSubtitle}>
+              Personaliza datos del negocio, márgenes y parámetros operativos.
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Precios</Text>
-          <SettingItem
-            title="Moneda Base"
-            subtitle={`Moneda actual: ${baseCurrency} (${currencies[baseCurrency]} VES)`}
-            onPress={handleCurrencyBasePress}
-          />
-          <SettingItem
-            title="Margen por Defecto"
-            subtitle={`${margin}%`}
-            onPress={handleMarginPress}
-          />
-          <SettingItem
-            title="Monedas"
-            subtitle="Configurar monedas disponibles"
-            onPress={handleCurrenciesPress}
-          />
-          <SettingItem
-            title="IVA"
-            subtitle={`${iva}%`}
-            onPress={handleIvaPress}
-          />
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Moneda base</Text>
+            <Text style={styles.summaryValue}>{baseCurrency}</Text>
+            <Text style={styles.summaryHint}>
+              {formatCurrency(currencies[baseCurrency])}
+            </Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Margen estándar</Text>
+            <Text style={styles.summaryValue}>{margin}%</Text>
+            <Text style={styles.summaryHint}>Aplicado al crear productos</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Stock bajo</Text>
+            <Text style={styles.summaryValue}>{lowStockThreshold}</Text>
+            <Text style={styles.summaryHint}>Unidades de alerta</Text>
+          </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Inventario</Text>
-          <SettingItem
-            title="Umbral de Stock Bajo"
-            subtitle={`${lowStockThreshold} unidades`}
-            onPress={handleLowStockPress}
-          />
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Negocio</Text>
+              <Text style={styles.sectionSubtitle}>
+                Datos que se muestran en documentos y reportes.
+              </Text>
+            </View>
+            {editingSection === "business" ? (
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={cancelEditing}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.headerButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={() => startEditing("business")}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.headerButtonText}>Editar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {editingSection === "business" ? (
+            <View style={styles.formArea}>
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre del negocio"
+                value={formBusiness.name}
+                onChangeText={(text) =>
+                  setFormBusiness({ ...formBusiness, name: text })
+                }
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="RIF"
+                value={formBusiness.rif}
+                onChangeText={(text) =>
+                  setFormBusiness({ ...formBusiness, rif: text })
+                }
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Dirección"
+                value={formBusiness.address}
+                onChangeText={(text) =>
+                  setFormBusiness({ ...formBusiness, address: text })
+                }
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Teléfono"
+                keyboardType="phone-pad"
+                value={formBusiness.phone}
+                onChangeText={(text) =>
+                  setFormBusiness({ ...formBusiness, phone: text })
+                }
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Correo electrónico"
+                keyboardType="email-address"
+                value={formBusiness.email}
+                onChangeText={(text) =>
+                  setFormBusiness({ ...formBusiness, email: text })
+                }
+              />
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  savingSection === "business" && styles.buttonDisabled,
+                ]}
+                onPress={handleSaveBusiness}
+                disabled={savingSection === "business"}
+                activeOpacity={0.85}
+              >
+                {savingSection === "business" ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Guardar cambios</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.detailList}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Nombre</Text>
+                <Text style={styles.detailValue}>{business.name || "—"}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>RIF</Text>
+                <Text style={styles.detailValue}>{business.rif || "—"}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Dirección</Text>
+                <Text style={styles.detailValue}>
+                  {business.address || "—"}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Teléfono</Text>
+                <Text style={styles.detailValue}>{business.phone || "—"}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Correo</Text>
+                <Text style={styles.detailValue}>{business.email || "—"}</Text>
+              </View>
+            </View>
+          )}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Datos</Text>
-          <SettingItem title="Backup" subtitle="Exportar datos" />
-          <SettingItem title="Restaurar" subtitle="Importar datos" />
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Precios y divisas</Text>
+              <Text style={styles.sectionSubtitle}>
+                Controla márgenes, monedas y tasa manual.
+              </Text>
+            </View>
+            {editingSection === "pricing" ? (
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={cancelEditing}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.headerButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={() => startEditing("pricing")}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.headerButtonText}>Editar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {editingSection === "pricing" ? (
+            <View style={styles.formArea}>
+              <Text style={styles.inputLabel}>Moneda base</Text>
+              <View style={styles.chipRow}>
+                {["USD", "EURO", "USD2"].map((currency) => {
+                  const active = formBaseCurrency === currency;
+                  return (
+                    <TouchableOpacity
+                      key={currency}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setFormBaseCurrency(currency)}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          active && styles.chipTextActive,
+                        ]}
+                      >
+                        {currency}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.inputLabel}>Margen por defecto (%)</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="decimal-pad"
+                value={formMargin}
+                onChangeText={setFormMargin}
+                placeholder="Ej: 30"
+              />
+
+              <Text style={styles.inputLabel}>Tasa USD manual (VES)</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="decimal-pad"
+                value={manualRateInput}
+                onChangeText={setManualRateInput}
+                placeholder="0.00"
+              />
+              {rateLoading && (
+                <Text style={styles.helperText}>Guardando tasa manual...</Text>
+              )}
+
+              <Text style={styles.inputLabel}>Valores de referencia</Text>
+              <View style={styles.inlineInputs}>
+                <View style={styles.inlineInputBlock}>
+                  <Text style={styles.inlineLabel}>USD</Text>
+                  <TextInput
+                    style={styles.inlineInput}
+                    keyboardType="decimal-pad"
+                    value={formCurrencies.USD}
+                    onChangeText={(text) =>
+                      setFormCurrencies({ ...formCurrencies, USD: text })
+                    }
+                  />
+                </View>
+                <View style={styles.inlineInputBlock}>
+                  <Text style={styles.inlineLabel}>EURO</Text>
+                  <TextInput
+                    style={styles.inlineInput}
+                    keyboardType="decimal-pad"
+                    value={formCurrencies.EURO}
+                    onChangeText={(text) =>
+                      setFormCurrencies({ ...formCurrencies, EURO: text })
+                    }
+                  />
+                </View>
+                <View style={styles.inlineInputBlock}>
+                  <Text style={styles.inlineLabel}>USD2</Text>
+                  <TextInput
+                    style={styles.inlineInput}
+                    keyboardType="decimal-pad"
+                    value={formCurrencies.USD2}
+                    onChangeText={(text) =>
+                      setFormCurrencies({ ...formCurrencies, USD2: text })
+                    }
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.inputLabel}>IVA (%)</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="decimal-pad"
+                value={formIva}
+                onChangeText={setFormIva}
+                placeholder="Ej: 16"
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  savingSection === "pricing" && styles.buttonDisabled,
+                ]}
+                onPress={handleSavePricing}
+                disabled={savingSection === "pricing"}
+                activeOpacity={0.85}
+              >
+                {savingSection === "pricing" ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Guardar cambios</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.detailList}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Moneda base</Text>
+                <Text style={styles.detailValue}>{baseCurrency}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Margen por defecto</Text>
+                <Text style={styles.detailValue}>{margin}%</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Tasa USD manual</Text>
+                <Text style={styles.detailValue}>{formatCurrency(rate)}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Última actualización</Text>
+                <Text style={styles.detailValue}>{formattedLastUpdate}</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>USD</Text>
+                <Text style={styles.detailValue}>
+                  {formatCurrency(currencies.USD)}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>EURO</Text>
+                <Text style={styles.detailValue}>
+                  {formatCurrency(currencies.EURO)}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>USD2</Text>
+                <Text style={styles.detailValue}>
+                  {formatCurrency(currencies.USD2)}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>IVA</Text>
+                <Text style={styles.detailValue}>{iva}%</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Inventario</Text>
+              <Text style={styles.sectionSubtitle}>
+                Ajusta alertas para stock bajo.
+              </Text>
+            </View>
+            {editingSection === "inventory" ? (
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={cancelEditing}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.headerButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={() => startEditing("inventory")}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.headerButtonText}>Editar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {editingSection === "inventory" ? (
+            <View style={styles.formArea}>
+              <Text style={styles.inputLabel}>Umbral de stock bajo</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="number-pad"
+                value={formLowStock}
+                onChangeText={setFormLowStock}
+                placeholder="Ej: 10"
+              />
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  savingSection === "inventory" && styles.buttonDisabled,
+                ]}
+                onPress={handleSaveInventory}
+                disabled={savingSection === "inventory"}
+                activeOpacity={0.85}
+              >
+                {savingSection === "inventory" ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Guardar cambios</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.detailList}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Umbral actual</Text>
+                <Text style={styles.detailValue}>
+                  {lowStockThreshold} unidades
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Datos del sistema</Text>
+              <Text style={styles.sectionSubtitle}>
+                Gestiona backups y restauraciones.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.quickActions}>
+            <TouchableOpacity style={styles.secondaryButtonOutline}>
+              <Text style={styles.secondaryButtonOutlineText}>
+                Exportar respaldo
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryButtonOutline}>
+              <Text style={styles.secondaryButtonOutlineText}>
+                Importar datos
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Configurar Tasa de Cambio USD → VES
-            </Text>
-            <Text style={styles.modalSubtitle}>
-              Ingresa el valor equivalente de 1 USD en Bolívares.
-            </Text>
-            <Text style={styles.modalSubtitle}>
-              Tasa actual: {rate ? `${rate.toFixed(2)} VES` : "No configurada"}
-            </Text>
-            <TextInput
-              style={styles.textInput}
-              value={inputValue}
-              onChangeText={setInputValue}
-              keyboardType="decimal-pad"
-              placeholder="Ej: 35.50"
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
-                onPress={handleSaveRate}
-              >
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={marginModalVisible}
-        onRequestClose={() => setMarginModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Configurar Margen por Defecto</Text>
-            <Text style={styles.modalSubtitle}>
-              Ingresa el porcentaje de margen por defecto para productos.
-            </Text>
-            <Text style={styles.modalSubtitle}>Margen actual: {margin}%</Text>
-            <TextInput
-              style={styles.textInput}
-              value={marginInput}
-              onChangeText={setMarginInput}
-              keyboardType="decimal-pad"
-              placeholder="Ej: 30"
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => setMarginModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
-                onPress={handleSaveMargin}
-              >
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={lowStockModalVisible}
-        onRequestClose={() => setLowStockModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Configurar Umbral de Stock Bajo
-            </Text>
-            <Text style={styles.modalSubtitle}>
-              Ingresa el número mínimo de unidades para considerar stock bajo.
-            </Text>
-            <Text style={styles.modalSubtitle}>
-              Umbral actual: {lowStockThreshold} unidades
-            </Text>
-            <TextInput
-              style={styles.textInput}
-              value={lowStockInput}
-              onChangeText={setLowStockInput}
-              keyboardType="number-pad"
-              placeholder="Ej: 10"
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => setLowStockModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
-                onPress={handleSaveLowStock}
-              >
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={businessModalVisible}
-        onRequestClose={() => setBusinessModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Información del Negocio</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Nombre del negocio"
-              value={tempBusiness.name}
-              onChangeText={(text) =>
-                setTempBusiness({ ...tempBusiness, name: text })
-              }
-            />
-            <TextInput
-              style={styles.textInput}
-              placeholder="RIF"
-              value={tempBusiness.rif}
-              onChangeText={(text) =>
-                setTempBusiness({ ...tempBusiness, rif: text })
-              }
-            />
-            <TextInput
-              style={styles.textInput}
-              placeholder="Dirección"
-              value={tempBusiness.address}
-              onChangeText={(text) =>
-                setTempBusiness({ ...tempBusiness, address: text })
-              }
-            />
-            <TextInput
-              style={styles.textInput}
-              placeholder="Teléfono"
-              value={tempBusiness.phone}
-              onChangeText={(text) =>
-                setTempBusiness({ ...tempBusiness, phone: text })
-              }
-              keyboardType="phone-pad"
-            />
-            <TextInput
-              style={styles.textInput}
-              placeholder="Email"
-              value={tempBusiness.email}
-              onChangeText={(text) =>
-                setTempBusiness({ ...tempBusiness, email: text })
-              }
-              keyboardType="email-address"
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => setBusinessModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
-                onPress={handleSaveBusiness}
-              >
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={currenciesModalVisible}
-        onRequestClose={() => setCurrenciesModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Configurar Valores de Monedas</Text>
-            <Text style={styles.inputLabel}>Valor del USD (VES):</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Valor del USD"
-              value={tempCurrencies.USD.toString()}
-              onChangeText={(text) =>
-                setTempCurrencies({ ...tempCurrencies, USD: text })
-              }
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.inputLabel}>Valor del EURO (VES):</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Valor del EURO"
-              value={tempCurrencies.EURO.toString()}
-              onChangeText={(text) =>
-                setTempCurrencies({ ...tempCurrencies, EURO: text })
-              }
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.inputLabel}>Valor del USD2 (VES):</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Valor del USD2"
-              value={tempCurrencies.USD2.toString()}
-              onChangeText={(text) =>
-                setTempCurrencies({ ...tempCurrencies, USD2: text })
-              }
-              keyboardType="decimal-pad"
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => setCurrenciesModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
-                onPress={handleSaveCurrencies}
-              >
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={ivaModalVisible}
-        onRequestClose={() => setIvaModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Configurar IVA</Text>
-            <Text style={styles.modalSubtitle}>
-              Ingresa el porcentaje de IVA.
-            </Text>
-            <Text style={styles.modalSubtitle}>IVA actual: {iva}%</Text>
-            <TextInput
-              style={styles.textInput}
-              value={ivaInput}
-              onChangeText={setIvaInput}
-              keyboardType="decimal-pad"
-              placeholder="Ej: 16"
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => setIvaModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
-                onPress={handleSaveIva}
-              >
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
-    padding: 16,
-    paddingBottom: 100,
+    backgroundColor: "#e8edf2",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
-    marginTop: 20,
+  content: {
+    padding: 24,
+    paddingBottom: 120,
+    gap: 24,
   },
-  section: {
-    marginBottom: 24,
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#e8edf2",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
   },
-  sectionTitle: {
+  loadingText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#666",
-    marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    color: "#4c5767",
   },
-  settingItem: {
+  heroCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 22,
+    flexDirection: "row",
+    gap: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  heroIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: "#f3f8ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroIconText: {
+    fontSize: 30,
+  },
+  heroInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: "#5b6472",
+    lineHeight: 20,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  summaryHint: {
+    fontSize: 12,
+    color: "#6f7c8c",
+  },
+  sectionCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 24,
+    gap: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-    elevation: 1,
   },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2633",
   },
-  settingSubtitle: {
+  sectionSubtitle: {
     fontSize: 13,
-    color: "#666",
+    color: "#6f7c8c",
     marginTop: 4,
   },
-  arrow: {
-    fontSize: 24,
-    color: "#ccc",
+  headerButton: {
+    backgroundColor: "#f0f3fa",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  headerButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#2f5ae0",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
-  modalContent: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 10,
-    width: "80%",
-    maxWidth: 400,
+  formArea: {
+    gap: 16,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 5,
-    textAlign: "center",
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    padding: 10,
-    fontSize: 16,
-    marginBottom: 20,
+  input: {
+    backgroundColor: "#f3f5fa",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    color: "#1f2633",
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 5,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
-  modalButtons: {
+  chipRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  chip: {
+    flex: 1,
+    backgroundColor: "#eef1f7",
+    borderRadius: 12,
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  chipActive: {
+    backgroundColor: "#2f5ae0",
+    shadowColor: "#2f5ae0",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#5b6472",
+  },
+  chipTextActive: {
+    color: "#fff",
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#6f7c8c",
+  },
+  inlineInputs: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  inlineInputBlock: {
+    flex: 1,
+    backgroundColor: "#f3f5fa",
+    borderRadius: 14,
+    padding: 12,
+    gap: 6,
+  },
+  inlineLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  inlineInput: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1f2633",
+  },
+  detailList: {
+    gap: 14,
+  },
+  detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
   },
-  button: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 5,
-    marginHorizontal: 5,
+  detailLabel: {
+    fontSize: 14,
+    color: "#6f7c8c",
   },
-  cancelButton: {
-    backgroundColor: "#f5f5f5",
+  detailValue: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1f2633",
+    textAlign: "right",
+    flexShrink: 1,
+    marginLeft: 12,
   },
-  cancelButtonText: {
-    textAlign: "center",
-    color: "#333",
+  divider: {
+    height: 1,
+    backgroundColor: "#e4e9f2",
+    marginVertical: 4,
   },
-  saveButton: {
-    backgroundColor: "#007bff",
+  primaryButton: {
+    backgroundColor: "#1f9254",
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
   },
-  saveButtonText: {
-    textAlign: "center",
+  primaryButtonText: {
     color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+    letterSpacing: 0.4,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  quickActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  secondaryButtonOutline: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#d5dbe7",
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  secondaryButtonOutlineText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2f5ae0",
   },
 });
 
