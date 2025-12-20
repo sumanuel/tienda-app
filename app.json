@@ -3,7 +3,6 @@
     "name": "Tienda POS",
     "slug": "tienda-app",
     "version": "1.0.0",
-    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +12,9 @@
       "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
-      "**/*"
+      "assets/images/*",
+      "assets/fonts/*",
+      "assets/*.png"
     ],
     "ios": {
       "supportsTablet": true,
