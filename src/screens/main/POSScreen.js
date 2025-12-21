@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
   },
   listHeader: {
     gap: 20,
-    paddingTop: 16,
+    paddingTop: 4,
     paddingBottom: 12,
     alignItems: "stretch",
   },
