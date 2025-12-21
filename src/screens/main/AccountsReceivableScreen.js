@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   } = useAccounts();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("pending");
 
   const handleSearch = useCallback(
     async (query) => {
@@ -38,6 +39,16 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     },
     [refresh, searchReceivable]
   );
+
+  // Filtrar cuentas basado en el tab activo
+  const filteredAccounts = useMemo(() => {
+    if (activeTab === "pending") {
+      return accountsReceivable.filter((account) => account.status !== "paid");
+    } else if (activeTab === "paid") {
+      return accountsReceivable.filter((account) => account.status === "paid");
+    }
+    return accountsReceivable;
+  }, [accountsReceivable, activeTab]);
 
   const openAddScreen = useCallback(() => {
     navigation.navigate("AddAccountReceivable");
@@ -248,6 +259,29 @@ export const AccountsReceivableScreen = ({ navigation }) => {
           />
         </View>
       </View>
+
+      <View style={styles.tabGroup}>
+        {[
+          { key: "pending", label: "Pendientes" },
+          { key: "paid", label: "Pagadas" },
+        ].map((tab) => {
+          const active = activeTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tabChip, active && styles.tabChipActive]}
+              onPress={() => setActiveTab(tab.key)}
+              activeOpacity={0.85}
+            >
+              <Text
+                style={[styles.tabChipText, active && styles.tabChipTextActive]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 
@@ -298,7 +332,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <FlatList
-        data={accountsReceivable}
+        data={filteredAccounts}
         renderItem={renderAccount}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
@@ -619,6 +653,35 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: "#fff",
     fontWeight: "bold",
+  },
+  tabGroup: {
+    flexDirection: "row",
+    backgroundColor: "#f3f5fa",
+    borderRadius: 16,
+    padding: 8,
+    gap: 8,
+  },
+  tabChip: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  tabChipActive: {
+    backgroundColor: "#2f5ae0",
+    shadowColor: "#2f5ae0",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  tabChipText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#5b6472",
+  },
+  tabChipTextActive: {
+    color: "#fff",
   },
 });
 
