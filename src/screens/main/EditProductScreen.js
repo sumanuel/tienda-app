@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-    paddingVertical: 24,
+    paddingTop: 0,
     paddingBottom: 70,
     gap: 24,
   },

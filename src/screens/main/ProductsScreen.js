@@ -286,6 +286,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 120,
     gap: 16,
   },
