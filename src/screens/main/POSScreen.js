@@ -947,9 +947,9 @@ const styles = StyleSheet.create({
     color: "#4c5767",
   },
   listHeader: {
-    gap: 24,
+    gap: 16,
     paddingHorizontal: 0,
-    paddingTop: 24,
+    paddingTop: 0,
     paddingBottom: 12,
     alignItems: "stretch",
   },
