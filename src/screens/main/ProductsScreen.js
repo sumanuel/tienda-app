@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   priceTagLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: "#155724",
     textTransform: "uppercase",
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   priceTagValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: "#155724",
     textAlign: "center",
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   priceTagSecondaryLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: "#6c757d",
     textTransform: "uppercase",
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   priceTagSecondaryValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: "#495057",
     textAlign: "center",
