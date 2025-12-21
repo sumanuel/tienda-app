@@ -235,7 +235,7 @@ export const EditProductScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        <View style={styles.summaryCard}>
+        {/* <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Precio sugerido (USD)</Text>
@@ -258,7 +258,7 @@ export const EditProductScreen = ({ navigation, route }) => {
               ? ` • Tasa ${pricingSummary.rate.toFixed(2)}`
               : ""}
           </Text>
-        </View>
+        </View> */}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Detalles del producto</Text>
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-    paddingTop: 0,
+    paddingTop: 16,
     paddingBottom: 70,
     gap: 24,
   },
