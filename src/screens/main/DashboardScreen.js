@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: "column",
     gap: 16,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     marginBottom: 8,
   },
   statsRow: {

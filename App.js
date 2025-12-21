@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  createNavigationContainerRef,
+} from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import {
@@ -46,10 +49,12 @@ import { initSampleProducts } from "./src/services/database/products";
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const navigationRef = createNavigationContainerRef();
+
 /**
  * Tabs de navegación principal
  */
-function MainTabs({ navigation }) {
+function MainTabs() {
   const insets = useSafeAreaInsets();
   const [showAccountsMenu, setShowAccountsMenu] = useState(false);
   const [showFichaMenu, setShowFichaMenu] = useState(false);
@@ -58,7 +63,9 @@ function MainTabs({ navigation }) {
   const handleNavigate = (routeName) => {
     setShowAccountsMenu(false);
     setShowFichaMenu(false);
-    navigation.navigate(routeName);
+    if (navigationRef.isReady()) {
+      navigationRef.navigate(routeName);
+    }
   };
 
   return (
@@ -72,7 +79,14 @@ function MainTabs({ navigation }) {
             height: 60 + insets.bottom,
             paddingTop: 5,
           },
-          headerShown: false,
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: "#4CAF50",
+          },
+          headerTintColor: "#fff",
+          headerTitleStyle: {
+            fontWeight: "bold",
+          },
         }}
       >
         <Tab.Screen
@@ -81,6 +95,7 @@ function MainTabs({ navigation }) {
           options={{
             tabBarLabel: "Inicio",
             tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🏠</Text>,
+            headerShown: false,
           }}
         />
         <Tab.Screen
@@ -89,6 +104,7 @@ function MainTabs({ navigation }) {
           options={{
             tabBarLabel: "Cuentas",
             tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>💼</Text>,
+            title: "Punto de venta",
           }}
           listeners={{
             tabPress: (e) => {
@@ -104,6 +120,7 @@ function MainTabs({ navigation }) {
           options={{
             tabBarLabel: "Ficha",
             tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📂</Text>,
+            title: "Historial de ventas",
           }}
           listeners={{
             tabPress: (e) => {
@@ -119,6 +136,72 @@ function MainTabs({ navigation }) {
           options={{
             tabBarLabel: "Ajustes",
             tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚙️</Text>,
+            title: "Configuraciones",
+          }}
+        />
+
+        {/* Screens accesibles desde menús, ocultas del tab bar (mantienen header + tab bar) */}
+        <Tab.Screen
+          name="ExchangeRate"
+          component={ExchangeRateScreen}
+          options={{
+            title: "Tasa de cambio",
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        />
+        <Tab.Screen
+          name="Products"
+          component={ProductsScreen}
+          options={{
+            title: "Productos",
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        />
+        <Tab.Screen
+          name="Suppliers"
+          component={SuppliersScreen}
+          options={{
+            title: "Proveedores",
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        />
+        <Tab.Screen
+          name="Customers"
+          component={CustomersScreen}
+          options={{
+            title: "Clientes",
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        />
+        <Tab.Screen
+          name="AccountsReceivable"
+          component={AccountsReceivableScreen}
+          options={{
+            title: "Cuentas por cobrar",
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        />
+        <Tab.Screen
+          name="AccountsPayable"
+          component={AccountsPayableScreen}
+          options={{
+            title: "Cuentas por pagar",
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        />
+        <Tab.Screen
+          name="Capital"
+          component={CapitalScreen}
+          options={{
+            title: "Capital",
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
           }}
         />
       </Tab.Navigator>
@@ -313,40 +396,12 @@ export default function App() {
 
   return (
     <ExchangeRateProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator>
           <Stack.Screen
             name="Main"
             component={MainTabs}
             options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="ExchangeRate"
-            component={ExchangeRateScreen}
-            options={{
-              title: "Tasa de Cambio",
-              headerStyle: {
-                backgroundColor: "#4CAF50",
-              },
-              headerTintColor: "#fff",
-              headerTitleStyle: {
-                fontWeight: "bold",
-              },
-            }}
-          />
-          <Stack.Screen
-            name="Products"
-            component={ProductsScreen}
-            options={{
-              title: "Productos",
-              headerStyle: {
-                backgroundColor: "#4CAF50",
-              },
-              headerTintColor: "#fff",
-              headerTitleStyle: {
-                fontWeight: "bold",
-              },
-            }}
           />
           <Stack.Screen
             name="AddProduct"
@@ -433,48 +488,6 @@ export default function App() {
             }}
           />
           <Stack.Screen
-            name="Customers"
-            component={CustomersScreen}
-            options={{
-              title: "Clientes",
-              headerStyle: {
-                backgroundColor: "#4CAF50",
-              },
-              headerTintColor: "#fff",
-              headerTitleStyle: {
-                fontWeight: "bold",
-              },
-            }}
-          />
-          <Stack.Screen
-            name="Suppliers"
-            component={SuppliersScreen}
-            options={{
-              title: "Proveedores",
-              headerStyle: {
-                backgroundColor: "#4CAF50",
-              },
-              headerTintColor: "#fff",
-              headerTitleStyle: {
-                fontWeight: "bold",
-              },
-            }}
-          />
-          <Stack.Screen
-            name="AccountsReceivable"
-            component={AccountsReceivableScreen}
-            options={{
-              title: "Cuentas por Cobrar",
-              headerStyle: {
-                backgroundColor: "#4CAF50",
-              },
-              headerTintColor: "#fff",
-              headerTitleStyle: {
-                fontWeight: "bold",
-              },
-            }}
-          />
-          <Stack.Screen
             name="AddAccountReceivable"
             component={AddAccountReceivableScreen}
             options={{
@@ -493,34 +506,6 @@ export default function App() {
             component={EditAccountReceivableScreen}
             options={{
               title: "Editar Cuenta por Cobrar",
-              headerStyle: {
-                backgroundColor: "#4CAF50",
-              },
-              headerTintColor: "#fff",
-              headerTitleStyle: {
-                fontWeight: "bold",
-              },
-            }}
-          />
-          <Stack.Screen
-            name="AccountsPayable"
-            component={AccountsPayableScreen}
-            options={{
-              title: "Cuentas por Pagar",
-              headerStyle: {
-                backgroundColor: "#4CAF50",
-              },
-              headerTintColor: "#fff",
-              headerTitleStyle: {
-                fontWeight: "bold",
-              },
-            }}
-          />
-          <Stack.Screen
-            name="Capital"
-            component={CapitalScreen}
-            options={{
-              title: "Capital",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },
