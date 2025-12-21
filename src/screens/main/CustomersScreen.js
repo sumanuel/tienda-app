@@ -217,7 +217,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 120,
-    gap: 16,
   },
   headerContent: {
     gap: 24,
@@ -341,6 +340,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
     gap: 16,
+    marginBottom: 12,
   },
   cardBody: {
     flex: 1,
