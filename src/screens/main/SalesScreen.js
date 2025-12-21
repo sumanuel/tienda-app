@@ -638,6 +638,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#2f3a4c",
   },
+  quickFilters: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  quickFilter: {
+    backgroundColor: "#f8f9fc",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#d9e0eb",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: "center",
+    flex: 1,
+  },
   quickFilterText: {
     color: "#2f5ae0",
     fontWeight: "600",
