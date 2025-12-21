@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSales } from "../../hooks/useSales";
+import { formatCurrency } from "../../utils/currency";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 /**
@@ -98,14 +99,6 @@ export const SalesScreen = () => {
       total,
     };
   }, [activeTab, todayStats, filteredSales]);
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat("es-VE", {
-      style: "currency",
-      currency: "VES",
-      minimumFractionDigits: 2,
-    }).format(value || 0);
-  };
 
   const handleShowDetails = async (sale) => {
     try {
@@ -237,7 +230,7 @@ export const SalesScreen = () => {
         </View>
         <View style={styles.saleAmountBadge}>
           <Text style={styles.saleAmountText}>
-            {formatCurrency(item.total)}
+            {formatCurrency(item.total, "VES")}
           </Text>
         </View>
       </View>
@@ -270,11 +263,11 @@ export const SalesScreen = () => {
       <View style={styles.detailItemInfo}>
         <Text style={styles.detailItemName}>{item.productName}</Text>
         <Text style={styles.detailItemQuantity}>
-          {item.quantity} × {formatCurrency(item.price)}
+          {item.quantity} × {formatCurrency(item.price, "VES")}
         </Text>
       </View>
       <Text style={styles.detailItemTotal}>
-        {formatCurrency(item.subtotal)}
+        {formatCurrency(item.subtotal, "VES")}
       </Text>
     </View>
   );
@@ -455,7 +448,7 @@ export const SalesScreen = () => {
               </View>
               <View style={styles.detailAmountChip}>
                 <Text style={styles.detailAmountText}>
-                  {formatCurrency(selectedSale.total)}
+                  {formatCurrency(selectedSale.total, "VES")}
                 </Text>
               </View>
             </View>
