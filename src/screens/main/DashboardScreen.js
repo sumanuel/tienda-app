@@ -14,6 +14,7 @@ import { useCustomers } from "../../hooks/useCustomers";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import { useAccounts } from "../../hooks/useAccounts";
 import { getSettings } from "../../services/database/settings";
+import { formatCurrency } from "../../utils/currency";
 import RateDisplay from "../../components/exchange/RateDisplay";
 
 /**
@@ -109,7 +110,7 @@ export const DashboardScreen = ({ navigation }) => {
         <Text style={styles.lastSession}>Última Sesión: {formatDate()}</Text>
         <View style={styles.currencyButtons}>
           <TouchableOpacity style={styles.currencyButtonActive}>
-            <Text style={styles.currencyButtonTextActive}>VES (Bs.)</Text>
+            <Text style={styles.currencyButtonTextActive}>VES</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.currencyButton}
@@ -142,11 +143,7 @@ export const DashboardScreen = ({ navigation }) => {
         <View style={styles.balanceSection}>
           <Text style={styles.balanceLabel}>TOTAL DE VENTAS</Text>
           <Text style={styles.balanceAmount}>
-            Bs.{" "}
-            {(todayStats?.total || 0).toLocaleString("es-VE", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            {formatCurrency(todayStats?.total || 0, "VES")}
           </Text>
           <Text style={styles.salesCount}>
             {todayStats?.count || 0}{" "}
@@ -175,7 +172,7 @@ export const DashboardScreen = ({ navigation }) => {
             <Text style={styles.statIcon}>💱</Text>
             <Text style={styles.statLabel}>Tasa de Cambio</Text>
             <Text style={styles.statValue}>
-              {rate ? `${rate.toFixed(2)} Bs.` : "Cargando..."}
+              {rate ? `${rate.toFixed(2)} VES.` : "Cargando..."}
             </Text>
           </TouchableOpacity>
 
@@ -199,7 +196,7 @@ export const DashboardScreen = ({ navigation }) => {
             <Text style={styles.statIcon}>📈</Text>
             <Text style={styles.statLabel}>Por Cobrar</Text>
             <Text style={styles.statValue}>
-              {(receivableStats?.pending || 0).toFixed(2)} Bs.
+              {formatCurrency(receivableStats?.pending || 0, "VES")}
             </Text>
             {(receivableStats?.overdue || 0) > 0 && (
               <Text style={styles.statWarning}>
@@ -216,7 +213,7 @@ export const DashboardScreen = ({ navigation }) => {
             <Text style={styles.statIcon}>📉</Text>
             <Text style={styles.statLabel}>Por Pagar</Text>
             <Text style={styles.statValue}>
-              {(payableStats?.pending || 0).toFixed(2)} Bs.
+              {formatCurrency(payableStats?.pending || 0, "VES")}
             </Text>
             {(payableStats?.overdue || 0) > 0 && (
               <Text style={styles.statWarning}>
