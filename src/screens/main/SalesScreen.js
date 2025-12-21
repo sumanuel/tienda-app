@@ -517,9 +517,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8edf2",
   },
   listContent: {
-    padding: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 110,
-    gap: 18,
   },
   headerContent: {
     gap: 24,
@@ -654,6 +654,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 4,
+    marginBottom: 12,
   },
   saleHeader: {
     flexDirection: "row",
