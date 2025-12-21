@@ -145,13 +145,16 @@ export const ProductsScreen = ({ navigation }) => {
             <View style={styles.priceTag}>
               <Text style={styles.priceTagLabel}>USD</Text>
               <Text style={styles.priceTagValue}>
-                {formatCurrency(priceUSD, "USD")}
+                {formatCurrency(priceUSD, "USD", false)}
               </Text>
             </View>
             {appliedRate ? (
-              <Text style={styles.priceSecondaryMuted}>
-                {formatCurrency(priceVES, "VES")}
-              </Text>
+              <View style={styles.priceTagSecondary}>
+                <Text style={styles.priceTagSecondaryLabel}>VES</Text>
+                <Text style={styles.priceTagSecondaryValue}>
+                  {formatCurrency(priceVES, "VES", false)}
+                </Text>
+              </View>
             ) : (
               <Text style={styles.priceSecondary}>
                 Define una tasa para ver VES
@@ -463,32 +466,51 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   priceTag: {
-    backgroundColor: "#1f9254",
+    backgroundColor: "#d4edda",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     minWidth: 110,
+    justifyContent: "center",
   },
   priceTagLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#ecf4ef",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#155724",
     textTransform: "uppercase",
     letterSpacing: 0.6,
+    textAlign: "center",
   },
   priceTagValue: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#fff",
+    color: "#155724",
+  },
+  priceTagSecondary: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: 110,
+    flex: 1,
+    justifyContent: "center",
+  },
+  priceTagSecondaryLabel: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#6c757d",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    textAlign: "center",
+  },
+  priceTagSecondaryValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#495057",
   },
   priceSecondary: {
     fontSize: 13,
     color: "#4c5767",
-    flex: 1,
-  },
-  priceSecondaryMuted: {
-    fontSize: 13,
-    color: "#8692a6",
     flex: 1,
   },
   productFooter: {
