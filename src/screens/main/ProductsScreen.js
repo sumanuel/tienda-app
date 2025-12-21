@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   headerContent: {
-    gap: 24,
+    gap: 18,
     marginBottom: 8,
   },
   heroCard: {
