@@ -81,16 +81,12 @@ export const ExchangeRateScreen = () => {
           </View>
         </View>
 
-        <View style={styles.moduleCard}>
-          <Text style={styles.moduleTitle}>Referencia visual</Text>
-          <Text style={styles.moduleSubtitle}>{formattedLastUpdate}</Text>
-          <RateDisplay
-            rate={rate}
-            source="BCV"
-            lastUpdate={lastUpdate}
-            style={styles.rateDisplay}
-          />
-        </View>
+        <RateDisplay
+          rate={rate}
+          source="BCV"
+          lastUpdate={lastUpdate}
+          style={styles.rateDisplay}
+        />
 
         <View style={styles.manualCard}>
           <Text style={styles.manualTitle}>Actualizar manualmente</Text>
@@ -125,10 +121,7 @@ export const ExchangeRateScreen = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.moduleCard}>
-          <Text style={styles.moduleTitle}>Conversor rápido</Text>
-          <CurrencyConverter exchangeRate={rate} style={styles.converter} />
-        </View>
+        <CurrencyConverter exchangeRate={rate} style={styles.converter} />
       </ScrollView>
     </SafeAreaView>
   );
