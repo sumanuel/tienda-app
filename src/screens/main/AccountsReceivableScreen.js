@@ -43,9 +43,15 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   // Filtrar cuentas basado en el tab activo
   const filteredAccounts = useMemo(() => {
     if (activeTab === "pending") {
-      return accountsReceivable.filter((account) => account.status !== "paid");
+      return accountsReceivable.filter((account) => {
+        const paidAmount = account.paidAmount || 0;
+        return account.status !== "paid" && paidAmount < account.amount;
+      });
     } else if (activeTab === "paid") {
-      return accountsReceivable.filter((account) => account.status === "paid");
+      return accountsReceivable.filter((account) => {
+        const paidAmount = account.paidAmount || 0;
+        return account.status === "paid" || paidAmount >= account.amount;
+      });
     }
     return accountsReceivable;
   }, [accountsReceivable, activeTab]);
@@ -57,6 +63,13 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   const openEditScreen = useCallback(
     (account) => {
       navigation.navigate("EditAccountReceivable", { account });
+    },
+    [navigation]
+  );
+
+  const openRecordPaymentScreen = useCallback(
+    (account) => {
+      navigation.navigate("RecordPayment", { account });
     },
     [navigation]
   );
@@ -174,9 +187,29 @@ export const AccountsReceivableScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.amountRow}>
-            <Text style={styles.amount}>
-              {formatCurrency(item.amount || 0, item.currency || "VES")}
-            </Text>
+            <View style={styles.amountContainer}>
+              <Text style={styles.amount}>
+                {formatCurrency(item.amount || 0, item.currency || "VES")}
+              </Text>
+              {(item.paidAmount || 0) > 0 && (
+                <View style={styles.paymentInfo}>
+                  <Text style={styles.paidText}>
+                    Pagado:{" "}
+                    {formatCurrency(
+                      item.paidAmount || 0,
+                      item.currency || "VES"
+                    )}
+                  </Text>
+                  <Text style={styles.pendingText}>
+                    Pendiente:{" "}
+                    {formatCurrency(
+                      Math.max(0, (item.amount || 0) - (item.paidAmount || 0)),
+                      item.currency || "VES"
+                    )}
+                  </Text>
+                </View>
+              )}
+            </View>
             {item.dueDate ? (
               <Text style={styles.dueDate}>
                 Vence {new Date(item.dueDate).toLocaleDateString()}
@@ -202,14 +235,19 @@ export const AccountsReceivableScreen = ({ navigation }) => {
           ) : null}
 
           <View style={styles.cardFooter}>
-            {item.status !== "paid" ? (
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => handleMarkAsPaid(item)}
-              >
-                <Text style={styles.secondaryButtonText}>Registrar pago</Text>
-              </TouchableOpacity>
-            ) : null}
+            {(() => {
+              const paidAmount = item.paidAmount || 0;
+              const isFullyPaid =
+                item.status === "paid" || paidAmount >= item.amount;
+              return !isFullyPaid ? (
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => openRecordPaymentScreen(item)}
+                >
+                  <Text style={styles.secondaryButtonText}>Registrar pago</Text>
+                </TouchableOpacity>
+              ) : null;
+            })()}
 
             <TouchableOpacity
               style={[
@@ -224,7 +262,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         </TouchableOpacity>
       );
     },
-    [getStatusAppearance, handleDelete, handleMarkAsPaid, openEditScreen]
+    [getStatusAppearance, handleDelete, openRecordPaymentScreen, openEditScreen]
   );
 
   const renderHeader = () => (
@@ -682,6 +720,22 @@ const styles = StyleSheet.create({
   },
   tabChipTextActive: {
     color: "#fff",
+  },
+  amountContainer: {
+    flex: 1,
+  },
+  paymentInfo: {
+    marginTop: 4,
+  },
+  paidText: {
+    fontSize: 12,
+    color: "#48bb78",
+    fontWeight: "500",
+  },
+  pendingText: {
+    fontSize: 12,
+    color: "#e53e3e",
+    fontWeight: "500",
   },
 });
 

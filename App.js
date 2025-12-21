@@ -36,6 +36,7 @@ import { EditSupplierScreen } from "./src/screens/main/EditSupplierScreen";
 import AccountsReceivableScreen from "./src/screens/main/AccountsReceivableScreen";
 import AddAccountReceivableScreen from "./src/screens/main/AddAccountReceivableScreen";
 import EditAccountReceivableScreen from "./src/screens/main/EditAccountReceivableScreen";
+import { RecordPaymentScreen } from "./src/screens/main/RecordPaymentScreen";
 import AccountsPayableScreen from "./src/screens/main/AccountsPayableScreen";
 import AddAccountPayableScreen from "./src/screens/main/AddAccountPayableScreen";
 import EditAccountPayableScreen from "./src/screens/main/EditAccountPayableScreen";
@@ -508,6 +509,20 @@ export default function App() {
               title: "Editar Cuenta por Cobrar",
               headerStyle: {
                 backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="RecordPayment"
+            component={RecordPaymentScreen}
+            options={{
+              title: "Registrar Pago",
+              headerStyle: {
+                backgroundColor: "#2f5ae0",
               },
               headerTintColor: "#fff",
               headerTitleStyle: {

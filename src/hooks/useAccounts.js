@@ -14,6 +14,9 @@ import {
   deleteAccountPayable,
   searchAccountsReceivable,
   searchAccountsPayable,
+  recordAccountPayment,
+  getAccountPayments,
+  getAccountBalance,
 } from "../services/database/accounts";
 
 /**
@@ -204,6 +207,34 @@ export const useAccounts = () => {
     [refresh]
   );
 
+  const recordPayment = useCallback(
+    async (accountId, paymentData) => {
+      try {
+        await recordAccountPayment(accountId, paymentData);
+        await refresh();
+      } catch (error) {
+        throw error;
+      }
+    },
+    [refresh]
+  );
+
+  const getPayments = useCallback(async (accountId) => {
+    try {
+      return await getAccountPayments(accountId);
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
+  const getBalance = useCallback(async (accountId) => {
+    try {
+      return await getAccountBalance(accountId);
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
   return {
     accountsReceivable,
     accountsPayable,
@@ -220,6 +251,10 @@ export const useAccounts = () => {
     editAccountReceivable,
     removeAccountReceivable,
     markReceivableAsPaid,
+    // Payment management
+    recordPayment,
+    getPayments,
+    getBalance,
     // Accounts payable CRUD
     addAccountPayable,
     editAccountPayable,

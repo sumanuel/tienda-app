@@ -123,6 +123,20 @@ export const initAllTables = async () => {
           FOREIGN KEY (supplierId) REFERENCES suppliers (id)
         );
 
+        -- Tabla de pagos de cuentas por cobrar
+        CREATE TABLE IF NOT EXISTS account_payments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          accountId INTEGER NOT NULL,
+          accountType TEXT NOT NULL, -- 'receivable' o 'payable'
+          amount REAL NOT NULL,
+          paymentMethod TEXT NOT NULL,
+          paymentDate TEXT DEFAULT CURRENT_TIMESTAMP,
+          reference TEXT,
+          notes TEXT,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (accountId) REFERENCES accounts_receivable (id) ON DELETE CASCADE
+        );
+
         -- Tabla de tasas de cambio
         CREATE TABLE IF NOT EXISTS exchange_rates (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -211,6 +225,20 @@ const runMigrations = async () => {
       console.log("invoiceNumber column added successfully");
     } else {
       console.log("invoiceNumber column already exists");
+    }
+
+    // Verificar y agregar columna paidAmount a accounts_receivable
+    const hasPaidAmount = receivableColumns.some(
+      (col) => col.name === "paidAmount"
+    );
+    if (!hasPaidAmount) {
+      console.log("Adding paidAmount column to accounts_receivable table...");
+      await db.runAsync(
+        "ALTER TABLE accounts_receivable ADD COLUMN paidAmount REAL DEFAULT 0"
+      );
+      console.log("paidAmount column added successfully");
+    } else {
+      console.log("paidAmount column already exists");
     }
 
     // Verificar y agregar columnas faltantes a accounts_payable

@@ -279,6 +279,98 @@ export const deleteAccountPayable = async (id) => {
   }
 };
 
+/**
+ * Registra un pago parcial para una cuenta por cobrar
+ */
+export const recordAccountPayment = async (accountId, paymentData) => {
+  try {
+    const { amount, paymentMethod, paymentDate, reference, notes } =
+      paymentData;
+
+    // Insertar el pago
+    await db.runAsync(
+      `INSERT INTO account_payments (accountId, accountType, amount, paymentMethod, paymentDate, reference, notes)
+       VALUES (?, 'receivable', ?, ?, ?, ?, ?)`,
+      [
+        accountId,
+        amount,
+        paymentMethod,
+        paymentDate || new Date().toISOString(),
+        reference || "",
+        notes || "",
+      ]
+    );
+
+    // Actualizar el monto pagado en la cuenta
+    await db.runAsync(
+      `UPDATE accounts_receivable
+       SET paidAmount = COALESCE(paidAmount, 0) + ?, updatedAt = datetime('now')
+       WHERE id = ?`,
+      [amount, accountId]
+    );
+
+    // Verificar si la cuenta está completamente pagada
+    const account = await db.getFirstAsync(
+      `SELECT amount, paidAmount FROM accounts_receivable WHERE id = ?`,
+      [accountId]
+    );
+
+    if (account && account.paidAmount >= account.amount) {
+      await db.runAsync(
+        `UPDATE accounts_receivable
+         SET status = 'paid', paidAt = datetime('now'), updatedAt = datetime('now')
+         WHERE id = ?`,
+        [accountId]
+      );
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Obtiene todos los pagos de una cuenta por cobrar
+ */
+export const getAccountPayments = async (accountId) => {
+  try {
+    const result = await db.getAllAsync(
+      `SELECT * FROM account_payments
+       WHERE accountId = ? AND accountType = 'receivable'
+       ORDER BY paymentDate DESC`,
+      [accountId]
+    );
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Calcula el saldo pendiente de una cuenta por cobrar
+ */
+export const getAccountBalance = async (accountId) => {
+  try {
+    const account = await db.getFirstAsync(
+      `SELECT amount, COALESCE(paidAmount, 0) as paidAmount FROM accounts_receivable WHERE id = ?`,
+      [accountId]
+    );
+
+    if (!account) {
+      throw new Error("Cuenta no encontrada");
+    }
+
+    const balance = account.amount - account.paidAmount;
+    return {
+      totalAmount: account.amount,
+      paidAmount: account.paidAmount,
+      balance: Math.max(0, balance), // No permitir saldos negativos
+      isPaid: balance <= 0,
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
 export default {
   getAllAccountsReceivable,
   searchAccountsReceivable,
@@ -293,4 +385,7 @@ export default {
   markAccountPayableAsPaid,
   deleteAccountReceivable,
   deleteAccountPayable,
+  recordAccountPayment,
+  getAccountPayments,
+  getAccountBalance,
 };
