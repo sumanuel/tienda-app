@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8edf2",
   },
   list: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 120,
     gap: 16,
   },

@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     color: "#4c5767",
   },
   list: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 120,
     gap: 16,
   },
