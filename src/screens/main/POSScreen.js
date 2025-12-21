@@ -1041,7 +1041,7 @@ const styles = StyleSheet.create({
     color: "#1f2633",
   },
   productsContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 140,
     gap: 16,
