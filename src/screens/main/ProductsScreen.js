@@ -214,7 +214,7 @@ export const ProductsScreen = ({ navigation }) => {
         <View style={[styles.metricCard, styles.metricCardHighlight]}>
           <Text style={styles.metricLabel}>Inventario USD</Text>
           <Text style={styles.metricValue}>
-            {formatCurrency(metrics.totalInventoryUSD, "USD")}
+            {formatCurrency(metrics.totalInventoryUSD, "USD", false)}
           </Text>
           <Text style={styles.metricHint}>Valor estimado en dólares</Text>
         </View>
@@ -222,7 +222,7 @@ export const ProductsScreen = ({ navigation }) => {
         <View style={styles.metricCard}>
           <Text style={styles.metricLabel}>Inventario en VES</Text>
           <Text style={styles.metricValue}>
-            {formatCurrency(metrics.totalInventoryVES, "VES")}
+            {formatCurrency(metrics.totalInventoryVES, "VES", false)}
           </Text>
           <Text style={styles.metricHint}>Estimado con tasa vigente</Text>
         </View>
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   metricValue: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: "700",
     color: "#1f2633",
   },
