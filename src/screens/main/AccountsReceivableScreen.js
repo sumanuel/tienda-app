@@ -247,10 +247,6 @@ export const AccountsReceivableScreen = ({ navigation }) => {
             returnKeyType="search"
           />
         </View>
-
-        <TouchableOpacity style={styles.primaryButton} onPress={openAddScreen}>
-          <Text style={styles.primaryButtonText}>+ Nueva cuenta</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -312,6 +308,14 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         refreshing={loading}
         onRefresh={refresh}
       />
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={openAddScreen}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -594,6 +598,27 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#2f5ae0",
     textTransform: "uppercase",
+  },
+  fab: {
+    position: "absolute",
+    bottom: 80,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#4CAF50",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabIcon: {
+    fontSize: 28,
+    color: "#fff",
+    fontWeight: "bold",
   },
 });
 
