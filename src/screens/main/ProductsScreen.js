@@ -485,6 +485,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#155724",
+    textAlign: "center",
   },
   priceTagSecondary: {
     backgroundColor: "#f8f9fa",
@@ -507,6 +508,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#495057",
+    textAlign: "center",
   },
   priceSecondary: {
     fontSize: 13,
