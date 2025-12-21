@@ -182,76 +182,216 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Text style={styles.title}>Editar Cuenta por Pagar</Text>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.heroCard}>
+            <View style={styles.heroIcon}>
+              <Text style={styles.heroIconText}>💰</Text>
+            </View>
+            <View style={styles.heroTextContainer}>
+              <Text style={styles.heroTitle}>Editar cuenta por pagar</Text>
+              <Text style={styles.heroSubtitle}>
+                Modifica los detalles de la obligación al proveedor.
+              </Text>
+            </View>
+          </View>
 
-          <View style={styles.form}>
-            <Text style={styles.label}>Cédula del Proveedor</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Datos del proveedor</Text>
+            <Text style={styles.sectionHint}>
+              La cédula intentará autocompletar el nombre del proveedor
+              existente.
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.label}>Cédula del proveedor *</Text>
             <TextInput
               style={styles.input}
+              placeholder="Ej: J123456789"
+              placeholderTextColor="#9aa2b1"
               value={formData.documentNumber}
               onChangeText={handleDocumentChange}
-              placeholder="Ingrese cédula"
               keyboardType="numeric"
             />
 
-            <Text style={styles.label}>Nombre del Proveedor</Text>
+            <Text style={styles.label}>Nombre completo *</Text>
             <TextInput
               style={styles.input}
+              placeholder="Ingresa el nombre"
+              placeholderTextColor="#9aa2b1"
               value={formData.supplierName}
               onChangeText={(value) => updateFormData("supplierName", value)}
-              placeholder="Nombre del proveedor"
+              autoCapitalize="words"
             />
+          </View>
 
-            <Text style={styles.label}>Monto (VES)</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Detalle de la cuenta</Text>
+            <Text style={styles.sectionHint}>
+              Usa montos positivos. Puedes asociar la factura para un mejor
+              seguimiento.
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.label}>Monto *</Text>
             <TextInput
               style={styles.input}
+              placeholder="0.00"
+              placeholderTextColor="#9aa2b1"
               value={formData.amount}
               onChangeText={(value) => updateFormData("amount", value)}
-              placeholder="0.00"
               keyboardType="numeric"
             />
 
             <Text style={styles.label}>Descripción</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
+              placeholder="Describe el motivo de la cuenta"
+              placeholderTextColor="#9aa2b1"
               value={formData.description}
               onChangeText={(value) => updateFormData("description", value)}
-              placeholder="Descripción de la cuenta"
               multiline
               numberOfLines={3}
             />
 
-            <Text style={styles.label}>Fecha de Vencimiento</Text>
+            <Text style={styles.label}>Número de factura (opcional)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ingresa el número de factura"
+              placeholderTextColor="#9aa2b1"
+              value={formData.invoiceNumber}
+              onChangeText={(value) => updateFormData("invoiceNumber", value)}
+            />
+
+            <Text style={styles.label}>Fecha de vencimiento *</Text>
             <TouchableOpacity
-              style={styles.dateInput}
+              style={[styles.input, styles.datePickerTrigger]}
               onPress={showDatePickerModal}
             >
-              <Text style={styles.dateText}>
-                {formData.dueDate || "Seleccionar fecha"}
+              <Text
+                style={
+                  formData.dueDate ? styles.dateText : styles.datePlaceholder
+                }
+              >
+                {formData.dueDate || "Selecciona la fecha"}
               </Text>
             </TouchableOpacity>
+            {formData.dueDate ? (
+              <Text style={styles.helperInfo}>
+                Programar recordatorios con anticipación ayuda a reducir la
+                morosidad.
+              </Text>
+            ) : null}
           </View>
 
-          <View style={styles.buttonContainer}>
+          <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.actionButton, styles.secondaryButton]}
               onPress={() => navigation.goBack()}
             >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
+              <Text style={styles.secondaryButtonText}>Cancelar</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-              <Text style={styles.saveButtonText}>Guardar</Text>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.primaryButton]}
+              onPress={handleSave}
+            >
+              <Text style={styles.primaryButtonText}>Actualizar cuenta</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <DatePickerModal />
+      <Modal
+        visible={showDatePicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.datePickerModal}>
+            <Text style={styles.modalTitle}>
+              Selecciona la fecha de vencimiento
+            </Text>
+
+            <View style={styles.datePickerContainer}>
+              <View style={styles.dateRow}>
+                <Text style={styles.dateLabel}>Día</Text>
+                <TextInput
+                  style={styles.dateInputSmall}
+                  value={selectedDate.getDate().toString()}
+                  onChangeText={(text) => {
+                    const day = parseInt(text, 10) || 1;
+                    const newDate = new Date(selectedDate);
+                    newDate.setDate(Math.min(day, 31));
+                    setSelectedDate(newDate);
+                  }}
+                  keyboardType="numeric"
+                  maxLength={2}
+                />
+              </View>
+
+              <View style={styles.dateRow}>
+                <Text style={styles.dateLabel}>Mes</Text>
+                <TextInput
+                  style={styles.dateInputSmall}
+                  value={(selectedDate.getMonth() + 1).toString()}
+                  onChangeText={(text) => {
+                    const month = parseInt(text, 10) || 1;
+                    const newDate = new Date(selectedDate);
+                    newDate.setMonth(Math.min(Math.max(month - 1, 0), 11));
+                    setSelectedDate(newDate);
+                  }}
+                  keyboardType="numeric"
+                  maxLength={2}
+                />
+              </View>
+
+              <View style={styles.dateRow}>
+                <Text style={styles.dateLabel}>Año</Text>
+                <TextInput
+                  style={styles.dateInputSmall}
+                  value={selectedDate.getFullYear().toString()}
+                  onChangeText={(text) => {
+                    const year = parseInt(text, 10) || new Date().getFullYear();
+                    const newDate = new Date(selectedDate);
+                    newDate.setFullYear(year);
+                    setSelectedDate(newDate);
+                  }}
+                  keyboardType="numeric"
+                  maxLength={4}
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalSecondaryButton]}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.modalSecondaryText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalPrimaryButton]}
+                onPress={() => handleDateSelect(selectedDate)}
+              >
+                <Text style={styles.modalPrimaryText}>Seleccionar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -259,93 +399,151 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f8fafc",
   },
-  scrollContent: {
+  flex: {
+    flex: 1,
+  },
+  content: {
     paddingHorizontal: 16,
     paddingTop: 0,
-    paddingBottom: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  form: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
+  heroCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
     padding: 20,
-    marginBottom: 20,
+    marginBottom: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  heroIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#f0f9ff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  heroIconText: {
+    fontSize: 24,
+  },
+  heroTextContainer: {
+    flex: 1,
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#1e293b",
+    marginBottom: 4,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
+  },
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1e293b",
+    marginBottom: 4,
+  },
+  sectionHint: {
+    fontSize: 14,
+    color: "#64748b",
+    lineHeight: 20,
+  },
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#374151",
     marginBottom: 8,
+    marginTop: 16,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#d1d5db",
     borderRadius: 8,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontSize: 16,
-    marginBottom: 16,
-    backgroundColor: "#fafafa",
+    color: "#1f2937",
+    backgroundColor: "#ffffff",
   },
   textArea: {
     height: 80,
     textAlignVertical: "top",
   },
-  dateInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: "#fafafa",
-    marginBottom: 16,
+  datePickerTrigger: {
+    justifyContent: "center",
   },
   dateText: {
     fontSize: 16,
-    color: "#333",
+    color: "#1f2937",
   },
-  buttonContainer: {
+  datePlaceholder: {
+    fontSize: 16,
+    color: "#9ca3af",
+  },
+  helperInfo: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  buttonRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 32,
   },
-  cancelButton: {
-    backgroundColor: "#f44336",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+  actionButton: {
     flex: 1,
-    marginRight: 10,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
   },
-  cancelButtonText: {
-    color: "#fff",
+  primaryButton: {
+    backgroundColor: "#3b82f6",
+  },
+  primaryButtonText: {
+    color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
-    textAlign: "center",
   },
-  saveButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    flex: 1,
-    marginLeft: 10,
+  secondaryButton: {
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
   },
-  saveButtonText: {
-    color: "#fff",
+  secondaryButtonText: {
+    color: "#374151",
     fontSize: 16,
     fontWeight: "600",
-    textAlign: "center",
   },
   modalOverlay: {
     flex: 1,
@@ -353,38 +551,74 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  datePickerContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 20,
-    width: "80%",
+  datePickerModal: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 24,
+    margin: 20,
+    width: "90%",
     maxWidth: 400,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
+    fontWeight: "600",
+    color: "#1e293b",
     textAlign: "center",
+    marginBottom: 24,
   },
-  datePicker: {
+  datePickerContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  dateButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-    minWidth: "45%",
+  dateRow: {
+    flex: 1,
     alignItems: "center",
   },
-  dateButtonText: {
-    color: "#fff",
+  dateLabel: {
     fontSize: 14,
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  dateInputSmall: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    fontSize: 16,
+    color: "#1f2937",
+    backgroundColor: "#ffffff",
+    textAlign: "center",
+    width: 60,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalPrimaryButton: {
+    backgroundColor: "#3b82f6",
+  },
+  modalPrimaryText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalSecondaryButton: {
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
+  modalSecondaryText: {
+    color: "#374151",
+    fontSize: 16,
     fontWeight: "600",
   },
 });
