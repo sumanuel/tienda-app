@@ -166,104 +166,65 @@ export const DashboardScreen = ({ navigation }) => {
       <Text style={styles.sectionTitle}>Resumen General</Text>
 
       <View style={styles.statsGrid}>
-        {/* Tasa de Cambio */}
-        <TouchableOpacity
-          style={styles.statCard}
-          onPress={() => navigation.navigate("ExchangeRate")}
-        >
-          <Text style={styles.statIcon}>💱</Text>
-          <Text style={styles.statLabel}>Tasa de Cambio</Text>
-          <Text style={styles.statValue}>
-            {rate ? `${rate.toFixed(2)} Bs.` : "Cargando..."}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Cuentas por Cobrar */}
-        <TouchableOpacity
-          style={styles.statCard}
-          onPress={() => navigation.navigate("AccountsReceivable")}
-        >
-          <Text style={styles.statIcon}>📈</Text>
-          <Text style={styles.statLabel}>Por Cobrar</Text>
-          <Text style={styles.statValue}>
-            {(receivableStats?.pending || 0).toFixed(2)} Bs.
-          </Text>
-          {(receivableStats?.overdue || 0) > 0 && (
-            <Text style={styles.statWarning}>
-              {(receivableStats?.overdue || 0).toFixed(2)} vencidas
+        <View style={styles.statsRow}>
+          {/* Tasa de Cambio */}
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => navigation.navigate("ExchangeRate")}
+          >
+            <Text style={styles.statIcon}>💱</Text>
+            <Text style={styles.statLabel}>Tasa de Cambio</Text>
+            <Text style={styles.statValue}>
+              {rate ? `${rate.toFixed(2)} Bs.` : "Cargando..."}
             </Text>
-          )}
-        </TouchableOpacity>
+          </TouchableOpacity>
 
-        {/* Cuentas por Pagar */}
-        <TouchableOpacity
-          style={styles.statCard}
-          onPress={() => navigation.navigate("AccountsPayable")}
-        >
-          <Text style={styles.statIcon}>📉</Text>
-          <Text style={styles.statLabel}>Por Pagar</Text>
-          <Text style={styles.statValue}>
-            {(payableStats?.pending || 0).toFixed(2)} Bs.
-          </Text>
-          {(payableStats?.overdue || 0) > 0 && (
-            <Text style={styles.statWarning}>
-              {(payableStats?.overdue || 0).toFixed(2)} vencidas
+          {/* Nueva Venta */}
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => navigation.navigate("POS")}
+          >
+            <Text style={styles.statIcon}>🛒</Text>
+            <Text style={styles.statLabel}>Nueva Venta</Text>
+            <Text style={styles.statValue}>Iniciar</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.statsRow}>
+          {/* Cuentas por Cobrar */}
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => navigation.navigate("AccountsReceivable")}
+          >
+            <Text style={styles.statIcon}>📈</Text>
+            <Text style={styles.statLabel}>Por Cobrar</Text>
+            <Text style={styles.statValue}>
+              {(receivableStats?.pending || 0).toFixed(2)} Bs.
             </Text>
-          )}
-        </TouchableOpacity>
+            {(receivableStats?.overdue || 0) > 0 && (
+              <Text style={styles.statWarning}>
+                {(receivableStats?.overdue || 0).toFixed(2)} vencidas
+              </Text>
+            )}
+          </TouchableOpacity>
 
-        {/* Inventario */}
-        <TouchableOpacity
-          style={styles.statCard}
-          onPress={() => navigation.navigate("Products")}
-        >
-          <Text style={styles.statIcon}>📦</Text>
-          <Text style={styles.statLabel}>Productos</Text>
-          <Text style={styles.statValue}>
-            {inventoryStats?.totalItems || 0}
-          </Text>
-          {(inventoryStats?.lowStockCount || 0) > 0 && (
-            <Text style={styles.statWarning}>
-              {inventoryStats?.lowStockCount} stock bajo
+          {/* Cuentas por Pagar */}
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => navigation.navigate("AccountsPayable")}
+          >
+            <Text style={styles.statIcon}>📉</Text>
+            <Text style={styles.statLabel}>Por Pagar</Text>
+            <Text style={styles.statValue}>
+              {(payableStats?.pending || 0).toFixed(2)} Bs.
             </Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Accesos Rápidos */}
-      <Text style={styles.sectionTitle}>Accesos Rápidos</Text>
-      <View style={styles.quickActions}>
-        <TouchableOpacity
-          style={styles.quickActionCard}
-          onPress={() => navigation.navigate("POS")}
-        >
-          <Text style={styles.quickActionIcon}>🛒</Text>
-          <Text style={styles.quickActionText}>Nueva Venta</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickActionCard}
-          onPress={() => navigation.navigate("Products")}
-        >
-          <Text style={styles.quickActionIcon}>📦</Text>
-          <Text style={styles.quickActionText}>Productos</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickActionCard}
-          onPress={() => navigation.navigate("Customers")}
-        >
-          <Text style={styles.quickActionIcon}>👥</Text>
-          <Text style={styles.quickActionText}>Clientes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickActionCard}
-          onPress={() => navigation.navigate("Suppliers")}
-        >
-          <Text style={styles.quickActionIcon}>🏢</Text>
-          <Text style={styles.quickActionText}>Proveedores</Text>
-        </TouchableOpacity>
+            {(payableStats?.overdue || 0) > 0 && (
+              <Text style={styles.statWarning}>
+                {(payableStats?.overdue || 0).toFixed(2)} vencidas
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
@@ -416,17 +377,20 @@ const styles = StyleSheet.create({
 
   // Stats Grid
   statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 8,
+    flexDirection: "column",
+    gap: 16,
+    paddingHorizontal: 24,
     marginBottom: 8,
   },
+  statsRow: {
+    flexDirection: "row",
+    gap: 16,
+  },
   statCard: {
-    width: "47%",
+    flex: 1,
     backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 16,
-    margin: 8,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
