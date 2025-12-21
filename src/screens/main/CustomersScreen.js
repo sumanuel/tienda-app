@@ -13,15 +13,8 @@ import { useCustomers } from "../../hooks/useCustomers";
 
 export const CustomersScreen = () => {
   const navigation = useNavigation();
-  const {
-    customers,
-    loading,
-    error,
-    search,
-    removeCustomer,
-    refresh,
-    getCustomerStats,
-  } = useCustomers();
+  const { customers, loading, error, search, removeCustomer, refresh } =
+    useCustomers();
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -63,15 +56,6 @@ export const CustomersScreen = () => {
       );
     },
     [removeCustomer]
-  );
-
-  const stats = useMemo(() => getCustomerStats(), [getCustomerStats]);
-  const customersWithContact = useMemo(
-    () => ({
-      email: customers.filter((c) => Boolean(c.email)).length,
-      phone: customers.filter((c) => Boolean(c.phone)).length,
-    }),
-    [customers]
   );
 
   const sortedCustomers = useMemo(() => {
@@ -139,32 +123,6 @@ export const CustomersScreen = () => {
             Centraliza la información de contacto y fortalece la relación con
             tus compradores.
           </Text>
-        </View>
-      </View>
-
-      <View style={styles.metricRow}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Clientes</Text>
-          <Text style={styles.metricValue}>{stats.total}</Text>
-          <Text style={styles.metricHint}>Registrados en el sistema</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Activos</Text>
-          <Text style={styles.metricValue}>{stats.active}</Text>
-          <Text style={styles.metricHint}>Identificados como activos</Text>
-        </View>
-      </View>
-
-      <View style={styles.metricRow}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Con teléfono</Text>
-          <Text style={styles.metricValue}>{customersWithContact.phone}</Text>
-          <Text style={styles.metricHint}>Listos para seguimiento</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Con email</Text>
-          <Text style={styles.metricValue}>{customersWithContact.email}</Text>
-          <Text style={styles.metricHint}>Ideales para campañas</Text>
         </View>
       </View>
 

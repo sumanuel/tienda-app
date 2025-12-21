@@ -8,9 +8,11 @@ import {
   Alert,
   SafeAreaView,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSales } from "../../hooks/useSales";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 /**
  * Historial de ventas con estética de dashboard
@@ -38,6 +40,8 @@ export const SalesScreen = () => {
   const [selectedSale, setSelectedSale] = useState(null);
   const [saleDetails, setSaleDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
@@ -140,16 +144,54 @@ export const SalesScreen = () => {
     }
   };
 
-  const changeStartDate = (direction) => {
-    const newDate = new Date(startDate);
-    newDate.setMonth(newDate.getMonth() + direction);
-    setStartDate(newDate);
+  const normalizeStartDate = (date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+
+  const normalizeEndDate = (date) =>
+    new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+
+  const handleStartDateChange = (event, selected) => {
+    if (Platform.OS !== "ios") {
+      setShowStartPicker(false);
+    }
+
+    if (event?.type === "dismissed") {
+      return;
+    }
+
+    if (selected) {
+      const normalized = normalizeStartDate(selected);
+      setStartDate(normalized);
+      if (normalized > endDate) {
+        setEndDate(normalizeEndDate(selected));
+      }
+    }
   };
 
-  const changeEndDate = (direction) => {
-    const newDate = new Date(endDate);
-    newDate.setMonth(newDate.getMonth() + direction);
-    setEndDate(newDate);
+  const handleEndDateChange = (event, selected) => {
+    if (Platform.OS !== "ios") {
+      setShowEndPicker(false);
+    }
+
+    if (event?.type === "dismissed") {
+      return;
+    }
+
+    if (selected) {
+      const normalized = normalizeEndDate(selected);
+      setEndDate(normalized);
+      if (normalized < startDate) {
+        setStartDate(normalizeStartDate(selected));
+      }
+    }
   };
 
   const formatDate = (date) => {
@@ -260,32 +302,13 @@ export const SalesScreen = () => {
                 <Text style={styles.heroIconText}>📈</Text>
               </View>
               <View style={styles.heroCopy}>
-                <Text style={styles.heroTitle}>Historial de ventas</Text>
+                <Text style={styles.heroTitle}>
+                  Historial de ventas ({summary.count})
+                </Text>
                 <Text style={styles.heroSubtitle}>
                   Visualiza el desempeño de tus ventas y explora los detalles
                   con un toque.
                 </Text>
-              </View>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <View style={styles.summaryRow}>
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Ventas</Text>
-                  <Text style={styles.summaryValue}>{summary.count}</Text>
-                  <Text style={styles.summaryHint}>
-                    {activeTab === "today"
-                      ? "Registradas hoy"
-                      : "En el período"}
-                  </Text>
-                </View>
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Total facturado</Text>
-                  <Text style={styles.summaryValue}>
-                    {formatCurrency(summary.total)}
-                  </Text>
-                  <Text style={styles.summaryHint}>Monto acumulado</Text>
-                </View>
               </View>
             </View>
 
@@ -320,44 +343,48 @@ export const SalesScreen = () => {
                 <View style={styles.dateRow}>
                   <View style={styles.dateColumn}>
                     <Text style={styles.dateLabel}>Desde</Text>
-                    <View style={styles.dateSelector}>
-                      <TouchableOpacity
-                        style={styles.dateArrow}
-                        onPress={() => changeStartDate(-1)}
-                      >
-                        <Text style={styles.dateArrowText}>◀</Text>
-                      </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.dateSelector}
+                      onPress={() => setShowStartPicker(true)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.dateCalendarIcon}>📅</Text>
                       <Text style={styles.dateValue}>
                         {formatDate(startDate)}
                       </Text>
-                      <TouchableOpacity
-                        style={styles.dateArrow}
-                        onPress={() => changeStartDate(1)}
-                      >
-                        <Text style={styles.dateArrowText}>▶</Text>
-                      </TouchableOpacity>
-                    </View>
+                    </TouchableOpacity>
+
+                    {showStartPicker ? (
+                      <DateTimePicker
+                        value={startDate}
+                        mode="date"
+                        display={Platform.OS === "ios" ? "compact" : "default"}
+                        onChange={handleStartDateChange}
+                      />
+                    ) : null}
                   </View>
 
                   <View style={styles.dateColumn}>
                     <Text style={styles.dateLabel}>Hasta</Text>
-                    <View style={styles.dateSelector}>
-                      <TouchableOpacity
-                        style={styles.dateArrow}
-                        onPress={() => changeEndDate(-1)}
-                      >
-                        <Text style={styles.dateArrowText}>◀</Text>
-                      </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.dateSelector}
+                      onPress={() => setShowEndPicker(true)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.dateCalendarIcon}>📅</Text>
                       <Text style={styles.dateValue}>
                         {formatDate(endDate)}
                       </Text>
-                      <TouchableOpacity
-                        style={styles.dateArrow}
-                        onPress={() => changeEndDate(1)}
-                      >
-                        <Text style={styles.dateArrowText}>▶</Text>
-                      </TouchableOpacity>
-                    </View>
+                    </TouchableOpacity>
+
+                    {showEndPicker ? (
+                      <DateTimePicker
+                        value={endDate}
+                        mode="date"
+                        display={Platform.OS === "ios" ? "compact" : "default"}
+                        onChange={handleEndDateChange}
+                      />
+                    ) : null}
                   </View>
                 </View>
 
@@ -536,45 +563,6 @@ const styles = StyleSheet.create({
     color: "#5b6472",
     lineHeight: 20,
   },
-  summaryCard: {
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    elevation: 6,
-    gap: 16,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  summaryItem: {
-    flex: 1,
-    backgroundColor: "#f8f9fc",
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    gap: 6,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#7a8796",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  summaryValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  summaryHint: {
-    fontSize: 12,
-    color: "#6f7c8c",
-  },
   tabGroup: {
     flexDirection: "row",
     backgroundColor: "#f3f5fa",
@@ -634,45 +622,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f8f9fc",
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#d9e0eb",
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    gap: 12,
+    gap: 10,
   },
-  dateArrow: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#e2e7f1",
-  },
-  dateArrowText: {
-    color: "#2f5ae0",
-    fontWeight: "700",
+  dateCalendarIcon: {
+    fontSize: 16,
   },
   dateValue: {
     flex: 1,
-    textAlign: "center",
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "600",
-    color: "#1f2633",
-  },
-  quickFilters: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  quickFilter: {
-    flex: 1,
-    backgroundColor: "#f3f8ff",
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: "center",
+    color: "#2f3a4c",
   },
   quickFilterText: {
     color: "#2f5ae0",
     fontWeight: "600",
     fontSize: 13,
+    flex: 1,
   },
   saleCard: {
     backgroundColor: "#fff",

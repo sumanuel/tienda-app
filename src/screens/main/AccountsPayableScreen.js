@@ -102,8 +102,6 @@ export const AccountsPayableScreen = ({ navigation }) => {
   );
 
   const totalAmount = payableStats?.totalAmount || 0;
-  const pendingCount = payableStats?.pending || 0;
-  const overdueCount = payableStats?.overdue || 0;
   const totalCount =
     typeof payableStats?.total === "number"
       ? payableStats.total
@@ -221,9 +219,8 @@ export const AccountsPayableScreen = ({ navigation }) => {
             <Text style={styles.summaryIconText}>📤</Text>
           </View>
           <View>
-            <Text style={styles.summaryTitle}>Cuentas por Pagar</Text>
-            <Text style={styles.summarySubtitle}>
-              {totalCount} {totalCount === 1 ? "registro" : "registros"}
+            <Text style={styles.summaryTitle}>
+              Cuentas por Pagar ({totalCount})
             </Text>
           </View>
         </View>
@@ -231,21 +228,6 @@ export const AccountsPayableScreen = ({ navigation }) => {
         <Text style={styles.summaryAmount}>
           {formatCurrency(totalAmount, "VES")}
         </Text>
-
-        <View style={styles.summaryRow}>
-          <View style={[styles.summaryItem, styles.summaryItemSpacing]}>
-            <Text style={styles.summaryItemLabel}>Pendientes</Text>
-            <Text style={styles.summaryItemValue}>{pendingCount}</Text>
-          </View>
-          <View style={[styles.summaryItem, styles.summaryItemSpacing]}>
-            <Text style={styles.summaryItemLabel}>Vencidas</Text>
-            <Text style={styles.summaryItemValue}>{overdueCount}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryItemLabel}>Registradas</Text>
-            <Text style={styles.summaryItemValue}>{totalCount}</Text>
-          </View>
-        </View>
       </View>
 
       <View style={styles.controlsCard}>
@@ -376,8 +358,8 @@ const styles = StyleSheet.create({
   summaryCard: {
     backgroundColor: "#fff",
     borderRadius: 22,
-    padding: 20,
-    marginBottom: 18,
+    padding: 18,
+    marginBottom: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
@@ -387,16 +369,16 @@ const styles = StyleSheet.create({
   summaryHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 18,
+    marginBottom: 12,
   },
   summaryIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     backgroundColor: "#f6efff",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 12,
   },
   summaryIconText: {
     fontSize: 24,
@@ -406,40 +388,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#2f3a4c",
   },
-  summarySubtitle: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "#6c7a8a",
-  },
   summaryAmount: {
     fontSize: 30,
     fontWeight: "700",
     color: "#c62828",
-    marginBottom: 16,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  summaryItem: {
-    flex: 1,
-    backgroundColor: "#fdf3f2",
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  summaryItemSpacing: {
-    marginRight: 12,
-  },
-  summaryItemLabel: {
-    fontSize: 12,
-    color: "#6c7a8a",
-  },
-  summaryItemValue: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#2f3a4c",
-    marginTop: 6,
+    marginBottom: 0,
   },
   controlsCard: {
     backgroundColor: "#fff",

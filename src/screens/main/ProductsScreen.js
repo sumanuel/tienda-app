@@ -149,9 +149,8 @@ export const ProductsScreen = ({ navigation }) => {
               </Text>
             </View>
             {appliedRate ? (
-              <Text style={styles.priceSecondary}>
-                {formatCurrency(priceVES, "VES")} con tasa{" "}
-                {appliedRate.toFixed(2)}
+              <Text style={styles.priceSecondaryMuted}>
+                {formatCurrency(priceVES, "VES")}
               </Text>
             ) : (
               <Text style={styles.priceSecondary}>
@@ -202,23 +201,9 @@ export const ProductsScreen = ({ navigation }) => {
         <View style={styles.heroTextContainer}>
           <Text style={styles.heroTitle}>Catálogo de productos</Text>
           <Text style={styles.heroSubtitle}>
-            Administra precios, categorías y existencias con un vistazo claro a
-            tu inventario.
+            Administra precios y existencias con un vistazo claro a tu
+            inventario.
           </Text>
-        </View>
-      </View>
-
-      <View style={styles.metricRow}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Productos</Text>
-          <Text style={styles.metricValue}>{metrics.totalProducts}</Text>
-          <Text style={styles.metricHint}>Registrados en catálogo</Text>
-        </View>
-
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Categorías</Text>
-          <Text style={styles.metricValue}>{metrics.totalCategories}</Text>
-          <Text style={styles.metricHint}>Organización del inventario</Text>
         </View>
       </View>
 
@@ -232,9 +217,11 @@ export const ProductsScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Bajo stock</Text>
-          <Text style={styles.metricValue}>{metrics.lowStock}</Text>
-          <Text style={styles.metricHint}>Reponer cuanto antes</Text>
+          <Text style={styles.metricLabel}>Inventario en VES</Text>
+          <Text style={styles.metricValue}>
+            {formatCurrency(metrics.totalInventoryVES, "VES")}
+          </Text>
+          <Text style={styles.metricHint}>Estimado con tasa vigente</Text>
         </View>
       </View>
 
@@ -475,7 +462,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   priceTag: {
-    backgroundColor: "#2f5ae0",
+    backgroundColor: "#1f9254",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -484,7 +471,7 @@ const styles = StyleSheet.create({
   priceTagLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#bcd0ff",
+    color: "#ecf4ef",
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
@@ -496,6 +483,11 @@ const styles = StyleSheet.create({
   priceSecondary: {
     fontSize: 13,
     color: "#4c5767",
+    flex: 1,
+  },
+  priceSecondaryMuted: {
+    fontSize: 13,
+    color: "#8692a6",
     flex: 1,
   },
   productFooter: {

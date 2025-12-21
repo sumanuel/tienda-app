@@ -13,15 +13,8 @@ import { useSuppliers } from "../../hooks/useSuppliers";
 
 export const SuppliersScreen = () => {
   const navigation = useNavigation();
-  const {
-    suppliers,
-    loading,
-    error,
-    search,
-    removeSupplier,
-    refresh,
-    getSupplierStats,
-  } = useSuppliers();
+  const { suppliers, loading, error, search, removeSupplier, refresh } =
+    useSuppliers();
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -63,15 +56,6 @@ export const SuppliersScreen = () => {
       );
     },
     [removeSupplier]
-  );
-
-  const stats = useMemo(() => getSupplierStats(), [getSupplierStats]);
-  const contactStats = useMemo(
-    () => ({
-      contact: suppliers.filter((s) => Boolean(s.contactPerson)).length,
-      terms: suppliers.filter((s) => Boolean(s.paymentTerms)).length,
-    }),
-    [suppliers]
   );
 
   const sortedSuppliers = useMemo(() => {
@@ -146,32 +130,6 @@ export const SuppliersScreen = () => {
             Organiza tus proveedores clave, términos de pago y contactos
             directos.
           </Text>
-        </View>
-      </View>
-
-      <View style={styles.metricRow}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Proveedores</Text>
-          <Text style={styles.metricValue}>{stats.total}</Text>
-          <Text style={styles.metricHint}>Registrados en tu red</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Activos</Text>
-          <Text style={styles.metricValue}>{stats.active}</Text>
-          <Text style={styles.metricHint}>Disponibles para compras</Text>
-        </View>
-      </View>
-
-      <View style={styles.metricRow}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Con contacto</Text>
-          <Text style={styles.metricValue}>{contactStats.contact}</Text>
-          <Text style={styles.metricHint}>Responsable identificado</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Con términos</Text>
-          <Text style={styles.metricValue}>{contactStats.terms}</Text>
-          <Text style={styles.metricHint}>Términos de pago definidos</Text>
         </View>
       </View>
 
