@@ -948,7 +948,7 @@ const styles = StyleSheet.create({
   },
   listHeader: {
     gap: 24,
-    paddingHorizontal: 24,
+    paddingHorizontal: 0,
     paddingTop: 24,
     paddingBottom: 12,
     alignItems: "stretch",
