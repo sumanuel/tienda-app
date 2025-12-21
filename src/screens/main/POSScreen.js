@@ -550,6 +550,7 @@ export const POSScreen = ({ navigation }) => {
         data={filteredProducts}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id.toString()}
+        style={styles.flatList}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.listHeader}>
@@ -934,6 +935,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#e8edf2",
   },
+  flatList: {
+    paddingHorizontal: 16,
+  },
   loadingContainer: {
     flex: 1,
     backgroundColor: "#e8edf2",
@@ -947,9 +951,8 @@ const styles = StyleSheet.create({
     color: "#4c5767",
   },
   listHeader: {
-    gap: 16,
-    paddingHorizontal: 0,
-    paddingTop: 0,
+    gap: 20,
+    paddingTop: 16,
     paddingBottom: 12,
     alignItems: "stretch",
   },
@@ -1041,7 +1044,6 @@ const styles = StyleSheet.create({
     color: "#1f2633",
   },
   productsContent: {
-    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 140,
     gap: 16,
