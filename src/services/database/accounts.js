@@ -121,13 +121,14 @@ export const createAccountReceivable = async (accountData) => {
       invoiceNumber,
       createdAt,
     } = accountData;
+    const roundedAmount = Math.round(amount * 100) / 100;
     const result = await db.runAsync(
       `INSERT INTO accounts_receivable (customerId, customerName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
         customerId || null,
         customerName,
-        amount,
+        roundedAmount,
         description || null,
         dueDate || null,
         documentNumber || null,
@@ -287,13 +288,16 @@ export const recordAccountPayment = async (accountId, paymentData) => {
     const { amount, paymentMethod, paymentDate, reference, notes } =
       paymentData;
 
+    // Redondear el monto del pago a 2 decimales
+    const roundedAmount = Math.round(amount * 100) / 100;
+
     // Insertar el pago
     await db.runAsync(
       `INSERT INTO account_payments (accountId, accountType, amount, paymentMethod, paymentDate, reference, notes)
        VALUES (?, 'receivable', ?, ?, ?, ?, ?)`,
       [
         accountId,
-        amount,
+        roundedAmount,
         paymentMethod,
         paymentDate || new Date().toISOString(),
         reference || "",
@@ -304,18 +308,18 @@ export const recordAccountPayment = async (accountId, paymentData) => {
     // Actualizar el monto pagado en la cuenta
     await db.runAsync(
       `UPDATE accounts_receivable
-       SET paidAmount = COALESCE(paidAmount, 0) + ?, updatedAt = datetime('now')
+       SET paidAmount = ROUND(COALESCE(paidAmount, 0) + ?, 2), updatedAt = datetime('now')
        WHERE id = ?`,
-      [amount, accountId]
+      [roundedAmount, accountId]
     );
 
-    // Verificar si la cuenta está completamente pagada
+    // Verificar si la cuenta está completamente pagada (con tolerancia de 1 centavo)
     const account = await db.getFirstAsync(
-      `SELECT amount, paidAmount FROM accounts_receivable WHERE id = ?`,
+      `SELECT ROUND(amount, 2) as amount, ROUND(paidAmount, 2) as paidAmount FROM accounts_receivable WHERE id = ?`,
       [accountId]
     );
 
-    if (account && account.paidAmount >= account.amount) {
+    if (account && account.paidAmount + 0.01 >= account.amount) {
       await db.runAsync(
         `UPDATE accounts_receivable
          SET status = 'paid', paidAt = datetime('now'), updatedAt = datetime('now')
@@ -371,21 +375,31 @@ export const getAccountBalance = async (accountId) => {
   }
 };
 
-export default {
-  getAllAccountsReceivable,
-  searchAccountsReceivable,
-  getAllAccountsPayable,
-  getAccountsReceivableStats,
-  getAccountsPayableStats,
-  createAccountReceivable,
-  createAccountPayable,
-  updateAccountReceivable,
-  updateAccountPayable,
-  markAccountReceivableAsPaid,
-  markAccountPayableAsPaid,
-  deleteAccountReceivable,
-  deleteAccountPayable,
-  recordAccountPayment,
-  getAccountPayments,
-  getAccountBalance,
+/**
+ * Corrige los montos de cuentas existentes para usar exactamente 2 decimales
+ */
+export const fixAccountDecimalPrecision = async () => {
+  try {
+    // Corregir cuentas por cobrar
+    await db.runAsync(
+      `UPDATE accounts_receivable 
+       SET amount = ROUND(amount, 2), paidAmount = ROUND(COALESCE(paidAmount, 0), 2)`
+    );
+
+    // Corregir cuentas por pagar
+    await db.runAsync(
+      `UPDATE accounts_payable 
+       SET amount = ROUND(amount, 2), paidAmount = ROUND(COALESCE(paidAmount, 0), 2)`
+    );
+
+    // Corregir pagos
+    await db.runAsync(
+      `UPDATE account_payments 
+       SET amount = ROUND(amount, 2)`
+    );
+
+    console.log("Precisión decimal corregida en todas las cuentas y pagos");
+  } catch (error) {
+    throw error;
+  }
 };
