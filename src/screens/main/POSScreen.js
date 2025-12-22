@@ -562,17 +562,13 @@ export const POSScreen = ({ navigation }) => {
 
       {cart.length > 0 && (
         <View style={styles.cartSummary}>
-          <View style={styles.cartSummaryInfo}>
-            <Text style={styles.cartSummaryLabel}>Total actual</Text>
-            <Text style={styles.cartSummaryTotal}>VES. {total.toFixed(2)}</Text>
-          </View>
           <TouchableOpacity
             style={styles.cartSummaryButton}
             onPress={() => setShowCart(true)}
             activeOpacity={0.85}
           >
             <Text style={styles.cartSummaryButtonText}>
-              Revisar carrito ({cart.length})
+              Ver carrito ({cart.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -1080,20 +1076,14 @@ const styles = StyleSheet.create({
   cartSummary: {
     position: "absolute",
     left: 24,
-    right: 24,
+    right: 0,
     bottom: 24,
-    backgroundColor: "#fff",
-    borderRadius: 22,
+    backgroundColor: "transparent",
     paddingVertical: 18,
-    paddingHorizontal: 20,
+    paddingRight: 0,
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 10,
   },
   cartSummaryInfo: {
     gap: 4,
