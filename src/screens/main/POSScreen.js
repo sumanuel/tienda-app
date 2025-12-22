@@ -427,13 +427,15 @@ export const POSScreen = ({ navigation }) => {
           <Text style={styles.productName} numberOfLines={2}>
             {item.name.toUpperCase()}
           </Text>
-          {isOutOfStock && (
-            <View style={styles.outOfStockBadge}>
-              <Text style={styles.outOfStockText}>Sin Stock</Text>
-            </View>
-          )}
+          <View style={styles.productRight}>
+            <Text style={styles.productCategory}>{item.category}</Text>
+            {isOutOfStock && (
+              <View style={styles.outOfStockBadge}>
+                <Text style={styles.outOfStockText}>Sin Stock</Text>
+              </View>
+            )}
+          </View>
         </View>
-        <Text style={styles.productCategory}>{item.category}</Text>
         <View style={styles.productFooter}>
           <Text style={styles.productPrice}>
             VES. {(item.priceVES || item.priceUSD * exchangeRate).toFixed(2)}
@@ -1003,6 +1005,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     gap: 12,
+  },
+  productRight: {
+    alignItems: "flex-end",
+    gap: 4,
   },
   productName: {
     flex: 1,
