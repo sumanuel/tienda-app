@@ -1356,7 +1356,7 @@ const styles = StyleSheet.create({
   modalFooter: {
     backgroundColor: "#fff",
     paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingVertical: 12,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     shadowColor: "#000",
