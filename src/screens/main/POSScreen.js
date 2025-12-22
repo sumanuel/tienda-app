@@ -883,14 +883,14 @@ const styles = StyleSheet.create({
   },
   listHeader: {
     gap: 20,
-    paddingTop: 4,
+    paddingTop: 0,
     paddingBottom: 12,
     alignItems: "stretch",
   },
   heroCard: {
     backgroundColor: "#fff",
     borderRadius: 24,
-    padding: 22,
+    padding: 10,
     width: "100%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
