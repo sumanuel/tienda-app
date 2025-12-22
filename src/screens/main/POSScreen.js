@@ -1154,8 +1154,8 @@ const styles = StyleSheet.create({
   customerSection: {
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 20,
-    marginBottom: 18,
+    padding: 16,
+    marginBottom: 12,
     gap: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
@@ -1164,7 +1164,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: "#1f2633",
   },
@@ -1173,7 +1173,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: 14,
     color: "#1f2633",
   },
   genericCustomerText: {
