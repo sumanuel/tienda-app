@@ -17,7 +17,7 @@ import {
   recordAccountPayment,
   getAccountPayments,
   getAccountBalance,
-  fixAccountDecimalPrecision,
+  fixCorruptedAccountData as fixAccountDecimalPrecision,
   fixCorruptedAccountData,
 } from "../services/database/accounts";
 
