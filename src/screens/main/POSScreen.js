@@ -438,7 +438,8 @@ export const POSScreen = ({ navigation }) => {
         </View>
         <View style={styles.productFooter}>
           <Text style={styles.productPrice}>
-            VES. {(item.priceVES || item.priceUSD * exchangeRate).toFixed(2)} / USD. {item.priceUSD.toFixed(2)}
+            VES. {(item.priceVES || item.priceUSD * exchangeRate).toFixed(2)} /
+            USD. {item.priceUSD.toFixed(2)}
           </Text>
           <Text
             style={[
