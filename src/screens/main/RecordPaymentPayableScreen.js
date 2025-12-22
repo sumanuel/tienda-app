@@ -38,7 +38,6 @@ export const RecordPaymentPayableScreen = () => {
     try {
       const balanceData = await getBalance(account.id, "payable");
       setBalance(balanceData);
-      // Establecer el monto por defecto como el saldo pendiente
       setPaymentAmount(balanceData.balance.toString());
     } catch (error) {
       Alert.alert("Error", "No se pudo cargar el saldo de la cuenta");
@@ -62,8 +61,14 @@ export const RecordPaymentPayableScreen = () => {
     }
   };
 
-  const openDatePicker = () => setShowDatePicker(true);
-  const closeDatePicker = () => setShowDatePicker(false);
+  const closeDatePicker = () => {
+    setShowDatePicker(false);
+  };
+
+  const openDatePicker = () => {
+    setShowDatePicker(true);
+  };
+
   const paymentDateLabel = paymentDate.toISOString().split("T")[0];
 
   const handleRecordPayment = async () => {
@@ -73,27 +78,13 @@ export const RecordPaymentPayableScreen = () => {
     }
 
     const amount = parseFloat(paymentAmount);
-    if (balance && amount > balance.balance) {
-      Alert.alert(
-        "Advertencia",
-        "El monto del pago es mayor al saldo pendiente. ¿Desea continuar?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Continuar",
-            onPress: () => processPayment(amount),
-          },
-        ]
-      );
+    if (amount > balance.balance) {
+      Alert.alert("Error", "El monto no puede ser mayor al saldo pendiente");
       return;
     }
 
-    await processPayment(amount);
-  };
-
-  const processPayment = async (amount) => {
-    setLoading(true);
     try {
+      setLoading(true);
       await recordPayment(
         account.id,
         {
@@ -115,139 +106,196 @@ export const RecordPaymentPayableScreen = () => {
     }
   };
 
-  const paymentMethods = [
-    { value: "cash", label: "Efectivo" },
-    { value: "card", label: "Tarjeta" },
-    { value: "transfer", label: "Transferencia" },
-    { value: "pago_movil", label: "Pago Móvil" },
-  ];
+  if (!balance) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2f5ae0" />
+        <Text style={styles.loadingText}>Cargando...</Text>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Text style={styles.title}>Registrar Pago</Text>
-        <Text style={styles.subtitle}>
-          {account.supplierName} - {formatCurrency(account.amount || 0, "VES")}
+        <Text style={styles.subtitle}>{account.supplierName}</Text>
+      </View>
+
+      <View style={styles.balanceCard}>
+        <Text style={styles.balanceLabel}>Saldo Pendiente</Text>
+        <Text style={styles.balanceAmount}>
+          {formatCurrency(balance.balance, "VES")}
+        </Text>
+        <Text style={styles.totalInfo}>
+          Total: {formatCurrency(balance.totalAmount, "VES")} | Pagado:{" "}
+          {formatCurrency(balance.paidAmount, "VES")}
         </Text>
       </View>
 
-      {balance && (
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceTitle}>Saldo Pendiente</Text>
-          <Text style={styles.balanceAmount}>
-            {formatCurrency(balance.balance, "VES")}
-          </Text>
-          <Text style={styles.balanceSubtitle}>
-            Pagado: {formatCurrency(balance.paidAmount, "VES")}
-          </Text>
-        </View>
-      )}
+      <View style={styles.formCard}>
+        <Text style={styles.sectionTitle}>💰 Monto del Pago</Text>
+        <TextInput
+          style={styles.amountInput}
+          value={paymentAmount}
+          onChangeText={setPaymentAmount}
+          placeholder="0.00"
+          keyboardType="numeric"
+          selectTextOnFocus
+        />
 
-      <View style={styles.form}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Monto del Pago *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="0.00"
-            keyboardType="numeric"
-            value={paymentAmount}
-            onChangeText={setPaymentAmount}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Método de Pago *</Text>
-          <View style={styles.methodSelector}>
-            {paymentMethods.map((method) => (
-              <TouchableOpacity
-                key={method.value}
-                style={[
-                  styles.methodOption,
-                  paymentMethod === method.value && styles.methodOptionSelected,
-                ]}
-                onPress={() => setPaymentMethod(method.value)}
-              >
-                <Text
-                  style={[
-                    styles.methodOptionText,
-                    paymentMethod === method.value &&
-                      styles.methodOptionTextSelected,
-                  ]}
-                >
-                  {method.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Fecha del Pago</Text>
+        <Text style={styles.sectionTitle}>💳 Método de Pago</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.paymentButtonsScroll}
+          contentContainerStyle={styles.paymentButtons}
+        >
           <TouchableOpacity
-            style={styles.input}
-            onPress={openDatePicker}
-            activeOpacity={0.85}
-            disabled={loading}
+            style={[
+              styles.paymentButton,
+              paymentMethod === "cash" && styles.paymentButtonActive,
+            ]}
+            onPress={() => setPaymentMethod("cash")}
           >
-            <Text style={styles.dateText}>{paymentDateLabel}</Text>
+            <Text style={styles.paymentButtonIcon}>💵</Text>
+            <Text
+              style={[
+                styles.paymentButtonText,
+                paymentMethod === "cash" && styles.paymentButtonTextActive,
+              ]}
+            >
+              Efectivo
+            </Text>
           </TouchableOpacity>
 
-          {showDatePicker && (
-            <View style={styles.datePickerWrapper}>
-              <DateTimePicker
-                value={paymentDate}
-                mode="date"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={handleDateChange}
-                maximumDate={new Date()}
-              />
-              {Platform.OS === "ios" && (
-                <TouchableOpacity
-                  style={styles.datePickerDone}
-                  onPress={closeDatePicker}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.datePickerDoneText}>Listo</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-        </View>
+          <TouchableOpacity
+            style={[
+              styles.paymentButton,
+              paymentMethod === "card" && styles.paymentButtonActive,
+            ]}
+            onPress={() => setPaymentMethod("card")}
+          >
+            <Text style={styles.paymentButtonIcon}>💳</Text>
+            <Text
+              style={[
+                styles.paymentButtonText,
+                paymentMethod === "card" && styles.paymentButtonTextActive,
+              ]}
+            >
+              Tarjeta
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.paymentButton,
+              paymentMethod === "transfer" && styles.paymentButtonActive,
+            ]}
+            onPress={() => setPaymentMethod("transfer")}
+          >
+            <Text style={styles.paymentButtonIcon}>🏦</Text>
+            <Text
+              style={[
+                styles.paymentButtonText,
+                paymentMethod === "transfer" && styles.paymentButtonTextActive,
+              ]}
+            >
+              Transferencia
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.paymentButton,
+              paymentMethod === "pago_movil" && styles.paymentButtonActive,
+            ]}
+            onPress={() => setPaymentMethod("pago_movil")}
+          >
+            <Text style={styles.paymentButtonIcon}>📱</Text>
+            <Text
+              style={[
+                styles.paymentButtonText,
+                paymentMethod === "pago_movil" &&
+                  styles.paymentButtonTextActive,
+              ]}
+            >
+              Pago Móvil
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
 
         {(paymentMethod === "transfer" || paymentMethod === "pago_movil") && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Referencia</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Número de referencia"
-              value={reference}
-              onChangeText={setReference}
-              autoCapitalize="none"
+          <TextInput
+            style={styles.input}
+            value={reference}
+            onChangeText={setReference}
+            placeholder="Número de referencia"
+            autoCapitalize="none"
+          />
+        )}
+
+        <Text style={styles.sectionTitle}>📅 Fecha del Pago</Text>
+        <TouchableOpacity
+          style={styles.input}
+          onPress={openDatePicker}
+          activeOpacity={0.85}
+          disabled={loading}
+        >
+          <Text style={styles.dateText}>{paymentDateLabel}</Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <View style={styles.datePickerWrapper}>
+            <DateTimePicker
+              value={paymentDate}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleDateChange}
+              maximumDate={new Date()}
             />
+            {Platform.OS === "ios" && (
+              <TouchableOpacity
+                style={styles.datePickerDone}
+                onPress={closeDatePicker}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.datePickerDoneText}>Listo</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Notas</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Notas adicionales..."
-            multiline
-            numberOfLines={3}
-            value={notes}
-            onChangeText={setNotes}
-          />
-        </View>
+        <Text style={styles.sectionTitle}>📝 Notas (Opcional)</Text>
+        <TextInput
+          style={[styles.input, styles.notesInput]}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Notas adicionales..."
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+        />
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={safeBackToAccounts}
+          disabled={loading}
+        >
+          <Text style={styles.cancelButtonText}>Cancelar</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+          style={[styles.confirmButton, loading && styles.buttonDisabled]}
           onPress={handleRecordPayment}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>Registrar Pago</Text>
+            <Text style={styles.confirmButtonText}>Registrar Pago</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -258,19 +306,133 @@ export const RecordPaymentPayableScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#f5f7fa",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f7fa",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666",
   },
   header: {
-    padding: 20,
     backgroundColor: "#fff",
+    padding: 20,
+    paddingTop: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    borderBottomColor: "#e1e5e9",
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#1e293b",
+    color: "#1a202c",
     marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#718096",
+  },
+  balanceCard: {
+    backgroundColor: "#fff",
+    margin: 16,
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: "#718096",
+    marginBottom: 8,
+  },
+  balanceAmount: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#e53e3e",
+    marginBottom: 8,
+  },
+  totalInfo: {
+    fontSize: 12,
+    color: "#718096",
+  },
+  formCard: {
+    backgroundColor: "#fff",
+    margin: 16,
+    marginTop: 0,
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2d3748",
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  amountInput: {
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+    backgroundColor: "#f7fafc",
+    color: "#2d3748",
+  },
+  paymentButtonsScroll: {
+    marginBottom: 8,
+  },
+  paymentButtons: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  paymentButton: {
+    backgroundColor: "#f7fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+    minWidth: 80,
+  },
+  paymentButtonActive: {
+    backgroundColor: "#2f5ae0",
+    borderColor: "#2f5ae0",
+  },
+  paymentButtonIcon: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  paymentButtonText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#4a5568",
+  },
+  paymentButtonTextActive: {
+    color: "#fff",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: "#f7fafc",
+    color: "#2d3748",
+    marginBottom: 8,
   },
   dateText: {
     fontSize: 16,
@@ -283,7 +445,7 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
     paddingVertical: 10,
     paddingHorizontal: 6,
-    marginTop: 10,
+    marginBottom: 15,
   },
   datePickerDone: {
     alignSelf: "flex-end",
@@ -299,100 +461,43 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#64748b",
-  },
-  balanceCard: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  balanceTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748b",
-    marginBottom: 8,
-  },
-  balanceAmount: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#ef4444",
-    marginBottom: 4,
-  },
-  balanceSubtitle: {
-    fontSize: 14,
-    color: "#64748b",
-  },
-  form: {
-    padding: 16,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#fff",
-  },
-  textArea: {
+  notesInput: {
     height: 80,
     textAlignVertical: "top",
   },
-  methodSelector: {
+  buttonContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+    gap: 12,
+    padding: 16,
+    paddingBottom: 32,
   },
-  methodOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+  cancelButton: {
+    flex: 1,
+    backgroundColor: "#f7fafc",
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#fff",
-  },
-  methodOptionSelected: {
-    backgroundColor: "#2e7d32",
-    borderColor: "#2e7d32",
-  },
-  methodOptionText: {
-    fontSize: 14,
-    color: "#6b7280",
-  },
-  methodOptionTextSelected: {
-    color: "#fff",
-  },
-  submitButton: {
-    backgroundColor: "#2e7d32",
-    paddingVertical: 16,
-    borderRadius: 12,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    padding: 16,
     alignItems: "center",
-    marginTop: 20,
   },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
-  submitButtonText: {
-    color: "#fff",
+  cancelButtonText: {
     fontSize: 16,
     fontWeight: "600",
+    color: "#4a5568",
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: "#2f5ae0",
+    borderRadius: 8,
+    padding: 16,
+    alignItems: "center",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
   },
 });
-
-export default RecordPaymentPayableScreen;

@@ -10,10 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
-  Modal,
 } from "react-native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 /**
  * Pantalla para agregar nueva cuenta por cobrar
@@ -36,17 +36,24 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
+  const formatLocalDate = (date) => {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate()
+    )}`;
+  };
+
+  const updateFormData = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
   const handleDocumentChange = async (documentNumber) => {
     updateFormData("documentNumber", documentNumber);
 
     if (documentNumber.trim()) {
       try {
         const customer = await getCustomerByDocument(documentNumber.trim());
-        if (customer) {
-          updateFormData("customerName", customer.name);
-        } else {
-          updateFormData("customerName", "");
-        }
+        updateFormData("customerName", customer ? customer.name : "");
       } catch (error) {
         console.error("Error buscando cliente:", error);
         updateFormData("customerName", "");
@@ -56,16 +63,29 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
     }
   };
 
-  const handleDateSelect = (date) => {
+  const handleDateChange = (_event, date) => {
+    if (Platform.OS !== "ios") {
+      setShowDatePicker(false);
+    }
+    if (!date) return;
     setSelectedDate(date);
-    const formattedDate = date.toISOString().split("T")[0]; // YYYY-MM-DD format
-    updateFormData("dueDate", formattedDate);
-    setShowDatePicker(false);
+    updateFormData("dueDate", formatLocalDate(date));
   };
 
   const showDatePickerModal = () => {
+    if (formData.dueDate) {
+      const [year, month, day] = formData.dueDate.split("-").map(Number);
+      if (year && month && day) {
+        const parsed = new Date(year, month - 1, day);
+        if (!Number.isNaN(parsed.getTime())) {
+          setSelectedDate(parsed);
+        }
+      }
+    }
     setShowDatePicker(true);
   };
+
+  const closeDatePicker = () => setShowDatePicker(false);
 
   const safeBackToAccounts = () => {
     if (navigation?.canGoBack?.()) {
@@ -86,10 +106,13 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
       Alert.alert("Error", "El nombre del cliente es obligatorio");
       return;
     }
-    if (!formData.amount.trim()) {
-      Alert.alert("Error", "El monto es obligatorio");
+
+    const amountValue = parseFloat(formData.amount.replace(",", "."));
+    if (Number.isNaN(amountValue) || amountValue <= 0) {
+      Alert.alert("Error", "El monto debe ser un número positivo");
       return;
     }
+
     if (!formData.dueDate.trim()) {
       Alert.alert("Error", "La fecha de vencimiento es obligatoria");
       return;
@@ -97,40 +120,37 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      // Verificar si el cliente existe
       let customer = await getCustomerByDocument(
         formData.documentNumber.trim()
       );
 
-      // Si el cliente no existe, crearlo
       if (!customer) {
         await addCustomer({
           documentNumber: formData.documentNumber.trim(),
           name: formData.customerName.trim(),
         });
-        // Volver a buscar el cliente recién creado
         customer = await getCustomerByDocument(formData.documentNumber.trim());
       }
 
-      const currentDateTime = new Date().toISOString(); // Fecha y hora actual completa
-
       await addAccountReceivable({
-        ...formData,
-        customerId: customer.id,
-        amount: parseFloat(formData.amount),
-        createdAt: currentDateTime, // Agregar fecha y hora de creación
+        customerId: customer?.id,
+        customerName: formData.customerName.trim(),
+        documentNumber: formData.documentNumber.trim(),
+        amount: amountValue,
+        description: formData.description.trim(),
+        invoiceNumber: formData.invoiceNumber.trim(),
+        dueDate: formData.dueDate,
+        createdAt: new Date().toISOString(),
       });
+
       Alert.alert("Éxito", "Cuenta por cobrar agregada correctamente");
       safeBackToAccounts();
     } catch (error) {
+      console.error("Error agregando cuenta por cobrar:", error);
       Alert.alert("Error", "No se pudo guardar la cuenta por cobrar");
     } finally {
       setLoading(false);
     }
-  };
-
-  const updateFormData = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -246,6 +266,26 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
                 morosidad.
               </Text>
             ) : null}
+
+            {showDatePicker && (
+              <View style={styles.datePickerWrapper}>
+                <DateTimePicker
+                  value={selectedDate}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={handleDateChange}
+                />
+                {Platform.OS === "ios" && (
+                  <TouchableOpacity
+                    style={styles.datePickerDone}
+                    onPress={closeDatePicker}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.datePickerDoneText}>Listo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
 
           <View style={styles.buttonRow}>
@@ -265,87 +305,6 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <Modal
-        visible={showDatePicker}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.datePickerModal}>
-            <Text style={styles.modalTitle}>
-              Selecciona la fecha de vencimiento
-            </Text>
-
-            <View style={styles.datePickerContainer}>
-              <View style={styles.dateRow}>
-                <Text style={styles.dateLabel}>Día</Text>
-                <TextInput
-                  style={styles.dateInputSmall}
-                  value={selectedDate.getDate().toString()}
-                  onChangeText={(text) => {
-                    const day = parseInt(text, 10) || 1;
-                    const newDate = new Date(selectedDate);
-                    newDate.setDate(Math.min(day, 31));
-                    setSelectedDate(newDate);
-                  }}
-                  keyboardType="numeric"
-                  maxLength={2}
-                />
-              </View>
-
-              <View style={styles.dateRow}>
-                <Text style={styles.dateLabel}>Mes</Text>
-                <TextInput
-                  style={styles.dateInputSmall}
-                  value={(selectedDate.getMonth() + 1).toString()}
-                  onChangeText={(text) => {
-                    const month = parseInt(text, 10) || 1;
-                    const newDate = new Date(selectedDate);
-                    newDate.setMonth(Math.min(Math.max(month - 1, 0), 11));
-                    setSelectedDate(newDate);
-                  }}
-                  keyboardType="numeric"
-                  maxLength={2}
-                />
-              </View>
-
-              <View style={styles.dateRow}>
-                <Text style={styles.dateLabel}>Año</Text>
-                <TextInput
-                  style={styles.dateInputSmall}
-                  value={selectedDate.getFullYear().toString()}
-                  onChangeText={(text) => {
-                    const year = parseInt(text, 10) || new Date().getFullYear();
-                    const newDate = new Date(selectedDate);
-                    newDate.setFullYear(year);
-                    setSelectedDate(newDate);
-                  }}
-                  keyboardType="numeric"
-                  maxLength={4}
-                />
-              </View>
-            </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalSecondaryButton]}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={styles.modalSecondaryText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalPrimaryButton]}
-                onPress={() => handleDateSelect(selectedDate)}
-              >
-                <Text style={styles.modalPrimaryText}>Seleccionar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -465,6 +424,28 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     lineHeight: 18,
+  },
+  datePickerWrapper: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#d9e0eb",
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+  },
+  datePickerDone: {
+    alignSelf: "flex-end",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: "#2f5ae0",
+    marginTop: 8,
+    marginRight: 8,
+  },
+  datePickerDoneText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
   buttonRow: {
     flexDirection: "row",

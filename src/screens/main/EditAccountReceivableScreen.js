@@ -10,10 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
-  Modal,
 } from "react-native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 /**
  * Pantalla para editar cuenta por cobrar existente
@@ -34,6 +34,13 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const formatLocalDate = (date) => {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate()
+    )}`;
+  };
 
   useEffect(() => {
     if (account) {
@@ -66,16 +73,29 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleDateSelect = (date) => {
+  const handleDateChange = (_event, date) => {
+    if (Platform.OS !== "ios") {
+      setShowDatePicker(false);
+    }
+    if (!date) return;
     setSelectedDate(date);
-    const formattedDate = date.toISOString().split("T")[0]; // YYYY-MM-DD format
-    updateFormData("dueDate", formattedDate);
-    setShowDatePicker(false);
+    updateFormData("dueDate", formatLocalDate(date));
   };
 
   const showDatePickerModal = () => {
+    if (formData.dueDate) {
+      const [year, month, day] = formData.dueDate.split("-").map(Number);
+      if (year && month && day) {
+        const parsed = new Date(year, month - 1, day);
+        if (!Number.isNaN(parsed.getTime())) {
+          setSelectedDate(parsed);
+        }
+      }
+    }
     setShowDatePicker(true);
   };
+
+  const closeDatePicker = () => setShowDatePicker(false);
 
   const handleSave = async () => {
     if (!formData.documentNumber.trim()) {
@@ -224,6 +244,26 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
                 morosidad.
               </Text>
             ) : null}
+
+            {showDatePicker && (
+              <View style={styles.datePickerWrapper}>
+                <DateTimePicker
+                  value={selectedDate}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={handleDateChange}
+                />
+                {Platform.OS === "ios" && (
+                  <TouchableOpacity
+                    style={styles.datePickerDone}
+                    onPress={closeDatePicker}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.datePickerDoneText}>Listo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
 
           <View style={styles.buttonRow}>
@@ -243,87 +283,6 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <Modal
-        visible={showDatePicker}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.datePickerModal}>
-            <Text style={styles.modalTitle}>
-              Selecciona la fecha de vencimiento
-            </Text>
-
-            <View style={styles.datePickerContainer}>
-              <View style={styles.dateRow}>
-                <Text style={styles.dateLabel}>Día</Text>
-                <TextInput
-                  style={styles.dateInputSmall}
-                  value={selectedDate.getDate().toString()}
-                  onChangeText={(text) => {
-                    const day = parseInt(text, 10) || 1;
-                    const newDate = new Date(selectedDate);
-                    newDate.setDate(Math.min(day, 31));
-                    setSelectedDate(newDate);
-                  }}
-                  keyboardType="numeric"
-                  maxLength={2}
-                />
-              </View>
-
-              <View style={styles.dateRow}>
-                <Text style={styles.dateLabel}>Mes</Text>
-                <TextInput
-                  style={styles.dateInputSmall}
-                  value={(selectedDate.getMonth() + 1).toString()}
-                  onChangeText={(text) => {
-                    const month = parseInt(text, 10) || 1;
-                    const newDate = new Date(selectedDate);
-                    newDate.setMonth(Math.min(Math.max(month - 1, 0), 11));
-                    setSelectedDate(newDate);
-                  }}
-                  keyboardType="numeric"
-                  maxLength={2}
-                />
-              </View>
-
-              <View style={styles.dateRow}>
-                <Text style={styles.dateLabel}>Año</Text>
-                <TextInput
-                  style={styles.dateInputSmall}
-                  value={selectedDate.getFullYear().toString()}
-                  onChangeText={(text) => {
-                    const year = parseInt(text, 10) || new Date().getFullYear();
-                    const newDate = new Date(selectedDate);
-                    newDate.setFullYear(year);
-                    setSelectedDate(newDate);
-                  }}
-                  keyboardType="numeric"
-                  maxLength={4}
-                />
-              </View>
-            </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalSecondaryButton]}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={styles.modalSecondaryText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalPrimaryButton]}
-                onPress={() => handleDateSelect(selectedDate)}
-              >
-                <Text style={styles.modalPrimaryText}>Seleccionar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -478,83 +437,27 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 15,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(10, 19, 36, 0.45)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  datePickerModal: {
-    width: "100%",
-    maxWidth: 360,
+  datePickerWrapper: {
     backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 24,
-    gap: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1f2633",
-    textAlign: "center",
-  },
-  datePickerContainer: {
-    gap: 14,
-  },
-  dateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  dateLabel: {
-    width: 70,
-    fontSize: 14,
-    color: "#4c5767",
-    fontWeight: "600",
-  },
-  dateInputSmall: {
-    flex: 1,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#d9e0eb",
-    borderRadius: 10,
     paddingVertical: 10,
-    textAlign: "center",
-    backgroundColor: "#f8f9fc",
-    fontSize: 15,
-    color: "#1f2633",
+    paddingHorizontal: 6,
   },
-  modalButtons: {
-    flexDirection: "row",
-    gap: 12,
+  datePickerDone: {
+    alignSelf: "flex-end",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: "#2f5ae0",
+    marginTop: 8,
+    marginRight: 8,
   },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalSecondaryButton: {
-    borderWidth: 1,
-    borderColor: "#c3cad5",
-    backgroundColor: "#fff",
-  },
-  modalSecondaryText: {
-    color: "#4c5767",
-    fontWeight: "600",
-  },
-  modalPrimaryButton: {
-    backgroundColor: "#2fb176",
-  },
-  modalPrimaryText: {
+  datePickerDoneText: {
     color: "#fff",
     fontWeight: "700",
+    fontSize: 14,
   },
 });
 

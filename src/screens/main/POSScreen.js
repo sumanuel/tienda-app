@@ -511,8 +511,7 @@ export const POSScreen = ({ navigation }) => {
         keyExtractor={(item) => item.id.toString()}
         style={styles.flatList}
         showsVerticalScrollIndicator={false}
-        numColumns={2}
-        columnWrapperStyle={styles.productsRow}
+        numColumns={1}
         ListHeaderComponent={
           <View style={styles.listHeader}>
             <View style={styles.heroCard}>
@@ -978,21 +977,18 @@ const styles = StyleSheet.create({
   productsContent: {
     paddingTop: 16,
     paddingBottom: 140,
-    gap: 16,
+    gap: 10,
   },
   productsContentWithSummary: {
     paddingBottom: 240,
   },
-  productsRow: {
-    justifyContent: "space-between",
-  },
   productCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 14,
-    gap: 12,
+    padding: 12,
+    gap: 8,
     flex: 1,
-    marginBottom: 12,
+    marginBottom: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
@@ -1036,7 +1032,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   productPrice: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
     color: "#1f9254",
   },
@@ -1046,7 +1042,7 @@ const styles = StyleSheet.create({
     color: "#2f5ae0",
     backgroundColor: "#e8f1ff",
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 10,
   },
   productStockLow: {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getAllAccountsReceivable,
   getAllAccountsPayable,
@@ -17,7 +17,6 @@ import {
   recordAccountPayment,
   getAccountPayments,
   getAccountBalance,
-  fixCorruptedAccountData as fixAccountDecimalPrecision,
   fixCorruptedAccountData,
 } from "../services/database/accounts";
 
@@ -42,6 +41,10 @@ export const useAccounts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Evita que rutinas pesadas de reparación corran en cada carga.
+  // Se ejecutan una sola vez por sesión de la app.
+  const repairRoutinesRanRef = useRef(false);
+
   useEffect(() => {
     loadAccounts();
   }, []);
@@ -53,11 +56,11 @@ export const useAccounts = () => {
 
       // Corregir precisión decimal y valores negativos
       try {
-        console.log("Corrigiendo precisión decimal en cuentas existentes...");
-        await fixAccountDecimalPrecision();
-
-        // También corregir datos potencialmente corruptos
-        await fixCorruptedAccountData();
+        if (!repairRoutinesRanRef.current) {
+          console.log("Corrigiendo datos corruptos en cuentas existentes...");
+          await fixCorruptedAccountData();
+          repairRoutinesRanRef.current = true;
+        }
       } catch (fixError) {
         console.warn("Error fixing data:", fixError);
       }
@@ -261,7 +264,6 @@ export const useAccounts = () => {
     payableStats,
     loading,
     error,
-    loadAccounts,
     refresh,
     searchReceivable,
     searchPayable,

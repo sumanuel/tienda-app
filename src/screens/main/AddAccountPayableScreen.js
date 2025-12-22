@@ -10,10 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
-  Modal,
 } from "react-native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useSuppliers } from "../../hooks/useSuppliers";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 /**
  * Pantalla para agregar nueva cuenta por pagar
@@ -36,6 +36,13 @@ export const AddAccountPayableScreen = ({ navigation }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
+  const formatLocalDate = (date) => {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate()
+    )}`;
+  };
+
   const updateFormData = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -56,11 +63,13 @@ export const AddAccountPayableScreen = ({ navigation }) => {
     }
   };
 
-  const handleDateSelect = (date) => {
+  const handleDateChange = (_event, date) => {
+    if (Platform.OS !== "ios") {
+      setShowDatePicker(false);
+    }
+    if (!date) return;
     setSelectedDate(date);
-    const formattedDate = date.toISOString().split("T")[0];
-    updateFormData("dueDate", formattedDate);
-    setShowDatePicker(false);
+    updateFormData("dueDate", formatLocalDate(date));
   };
 
   const showDatePickerModal = () => {
@@ -75,6 +84,8 @@ export const AddAccountPayableScreen = ({ navigation }) => {
     }
     setShowDatePicker(true);
   };
+
+  const closeDatePicker = () => setShowDatePicker(false);
 
   const safeBackToAccounts = () => {
     if (navigation?.canGoBack?.()) {
@@ -141,89 +152,6 @@ export const AddAccountPayableScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
-
-  const DatePickerModal = () => (
-    <Modal
-      visible={showDatePicker}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={() => setShowDatePicker(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>
-            Selecciona la fecha de vencimiento
-          </Text>
-
-          <View style={styles.modalInputs}>
-            <View style={styles.modalInputGroup}>
-              <Text style={styles.modalLabel}>Día</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={selectedDate.getDate().toString()}
-                onChangeText={(value) => {
-                  const day = parseInt(value, 10) || 1;
-                  const next = new Date(selectedDate);
-                  next.setDate(Math.min(Math.max(day, 1), 31));
-                  setSelectedDate(next);
-                }}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-            </View>
-
-            <View style={styles.modalInputGroup}>
-              <Text style={styles.modalLabel}>Mes</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={(selectedDate.getMonth() + 1).toString()}
-                onChangeText={(value) => {
-                  const month = parseInt(value, 10) || 1;
-                  const next = new Date(selectedDate);
-                  next.setMonth(Math.min(Math.max(month - 1, 0), 11));
-                  setSelectedDate(next);
-                }}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-            </View>
-
-            <View style={styles.modalInputGroup}>
-              <Text style={styles.modalLabel}>Año</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={selectedDate.getFullYear().toString()}
-                onChangeText={(value) => {
-                  const year = parseInt(value, 10) || new Date().getFullYear();
-                  const next = new Date(selectedDate);
-                  next.setFullYear(year);
-                  setSelectedDate(next);
-                }}
-                keyboardType="numeric"
-                maxLength={4}
-              />
-            </View>
-          </View>
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.modalSecondary]}
-              onPress={() => setShowDatePicker(false)}
-            >
-              <Text style={styles.modalSecondaryText}>Cancelar</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, styles.modalPrimary]}
-              onPress={() => handleDateSelect(selectedDate)}
-            >
-              <Text style={styles.modalPrimaryText}>Seleccionar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -344,6 +272,26 @@ export const AddAccountPayableScreen = ({ navigation }) => {
                   {formData.dueDate || "Selecciona la fecha"}
                 </Text>
               </TouchableOpacity>
+
+              {showDatePicker && (
+                <View style={styles.datePickerWrapper}>
+                  <DateTimePicker
+                    value={selectedDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={handleDateChange}
+                  />
+                  {Platform.OS === "ios" && (
+                    <TouchableOpacity
+                      style={styles.datePickerDone}
+                      onPress={closeDatePicker}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.datePickerDoneText}>Listo</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </View>
 
             {formData.dueDate ? (
@@ -373,8 +321,6 @@ export const AddAccountPayableScreen = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <DatePickerModal />
     </SafeAreaView>
   );
 };
@@ -482,6 +428,28 @@ const styles = StyleSheet.create({
   dateTrigger: {
     justifyContent: "center",
   },
+  datePickerWrapper: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#d9e0eb",
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+  },
+  datePickerDone: {
+    alignSelf: "flex-end",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: "#2f5ae0",
+    marginTop: 8,
+    marginRight: 8,
+  },
+  datePickerDoneText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
+  },
   dateValue: {
     fontSize: 15,
     color: "#1f2633",
@@ -491,85 +459,6 @@ const styles = StyleSheet.create({
     color: "#9aa2b1",
   },
   helperText: {
-    fontSize: 12,
-    color: "#5a2e2e",
-    backgroundColor: "#fff4f2",
-    padding: 12,
-    borderRadius: 12,
-    lineHeight: 18,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  secondaryButton: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#c3cad5",
-  },
-  secondaryText: {
-    color: "#4c5767",
-    fontWeight: "600",
-    fontSize: 15,
-  },
-  primaryButton: {
-    backgroundColor: "#ef5350",
-    shadowColor: "#ef5350",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  primaryText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(10, 19, 36, 0.45)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: 360,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.16,
-    shadowRadius: 20,
-    elevation: 12,
-    gap: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1f2633",
-    textAlign: "center",
-  },
-  modalInputs: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  modalInputGroup: {
-    flex: 1,
-    gap: 6,
-  },
-  modalLabel: {
-    fontSize: 12,
-    fontWeight: "600",
     color: "#7a8796",
     textTransform: "uppercase",
     letterSpacing: 0.6,
