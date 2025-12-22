@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
     color: "#4c5767",
   },
   listHeader: {
-    gap: 20,
+    gap: 12,
     paddingTop: 0,
     paddingBottom: 12,
     alignItems: "stretch",
@@ -949,7 +949,7 @@ const styles = StyleSheet.create({
   searchCard: {
     backgroundColor: "#fff",
     borderRadius: 22,
-    padding: 20,
+    padding: 16,
     gap: 12,
     width: "100%",
     shadowColor: "#000",
@@ -970,12 +970,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "500",
     color: "#1f2633",
   },
   productsContent: {
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 140,
     gap: 10,
   },
