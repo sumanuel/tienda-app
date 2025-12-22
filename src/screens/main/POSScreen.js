@@ -884,7 +884,7 @@ const styles = StyleSheet.create({
   listHeader: {
     gap: 12,
     paddingTop: 0,
-    paddingBottom: 12,
+    paddingBottom: 0,
     alignItems: "stretch",
   },
   heroCard: {
