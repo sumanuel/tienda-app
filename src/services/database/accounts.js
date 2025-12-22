@@ -305,8 +305,38 @@ export const recordAccountPayment = async (
     const { amount, paymentMethod, paymentDate, reference, notes } =
       paymentData;
 
-    // Redondear el monto del pago a 2 decimales
-    const roundedAmount = Math.round(amount * 100) / 100;
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      throw new Error("Monto de pago inválido");
+    }
+
+    const roundedAmount = Math.round(numericAmount * 100) / 100;
+
+    const tableName =
+      accountType === "payable" ? "accounts_payable" : "accounts_receivable";
+
+    // Evitar pagar más de lo debido (validación a nivel de BD)
+    const currentAccount = await db.getFirstAsync(
+      `SELECT ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount FROM ${tableName} WHERE id = ?`,
+      [accountId]
+    );
+
+    if (!currentAccount) {
+      throw new Error("Cuenta no encontrada");
+    }
+
+    const remaining = Math.max(
+      0,
+      (currentAccount.amount || 0) - (currentAccount.paidAmount || 0)
+    );
+
+    if (remaining <= 0) {
+      throw new Error("La cuenta ya está pagada");
+    }
+
+    if (roundedAmount > remaining + 0.01) {
+      throw new Error("El monto no puede ser mayor al saldo pendiente");
+    }
 
     // Insertar el pago
     await db.runAsync(
@@ -322,10 +352,6 @@ export const recordAccountPayment = async (
         notes || "",
       ]
     );
-
-    // Determinar la tabla a actualizar
-    const tableName =
-      accountType === "payable" ? "accounts_payable" : "accounts_receivable";
 
     // Actualizar el monto pagado en la cuenta
     await db.runAsync(

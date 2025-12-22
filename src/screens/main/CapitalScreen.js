@@ -1,10 +1,16 @@
 import React from "react";
 import { ScrollView, View, Text, StyleSheet } from "react-native";
 import { useAccounts } from "../../hooks/useAccounts";
+import { useInventory } from "../../hooks/useInventory";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 
 const CapitalScreen = () => {
   const { receivableStats, payableStats } = useAccounts();
+  const { inventory } = useInventory();
+  const { rate } = useExchangeRateContext();
+
+  const exchangeRate = Number(rate) || 0;
 
   const totalReceivable = receivableStats?.totalAmount || 0;
   const totalPayable = payableStats?.totalAmount || 0;
@@ -16,6 +22,29 @@ const CapitalScreen = () => {
   const capital = totalReceivable - totalPayable;
 
   const formatAmount = (value) => formatCurrency(value || 0, "VES");
+  const formatUSD = (value) => formatCurrency(value || 0, "USD");
+
+  // Inventario: asumimos que products.cost está en USD (costo USD)
+  const inventoryCostUSD = (inventory || []).reduce((sum, product) => {
+    const stock = Number(product.stock) || 0;
+    const costUSD = Number(product.cost) || 0;
+    return sum + stock * costUSD;
+  }, 0);
+  const inventoryCostVES = exchangeRate ? inventoryCostUSD * exchangeRate : 0;
+
+  const inventorySellUSD = (inventory || []).reduce((sum, product) => {
+    const stock = Number(product.stock) || 0;
+    const priceUSD = Number(product.priceUSD) || 0;
+    return sum + stock * priceUSD;
+  }, 0);
+
+  const inventorySellVES = (inventory || []).reduce((sum, product) => {
+    const stock = Number(product.stock) || 0;
+    const priceVES =
+      Number(product.priceVES) ||
+      (exchangeRate ? (Number(product.priceUSD) || 0) * exchangeRate : 0);
+    return sum + stock * priceVES;
+  }, 0);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -34,17 +63,38 @@ const CapitalScreen = () => {
         </Text>
       </View>
 
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Inventario (Costo)</Text>
+        <Text style={styles.summaryAmount}>{formatUSD(inventoryCostUSD)}</Text>
+        <Text style={styles.summarySubtitle}>
+          {formatAmount(inventoryCostVES)}{" "}
+          {exchangeRate ? `• Tasa: ${exchangeRate.toFixed(2)} VES.` : ""}
+        </Text>
+      </View>
+
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Inventario (Si vendo todo)</Text>
+        <Text style={styles.summaryAmount}>{formatUSD(inventorySellUSD)}</Text>
+        <Text style={styles.summarySubtitle}>
+          {formatAmount(inventorySellVES)}
+        </Text>
+      </View>
+
       <View style={styles.grid}>
         <View style={[styles.infoCard, styles.cardSpacing]}>
           <Text style={styles.cardTitle}>Cuentas por Cobrar</Text>
           <Text style={styles.cardAmount}>{formatAmount(totalReceivable)}</Text>
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Pendientes</Text>
-            <Text style={styles.cardValue}>{pendingReceivable}</Text>
+            <Text style={styles.cardValue}>
+              {formatAmount(pendingReceivable)}
+            </Text>
           </View>
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Vencidas</Text>
-            <Text style={styles.cardValue}>{overdueReceivable}</Text>
+            <Text style={styles.cardValue}>
+              {formatAmount(overdueReceivable)}
+            </Text>
           </View>
         </View>
 
@@ -55,11 +105,11 @@ const CapitalScreen = () => {
           </Text>
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Pendientes</Text>
-            <Text style={styles.cardValue}>{pendingPayable}</Text>
+            <Text style={styles.cardValue}>{formatAmount(pendingPayable)}</Text>
           </View>
           <View style={styles.cardRow}>
             <Text style={styles.cardLabel}>Vencidas</Text>
-            <Text style={styles.cardValue}>{overduePayable}</Text>
+            <Text style={styles.cardValue}>{formatAmount(overduePayable)}</Text>
           </View>
         </View>
       </View>

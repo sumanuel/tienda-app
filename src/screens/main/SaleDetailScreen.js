@@ -79,7 +79,7 @@ export const SaleDetailScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2f5ae0" />
+        <ActivityIndicator size="large" color="#4CAF50" />
         <Text style={styles.loadingText}>Cargando detalles de la venta...</Text>
       </SafeAreaView>
     );
@@ -104,53 +104,68 @@ export const SaleDetailScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>← Volver</Text>
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.title}>Venta #{sale.id}</Text>
-          <Text style={styles.subtitle}>
-            {new Date(sale.createdAt).toLocaleDateString()} ·{" "}
-            {new Date(sale.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.backButtonText}>← Volver</Text>
+          </TouchableOpacity>
+
+          <View style={styles.headerInfo}>
+            <Text style={styles.title}>Venta #{sale.id}</Text>
+            <Text style={styles.subtitle}>
+              {new Date(sale.createdAt).toLocaleDateString("es-VE")} ·{" "}
+              {new Date(sale.createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Text>
+            <Text style={styles.subtitle}>
+              {getPaymentMethodText(sale.paymentMethod)}
+            </Text>
+          </View>
         </View>
-        <View style={styles.amountChip}>
-          <Text style={styles.amountText}>
+
+        <View style={styles.totalCard}>
+          <Text style={styles.totalLabel}>TOTAL</Text>
+          <Text style={styles.totalAmount}>
             {formatCurrency(sale.total, "VES")}
           </Text>
         </View>
       </View>
 
-      <ScrollView style={styles.scrollContent} contentContainerStyle={styles.content}>
-        <View style={styles.summary}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Cliente</Text>
-            <Text style={styles.summaryValue} numberOfLines={1}>
+      <ScrollView
+        style={styles.scrollContent}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Resumen</Text>
+
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Cliente</Text>
+            <Text style={styles.rowValue} numberOfLines={1}>
               {sale.notes ? sale.notes.replace("Cliente: ", "") : "Sin nombre"}
             </Text>
           </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Pago</Text>
-            <Text style={styles.summaryValue}>
+
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Método de pago</Text>
+            <Text style={styles.rowValue}>
               {getPaymentMethodText(sale.paymentMethod)}
             </Text>
           </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Productos</Text>
-            <Text style={styles.summaryValue}>
-              {details?.items?.length || 0}
-            </Text>
+
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Productos</Text>
+            <Text style={styles.rowValue}>{details?.items?.length || 0}</Text>
           </View>
         </View>
 
-        <View style={styles.productsSection}>
-          <Text style={styles.sectionTitle}>Productos</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Productos</Text>
           <FlatList
             data={details?.items || []}
             renderItem={renderDetailItem}
@@ -196,100 +211,101 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   header: {
+    backgroundColor: "#4CAF50",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 18,
+  },
+  headerTopRow: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 18,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 16,
-    gap: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 5,
+    alignItems: "flex-start",
+    gap: 12,
   },
   backButton: {
-    backgroundColor: "#f0f3fa",
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
   },
   backButtonText: {
-    color: "#2f5ae0",
+    color: "#ffffff",
     fontWeight: "700",
-    fontSize: 14,
+    fontSize: 13,
   },
   headerInfo: {
     flex: 1,
     gap: 4,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
-    color: "#1f2633",
+    color: "#ffffff",
   },
   subtitle: {
-    fontSize: 14,
-    color: "#6f7c8c",
-  },
-  amountChip: {
-    backgroundColor: "#2fb176",
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  amountText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  summary: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 20,
-    gap: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 5,
-    marginBottom: 24,
-  },
-  summaryItem: {
-    flex: 1,
-    gap: 8,
-  },
-  summaryLabel: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#7a8796",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
+    color: "#fff",
+    opacity: 0.9,
   },
-  summaryValue: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1f2633",
-  },
-  productsSection: {
+  totalCard: {
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 24,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 14,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  sectionTitle: {
-    fontSize: 16,
+  totalLabel: {
+    fontSize: 11,
     fontWeight: "700",
-    color: "#1f2633",
-    marginBottom: 16,
+    color: "#999",
+    letterSpacing: 1,
+  },
+  totalAmount: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#333",
+    marginTop: 6,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 18,
+    marginTop: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 12,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    gap: 12,
+  },
+  rowLabel: {
+    fontSize: 13,
+    color: "#6c7a8a",
+    fontWeight: "600",
+  },
+  rowValue: {
+    flex: 1,
+    fontSize: 13,
+    color: "#2f3a4c",
+    fontWeight: "700",
+    textAlign: "right",
   },
   detailItem: {
     flexDirection: "row",
@@ -304,22 +320,22 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   detailItemName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1f2633",
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2f3a4c",
   },
   detailItemQuantity: {
-    fontSize: 14,
-    color: "#6f7c8c",
+    fontSize: 12,
+    color: "#6c7a8a",
   },
   detailItemTotal: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1f2633",
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#2f3a4c",
   },
   detailDivider: {
     height: 1,
-    backgroundColor: "#e4e9f2",
+    backgroundColor: "#f0f0f0",
     marginTop: 12,
   },
   emptyProducts: {
