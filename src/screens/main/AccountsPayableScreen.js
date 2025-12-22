@@ -200,9 +200,29 @@ export const AccountsPayableScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.amountRow}>
-            <Text style={styles.amount}>
-              {formatCurrency(item.amount || 0, item.currency || "VES")}
-            </Text>
+            <View style={styles.amountContainer}>
+              <Text style={styles.amount}>
+                {formatCurrency(item.amount || 0, item.currency || "VES")}
+              </Text>
+              {(item.paidAmount || 0) > 0 && (
+                <View style={styles.paymentInfo}>
+                  <Text style={styles.paidText}>
+                    Pagado:{" "}
+                    {formatCurrency(
+                      item.paidAmount || 0,
+                      item.currency || "VES"
+                    )}
+                  </Text>
+                  <Text style={styles.pendingText}>
+                    Pendiente:{" "}
+                    {formatCurrency(
+                      Math.max(0, (item.amount || 0) - (item.paidAmount || 0)),
+                      item.currency || "VES"
+                    )}
+                  </Text>
+                </View>
+              )}
+            </View>
             {item.dueDate ? (
               <Text style={styles.dueDate}>
                 Vence {new Date(item.dueDate).toLocaleDateString()}
@@ -322,33 +342,27 @@ export const AccountsPayableScreen = ({ navigation }) => {
         </View>
       </View>
 
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "pending" && styles.activeTab]}
-          onPress={() => setActiveTab("pending")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "pending" && styles.activeTabText,
-            ]}
-          >
-            Pendientes
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "paid" && styles.activeTab]}
-          onPress={() => setActiveTab("paid")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "paid" && styles.activeTabText,
-            ]}
-          >
-            Pagadas
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.tabGroup}>
+        {[
+          { key: "pending", label: "Pendientes" },
+          { key: "paid", label: "Pagadas" },
+        ].map((tab) => {
+          const active = activeTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tabChip, active && styles.tabChipActive]}
+              onPress={() => setActiveTab(tab.key)}
+              activeOpacity={0.85}
+            >
+              <Text
+                style={[styles.tabChipText, active && styles.tabChipTextActive]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -625,11 +639,12 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   secondaryButton: {
-    flex: 1,
-    backgroundColor: "#fdecea",
+    backgroundColor: "#edf8ef",
     borderRadius: 12,
     paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: "center",
+    marginRight: 12,
   },
   secondaryButtonText: {
     color: "#c62828",
@@ -760,6 +775,51 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: "#fff",
+  },
+  tabGroup: {
+    flexDirection: "row",
+    backgroundColor: "#f3f5fa",
+    borderRadius: 16,
+    padding: 8,
+    gap: 8,
+  },
+  tabChip: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  tabChipActive: {
+    backgroundColor: "#2f5ae0",
+    shadowColor: "#2f5ae0",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  tabChipText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#5b6472",
+  },
+  tabChipTextActive: {
+    color: "#fff",
+  },
+  amountContainer: {
+    flex: 1,
+  },
+  paymentInfo: {
+    marginTop: 4,
+  },
+  paidText: {
+    fontSize: 12,
+    color: "#48bb78",
+    fontWeight: "500",
+  },
+  pendingText: {
+    fontSize: 12,
+    color: "#e53e3e",
+    fontWeight: "500",
   },
 });
 
