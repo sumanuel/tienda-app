@@ -38,6 +38,8 @@ import AddAccountReceivableScreen from "./src/screens/main/AddAccountReceivableS
 import EditAccountReceivableScreen from "./src/screens/main/EditAccountReceivableScreen";
 import { RecordPaymentScreen } from "./src/screens/main/RecordPaymentScreen";
 import { PaymentHistoryScreen } from "./src/screens/main/PaymentHistoryScreen";
+import { RecordPaymentPayableScreen } from "./src/screens/main/RecordPaymentPayableScreen";
+import { PaymentHistoryPayableScreen } from "./src/screens/main/PaymentHistoryPayableScreen";
 import AccountsPayableScreen from "./src/screens/main/AccountsPayableScreen";
 import AddAccountPayableScreen from "./src/screens/main/AddAccountPayableScreen";
 import EditAccountPayableScreen from "./src/screens/main/EditAccountPayableScreen";
@@ -534,6 +536,34 @@ export default function App() {
           <Stack.Screen
             name="PaymentHistory"
             component={PaymentHistoryScreen}
+            options={{
+              title: "Historial de Pagos",
+              headerStyle: {
+                backgroundColor: "#2f5ae0",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="RecordPaymentPayable"
+            component={RecordPaymentPayableScreen}
+            options={{
+              title: "Registrar Pago",
+              headerStyle: {
+                backgroundColor: "#2f5ae0",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="PaymentHistoryPayable"
+            component={PaymentHistoryPayableScreen}
             options={{
               title: "Historial de Pagos",
               headerStyle: {

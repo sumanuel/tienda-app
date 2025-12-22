@@ -226,9 +226,9 @@ export const useAccounts = () => {
   );
 
   const recordPayment = useCallback(
-    async (accountId, paymentData) => {
+    async (accountId, paymentData, accountType = "receivable") => {
       try {
-        await recordAccountPayment(accountId, paymentData);
+        await recordAccountPayment(accountId, paymentData, accountType);
         await refresh();
       } catch (error) {
         throw error;
@@ -237,13 +237,16 @@ export const useAccounts = () => {
     [refresh]
   );
 
-  const getPayments = useCallback(async (accountId) => {
-    try {
-      return await getAccountPayments(accountId);
-    } catch (error) {
-      throw error;
-    }
-  }, []);
+  const getPayments = useCallback(
+    async (accountId, accountType = "receivable") => {
+      try {
+        return await getAccountPayments(accountId, accountType);
+      } catch (error) {
+        throw error;
+      }
+    },
+    []
+  );
 
   const getBalance = useCallback(async (accountId) => {
     try {

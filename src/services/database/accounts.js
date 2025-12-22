@@ -40,7 +40,7 @@ export const searchAccountsReceivable = async (query) => {
 export const getAllAccountsPayable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT * FROM accounts_payable ORDER BY createdAt DESC;"
+      "SELECT id, supplierName, documentNumber, description, ROUND(amount, 2) as amount, ROUND(paidAmount, 2) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;"
     );
     return result;
   } catch (error) {
@@ -55,7 +55,7 @@ export const searchAccountsPayable = async (query) => {
   try {
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
-      `SELECT * FROM accounts_payable 
+      `SELECT id, supplierName, documentNumber, description, ROUND(amount, 2) as amount, ROUND(paidAmount, 2) as paidAmount, status, createdAt, updatedAt FROM accounts_payable 
        WHERE supplierName LIKE ? 
        OR documentNumber LIKE ? 
        OR description LIKE ?
@@ -157,13 +157,14 @@ export const createAccountPayable = async (accountData) => {
       invoiceNumber,
       createdAt,
     } = accountData;
+    const roundedAmount = Math.round(amount * 100) / 100;
     const result = await db.runAsync(
       `INSERT INTO accounts_payable (supplierId, supplierName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
         supplierId || null,
         supplierName,
-        amount,
+        roundedAmount,
         description || null,
         dueDate || null,
         documentNumber || null,
@@ -283,7 +284,11 @@ export const deleteAccountPayable = async (id) => {
 /**
  * Registra un pago parcial para una cuenta por cobrar
  */
-export const recordAccountPayment = async (accountId, paymentData) => {
+export const recordAccountPayment = async (
+  accountId,
+  paymentData,
+  accountType = "receivable"
+) => {
   try {
     const { amount, paymentMethod, paymentDate, reference, notes } =
       paymentData;
@@ -294,9 +299,10 @@ export const recordAccountPayment = async (accountId, paymentData) => {
     // Insertar el pago
     await db.runAsync(
       `INSERT INTO account_payments (accountId, accountType, amount, paymentMethod, paymentDate, reference, notes)
-       VALUES (?, 'receivable', ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         accountId,
+        accountType,
         roundedAmount,
         paymentMethod,
         paymentDate || new Date().toISOString(),
@@ -305,9 +311,13 @@ export const recordAccountPayment = async (accountId, paymentData) => {
       ]
     );
 
+    // Determinar la tabla a actualizar
+    const tableName =
+      accountType === "payable" ? "accounts_payable" : "accounts_receivable";
+
     // Actualizar el monto pagado en la cuenta
     await db.runAsync(
-      `UPDATE accounts_receivable
+      `UPDATE ${tableName}
        SET paidAmount = ROUND(COALESCE(paidAmount, 0) + ?, 2), updatedAt = datetime('now')
        WHERE id = ?`,
       [roundedAmount, accountId]
@@ -315,13 +325,13 @@ export const recordAccountPayment = async (accountId, paymentData) => {
 
     // Verificar si la cuenta está completamente pagada (con tolerancia de 1 centavo)
     const account = await db.getFirstAsync(
-      `SELECT ROUND(amount, 2) as amount, ROUND(paidAmount, 2) as paidAmount FROM accounts_receivable WHERE id = ?`,
+      `SELECT ROUND(amount, 2) as amount, ROUND(paidAmount, 2) as paidAmount FROM ${tableName} WHERE id = ?`,
       [accountId]
     );
 
     if (account && account.paidAmount + 0.01 >= account.amount) {
       await db.runAsync(
-        `UPDATE accounts_receivable
+        `UPDATE ${tableName}
          SET status = 'paid', paidAt = datetime('now'), updatedAt = datetime('now')
          WHERE id = ?`,
         [accountId]
@@ -333,15 +343,18 @@ export const recordAccountPayment = async (accountId, paymentData) => {
 };
 
 /**
- * Obtiene todos los pagos de una cuenta por cobrar
+ * Obtiene todos los pagos de una cuenta
  */
-export const getAccountPayments = async (accountId) => {
+export const getAccountPayments = async (
+  accountId,
+  accountType = "receivable"
+) => {
   try {
     const result = await db.getAllAsync(
-      `SELECT * FROM account_payments
-       WHERE accountId = ? AND accountType = 'receivable'
+      `SELECT id, accountId, accountType, ROUND(amount, 2) as amount, paymentMethod, paymentDate, reference, notes FROM account_payments
+       WHERE accountId = ? AND accountType = ?
        ORDER BY paymentDate DESC`,
-      [accountId]
+      [accountId, accountType]
     );
     return result;
   } catch (error) {

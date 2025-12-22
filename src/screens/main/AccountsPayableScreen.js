@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -23,9 +23,12 @@ export const AccountsPayableScreen = ({ navigation }) => {
     removeAccountPayable,
     markPayableAsPaid,
     payableStats,
+    recordPayment,
+    getPayments,
   } = useAccounts();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("pending");
 
   const handleSearch = useCallback(
     async (query) => {
@@ -107,33 +110,74 @@ export const AccountsPayableScreen = ({ navigation }) => {
       ? payableStats.total
       : accountsPayable.length;
 
-  const getStatusAppearance = useCallback((status, dueDate) => {
-    if (status === "paid") {
-      return {
-        label: "Pagada",
-        backgroundColor: "#e5f7ed",
-        color: "#2e7d32",
-      };
-    }
+  const getStatusAppearance = useCallback(
+    (status, dueDate, paidAmount, amount) => {
+      // Si está completamente pagada según los cálculos, mostrar como pagada
+      const isFullyPaid = status === "paid" || paidAmount + 0.01 >= amount;
 
-    if (dueDate && new Date(dueDate) < new Date()) {
-      return {
-        label: "Vencida",
-        backgroundColor: "#fdecea",
-        color: "#c62828",
-      };
-    }
+      if (isFullyPaid) {
+        return {
+          label: "Pagada",
+          backgroundColor: "#e5f7ed",
+          color: "#2e7d32",
+        };
+      }
 
-    return {
-      label: "Pendiente",
-      backgroundColor: "#fff4e5",
-      color: "#ef6c00",
-    };
-  }, []);
+      if (dueDate && new Date(dueDate) < new Date()) {
+        return {
+          label: "Vencida",
+          backgroundColor: "#fdecea",
+          color: "#c62828",
+        };
+      }
+
+      return {
+        label: "Pendiente",
+        backgroundColor: "#fff4e5",
+        color: "#ef6c00",
+      };
+    },
+    []
+  );
+
+  // Filtrar cuentas basado en el tab activo
+  const filteredAccounts = useMemo(() => {
+    if (activeTab === "pending") {
+      return accountsPayable.filter((account) => {
+        const paidAmount = account.paidAmount || 0;
+        return account.status !== "paid" && paidAmount + 0.01 < account.amount;
+      });
+    } else if (activeTab === "paid") {
+      return accountsPayable.filter((account) => {
+        const paidAmount = account.paidAmount || 0;
+        return account.status === "paid" || paidAmount + 0.01 >= account.amount;
+      });
+    }
+    return accountsPayable;
+  }, [accountsPayable, activeTab]);
+
+  const openRecordPaymentScreen = useCallback(
+    (account) => {
+      navigation.navigate("RecordPaymentPayable", { account });
+    },
+    [navigation]
+  );
+
+  const openPaymentHistoryScreen = useCallback(
+    (account) => {
+      navigation.navigate("PaymentHistoryPayable", { account });
+    },
+    [navigation]
+  );
 
   const renderAccount = useCallback(
     ({ item }) => {
-      const appearance = getStatusAppearance(item.status, item.dueDate);
+      const appearance = getStatusAppearance(
+        item.status,
+        item.dueDate,
+        item.paidAmount || 0,
+        item.amount
+      );
 
       return (
         <TouchableOpacity
@@ -186,29 +230,63 @@ export const AccountsPayableScreen = ({ navigation }) => {
           ) : null}
 
           <View style={styles.cardFooter}>
-            {item.status !== "paid" ? (
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => handleMarkAsPaid(item)}
-              >
-                <Text style={styles.secondaryButtonText}>Registrar pago</Text>
-              </TouchableOpacity>
-            ) : null}
+            {(() => {
+              const isFullyPaid =
+                item.status === "paid" || (item.paidAmount || 0) >= item.amount;
+              const hasPayments = (item.paidAmount || 0) > 0;
+              return (
+                <>
+                  {!isFullyPaid && (
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={() => openRecordPaymentScreen(item)}
+                    >
+                      <Text style={styles.secondaryButtonText}>
+                        Registrar pago
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
-            <TouchableOpacity
-              style={[
-                styles.iconButton,
-                item.status === "paid" && styles.iconButtonAlone,
-              ]}
-              onPress={() => handleDelete(item)}
-            >
-              <Text style={styles.iconButtonText}>🗑️</Text>
-            </TouchableOpacity>
+                  <View style={styles.iconContainer}>
+                    {hasPayments && (
+                      <TouchableOpacity
+                        style={[
+                          styles.iconButton,
+                          !isFullyPaid && styles.iconButtonSmall,
+                          isFullyPaid && styles.iconButtonNormal,
+                        ]}
+                        onPress={() => openPaymentHistoryScreen(item)}
+                      >
+                        <Text style={styles.iconButtonText}>📋</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                      style={[
+                        styles.iconButton,
+                        hasPayments && !isFullyPaid && styles.iconButtonSmall,
+                        (!hasPayments || isFullyPaid) &&
+                          styles.iconButtonNormal,
+                      ]}
+                      onPress={() => handleDelete(item)}
+                    >
+                      <Text style={styles.iconButtonText}>🗑️</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              );
+            })()}
           </View>
         </TouchableOpacity>
       );
     },
-    [getStatusAppearance, handleDelete, handleMarkAsPaid, openEditScreen]
+    [
+      getStatusAppearance,
+      handleDelete,
+      openRecordPaymentScreen,
+      openPaymentHistoryScreen,
+      openEditScreen,
+    ]
   );
 
   const renderHeader = () => (
@@ -242,6 +320,35 @@ export const AccountsPayableScreen = ({ navigation }) => {
             returnKeyType="search"
           />
         </View>
+      </View>
+
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "pending" && styles.activeTab]}
+          onPress={() => setActiveTab("pending")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "pending" && styles.activeTabText,
+            ]}
+          >
+            Pendientes
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "paid" && styles.activeTab]}
+          onPress={() => setActiveTab("paid")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "paid" && styles.activeTabText,
+            ]}
+          >
+            Pagadas
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -293,7 +400,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <FlatList
-        data={accountsPayable}
+        data={filteredAccounts}
         renderItem={renderAccount}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
@@ -597,6 +704,62 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: "#fff",
     fontWeight: "bold",
+  },
+  iconContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: "auto",
+    gap: 8,
+  },
+  iconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#fdecea",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconButtonNormal: {
+    // Normal size, no special positioning
+  },
+  iconButtonSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  iconButtonText: {
+    fontSize: 20,
+  },
+  tabsContainer: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 4,
+    marginHorizontal: 16,
+    marginTop: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  activeTab: {
+    backgroundColor: "#2e7d32",
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  activeTabText: {
+    color: "#fff",
   },
 });
 
