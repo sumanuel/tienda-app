@@ -1127,7 +1127,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 28,
+    paddingTop: 20,
     paddingBottom: 16,
   },
   backButton: {
