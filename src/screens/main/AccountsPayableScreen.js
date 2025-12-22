@@ -309,7 +309,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
     ]
   );
 
-  const renderHeader = () => (
+  const header = (
     <View>
       <View style={styles.summaryCard}>
         <View style={styles.summaryHeader}>
@@ -419,8 +419,9 @@ export const AccountsPayableScreen = ({ navigation }) => {
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={header}
         ListEmptyComponent={renderEmpty}
+        keyboardShouldPersistTaps="handled"
         refreshing={loading}
         onRefresh={refresh}
       />

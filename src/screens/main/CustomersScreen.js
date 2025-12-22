@@ -111,7 +111,7 @@ export const CustomersScreen = () => {
     [navigation, confirmDeleteCustomer]
   );
 
-  const renderHeader = () => (
+  const header = (
     <View style={styles.headerContent}>
       <View style={styles.heroCard}>
         <View style={styles.heroIcon}>
@@ -181,10 +181,11 @@ export const CustomersScreen = () => {
         data={sortedCustomers}
         renderItem={renderCustomer}
         keyExtractor={(item) => item.id.toString()}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={header}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       />
 
       <TouchableOpacity

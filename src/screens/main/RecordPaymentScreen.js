@@ -8,10 +8,12 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 export const RecordPaymentScreen = () => {
   const navigation = useNavigation();
@@ -23,9 +25,8 @@ export const RecordPaymentScreen = () => {
   const [balance, setBalance] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [paymentDate, setPaymentDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [paymentDate, setPaymentDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -35,13 +36,40 @@ export const RecordPaymentScreen = () => {
 
   const loadBalance = async () => {
     try {
-      const balanceData = await getBalance(account.id);
+      const balanceData = await getBalance(account.id, "receivable");
       setBalance(balanceData);
       // Establecer el monto por defecto como el saldo pendiente
       setPaymentAmount(balanceData.balance.toString());
     } catch (error) {
       Alert.alert("Error", "No se pudo cargar el saldo de la cuenta");
     }
+  };
+
+  const handleDateChange = (_event, selectedDate) => {
+    if (Platform.OS !== "ios") {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setPaymentDate(selectedDate);
+    }
+  };
+
+  const closeDatePicker = () => {
+    setShowDatePicker(false);
+  };
+
+  const openDatePicker = () => {
+    setShowDatePicker(true);
+  };
+
+  const paymentDateLabel = paymentDate.toISOString().split("T")[0];
+
+  const safeBackToAccounts = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Main", { screen: "AccountsReceivable" });
   };
 
   const handleRecordPayment = async () => {
@@ -61,17 +89,13 @@ export const RecordPaymentScreen = () => {
       await recordPayment(account.id, {
         amount,
         paymentMethod,
-        paymentDate: new Date(paymentDate).toISOString(),
+        paymentDate: paymentDate.toISOString(),
         reference: reference.trim() || null,
         notes: notes.trim() || null,
       });
 
-      Alert.alert("Éxito", "Pago registrado correctamente", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      Alert.alert("Éxito", "Pago registrado correctamente");
+      safeBackToAccounts();
     } catch (error) {
       Alert.alert("Error", "No se pudo registrar el pago");
     } finally {
@@ -206,13 +230,35 @@ export const RecordPaymentScreen = () => {
         )}
 
         <Text style={styles.sectionTitle}>📅 Fecha del Pago</Text>
-        <TextInput
+        <TouchableOpacity
           style={styles.input}
-          value={paymentDate}
-          onChangeText={setPaymentDate}
-          placeholder="YYYY-MM-DD"
-          autoCapitalize="none"
-        />
+          onPress={openDatePicker}
+          activeOpacity={0.85}
+          disabled={loading}
+        >
+          <Text style={styles.dateText}>{paymentDateLabel}</Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <View style={styles.datePickerWrapper}>
+            <DateTimePicker
+              value={paymentDate}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+            />
+            {Platform.OS === "ios" && (
+              <TouchableOpacity
+                style={styles.datePickerDone}
+                onPress={closeDatePicker}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.datePickerDoneText}>Listo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         <Text style={styles.sectionTitle}>📝 Notas (Opcional)</Text>
         <TextInput
@@ -229,7 +275,7 @@ export const RecordPaymentScreen = () => {
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={safeBackToAccounts}
           disabled={loading}
         >
           <Text style={styles.cancelButtonText}>Cancelar</Text>
@@ -380,6 +426,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#f7fafc",
     color: "#2d3748",
     marginBottom: 8,
+  },
+  dateText: {
+    fontSize: 16,
+    color: "#1f2937",
+  },
+  datePickerWrapper: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    marginBottom: 15,
+  },
+  datePickerDone: {
+    alignSelf: "flex-end",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: "#2f5ae0",
+    marginTop: 8,
+    marginRight: 8,
+  },
+  datePickerDoneText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
   notesInput: {
     height: 80,

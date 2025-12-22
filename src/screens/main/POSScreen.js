@@ -10,7 +10,6 @@ import {
   TextInput,
   Modal,
   Dimensions,
-  Animated,
   SafeAreaView,
   ActivityIndicator,
 } from "react-native";
@@ -49,53 +48,13 @@ export const POSScreen = ({ navigation }) => {
   const [newCustomerName, setNewCustomerName] = useState("");
   const [pendingSaleData, setPendingSaleData] = useState(null);
 
-  // Animación para el campo de referencia
-  const referenceAnimation = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef(null);
-  const paymentSectionRef = useRef(null);
 
   // Calcular total cuando cambie el carrito
   useEffect(() => {
     const newTotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
     setTotal(newTotal);
   }, [cart]);
-
-  // Animación del campo de referencia
-  useEffect(() => {
-    const shouldShow =
-      paymentMethod === "transfer" || paymentMethod === "pago_movil";
-    Animated.timing(referenceAnimation, {
-      toValue: shouldShow ? 1 : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start(() => {
-      // Auto-scroll después de que termine la animación
-      if (scrollViewRef.current) {
-        setTimeout(() => {
-          if (shouldShow) {
-            // Scroll hacia abajo para mostrar el campo de referencia
-            scrollViewRef.current.scrollToEnd({ animated: true });
-          } else {
-            // Scroll hacia la sección de métodos de pago
-            if (paymentSectionRef.current) {
-              paymentSectionRef.current.measure(
-                (x, y, width, height, pageX, pageY) => {
-                  scrollViewRef.current.scrollTo({
-                    x: 0,
-                    y: pageY - 50,
-                    animated: true,
-                  });
-                }
-              );
-            } else {
-              // Fallback si no hay referencia
-              scrollViewRef.current.scrollTo({ x: 0, y: 200, animated: true });
-            }
-          }
-        }, 100); // Pequeño delay para asegurar que el layout esté listo
-      }
-    });
-  }, [paymentMethod, referenceAnimation]);
 
   // Scroll hacia arriba cuando se abre el carrito
   useEffect(() => {
@@ -552,6 +511,8 @@ export const POSScreen = ({ navigation }) => {
         keyExtractor={(item) => item.id.toString()}
         style={styles.flatList}
         showsVerticalScrollIndicator={false}
+        numColumns={2}
+        columnWrapperStyle={styles.productsRow}
         ListHeaderComponent={
           <View style={styles.listHeader}>
             <View style={styles.heroCard}>
@@ -566,21 +527,6 @@ export const POSScreen = ({ navigation }) => {
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity
-                style={[
-                  styles.heroAction,
-                  cart.length === 0 && styles.heroActionDisabled,
-                ]}
-                onPress={() => setShowCart(true)}
-                activeOpacity={0.85}
-                disabled={cart.length === 0}
-              >
-                <Text style={styles.heroActionText}>
-                  {cart.length > 0
-                    ? `Ver carrito (${cart.length})`
-                    : "Carrito vacío"}
-                </Text>
-              </TouchableOpacity>
             </View>
 
             <View style={styles.searchCard}>
@@ -700,7 +646,7 @@ export const POSScreen = ({ navigation }) => {
 
             {/* Método de pago */}
             {cart.length > 0 && (
-              <View style={styles.paymentSection} ref={paymentSectionRef}>
+              <View style={styles.paymentSection}>
                 <Text style={styles.sectionTitle}>💳 Método de Pago</Text>
                 <ScrollView
                   horizontal
@@ -803,49 +749,35 @@ export const POSScreen = ({ navigation }) => {
                   </TouchableOpacity>
                 </ScrollView>
 
-                {/* Número de referencia para transferencias y pago móvil */}
-                <Animated.View
-                  style={[
-                    styles.referenceContainer,
-                    {
-                      opacity: referenceAnimation,
-                      transform: [
-                        {
-                          scale: referenceAnimation.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.95, 1],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <View style={styles.referenceSection}>
-                    <Text style={styles.referenceLabel}>
-                      📄 Número de Referencia
-                      <Text style={styles.optionalText}> (opcional)</Text>
-                    </Text>
-                    <TextInput
-                      style={styles.referenceInput}
-                      placeholder={`Ingrese referencia de ${
-                        paymentMethod === "transfer"
-                          ? "transferencia"
-                          : "pago móvil"
-                      }`}
-                      value={referenceNumber}
-                      onChangeText={setReferenceNumber}
-                      keyboardType="numeric"
-                      maxLength={20}
-                      placeholderTextColor="#999"
-                      autoFocus={true}
-                    />
-                    <Text style={styles.referenceHint}>
-                      {paymentMethod === "transfer"
-                        ? "Ingrese el número de referencia de la transferencia bancaria"
-                        : "Ingrese el número de referencia del pago móvil"}
-                    </Text>
+                {(paymentMethod === "transfer" ||
+                  paymentMethod === "pago_movil") && (
+                  <View style={styles.referenceContainer}>
+                    <View style={styles.referenceSection}>
+                      <Text style={styles.referenceLabel}>
+                        📄 Número de Referencia
+                        <Text style={styles.optionalText}> (opcional)</Text>
+                      </Text>
+                      <TextInput
+                        style={styles.referenceInput}
+                        placeholder={`Ingrese referencia de ${
+                          paymentMethod === "transfer"
+                            ? "transferencia"
+                            : "pago móvil"
+                        }`}
+                        value={referenceNumber}
+                        onChangeText={setReferenceNumber}
+                        keyboardType="numeric"
+                        maxLength={20}
+                        placeholderTextColor="#999"
+                      />
+                      <Text style={styles.referenceHint}>
+                        {paymentMethod === "transfer"
+                          ? "Ingrese el número de referencia de la transferencia bancaria"
+                          : "Ingrese el número de referencia del pago móvil"}
+                      </Text>
+                    </View>
                   </View>
-                </Animated.View>
+                )}
               </View>
             )}
           </ScrollView>
@@ -1051,12 +983,16 @@ const styles = StyleSheet.create({
   productsContentWithSummary: {
     paddingBottom: 240,
   },
+  productsRow: {
+    justifyContent: "space-between",
+  },
   productCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 20,
+    padding: 14,
     gap: 12,
-    width: "100%",
+    flex: 1,
+    marginBottom: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,

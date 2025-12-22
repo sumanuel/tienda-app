@@ -243,13 +243,16 @@ export const useAccounts = () => {
     []
   );
 
-  const getBalance = useCallback(async (accountId) => {
-    try {
-      return await getAccountBalance(accountId);
-    } catch (error) {
-      throw error;
-    }
-  }, []);
+  const getBalance = useCallback(
+    async (accountId, accountType = "receivable") => {
+      try {
+        return await getAccountBalance(accountId, accountType);
+      } catch (error) {
+        throw error;
+      }
+    },
+    []
+  );
 
   return {
     accountsReceivable,

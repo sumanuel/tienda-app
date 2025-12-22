@@ -195,7 +195,7 @@ export const ProductsScreen = ({ navigation }) => {
     );
   };
 
-  const renderHeader = () => (
+  const header = (
     <View style={styles.headerContent}>
       <View style={styles.heroCard}>
         <View style={styles.heroIcon}>
@@ -258,7 +258,7 @@ export const ProductsScreen = ({ navigation }) => {
         renderItem={renderProduct}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.list}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={header}
         ListEmptyComponent={
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Aún no hay productos</Text>
@@ -268,6 +268,7 @@ export const ProductsScreen = ({ navigation }) => {
             </Text>
           </View>
         }
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       />
 

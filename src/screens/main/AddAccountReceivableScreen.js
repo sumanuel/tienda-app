@@ -22,6 +22,8 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
   const { addAccountReceivable } = useAccounts();
   const { getCustomerByDocument, addCustomer } = useCustomers();
 
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     documentNumber: "",
     customerName: "",
@@ -65,7 +67,17 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
     setShowDatePicker(true);
   };
 
+  const safeBackToAccounts = () => {
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Main", { screen: "AccountsReceivable" });
+  };
+
   const handleSave = async () => {
+    if (loading) return;
+
     if (!formData.documentNumber.trim()) {
       Alert.alert("Error", "La cédula es obligatoria");
       return;
@@ -83,6 +95,7 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
       return;
     }
 
+    setLoading(true);
     try {
       // Verificar si el cliente existe
       let customer = await getCustomerByDocument(
@@ -107,11 +120,12 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
         amount: parseFloat(formData.amount),
         createdAt: currentDateTime, // Agregar fecha y hora de creación
       });
-      Alert.alert("Éxito", "Cuenta por cobrar agregada correctamente", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert("Éxito", "Cuenta por cobrar agregada correctamente");
+      safeBackToAccounts();
     } catch (error) {
       Alert.alert("Error", "No se pudo guardar la cuenta por cobrar");
+    } finally {
+      setLoading(false);
     }
   };
 

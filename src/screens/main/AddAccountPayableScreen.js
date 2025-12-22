@@ -22,6 +22,8 @@ export const AddAccountPayableScreen = ({ navigation }) => {
   const { addAccountPayable } = useAccounts();
   const { getSupplierByDocument, addSupplier } = useSuppliers();
 
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     documentNumber: "",
     supplierName: "",
@@ -74,7 +76,17 @@ export const AddAccountPayableScreen = ({ navigation }) => {
     setShowDatePicker(true);
   };
 
+  const safeBackToAccounts = () => {
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Main", { screen: "AccountsPayable" });
+  };
+
   const handleSave = async () => {
+    if (loading) return;
+
     if (!formData.documentNumber.trim()) {
       Alert.alert("Error", "El RIF o cédula es obligatorio");
       return;
@@ -95,6 +107,7 @@ export const AddAccountPayableScreen = ({ navigation }) => {
       return;
     }
 
+    setLoading(true);
     try {
       let supplier = await getSupplierByDocument(
         formData.documentNumber.trim()
@@ -119,12 +132,13 @@ export const AddAccountPayableScreen = ({ navigation }) => {
         createdAt: new Date().toISOString(),
       });
 
-      Alert.alert("Éxito", "Cuenta por pagar agregada correctamente", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert("Éxito", "Cuenta por pagar agregada correctamente");
+      safeBackToAccounts();
     } catch (error) {
       console.error("Error agregando cuenta por pagar:", error);
       Alert.alert("Error", "No se pudo guardar la cuenta por pagar");
+    } finally {
+      setLoading(false);
     }
   };
 
