@@ -6,7 +6,7 @@ import { db } from "./db";
 export const getAllAccountsReceivable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT * FROM accounts_receivable ORDER BY createdAt DESC;"
+      "SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_receivable ORDER BY createdAt DESC;"
     );
     return result;
   } catch (error) {
@@ -21,7 +21,7 @@ export const searchAccountsReceivable = async (query) => {
   try {
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
-      `SELECT * FROM accounts_receivable 
+      `SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_receivable 
        WHERE customerName LIKE ? 
        OR documentNumber LIKE ? 
        OR description LIKE ?
@@ -40,7 +40,7 @@ export const searchAccountsReceivable = async (query) => {
 export const getAllAccountsPayable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT id, supplierName, documentNumber, description, ROUND(amount, 2) as amount, ROUND(paidAmount, 2) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;"
+      "SELECT id, supplierName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;"
     );
     return result;
   } catch (error) {
@@ -55,7 +55,7 @@ export const searchAccountsPayable = async (query) => {
   try {
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
-      `SELECT id, supplierName, documentNumber, description, ROUND(amount, 2) as amount, ROUND(paidAmount, 2) as paidAmount, status, createdAt, updatedAt FROM accounts_payable 
+      `SELECT id, supplierName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable 
        WHERE supplierName LIKE ? 
        OR documentNumber LIKE ? 
        OR description LIKE ?
@@ -264,6 +264,12 @@ export const markAccountPayableAsPaid = async (id) => {
  */
 export const deleteAccountReceivable = async (id) => {
   try {
+    // Primero eliminar los pagos asociados
+    await db.runAsync(
+      "DELETE FROM account_payments WHERE accountId = ? AND accountType = 'receivable'",
+      [id]
+    );
+    // Luego eliminar la cuenta
     await db.runAsync("DELETE FROM accounts_receivable WHERE id = ?", [id]);
   } catch (error) {
     throw error;
@@ -275,6 +281,12 @@ export const deleteAccountReceivable = async (id) => {
  */
 export const deleteAccountPayable = async (id) => {
   try {
+    // Primero eliminar los pagos asociados
+    await db.runAsync(
+      "DELETE FROM account_payments WHERE accountId = ? AND accountType = 'payable'",
+      [id]
+    );
+    // Luego eliminar la cuenta
     await db.runAsync("DELETE FROM accounts_payable WHERE id = ?", [id]);
   } catch (error) {
     throw error;
@@ -318,9 +330,9 @@ export const recordAccountPayment = async (
     // Actualizar el monto pagado en la cuenta
     await db.runAsync(
       `UPDATE ${tableName}
-       SET paidAmount = ROUND(COALESCE(paidAmount, 0) + ?, 2), updatedAt = datetime('now')
+       SET paidAmount = ROUND(CASE WHEN (COALESCE(paidAmount, 0) + ?) < 0 THEN 0 ELSE (COALESCE(paidAmount, 0) + ?) END, 2), updatedAt = datetime('now')
        WHERE id = ?`,
-      [roundedAmount, accountId]
+      [roundedAmount, roundedAmount, accountId]
     );
 
     // Verificar si la cuenta está completamente pagada (con tolerancia de 1 centavo)
@@ -363,12 +375,18 @@ export const getAccountPayments = async (
 };
 
 /**
- * Calcula el saldo pendiente de una cuenta por cobrar
+ * Calcula el saldo pendiente de una cuenta
  */
-export const getAccountBalance = async (accountId) => {
+export const getAccountBalance = async (
+  accountId,
+  accountType = "receivable"
+) => {
   try {
+    const tableName =
+      accountType === "payable" ? "accounts_payable" : "accounts_receivable";
+
     const account = await db.getFirstAsync(
-      `SELECT amount, COALESCE(paidAmount, 0) as paidAmount FROM accounts_receivable WHERE id = ?`,
+      `SELECT ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount FROM ${tableName} WHERE id = ?`,
       [accountId]
     );
 
@@ -389,30 +407,68 @@ export const getAccountBalance = async (accountId) => {
 };
 
 /**
- * Corrige los montos de cuentas existentes para usar exactamente 2 decimales
+ * Corrige datos corruptos en cuentas (paidAmount negativo, etc.)
  */
-export const fixAccountDecimalPrecision = async () => {
+export const fixCorruptedAccountData = async () => {
   try {
-    // Corregir cuentas por cobrar
+    console.log("Corrigiendo datos corruptos en cuentas...");
+
+    // Eliminar pagos huérfanos (pagos sin cuenta asociada)
+    await db.runAsync(`
+      DELETE FROM account_payments 
+      WHERE accountType = 'receivable' 
+      AND accountId NOT IN (SELECT id FROM accounts_receivable)
+    `);
+
+    await db.runAsync(`
+      DELETE FROM account_payments 
+      WHERE accountType = 'payable' 
+      AND accountId NOT IN (SELECT id FROM accounts_payable)
+    `);
+
+    // Corregir cuentas por cobrar con paidAmount negativo
     await db.runAsync(
       `UPDATE accounts_receivable 
-       SET amount = ROUND(amount, 2), paidAmount = ROUND(COALESCE(paidAmount, 0), 2)`
+       SET paidAmount = 0 
+       WHERE COALESCE(paidAmount, 0) < 0`
     );
 
-    // Corregir cuentas por pagar
+    // Corregir cuentas por pagar con paidAmount negativo
     await db.runAsync(
       `UPDATE accounts_payable 
-       SET amount = ROUND(amount, 2), paidAmount = ROUND(COALESCE(paidAmount, 0), 2)`
+       SET paidAmount = 0 
+       WHERE COALESCE(paidAmount, 0) < 0`
     );
 
-    // Corregir pagos
-    await db.runAsync(
-      `UPDATE account_payments 
-       SET amount = ROUND(amount, 2)`
-    );
+    // Recalcular paidAmount basado en los pagos registrados
+    const recalculatePaidAmount = async (tableName) => {
+      const accounts = await db.getAllAsync(`SELECT id FROM ${tableName}`);
+      for (const account of accounts) {
+        const totalPaid = await db.getFirstAsync(
+          `SELECT SUM(amount) as total FROM account_payments 
+           WHERE accountId = ? AND accountType = ?`,
+          [
+            account.id,
+            tableName === "accounts_payable" ? "payable" : "receivable",
+          ]
+        );
+        const correctPaidAmount = Math.max(
+          0,
+          Math.round((totalPaid?.total || 0) * 100) / 100
+        );
+        await db.runAsync(
+          `UPDATE ${tableName} SET paidAmount = ? WHERE id = ?`,
+          [correctPaidAmount, account.id]
+        );
+      }
+    };
 
-    console.log("Precisión decimal corregida en todas las cuentas y pagos");
+    await recalculatePaidAmount("accounts_receivable");
+    await recalculatePaidAmount("accounts_payable");
+
+    console.log("Datos corruptos corregidos");
   } catch (error) {
+    console.error("Error fixing corrupted data:", error);
     throw error;
   }
 };

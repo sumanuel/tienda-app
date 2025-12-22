@@ -18,6 +18,7 @@ import {
   getAccountPayments,
   getAccountBalance,
   fixAccountDecimalPrecision,
+  fixCorruptedAccountData,
 } from "../services/database/accounts";
 
 /**
@@ -50,21 +51,15 @@ export const useAccounts = () => {
       setLoading(true);
       setError(null);
 
-      // Verificar y corregir precisión decimal si es necesario
+      // Corregir precisión decimal y valores negativos
       try {
-        const { db } = await import("../services/database/db");
-        const checkResult = await db.getFirstAsync(
-          `SELECT COUNT(*) as count FROM accounts_receivable 
-           WHERE (amount * 100) != ROUND(amount * 100) OR 
-                 (paidAmount * 100) != ROUND(COALESCE(paidAmount, 0) * 100)`
-        );
+        console.log("Corrigiendo precisión decimal en cuentas existentes...");
+        await fixAccountDecimalPrecision();
 
-        if (checkResult && checkResult.count > 0) {
-          console.log("Corrigiendo precisión decimal en cuentas existentes...");
-          await fixAccountDecimalPrecision();
-        }
+        // También corregir datos potencialmente corruptos
+        await fixCorruptedAccountData();
       } catch (fixError) {
-        console.warn("Error checking/fixing decimal precision:", fixError);
+        console.warn("Error fixing data:", fixError);
       }
 
       const [receivable, payable, receivableStatsData, payableStatsData] =

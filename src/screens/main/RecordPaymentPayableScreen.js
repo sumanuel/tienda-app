@@ -35,7 +35,7 @@ export const RecordPaymentPayableScreen = () => {
 
   const loadBalance = async () => {
     try {
-      const balanceData = await getBalance(account.id);
+      const balanceData = await getBalance(account.id, "payable");
       setBalance(balanceData);
       // Establecer el monto por defecto como el saldo pendiente
       setPaymentAmount(balanceData.balance.toString());
