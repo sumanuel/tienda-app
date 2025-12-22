@@ -23,6 +23,7 @@ import DashboardScreen from "./src/screens/main/DashboardScreen";
 import POSScreen from "./src/screens/main/POSScreen";
 import ProductsScreen from "./src/screens/main/ProductsScreen";
 import SalesScreen from "./src/screens/main/SalesScreen";
+import SaleDetailScreen from "./src/screens/main/SaleDetailScreen";
 import ExchangeRateScreen from "./src/screens/main/ExchangeRateScreen";
 import SettingsScreen from "./src/screens/main/SettingsScreen";
 import AddProductScreen from "./src/screens/main/AddProductScreen";
@@ -594,6 +595,20 @@ export default function App() {
             component={EditAccountPayableScreen}
             options={{
               title: "Editar Cuenta por Pagar",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="SaleDetail"
+            component={SaleDetailScreen}
+            options={{
+              title: "Detalle de Venta",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },

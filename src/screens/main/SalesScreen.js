@@ -38,9 +38,6 @@ export const SalesScreen = () => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth() + 1, 0);
   });
-  const [selectedSale, setSelectedSale] = useState(null);
-  const [saleDetails, setSaleDetails] = useState(null);
-  const [detailsLoading, setDetailsLoading] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
@@ -100,23 +97,8 @@ export const SalesScreen = () => {
     };
   }, [activeTab, todayStats, filteredSales]);
 
-  const handleShowDetails = async (sale) => {
-    try {
-      setDetailsLoading(true);
-      const details = await getSaleDetails(sale.id);
-      setSelectedSale(sale);
-      setSaleDetails(details);
-    } catch (error) {
-      console.error("Error obteniendo detalles de venta:", error);
-      Alert.alert("Error", "No pudimos cargar el detalle de la venta");
-    } finally {
-      setDetailsLoading(false);
-    }
-  };
-
-  const closeDetails = () => {
-    setSelectedSale(null);
-    setSaleDetails(null);
+  const handleShowDetails = (sale) => {
+    navigation.navigate("SaleDetail", { saleId: sale.id });
   };
 
   const handleQuickRange = (type) => {
@@ -256,20 +238,6 @@ export const SalesScreen = () => {
         </View>
       </View>
     </TouchableOpacity>
-  );
-
-  const renderDetailItem = ({ item, index }) => (
-    <View style={[styles.detailItem, index !== 0 && styles.detailItemSpacing]}>
-      <View style={styles.detailItemInfo}>
-        <Text style={styles.detailItemName}>{item.productName}</Text>
-        <Text style={styles.detailItemQuantity}>
-          {item.quantity} × {formatCurrency(item.price, "VES")}
-        </Text>
-      </View>
-      <Text style={styles.detailItemTotal}>
-        {formatCurrency(item.subtotal, "VES")}
-      </Text>
-    </View>
   );
 
   if (loading) {
@@ -424,82 +392,6 @@ export const SalesScreen = () => {
           </View>
         }
       />
-
-      {selectedSale && (
-        <View style={styles.detailOverlay}>
-          <View style={styles.detailCard}>
-            <View style={styles.detailHeader}>
-              <TouchableOpacity
-                style={styles.detailBack}
-                onPress={closeDetails}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.detailBackText}>←</Text>
-              </TouchableOpacity>
-              <View style={styles.detailHeaderInfo}>
-                <Text style={styles.detailTitle}>Venta #{selectedSale.id}</Text>
-                <Text style={styles.detailSubtitle}>
-                  {new Date(selectedSale.createdAt).toLocaleDateString()} ·{" "}
-                  {new Date(selectedSale.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </Text>
-              </View>
-              <View style={styles.detailAmountChip}>
-                <Text style={styles.detailAmountText}>
-                  {formatCurrency(selectedSale.total, "VES")}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.detailSummary}>
-              <View style={styles.detailSummaryItem}>
-                <Text style={styles.detailSummaryLabel}>Cliente</Text>
-                <Text style={styles.detailSummaryValue} numberOfLines={1}>
-                  {selectedSale.notes
-                    ? selectedSale.notes.replace("Cliente: ", "")
-                    : "Sin nombre"}
-                </Text>
-              </View>
-              <View style={styles.detailSummaryItem}>
-                <Text style={styles.detailSummaryLabel}>Pago</Text>
-                <Text style={styles.detailSummaryValue}>
-                  {getPaymentMethodText(selectedSale.paymentMethod)}
-                </Text>
-              </View>
-              <View style={styles.detailSummaryItem}>
-                <Text style={styles.detailSummaryLabel}>Productos</Text>
-                <Text style={styles.detailSummaryValue}>
-                  {selectedSale.itemCount || saleDetails?.items?.length || 0}
-                </Text>
-              </View>
-            </View>
-
-            {detailsLoading ? (
-              <View style={styles.detailsLoader}>
-                <ActivityIndicator color="#2f5ae0" />
-              </View>
-            ) : (
-              <FlatList
-                data={saleDetails?.items || []}
-                renderItem={renderDetailItem}
-                keyExtractor={(_, index) => `detail-${index}`}
-                ItemSeparatorComponent={() => (
-                  <View style={styles.detailDivider} />
-                )}
-                ListEmptyComponent={
-                  <View style={styles.detailEmpty}>
-                    <Text style={styles.detailEmptyText}>
-                      No se encontraron productos para esta venta.
-                    </Text>
-                  </View>
-                }
-              />
-            )}
-          </View>
-        </View>
-      )}
     </SafeAreaView>
   );
 };
