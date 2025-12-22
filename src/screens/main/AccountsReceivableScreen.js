@@ -23,6 +23,9 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     removeAccountReceivable,
     markReceivableAsPaid,
     receivableStats,
+    recordPayment,
+    getPayments,
+    getBalance,
   } = useAccounts();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -70,6 +73,13 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   const openRecordPaymentScreen = useCallback(
     (account) => {
       navigation.navigate("RecordPayment", { account });
+    },
+    [navigation]
+  );
+
+  const openPaymentHistoryScreen = useCallback(
+    (account) => {
+      navigation.navigate("PaymentHistory", { account });
     },
     [navigation]
   );
@@ -239,30 +249,60 @@ export const AccountsReceivableScreen = ({ navigation }) => {
               const paidAmount = item.paidAmount || 0;
               const isFullyPaid =
                 item.status === "paid" || paidAmount >= item.amount;
-              return !isFullyPaid ? (
-                <TouchableOpacity
-                  style={styles.secondaryButton}
-                  onPress={() => openRecordPaymentScreen(item)}
-                >
-                  <Text style={styles.secondaryButtonText}>Registrar pago</Text>
-                </TouchableOpacity>
-              ) : null;
-            })()}
+              const hasPayments = paidAmount > 0;
+              return (
+                <>
+                  {!isFullyPaid && (
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={() => openRecordPaymentScreen(item)}
+                    >
+                      <Text style={styles.secondaryButtonText}>
+                        Registrar pago
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
-            <TouchableOpacity
-              style={[
-                styles.iconButton,
-                item.status === "paid" && styles.iconButtonAlone,
-              ]}
-              onPress={() => handleDelete(item)}
-            >
-              <Text style={styles.iconButtonText}>🗑️</Text>
-            </TouchableOpacity>
+                  <View style={styles.iconContainer}>
+                    {hasPayments && (
+                      <TouchableOpacity
+                        style={[
+                          styles.iconButton,
+                          !isFullyPaid && styles.iconButtonSmall,
+                          isFullyPaid && styles.iconButtonNormal,
+                        ]}
+                        onPress={() => openPaymentHistoryScreen(item)}
+                      >
+                        <Text style={styles.iconButtonText}>📋</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                      style={[
+                        styles.iconButton,
+                        hasPayments && !isFullyPaid && styles.iconButtonSmall,
+                        (!hasPayments || isFullyPaid) &&
+                          styles.iconButtonNormal,
+                      ]}
+                      onPress={() => handleDelete(item)}
+                    >
+                      <Text style={styles.iconButtonText}>🗑️</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              );
+            })()}
           </View>
         </TouchableOpacity>
       );
     },
-    [getStatusAppearance, handleDelete, openRecordPaymentScreen, openEditScreen]
+    [
+      getStatusAppearance,
+      handleDelete,
+      openRecordPaymentScreen,
+      openPaymentHistoryScreen,
+      openEditScreen,
+    ]
   );
 
   const renderHeader = () => (
@@ -595,16 +635,21 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   secondaryButton: {
-    flex: 1,
     backgroundColor: "#edf8ef",
     borderRadius: 12,
     paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: "center",
+    marginRight: 12,
   },
   secondaryButtonText: {
     color: "#2e7d32",
     fontWeight: "600",
     fontSize: 14,
+  },
+  iconContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   iconButton: {
     width: 48,
@@ -613,10 +658,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#fdecea",
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 12,
   },
   iconButtonAlone: {
     marginLeft: "auto",
+  },
+  iconButtonNormal: {
+    // Normal size, no special positioning
+  },
+  iconButtonSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   iconButtonText: {
     fontSize: 20,
