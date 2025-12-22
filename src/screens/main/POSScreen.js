@@ -1012,7 +1012,7 @@ const styles = StyleSheet.create({
   },
   productName: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
     color: "#1f2633",
   },
@@ -1038,7 +1038,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   productPrice: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: "#1f9254",
   },
