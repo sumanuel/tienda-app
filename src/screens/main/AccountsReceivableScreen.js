@@ -144,7 +144,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   const getStatusAppearance = useCallback((status, dueDate) => {
     if (status === "paid") {
       return {
-        label: "Pagada",
+        label: "Pagado",
         backgroundColor: "#e5f7ed",
         color: "#2e7d32",
       };
@@ -650,6 +650,8 @@ const styles = StyleSheet.create({
   iconContainer: {
     flexDirection: "row",
     alignItems: "center",
+    marginLeft: "auto",
+    gap: 8,
   },
   iconButton: {
     width: 48,
