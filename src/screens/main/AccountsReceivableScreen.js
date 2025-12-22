@@ -48,12 +48,12 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     if (activeTab === "pending") {
       return accountsReceivable.filter((account) => {
         const paidAmount = account.paidAmount || 0;
-        return account.status !== "paid" && paidAmount < account.amount;
+        return account.status !== "paid" && paidAmount + 0.01 < account.amount;
       });
     } else if (activeTab === "paid") {
       return accountsReceivable.filter((account) => {
         const paidAmount = account.paidAmount || 0;
-        return account.status === "paid" || paidAmount >= account.amount;
+        return account.status === "paid" || paidAmount + 0.01 >= account.amount;
       });
     }
     return accountsReceivable;
@@ -141,33 +141,44 @@ export const AccountsReceivableScreen = ({ navigation }) => {
       ? receivableStats.total
       : accountsReceivable.length;
 
-  const getStatusAppearance = useCallback((status, dueDate) => {
-    if (status === "paid") {
-      return {
-        label: "Pagado",
-        backgroundColor: "#e5f7ed",
-        color: "#2e7d32",
-      };
-    }
+  const getStatusAppearance = useCallback(
+    (status, dueDate, paidAmount, amount) => {
+      // Si está completamente pagada según los cálculos, mostrar como pagada
+      const isFullyPaid = status === "paid" || paidAmount + 0.01 >= amount;
 
-    if (dueDate && new Date(dueDate) < new Date()) {
-      return {
-        label: "Vencida",
-        backgroundColor: "#fdecea",
-        color: "#c62828",
-      };
-    }
+      if (isFullyPaid) {
+        return {
+          label: "Pagado",
+          backgroundColor: "#e5f7ed",
+          color: "#2e7d32",
+        };
+      }
 
-    return {
-      label: "Pendiente",
-      backgroundColor: "#fff4e5",
-      color: "#ef6c00",
-    };
-  }, []);
+      if (dueDate && new Date(dueDate) < new Date()) {
+        return {
+          label: "Vencida",
+          backgroundColor: "#fdecea",
+          color: "#c62828",
+        };
+      }
+
+      return {
+        label: "Pendiente",
+        backgroundColor: "#fff4e5",
+        color: "#ef6c00",
+      };
+    },
+    []
+  );
 
   const renderAccount = useCallback(
     ({ item }) => {
-      const appearance = getStatusAppearance(item.status, item.dueDate);
+      const appearance = getStatusAppearance(
+        item.status,
+        item.dueDate,
+        item.paidAmount || 0,
+        item.amount
+      );
 
       return (
         <TouchableOpacity
