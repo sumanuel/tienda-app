@@ -780,11 +780,18 @@ export const POSScreen = ({ navigation }) => {
             )}
           </ScrollView>
 
-          {/* Footer con total y botones */}
           <View style={styles.modalFooter}>
             <View style={styles.totalSection}>
-              <Text style={styles.totalLabel}>Total a Pagar:</Text>
-              <Text style={styles.totalAmount}>VES. {total.toFixed(2)}</Text>
+              <View style={styles.totalVES}>
+                <Text style={styles.totalLabel}>PAGAR VES</Text>
+                <Text style={styles.totalAmount}>{total.toFixed(2)}</Text>
+              </View>
+              <View style={styles.totalUSD}>
+                <Text style={styles.totalLabel}>PAGAR USD</Text>
+                <Text style={styles.totalAmount}>
+                  {(total / exchangeRate).toFixed(2)}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.actionButtons}>
@@ -1364,15 +1371,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
+  totalVES: {
+    alignItems: "center",
+  },
+  totalUSD: {
+    alignItems: "center",
+  },
   totalLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
     color: "#7a8796",
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   totalAmount: {
-    fontSize: 26,
+    fontSize: 18,
     fontWeight: "700",
     color: "#1f2633",
   },
