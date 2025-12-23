@@ -55,8 +55,6 @@ export const checkTableExists = async () => {
  */
 export const getAllProducts = async () => {
   try {
-    console.log("Intentando obtener productos de BD...");
-
     // Verificar si la tabla existe
     const tableExists = await checkTableExists();
     if (!tableExists) {
@@ -67,7 +65,7 @@ export const getAllProducts = async () => {
     const result = await db.getAllAsync(
       "SELECT * FROM products WHERE active = 1 ORDER BY name;"
     );
-    console.log("Productos obtenidos de BD:", result.length);
+    // console.log("Productos obtenidos de BD:", result.length);
     return result;
   } catch (error) {
     console.error("Error obteniendo productos:", error);

@@ -261,10 +261,6 @@ const runMigrations = async () => {
     const receivableColumns = await db.getAllAsync(
       "PRAGMA table_info(accounts_receivable)"
     );
-    console.log(
-      "Current accounts_receivable columns:",
-      receivableColumns.map((col) => col.name)
-    );
     const hasDocumentNumber = receivableColumns.some(
       (col) => col.name === "documentNumber"
     );
@@ -295,7 +291,7 @@ const runMigrations = async () => {
       );
       console.log("documentNumber column added successfully");
     } else {
-      console.log("documentNumber column already exists");
+      // documentNumber column already exists
     }
 
     if (!hasInvoiceNumber) {
@@ -307,7 +303,7 @@ const runMigrations = async () => {
       );
       console.log("invoiceNumber column added successfully");
     } else {
-      console.log("invoiceNumber column already exists");
+      // invoiceNumber column already exists
     }
 
     // Verificar y agregar columna paidAmount a accounts_receivable
@@ -321,7 +317,7 @@ const runMigrations = async () => {
       );
       console.log("paidAmount column added successfully");
     } else {
-      console.log("paidAmount column already exists");
+      // paidAmount column already exists
     }
 
     if (!hasPaidAtReceivable) {
@@ -331,7 +327,7 @@ const runMigrations = async () => {
       );
       console.log("paidAt column added successfully");
     } else {
-      console.log("paidAt column already exists");
+      // paidAt column already exists
     }
 
     if (!hasBaseCurrency) {
@@ -341,7 +337,7 @@ const runMigrations = async () => {
       );
       console.log("baseCurrency column added successfully");
     } else {
-      console.log("baseCurrency column already exists");
+      // baseCurrency column already exists
     }
 
     if (!hasBaseAmountUSD) {
@@ -353,7 +349,7 @@ const runMigrations = async () => {
       );
       console.log("baseAmountUSD column added successfully");
     } else {
-      console.log("baseAmountUSD column already exists");
+      // baseAmountUSD column already exists
     }
 
     if (!hasExchangeRateAtCreation) {
@@ -365,7 +361,7 @@ const runMigrations = async () => {
       );
       console.log("exchangeRateAtCreation column added successfully");
     } else {
-      console.log("exchangeRateAtCreation column already exists");
+      // exchangeRateAtCreation column already exists
     }
 
     // Normalizar baseCurrency
@@ -408,10 +404,7 @@ const runMigrations = async () => {
     const payableColumns = await db.getAllAsync(
       "PRAGMA table_info(accounts_payable)"
     );
-    console.log(
-      "Current accounts_payable columns:",
-      payableColumns.map((col) => col.name)
-    );
+
     const hasPayableSupplierId = payableColumns.some(
       (col) => col.name === "supplierId"
     );
@@ -450,7 +443,7 @@ const runMigrations = async () => {
       );
       console.log("supplierId column added successfully to accounts_payable");
     } else {
-      console.log("supplierId column already exists in accounts_payable");
+      // supplierId column already exists in accounts_payable
     }
 
     if (!hasPayableDocumentNumber) {
@@ -462,7 +455,7 @@ const runMigrations = async () => {
         "documentNumber column added successfully to accounts_payable"
       );
     } else {
-      console.log("documentNumber column already exists in accounts_payable");
+      // documentNumber column already exists in accounts_payable
     }
 
     if (!hasPayableInvoiceNumber) {
@@ -474,7 +467,7 @@ const runMigrations = async () => {
         "invoiceNumber column added successfully to accounts_payable"
       );
     } else {
-      console.log("invoiceNumber column already exists in accounts_payable");
+      // invoiceNumber column already exists in accounts_payable
     }
 
     console.log("Database migrations completed");

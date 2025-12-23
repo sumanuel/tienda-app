@@ -58,7 +58,6 @@ export const useAccounts = () => {
       // Corregir precisión decimal y valores negativos
       try {
         if (!repairRoutinesRanRef.current) {
-          console.log("Corrigiendo datos corruptos en cuentas existentes...");
           await fixCorruptedAccountData();
           repairRoutinesRanRef.current = true;
         }

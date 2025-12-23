@@ -36,7 +36,7 @@ export const ExchangeRateProvider = ({ children }) => {
       const currentRate = await getCurrentRate();
 
       if (currentRate) {
-        console.log("Loaded rate from DB:", currentRate.rate);
+        // console.log("Loaded rate from DB:", currentRate.rate);
         setRate(currentRate.rate);
         setLastUpdate(new Date(currentRate.createdAt));
       } else {

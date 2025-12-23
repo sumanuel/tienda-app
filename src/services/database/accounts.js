@@ -449,6 +449,39 @@ export const getAccountBalance = async (
  */
 export const fixCorruptedAccountData = async () => {
   try {
+    // Verificar si hay datos corruptos antes de proceder
+    const orphanedPaymentsReceivable = await db.getFirstAsync(`
+      SELECT COUNT(*) as count FROM account_payments 
+      WHERE accountType = 'receivable' 
+      AND accountId NOT IN (SELECT id FROM accounts_receivable)
+    `);
+
+    const orphanedPaymentsPayable = await db.getFirstAsync(`
+      SELECT COUNT(*) as count FROM account_payments 
+      WHERE accountType = 'payable' 
+      AND accountId NOT IN (SELECT id FROM accounts_payable)
+    `);
+
+    const negativePaidReceivable = await db.getFirstAsync(`
+      SELECT COUNT(*) as count FROM accounts_receivable 
+      WHERE COALESCE(paidAmount, 0) < 0
+    `);
+
+    const negativePaidPayable = await db.getFirstAsync(`
+      SELECT COUNT(*) as count FROM accounts_payable 
+      WHERE COALESCE(paidAmount, 0) < 0
+    `);
+
+    const hasCorruptedData =
+      orphanedPaymentsReceivable?.count > 0 ||
+      orphanedPaymentsPayable?.count > 0 ||
+      negativePaidReceivable?.count > 0 ||
+      negativePaidPayable?.count > 0;
+
+    if (!hasCorruptedData) {
+      return; // No hay datos corruptos, salir
+    }
+
     console.log("Corrigiendo datos corruptos en cuentas...");
 
     // Eliminar pagos huérfanos (pagos sin cuenta asociada)
