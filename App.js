@@ -216,6 +216,7 @@ function MainTabs() {
         visible={showAccountsMenu}
         onClose={() => setShowAccountsMenu(false)}
         bottomOffset={bottomOffset}
+        tabPosition="accounts"
         items={[
           {
             key: "accountsReceivable",
@@ -242,6 +243,8 @@ function MainTabs() {
         visible={showFichaMenu}
         onClose={() => setShowFichaMenu(false)}
         bottomOffset={bottomOffset}
+        tabPosition="ficha"
+        menuWidth="60%"
         items={[
           {
             key: "products",
@@ -273,7 +276,14 @@ function MainTabs() {
   );
 }
 
-const QuickActionMenu = ({ visible, onClose, items, bottomOffset }) => (
+const QuickActionMenu = ({
+  visible,
+  onClose,
+  items,
+  bottomOffset,
+  tabPosition,
+  menuWidth = "70%",
+}) => (
   <Modal
     visible={visible}
     transparent
@@ -286,7 +296,21 @@ const QuickActionMenu = ({ visible, onClose, items, bottomOffset }) => (
         activeOpacity={1}
         onPress={onClose}
       />
-      <View style={[tabStyles.menuWrapper, { marginBottom: bottomOffset }]}>
+      <View
+        style={[
+          tabStyles.menuWrapper,
+          {
+            marginBottom: bottomOffset,
+            marginLeft:
+              tabPosition === "accounts"
+                ? "5%"
+                : tabPosition === "ficha"
+                ? "45%"
+                : 0,
+            width: menuWidth,
+          },
+        ]}
+      >
         <View style={tabStyles.menuCard}>
           {items.map((item, index) => (
             <TouchableOpacity
@@ -322,8 +346,8 @@ const tabStyles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.25)",
   },
   menuWrapper: {
-    width: "100%",
     paddingHorizontal: 24,
+    alignItems: "center",
     alignItems: "center",
   },
   menuCard: {
