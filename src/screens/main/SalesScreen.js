@@ -274,7 +274,7 @@ export const SalesScreen = () => {
           onPress={() => handleCancelSale(item)}
           activeOpacity={0.7}
         >
-          <Text style={styles.cancelIcon}>🗑️</Text>
+          <Text style={styles.cancelIcon}>🚫</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
