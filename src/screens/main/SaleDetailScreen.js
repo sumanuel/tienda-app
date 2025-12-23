@@ -103,85 +103,96 @@ export const SaleDetailScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.backButtonText}>← Volver</Text>
-          </TouchableOpacity>
-
-          <View style={styles.headerInfo}>
-            <Text style={styles.title}>Venta #{sale.id}</Text>
-            <Text style={styles.subtitle}>
-              {new Date(sale.createdAt).toLocaleDateString("es-VE")} ·{" "}
-              {new Date(sale.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Text>
-            <Text style={styles.subtitle}>
-              {getPaymentMethodText(sale.paymentMethod)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>TOTAL</Text>
-          <Text style={styles.totalAmount}>
-            {formatCurrency(sale.total, "VES")}
-          </Text>
-        </View>
-      </View>
-
-      <ScrollView
-        style={styles.scrollContent}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Resumen</Text>
-
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Cliente</Text>
-            <Text style={styles.rowValue} numberOfLines={1}>
-              {sale.notes ? sale.notes.replace("Cliente: ", "") : "Sin nombre"}
-            </Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Método de pago</Text>
-            <Text style={styles.rowValue}>
-              {getPaymentMethodText(sale.paymentMethod)}
-            </Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Productos</Text>
-            <Text style={styles.rowValue}>{details?.items?.length || 0}</Text>
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Productos</Text>
-          <FlatList
-            data={details?.items || []}
-            renderItem={renderDetailItem}
-            keyExtractor={(_, index) => `detail-${index}`}
-            ItemSeparatorComponent={() => <View style={styles.detailDivider} />}
-            ListEmptyComponent={
-              <View style={styles.emptyProducts}>
-                <Text style={styles.emptyProductsText}>
-                  No se encontraron productos para esta venta.
+      <FlatList
+        data={[]}
+        renderItem={() => null}
+        ListHeaderComponent={
+          <View style={styles.headerContent}>
+            <View style={styles.heroCard}>
+              <View style={styles.heroIcon}>
+                <Text style={styles.heroIconText}>🧾</Text>
+              </View>
+              <View style={styles.heroCopy}>
+                <Text style={styles.heroTitle}>
+                  Detalle de venta #{sale.id}
+                </Text>
+                <Text style={styles.heroSubtitle}>
+                  Revisa los productos, cliente y método de pago de esta venta.
                 </Text>
               </View>
-            }
-            scrollEnabled={false}
-          />
-        </View>
-      </ScrollView>
+            </View>
+
+            <View style={styles.saleCard}>
+              <View style={styles.saleHeader}>
+                <View style={styles.saleIcon}>
+                  <Text style={styles.saleIconText}>🧾</Text>
+                </View>
+                <View style={styles.saleInfo}>
+                  <Text style={styles.saleNumber}>Venta #{sale.id}</Text>
+                  <Text style={styles.saleDate}>
+                    {new Date(sale.createdAt).toLocaleDateString("es-VE")} ·{" "}
+                    {new Date(sale.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
+                <View style={styles.saleAmountBadge}>
+                  <Text style={styles.saleAmountText}>
+                    {formatCurrency(sale.total, "VES")}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.saleMeta}>
+                <View style={styles.metaBlock}>
+                  <Text style={styles.metaLabel}>Cliente</Text>
+                  <Text style={styles.metaValue} numberOfLines={1}>
+                    {sale.notes
+                      ? sale.notes.replace("Cliente: ", "")
+                      : "Sin nombre"}
+                  </Text>
+                </View>
+                <View style={styles.metaSeparator} />
+                <View style={styles.metaBlock}>
+                  <Text style={styles.metaLabel}>Productos</Text>
+                  <Text style={styles.metaValue}>
+                    {details?.items?.length || 0}
+                  </Text>
+                </View>
+                <View style={styles.metaSeparator} />
+                <View style={styles.metaBlock}>
+                  <Text style={styles.metaLabel}>Pago</Text>
+                  <Text style={styles.metaValue}>
+                    {getPaymentMethodText(sale.paymentMethod)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.productsCard}>
+              <Text style={styles.cardTitle}>Productos vendidos</Text>
+              <FlatList
+                data={details?.items || []}
+                renderItem={renderDetailItem}
+                keyExtractor={(_, index) => `detail-${index}`}
+                ItemSeparatorComponent={() => (
+                  <View style={styles.detailDivider} />
+                )}
+                ListEmptyComponent={
+                  <View style={styles.emptyProducts}>
+                    <Text style={styles.emptyProductsText}>
+                      No se encontraron productos para esta venta.
+                    </Text>
+                  </View>
+                }
+                scrollEnabled={false}
+              />
+            </View>
+          </View>
+        }
+        contentContainerStyle={styles.listContent}
+      />
     </SafeAreaView>
   );
 };
@@ -191,121 +202,145 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#e8edf2",
   },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: "#e8edf2",
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 110,
+  },
+  headerContent: {
+    gap: 18,
+    marginBottom: 8,
+  },
+  heroCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 22,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  heroIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: "#f3f8ff",
     alignItems: "center",
     justifyContent: "center",
-    gap: 16,
+    marginRight: 18,
   },
-  loadingText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#4c5767",
+  heroIconText: {
+    fontSize: 30,
   },
-  scrollContent: {
+  heroCopy: {
     flex: 1,
+    gap: 6,
   },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 60,
-  },
-  header: {
-    backgroundColor: "#4CAF50",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 18,
-  },
-  headerTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  backButton: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  backButtonText: {
-    color: "#ffffff",
+  heroTitle: {
+    fontSize: 20,
     fontWeight: "700",
-    fontSize: 13,
+    color: "#1f2633",
   },
-  headerInfo: {
+  heroSubtitle: {
+    fontSize: 14,
+    color: "#5b6472",
+    lineHeight: 20,
+  },
+  saleCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 18,
+    gap: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  saleHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  saleIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#f3f8ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saleIconText: {
+    fontSize: 24,
+  },
+  saleInfo: {
     flex: 1,
     gap: 4,
   },
-  title: {
-    fontSize: 18,
+  saleNumber: {
+    fontSize: 16,
     fontWeight: "700",
-    color: "#ffffff",
+    color: "#1f2633",
   },
-  subtitle: {
+  saleDate: {
     fontSize: 12,
+    color: "#6f7c8c",
+  },
+  saleAmountBadge: {
+    backgroundColor: "#2f5ae0",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  saleAmountText: {
     color: "#fff",
-    opacity: 0.9,
-  },
-  totalCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  totalLabel: {
-    fontSize: 11,
     fontWeight: "700",
-    color: "#999",
-    letterSpacing: 1,
+    fontSize: 13,
   },
-  totalAmount: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#333",
-    marginTop: 6,
+  saleMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
   },
-  card: {
+  metaBlock: {
+    flex: 1,
+    gap: 6,
+  },
+  metaLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#8492a6",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  metaValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1f2633",
+  },
+  metaSeparator: {
+    width: 1,
+    height: 32,
+    backgroundColor: "#e4e9f2",
+  },
+  productsCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 18,
-    marginTop: 16,
+    borderRadius: 18,
+    padding: 22,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 5,
   },
   cardTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "700",
-    color: "#333",
-    marginBottom: 12,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
-    gap: 12,
-  },
-  rowLabel: {
-    fontSize: 13,
-    color: "#6c7a8a",
-    fontWeight: "600",
-  },
-  rowValue: {
-    flex: 1,
-    fontSize: 13,
-    color: "#2f3a4c",
-    fontWeight: "700",
-    textAlign: "right",
+    color: "#1f2633",
+    marginBottom: 16,
   },
   detailItem: {
     flexDirection: "row",
@@ -320,22 +355,22 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   detailItemName: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#2f3a4c",
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1f2633",
   },
   detailItemQuantity: {
-    fontSize: 12,
-    color: "#6c7a8a",
+    fontSize: 13,
+    color: "#6f7c8c",
   },
   detailItemTotal: {
     fontSize: 14,
-    fontWeight: "800",
-    color: "#2f3a4c",
+    fontWeight: "700",
+    color: "#1f2633",
   },
   detailDivider: {
     height: 1,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#e4e9f2",
     marginTop: 12,
   },
   emptyProducts: {
@@ -343,8 +378,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emptyProductsText: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#6f7c8c",
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#e8edf2",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#4c5767",
   },
   errorContainer: {
     flex: 1,
