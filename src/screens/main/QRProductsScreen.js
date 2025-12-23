@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
+  TextInput,
 } from "react-native";
 import { useProducts } from "../../hooks/useProducts";
 import QRCode from "react-native-qrcode-svg";
@@ -15,11 +16,21 @@ import QRCode from "react-native-qrcode-svg";
  */
 export const QRProductsScreen = ({ navigation }) => {
   const { products, loading } = useProducts();
+  const [startRange, setStartRange] = useState("");
+  const [endRange, setEndRange] = useState("");
 
   const sortedProducts = [...products].sort((a, b) => {
     const numA = parseInt((a.barcode || '').replace('PROD-', '')) || 0;
     const numB = parseInt((b.barcode || '').replace('PROD-', '')) || 0;
     return numA - numB;
+  });
+
+  const startNum = parseInt(startRange) || 0;
+  const endNum = parseInt(endRange) || Infinity;
+
+  const filteredProducts = sortedProducts.filter(product => {
+    const num = parseInt((product.barcode || '').replace('PROD-', '')) || 0;
+    return num >= startNum && num <= endNum;
   });
 
   const renderProduct = ({ item }) => (
@@ -56,8 +67,28 @@ export const QRProductsScreen = ({ navigation }) => {
         <View style={{ width: 80 }} />
       </View>
 
+      <View style={styles.searchContainer}>
+        <View style={styles.rangeContainer}>
+          <TextInput
+            style={styles.rangeInput}
+            placeholder="Desde"
+            value={startRange}
+            onChangeText={setStartRange}
+            keyboardType="numeric"
+          />
+          <Text style={styles.rangeSeparator}>a</Text>
+          <TextInput
+            style={styles.rangeInput}
+            placeholder="Hasta"
+            value={endRange}
+            onChangeText={setEndRange}
+            keyboardType="numeric"
+          />
+        </View>
+      </View>
+
       <FlatList
-        data={sortedProducts}
+        data={filteredProducts}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderProduct}
         contentContainerStyle={styles.listContainer}
@@ -134,6 +165,33 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 16,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  rangeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  rangeInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    backgroundColor: "#f9f9f9",
+  },
+  rangeSeparator: {
+    marginHorizontal: 8,
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#666",
   },
 });
 
