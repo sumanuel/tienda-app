@@ -505,9 +505,14 @@ export const POSScreen = ({ navigation }) => {
         disabled={isOutOfStock}
       >
         <View style={styles.productHeader}>
-          <Text style={styles.productName} numberOfLines={2}>
-            {item.name.toUpperCase()}
-          </Text>
+          <View style={styles.productLeft}>
+            <Text style={styles.productName} numberOfLines={2}>
+              {item.name.toUpperCase()}
+            </Text>
+            <Text style={styles.productBarcode}>
+              Código: {item.barcode}
+            </Text>
+          </View>
           <View style={styles.productRight}>
             <Text style={styles.productCategory}>{item.category}</Text>
             {isOutOfStock && (
@@ -1115,6 +1120,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 12,
   },
+  productLeft: {
+    flex: 1,
+    gap: 4,
+  },
   productRight: {
     alignItems: "flex-end",
     gap: 4,
@@ -1140,6 +1149,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6f7c8c",
     fontStyle: "italic",
+  },
+  productBarcode: {
+    fontSize: 12,
+    color: "#7a8796",
+    fontWeight: "500",
   },
   productFooter: {
     flexDirection: "row",
