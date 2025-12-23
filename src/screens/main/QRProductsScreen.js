@@ -147,8 +147,14 @@ export const QRProductsScreen = ({ navigation }) => {
         >
           <Text style={styles.backButtonText}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Códigos QR de Productos</Text>
+        <Text style={styles.title}>Imprimir Códigos QR</Text>
         <View style={{ width: 80 }} />
+      </View>
+
+      <View style={styles.filterInfoContainer}>
+        <Text style={styles.filterInfoText}>
+          Filtra productos por rango de códigos (ej: Desde 1 Hasta 10).
+        </Text>
       </View>
 
       <View style={styles.searchContainer}>
@@ -169,15 +175,22 @@ export const QRProductsScreen = ({ navigation }) => {
             keyboardType="numeric"
           />
         </View>
-        {selectedIds.length > 0 && (
+      </View>
+      <View style={styles.instructionsContainer}>
+        <Text style={styles.instructionsText}>
+          Toca un producto para seleccionarlo. Los seleccionados se marcarán con
+          ✓.
+        </Text>
+      </View>
+      {selectedIds.length > 0 && (
+        <View style={styles.printContainer}>
           <TouchableOpacity style={styles.printButton} onPress={printSelected}>
             <Text style={styles.printButtonText}>
               Imprimir seleccionados ({selectedIds.length})
             </Text>
           </TouchableOpacity>
-        )}
-      </View>
-
+        </View>
+      )}
       <FlatList
         data={filteredProducts}
         keyExtractor={(item) => item.id.toString()}
@@ -268,6 +281,35 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
+  },
+  filterInfoContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#fff3cd",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  filterInfoText: {
+    fontSize: 14,
+    color: "#856404",
+    textAlign: "center",
+  },
+  instructionsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#f0f8ff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  instructionsText: {
+    fontSize: 14,
+    color: "#333",
+    textAlign: "center",
+  },
+  printContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
   },
   rangeContainer: {
     flexDirection: "row",
