@@ -6,7 +6,7 @@ import { db } from "./db";
 export const getAllAccountsReceivable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_receivable ORDER BY createdAt DESC;"
+      "SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, createdAt, updatedAt FROM accounts_receivable ORDER BY createdAt DESC;"
     );
     return result;
   } catch (error) {
@@ -21,7 +21,7 @@ export const searchAccountsReceivable = async (query) => {
   try {
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
-      `SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_receivable 
+      `SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, createdAt, updatedAt FROM accounts_receivable 
        WHERE customerName LIKE ? 
        OR documentNumber LIKE ? 
        OR description LIKE ?
