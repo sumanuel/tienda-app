@@ -340,6 +340,28 @@ export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
   }
 };
 
+/**
+ * Obtiene todos los productos con sus códigos QR
+ */
+export const getAllProductsWithQRCodes = async () => {
+  try {
+    const result = await db.getAllAsync(
+      `SELECT id, name, barcode, category, priceUSD, stock
+       FROM products
+       WHERE active = 1
+       ORDER BY name ASC;`
+    );
+
+    // Agregar código QR generado para cada producto
+    return result.map((product) => ({
+      ...product,
+      qrCode: product.barcode || `PROD-${product.id}`,
+    }));
+  } catch (error) {
+    throw error;
+  }
+};
+
 export default {
   initDatabase,
   checkTableExists,
@@ -353,4 +375,5 @@ export default {
   deleteProduct,
   getLowStockProducts,
   updateAllPricesWithExchangeRate,
+  getAllProductsWithQRCodes,
 };

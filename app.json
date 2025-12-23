@@ -40,8 +40,6 @@
         "projectId": "d6973b85-728c-4f43-86bb-f97aba791748"
       }
     },
-    "plugins": [
-      "@react-native-community/datetimepicker"
-    ]
+    "plugins": ["@react-native-community/datetimepicker", "expo-camera"]
   }
 }

@@ -41,7 +41,24 @@ export const useProducts = () => {
       setError(null);
       const data = await getAllProducts();
       console.log("Productos cargados:", data.length);
-      setProducts(data);
+
+      // Asignar barcodes por defecto si no tienen
+      const productsToUpdate = data.filter((p) => !p.barcode);
+      if (productsToUpdate.length > 0) {
+        console.log("Asignando barcodes a productos sin barcode...");
+        for (const product of productsToUpdate) {
+          await updateProduct(product.id, {
+            ...product,
+            barcode: `PROD-${product.id}`,
+          });
+        }
+        // Recargar después de actualizar
+        const updatedData = await getAllProducts();
+        setProducts(updatedData);
+      } else {
+        setProducts(data);
+      }
+
       setRetryCount(0); // Reset retry count on success
     } catch (err) {
       console.error("Error loading products:", err);

@@ -132,9 +132,14 @@ export const ProductsScreen = ({ navigation }) => {
         activeOpacity={0.85}
       >
         <View style={styles.productHeader}>
-          <Text style={styles.productName} numberOfLines={2}>
-            {item.name.toUpperCase()}
-          </Text>
+          <View style={styles.productLeft}>
+            <Text style={styles.productName} numberOfLines={2}>
+              {item.name.toUpperCase()}
+            </Text>
+            <Text style={styles.productCode}>
+              Código: {item.barcode || `PROD-${item.id}`}
+            </Text>
+          </View>
           <View style={styles.productRight}>
             <Text style={styles.productCategory}>
               {item.category || "General"}
@@ -376,7 +381,7 @@ const styles = StyleSheet.create({
   productCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 10,
+    padding: 14,
     gap: 8,
     flex: 1,
     marginBottom: 8,
@@ -399,15 +404,23 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 12,
   },
+  productLeft: {
+    flex: 1,
+    gap: 4,
+  },
   productRight: {
     alignItems: "flex-end",
     gap: 4,
   },
   productName: {
-    flex: 1,
     fontSize: 14,
     fontWeight: "700",
     color: "#1f2633",
+  },
+  productCode: {
+    fontSize: 12,
+    color: "#6f7c8c",
+    fontStyle: "italic",
   },
   productCategory: {
     fontSize: 12,

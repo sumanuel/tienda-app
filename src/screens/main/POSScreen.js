@@ -18,7 +18,7 @@ import { useSales } from "../../hooks/useSales";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
-import { updateProductStock } from "../../services/database/products";
+import { CameraView, useCameraPermissions } from "expo-camera";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -47,6 +47,9 @@ export const POSScreen = ({ navigation }) => {
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [pendingSaleData, setPendingSaleData] = useState(null);
+
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanning, setScanning] = useState(false);
 
   const scrollViewRef = useRef(null);
 
@@ -130,6 +133,40 @@ export const POSScreen = ({ navigation }) => {
     Alert.alert("✓", `${product.name} agregado al carrito`, [{ text: "OK" }], {
       cancelable: true,
     });
+  };
+
+  /**
+   * Abre el escáner QR
+   */
+  const openQRScanner = async () => {
+    const { status } = await requestPermission();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permiso denegado",
+        "Se necesita permiso para acceder a la cámara."
+      );
+      return;
+    }
+    setScanning(true);
+  };
+
+  /**
+   * Maneja el escaneo de código de barras
+   */
+  const handleBarCodeScanned = ({ data }) => {
+    setScanning(false);
+    console.log("Código escaneado:", data);
+    console.log("Productos disponibles:", products);
+    console.log(
+      "Barcodes disponibles:",
+      products.map((p) => p.barcode)
+    );
+    const product = products.find((p) => p.barcode === data);
+    if (product) {
+      addToCart(product);
+    } else {
+      Alert.alert("Producto no encontrado", `Código: ${data}`);
+    }
   };
 
   /**
@@ -598,8 +635,15 @@ export const POSScreen = ({ navigation }) => {
         }
       />
 
-      {cart.length > 0 && (
-        <View style={styles.cartSummary}>
+      <View style={styles.cartSummary}>
+        <TouchableOpacity
+          style={styles.qrButton}
+          onPress={openQRScanner}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.qrButtonText}>QR</Text>
+        </TouchableOpacity>
+        {cart.length > 0 && (
           <TouchableOpacity
             style={styles.cartSummaryButton}
             onPress={() => setShowCart(true)}
@@ -609,8 +653,8 @@ export const POSScreen = ({ navigation }) => {
               Ver carrito ({cart.length})
             </Text>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+      </View>
 
       {/* Modal del carrito */}
       <Modal
@@ -857,6 +901,26 @@ export const POSScreen = ({ navigation }) => {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Modal del escáner QR */}
+      <Modal
+        visible={scanning}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setScanning(false)}
+      >
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          facing="back"
+          onBarcodeScanned={scanning ? handleBarCodeScanned : undefined}
+        />
+        <TouchableOpacity
+          style={styles.closeScannerButton}
+          onPress={() => setScanning(false)}
+        >
+          <Text style={styles.closeScannerText}>Cerrar</Text>
+        </TouchableOpacity>
       </Modal>
 
       {/* Modal para crear nuevo cliente */}
@@ -1152,6 +1216,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   cartSummaryButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  qrButton: {
+    backgroundColor: "#2f5ae0",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginRight: 8,
+  },
+  qrButtonText: {
     color: "#fff",
     fontWeight: "600",
     fontSize: 14,
@@ -1517,6 +1593,20 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 14,
+  },
+  closeScannerButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  closeScannerText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
   },
 });
 

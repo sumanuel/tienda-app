@@ -1,4 +1,4 @@
-import { BarCodeScanner } from "expo-barcode-scanner";
+import { Camera } from "expo-camera";
 
 /**
  * Solicita permisos para usar la cámara
@@ -6,7 +6,7 @@ import { BarCodeScanner } from "expo-barcode-scanner";
  */
 export const requestCameraPermission = async () => {
   try {
-    const { status } = await BarCodeScanner.requestPermissionsAsync();
+    const { status } = await Camera.requestCameraPermissionsAsync();
     return status === "granted";
   } catch (error) {
     console.error("Error requesting camera permission:", error);
@@ -20,7 +20,7 @@ export const requestCameraPermission = async () => {
  */
 export const hasCameraPermission = async () => {
   try {
-    const { status } = await BarCodeScanner.getPermissionsAsync();
+    const { status } = await Camera.getCameraPermissionsAsync();
     return status === "granted";
   } catch (error) {
     return false;
