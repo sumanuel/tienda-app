@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     color: "#2f3a4c",
   },
   summaryAmount: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "700",
     marginTop: 12,
   },
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardAmount: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: "#2e7d32",
     marginBottom: 4,
