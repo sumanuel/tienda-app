@@ -103,19 +103,16 @@ export const POSScreen = ({ navigation }) => {
     const existingItem = cart.find((item) => item.id === product.id);
 
     if (existingItem) {
-      // Incrementar cantidad si ya existe
-      const updatedCart = cart.map((item) =>
-        item.id === product.id
-          ? {
-              ...item,
-              quantity: item.quantity + 1,
-              subtotal: (item.quantity + 1) * item.price,
-            }
-          : item
-      );
-      setCart(updatedCart);
+      // Incrementar cantidad si ya existe y mover al frente
+      const updatedItem = {
+        ...existingItem,
+        quantity: existingItem.quantity + 1,
+        subtotal: (existingItem.quantity + 1) * existingItem.price,
+      };
+      const newCart = cart.filter((item) => item.id !== product.id);
+      setCart([updatedItem, ...newCart]);
     } else {
-      // Agregar nuevo item
+      // Agregar nuevo item al frente
       const basePriceUSD =
         Number(product.priceUSD) ||
         (exchangeRate ? (Number(product.priceVES) || 0) / exchangeRate : 0);
@@ -128,7 +125,7 @@ export const POSScreen = ({ navigation }) => {
         subtotal: product.priceVES || product.priceUSD * exchangeRate,
         product: product,
       };
-      setCart([...cart, newItem]);
+      setCart([newItem, ...cart]);
     }
 
     // Mostrar feedback visual solo si se solicita
