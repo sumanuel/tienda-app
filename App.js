@@ -48,6 +48,7 @@ import EditAccountPayableScreen from "./src/screens/main/EditAccountPayableScree
 import CapitalScreen from "./src/screens/main/CapitalScreen";
 import BusinessSettingsScreen from "./src/screens/main/BusinessSettingsScreen";
 import PricingSettingsScreen from "./src/screens/main/PricingSettingsScreen";
+import QRProductsScreen from "./src/screens/main/QRProductsScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
@@ -168,6 +169,15 @@ function MainTabs() {
           }}
         />
         <Tab.Screen
+          name="QRProducts"
+          component={QRProductsScreen}
+          options={{
+            title: "Códigos QR",
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        />
+        <Tab.Screen
           name="Suppliers"
           component={SuppliersScreen}
           options={{
@@ -253,6 +263,12 @@ function MainTabs() {
             icon: "📦",
             label: "Productos",
             onPress: () => handleNavigate("Products"),
+          },
+          {
+            key: "qr",
+            icon: "📱",
+            label: "QR",
+            onPress: () => handleNavigate("QRProducts"),
           },
           {
             key: "suppliers",
