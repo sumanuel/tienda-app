@@ -92,7 +92,9 @@ export const POSScreen = ({ navigation }) => {
   /**
    * Agrega un producto al carrito
    */
-  const addToCart = (product) => {
+  const addToCart = (product, options = {}) => {
+    const { showAlert = true } = options;
+
     if (product.stock <= 0) {
       Alert.alert("Sin stock", "Este producto no tiene stock disponible");
       return;
@@ -129,10 +131,17 @@ export const POSScreen = ({ navigation }) => {
       setCart([...cart, newItem]);
     }
 
-    // Mostrar feedback visual
-    Alert.alert("✓", `${product.name} agregado al carrito`, [{ text: "OK" }], {
-      cancelable: true,
-    });
+    // Mostrar feedback visual solo si se solicita
+    if (showAlert) {
+      Alert.alert(
+        "✓",
+        `${product.name} agregado al carrito`,
+        [{ text: "OK" }],
+        {
+          cancelable: true,
+        }
+      );
+    }
   };
 
   /**
@@ -163,7 +172,7 @@ export const POSScreen = ({ navigation }) => {
     );
     const product = products.find((p) => p.barcode === data);
     if (product) {
-      addToCart(product);
+      addToCart(product, { showAlert: false });
     } else {
       Alert.alert("Producto no encontrado", `Código: ${data}`);
     }
