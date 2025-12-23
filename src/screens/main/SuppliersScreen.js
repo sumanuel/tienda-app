@@ -135,16 +135,13 @@ export const SuppliersScreen = () => {
 
       <View style={styles.searchCard}>
         <Text style={styles.searchTitle}>Buscar proveedor</Text>
-        <View style={styles.searchInputWrapper}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Nombre, RIF o contacto"
-            value={searchQuery}
-            onChangeText={handleSearch}
-            placeholderTextColor="#9aa2b1"
-          />
-        </View>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Nombre, RIF o contacto"
+          value={searchQuery}
+          onChangeText={handleSearch}
+          placeholderTextColor="#9aa2b1"
+        />
       </View>
     </View>
   );
@@ -316,22 +313,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1f2633",
   },
-  searchInputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f8f9fc",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#d9e0eb",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 10,
-  },
-  searchIcon: {
-    fontSize: 18,
-  },
   searchInput: {
-    flex: 1,
+    backgroundColor: "#f3f5fa",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     fontSize: 15,
     color: "#1f2633",
   },
