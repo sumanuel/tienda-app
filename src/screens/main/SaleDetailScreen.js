@@ -84,20 +84,36 @@ export const SaleDetailScreen = () => {
     }
   };
 
-  const renderDetailItem = ({ item, index }) => (
-    <View style={[styles.detailItem, index !== 0 && styles.detailItemSpacing]}>
-      <View style={styles.detailItemInfo}>
-        <Text style={styles.detailItemName}>{item.productName}</Text>
-        <Text style={styles.detailItemQuantity}>
-          {item.quantity} × {formatCurrency(item.price, "VES")}
-          {item.priceUSD ? ` (${formatCurrency(item.priceUSD, "USD")})` : ""}
+  const renderDetailItem = ({ item, index }) => {
+    const quantity = Number(item.quantity) || 0;
+    const priceUSD = Number(item.priceUSD) || 0;
+
+    const shouldRecalc =
+      sale?.paymentMethod === "por_cobrar" && exchangeRate > 0 && priceUSD > 0;
+
+    const displayPriceVES = shouldRecalc
+      ? priceUSD * exchangeRate
+      : Number(item.price) || 0;
+
+    const displaySubtotalVES = shouldRecalc
+      ? quantity * displayPriceVES
+      : Number(item.subtotal) || quantity * displayPriceVES;
+
+    return (
+      <View style={[styles.detailItem, index !== 0 && styles.detailItemSpacing]}>
+        <View style={styles.detailItemInfo}>
+          <Text style={styles.detailItemName}>{item.productName}</Text>
+          <Text style={styles.detailItemQuantity}>
+            {quantity} × {formatCurrency(displayPriceVES, "VES")}
+            {priceUSD > 0 ? ` (${formatCurrency(priceUSD, "USD")})` : ""}
+          </Text>
+        </View>
+        <Text style={styles.detailItemTotal}>
+          {formatCurrency(displaySubtotalVES, "VES")}
         </Text>
       </View>
-      <Text style={styles.detailItemTotal}>
-        {formatCurrency(item.subtotal, "VES")}
-      </Text>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
