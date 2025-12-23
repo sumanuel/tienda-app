@@ -20,16 +20,16 @@ export const QRProductsScreen = ({ navigation }) => {
   const [endRange, setEndRange] = useState("");
 
   const sortedProducts = [...products].sort((a, b) => {
-    const numA = parseInt((a.barcode || '').replace('PROD-', '')) || 0;
-    const numB = parseInt((b.barcode || '').replace('PROD-', '')) || 0;
+    const numA = parseInt((a.barcode || "").replace("PROD-", "")) || 0;
+    const numB = parseInt((b.barcode || "").replace("PROD-", "")) || 0;
     return numA - numB;
   });
 
   const startNum = parseInt(startRange) || 0;
   const endNum = parseInt(endRange) || Infinity;
 
-  const filteredProducts = sortedProducts.filter(product => {
-    const num = parseInt((product.barcode || '').replace('PROD-', '')) || 0;
+  const filteredProducts = sortedProducts.filter((product) => {
+    const num = parseInt((product.barcode || "").replace("PROD-", "")) || 0;
     return num >= startNum && num <= endNum;
   });
 
