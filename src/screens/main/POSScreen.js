@@ -228,6 +228,10 @@ export const POSScreen = ({ navigation }) => {
                 productName: item.name,
                 quantity: item.quantity,
                 price: item.price,
+                priceUSD:
+                  Number(item.priceUSD) ||
+                  Number(item.product?.priceUSD) ||
+                  (exchangeRate ? Number(item.price) / exchangeRate : 0),
                 subtotal: item.subtotal,
               })),
             });
@@ -298,6 +302,7 @@ export const POSScreen = ({ navigation }) => {
           const accountData = {
             customerName: customerName.trim() || "Cliente",
             amount: total,
+            baseCurrency: "USD",
             baseAmountUSD,
             exchangeRateAtCreation: exchangeRate,
             description: `Venta a crédito - ${cart.length} producto(s): ${cart
@@ -379,9 +384,23 @@ export const POSScreen = ({ navigation }) => {
       // Si el método de pago es "por_cobrar", crear cuenta por cobrar automáticamente
       if (pendingSaleData.paymentMethod === "por_cobrar") {
         try {
+          const baseAmountUSD = (pendingSaleData.saleItems || []).reduce(
+            (sum, item) =>
+              sum +
+              (Number(item.priceUSD) ||
+                Number(item.product?.priceUSD) ||
+                (pendingSaleData.exchangeRate
+                  ? Number(item.price) / pendingSaleData.exchangeRate
+                  : 0)) *
+                (Number(item.quantity) || 0),
+            0
+          );
           const accountData = {
             customerName: newCustomerName.trim(),
             amount: pendingSaleData.total,
+            baseCurrency: "USD",
+            baseAmountUSD,
+            exchangeRateAtCreation: pendingSaleData.exchangeRate,
             description: `Venta a crédito - ${cart.length} producto(s): ${cart
               .map((item) => item.name.toUpperCase())
               .join(", ")}`,

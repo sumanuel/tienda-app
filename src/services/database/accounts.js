@@ -6,7 +6,7 @@ import { db } from "./db";
 export const getAllAccountsReceivable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, baseAmountUSD, exchangeRateAtCreation, createdAt, updatedAt FROM accounts_receivable ORDER BY createdAt DESC;"
+      "SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, baseCurrency, baseAmountUSD, exchangeRateAtCreation, createdAt, updatedAt FROM accounts_receivable ORDER BY createdAt DESC;"
     );
     return result;
   } catch (error) {
@@ -21,7 +21,7 @@ export const searchAccountsReceivable = async (query) => {
   try {
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
-      `SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, baseAmountUSD, exchangeRateAtCreation, createdAt, updatedAt FROM accounts_receivable 
+      `SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, baseCurrency, baseAmountUSD, exchangeRateAtCreation, createdAt, updatedAt FROM accounts_receivable 
        WHERE customerName LIKE ? 
        OR documentNumber LIKE ? 
        OR description LIKE ?
@@ -115,6 +115,7 @@ export const createAccountReceivable = async (accountData) => {
       customerId,
       customerName,
       amount,
+      baseCurrency,
       baseAmountUSD,
       exchangeRateAtCreation,
       description,
@@ -125,12 +126,13 @@ export const createAccountReceivable = async (accountData) => {
     } = accountData;
     const roundedAmount = Math.round(amount * 100) / 100;
     const result = await db.runAsync(
-      `INSERT INTO accounts_receivable (customerId, customerName, amount, baseAmountUSD, exchangeRateAtCreation, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      `INSERT INTO accounts_receivable (customerId, customerName, amount, baseCurrency, baseAmountUSD, exchangeRateAtCreation, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
         customerId || null,
         customerName,
         roundedAmount,
+        baseCurrency || "VES",
         baseAmountUSD || null,
         exchangeRateAtCreation || null,
         description || null,
@@ -190,6 +192,9 @@ export const updateAccountReceivable = async (id, accountData) => {
     const {
       customerName,
       amount,
+      baseCurrency,
+      baseAmountUSD,
+      exchangeRateAtCreation,
       description,
       dueDate,
       documentNumber,
@@ -197,11 +202,14 @@ export const updateAccountReceivable = async (id, accountData) => {
     } = accountData;
     await db.runAsync(
       `UPDATE accounts_receivable
-       SET customerName = ?, amount = ?, description = ?, dueDate = ?, documentNumber = ?, invoiceNumber = ?, updatedAt = datetime('now')
+       SET customerName = ?, amount = ?, baseCurrency = ?, baseAmountUSD = ?, exchangeRateAtCreation = ?, description = ?, dueDate = ?, documentNumber = ?, invoiceNumber = ?, updatedAt = datetime('now')
        WHERE id = ?`,
       [
         customerName,
         amount,
+        baseCurrency || "VES",
+        baseAmountUSD ?? null,
+        exchangeRateAtCreation ?? null,
         description || null,
         dueDate || null,
         documentNumber || null,
@@ -505,13 +513,15 @@ export const fixCorruptedAccountData = async () => {
 
 export const updateReceivableAmountsOnRateChange = async (newRate) => {
   try {
-    // Actualizar amounts para cuentas por cobrar pendientes con baseAmountUSD
+    // Actualizar amounts para cuentas por cobrar USD-base (manuales y originadas en ventas)
+    // Regla: NO tocar pagadas ni ya totalmente pagadas (aunque status esté inconsistente)
     await db.runAsync(
       `UPDATE accounts_receivable 
        SET amount = ROUND(baseAmountUSD * ?, 2) 
        WHERE status != 'paid'
-         AND baseAmountUSD IS NOT NULL AND baseAmountUSD > 0
-         AND invoiceNumber IS NOT NULL AND TRIM(invoiceNumber) != ''`,
+         AND (COALESCE(paidAmount, 0) + 0.01) < amount
+         AND baseCurrency = 'USD'
+         AND baseAmountUSD IS NOT NULL AND baseAmountUSD > 0`,
       [newRate]
     );
     console.log("Amounts de cuentas por cobrar actualizados con nueva tasa");

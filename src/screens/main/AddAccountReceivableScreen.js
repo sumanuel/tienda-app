@@ -14,6 +14,8 @@ import {
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
+import { formatCurrency } from "../../utils/currency";
 
 /**
  * Pantalla para agregar nueva cuenta por cobrar
@@ -21,6 +23,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 export const AddAccountReceivableScreen = ({ navigation }) => {
   const { addAccountReceivable } = useAccounts();
   const { getCustomerByDocument, addCustomer } = useCustomers();
+  const { rate } = useExchangeRateContext();
 
   const [loading, setLoading] = useState(false);
 
@@ -28,6 +31,7 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
     documentNumber: "",
     customerName: "",
     amount: "",
+    baseCurrency: "VES",
     description: "",
     dueDate: "",
     invoiceNumber: "",
@@ -46,6 +50,28 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
   const updateFormData = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  const parseAmountInput = (value) => {
+    if (typeof value !== "string") return 0;
+    const normalized = value.replace(/,/g, ".").replace(/\s/g, "").trim();
+    const num = Number.parseFloat(normalized);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const currentRate = Number(rate) || 0;
+  const baseAmountValue = parseAmountInput(formData.amount);
+  const computedUSD =
+    formData.baseCurrency === "USD"
+      ? baseAmountValue
+      : currentRate > 0
+      ? baseAmountValue / currentRate
+      : null;
+  const computedVES =
+    formData.baseCurrency === "USD"
+      ? currentRate > 0
+        ? baseAmountValue * currentRate
+        : null
+      : baseAmountValue;
 
   const handleDocumentChange = async (documentNumber) => {
     updateFormData("documentNumber", documentNumber);
@@ -107,9 +133,17 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
       return;
     }
 
-    const amountValue = parseFloat(formData.amount.replace(",", "."));
-    if (Number.isNaN(amountValue) || amountValue <= 0) {
+    const baseAmount = parseAmountInput(formData.amount);
+    if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
       Alert.alert("Error", "El monto debe ser un número positivo");
+      return;
+    }
+
+    if (formData.baseCurrency === "USD" && currentRate <= 0) {
+      Alert.alert(
+        "Error",
+        "Debes definir una tasa de cambio para registrar un monto en USD"
+      );
       return;
     }
 
@@ -136,7 +170,12 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
         customerId: customer?.id,
         customerName: formData.customerName.trim(),
         documentNumber: formData.documentNumber.trim(),
-        amount: amountValue,
+        amount: computedVES ?? 0,
+        baseCurrency: formData.baseCurrency,
+        baseAmountUSD:
+          formData.baseCurrency === "USD" ? computedUSD ?? 0 : null,
+        exchangeRateAtCreation:
+          formData.baseCurrency === "USD" ? currentRate : null,
         description: formData.description.trim(),
         invoiceNumber: formData.invoiceNumber.trim(),
         dueDate: formData.dueDate,
@@ -217,7 +256,37 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.label}>Monto *</Text>
+            <Text style={styles.label}>Moneda del monto *</Text>
+            <View style={styles.currencyRow}>
+              {["VES", "USD"].map((code) => {
+                const active = formData.baseCurrency === code;
+                return (
+                  <TouchableOpacity
+                    key={code}
+                    style={[
+                      styles.currencyChip,
+                      active ? styles.currencyChipActive : null,
+                    ]}
+                    onPress={() => updateFormData("baseCurrency", code)}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={[
+                        styles.currencyChipText,
+                        active ? styles.currencyChipTextActive : null,
+                      ]}
+                    >
+                      {code === "USD" ? "Monto en USD" : "Monto en Bs"}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.label}>
+              {formData.baseCurrency === "USD" ? "Monto (USD)" : "Monto (VES)"}{" "}
+              *
+            </Text>
             <TextInput
               style={styles.input}
               placeholder="0.00"
@@ -226,6 +295,34 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
               onChangeText={(value) => updateFormData("amount", value)}
               keyboardType="numeric"
             />
+
+            <View style={styles.dualAmountCard}>
+              <View style={styles.dualAmountRow}>
+                <Text style={styles.dualAmountLabel}>USD</Text>
+                <Text style={styles.dualAmountValue}>
+                  {computedUSD === null
+                    ? "—"
+                    : formatCurrency(computedUSD, "USD")}
+                </Text>
+              </View>
+              <View style={styles.dualAmountRow}>
+                <Text style={styles.dualAmountLabel}>VES</Text>
+                <Text style={styles.dualAmountValue}>
+                  {computedVES === null
+                    ? "—"
+                    : formatCurrency(computedVES, "VES")}
+                </Text>
+              </View>
+              {currentRate > 0 ? (
+                <Text style={styles.dualAmountHint}>
+                  Tasa actual: 1 USD = VES. {currentRate.toFixed(2)}
+                </Text>
+              ) : (
+                <Text style={styles.dualAmountHint}>
+                  Define la tasa para ver equivalencias
+                </Text>
+              )}
+            </View>
 
             <Text style={styles.label}>Descripción</Text>
             <TextInput
@@ -384,6 +481,64 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     gap: 12,
+  },
+  currencyRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
+  },
+  currencyChip: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#f8fafc",
+    alignItems: "center",
+  },
+  currencyChipActive: {
+    borderColor: "#4CAF50",
+    backgroundColor: "#eaf6ee",
+  },
+  currencyChipText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6f7c8c",
+  },
+  currencyChipTextActive: {
+    color: "#2e7d32",
+  },
+  dualAmountCard: {
+    marginTop: 12,
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 12,
+    gap: 8,
+  },
+  dualAmountRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dualAmountLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6f7c8c",
+    letterSpacing: 0.4,
+  },
+  dualAmountValue: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#1f2633",
+  },
+  dualAmountHint: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#6f7c8c",
+    fontWeight: "600",
   },
   label: {
     fontSize: 12,

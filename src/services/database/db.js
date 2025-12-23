@@ -119,6 +119,11 @@ export const initAllTables = async () => {
           customerName TEXT NOT NULL,
           documentNumber TEXT,
           amount REAL NOT NULL,
+          paidAmount REAL DEFAULT 0,
+          paidAt TEXT,
+          baseCurrency TEXT DEFAULT 'VES',
+          baseAmountUSD REAL DEFAULT 0,
+          exchangeRateAtCreation REAL DEFAULT 0,
           description TEXT,
           invoiceNumber TEXT,
           dueDate TEXT,
@@ -134,6 +139,8 @@ export const initAllTables = async () => {
           supplierId INTEGER,
           supplierName TEXT NOT NULL,
           amount REAL NOT NULL,
+          paidAmount REAL DEFAULT 0,
+          paidAt TEXT,
           description TEXT,
           dueDate TEXT,
           documentNumber TEXT,
@@ -265,6 +272,13 @@ const runMigrations = async () => {
       (col) => col.name === "invoiceNumber"
     );
 
+    const hasPaidAtReceivable = receivableColumns.some(
+      (col) => col.name === "paidAt"
+    );
+    const hasBaseCurrency = receivableColumns.some(
+      (col) => col.name === "baseCurrency"
+    );
+
     const hasBaseAmountUSD = receivableColumns.some(
       (col) => col.name === "baseAmountUSD"
     );
@@ -310,6 +324,26 @@ const runMigrations = async () => {
       console.log("paidAmount column already exists");
     }
 
+    if (!hasPaidAtReceivable) {
+      console.log("Adding paidAt column to accounts_receivable table...");
+      await db.runAsync(
+        "ALTER TABLE accounts_receivable ADD COLUMN paidAt TEXT"
+      );
+      console.log("paidAt column added successfully");
+    } else {
+      console.log("paidAt column already exists");
+    }
+
+    if (!hasBaseCurrency) {
+      console.log("Adding baseCurrency column to accounts_receivable table...");
+      await db.runAsync(
+        "ALTER TABLE accounts_receivable ADD COLUMN baseCurrency TEXT DEFAULT 'VES'"
+      );
+      console.log("baseCurrency column added successfully");
+    } else {
+      console.log("baseCurrency column already exists");
+    }
+
     if (!hasBaseAmountUSD) {
       console.log(
         "Adding baseAmountUSD column to accounts_receivable table..."
@@ -333,6 +367,28 @@ const runMigrations = async () => {
     } else {
       console.log("exchangeRateAtCreation column already exists");
     }
+
+    // Normalizar baseCurrency
+    await db.runAsync(
+      `UPDATE accounts_receivable
+       SET baseCurrency = 'USD'
+       WHERE (invoiceNumber IS NOT NULL AND TRIM(invoiceNumber) != '')
+         AND COALESCE(baseAmountUSD, 0) > 0;`
+    );
+
+    await db.runAsync(
+      `UPDATE accounts_receivable
+       SET baseCurrency = COALESCE(NULLIF(baseCurrency, ''), 'VES')
+       WHERE baseCurrency IS NULL OR TRIM(baseCurrency) = '';`
+    );
+
+    // Corregir status para cuentas ya saldadas (evita que "desaparezcan" al cambiar la tasa)
+    await db.runAsync(
+      `UPDATE accounts_receivable
+       SET status = 'paid', paidAt = COALESCE(paidAt, datetime('now')), updatedAt = datetime('now')
+       WHERE status != 'paid'
+         AND (COALESCE(paidAmount, 0) + 0.01) >= COALESCE(amount, 0);`
+    );
 
     // Backfill baseAmountUSD para cuentas por cobrar originadas en ventas (invoiceNumber)
     // baseAmountUSD = SUM(sale_items.quantity * sale_items.priceUSD)
@@ -365,6 +421,27 @@ const runMigrations = async () => {
     const hasPayableInvoiceNumber = payableColumns.some(
       (col) => col.name === "invoiceNumber"
     );
+
+    const hasPayablePaidAmount = payableColumns.some(
+      (col) => col.name === "paidAmount"
+    );
+    const hasPayablePaidAt = payableColumns.some(
+      (col) => col.name === "paidAt"
+    );
+
+    if (!hasPayablePaidAmount) {
+      console.log("Adding paidAmount column to accounts_payable table...");
+      await db.runAsync(
+        "ALTER TABLE accounts_payable ADD COLUMN paidAmount REAL DEFAULT 0"
+      );
+      console.log("paidAmount column added successfully to accounts_payable");
+    }
+
+    if (!hasPayablePaidAt) {
+      console.log("Adding paidAt column to accounts_payable table...");
+      await db.runAsync("ALTER TABLE accounts_payable ADD COLUMN paidAt TEXT");
+      console.log("paidAt column added successfully to accounts_payable");
+    }
 
     if (!hasPayableSupplierId) {
       console.log("Adding supplierId column to accounts_payable table...");

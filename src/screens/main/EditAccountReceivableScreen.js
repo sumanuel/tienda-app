@@ -14,6 +14,8 @@ import {
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
+import { formatCurrency } from "../../utils/currency";
 
 /**
  * Pantalla para editar cuenta por cobrar existente
@@ -22,11 +24,13 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
   const { editAccountReceivable } = useAccounts();
   const { getCustomerByDocument } = useCustomers();
   const { account } = route.params;
+  const { rate } = useExchangeRateContext();
 
   const [formData, setFormData] = useState({
     documentNumber: "",
     customerName: "",
     amount: "",
+    baseCurrency: "VES",
     description: "",
     dueDate: "",
     invoiceNumber: "",
@@ -44,10 +48,35 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     if (account) {
+      const baseCurrency = account.baseCurrency || "VES";
+      const exchangeRateAtCreation =
+        Number(account.exchangeRateAtCreation) || 0;
+      const accountAmount = Number(account.amount) || 0;
+      const accountBaseUSD =
+        account.baseAmountUSD !== null && account.baseAmountUSD !== undefined
+          ? Number(account.baseAmountUSD)
+          : null;
+
+      let baseAmountText = "";
+      if (baseCurrency === "USD") {
+        if (accountBaseUSD !== null && Number.isFinite(accountBaseUSD)) {
+          baseAmountText = accountBaseUSD.toString();
+        } else if (exchangeRateAtCreation > 0) {
+          baseAmountText = (accountAmount / exchangeRateAtCreation).toFixed(2);
+        } else {
+          const currentRate = Number(rate) || 0;
+          baseAmountText =
+            currentRate > 0 ? (accountAmount / currentRate).toFixed(2) : "";
+        }
+      } else {
+        baseAmountText = accountAmount ? accountAmount.toString() : "";
+      }
+
       setFormData({
         documentNumber: account.documentNumber || "",
         customerName: account.customerName || "",
-        amount: account.amount?.toString() || "",
+        amount: baseAmountText,
+        baseCurrency,
         description: account.description || "",
         dueDate: account.dueDate || "",
         invoiceNumber: account.invoiceNumber || "",
@@ -56,7 +85,29 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
         setSelectedDate(new Date(account.dueDate));
       }
     }
-  }, [account]);
+  }, [account, rate]);
+
+  const parseAmountInput = (value) => {
+    if (typeof value !== "string") return 0;
+    const normalized = value.replace(/,/g, ".").replace(/\s/g, "").trim();
+    const num = Number.parseFloat(normalized);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const currentRate = Number(rate) || 0;
+  const baseAmountValue = parseAmountInput(formData.amount);
+  const computedUSD =
+    formData.baseCurrency === "USD"
+      ? baseAmountValue
+      : currentRate > 0
+      ? baseAmountValue / currentRate
+      : null;
+  const computedVES =
+    formData.baseCurrency === "USD"
+      ? currentRate > 0
+        ? baseAmountValue * currentRate
+        : null
+      : baseAmountValue;
 
   const handleDocumentChange = async (documentNumber) => {
     updateFormData("documentNumber", documentNumber);
@@ -106,8 +157,17 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
       Alert.alert("Error", "El nombre del cliente es obligatorio");
       return;
     }
-    if (!formData.amount.trim()) {
-      Alert.alert("Error", "El monto es obligatorio");
+    const baseAmount = parseAmountInput(formData.amount);
+    if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
+      Alert.alert("Error", "El monto debe ser un número positivo");
+      return;
+    }
+
+    if (formData.baseCurrency === "USD" && currentRate <= 0) {
+      Alert.alert(
+        "Error",
+        "Debes definir una tasa de cambio para registrar un monto en USD"
+      );
       return;
     }
     if (!formData.dueDate.trim()) {
@@ -117,8 +177,17 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
 
     try {
       await editAccountReceivable(account.id, {
-        ...formData,
-        amount: parseFloat(formData.amount),
+        documentNumber: formData.documentNumber,
+        customerName: formData.customerName,
+        description: formData.description,
+        dueDate: formData.dueDate,
+        invoiceNumber: formData.invoiceNumber,
+        amount: computedVES ?? 0,
+        baseCurrency: formData.baseCurrency,
+        baseAmountUSD:
+          formData.baseCurrency === "USD" ? computedUSD ?? 0 : null,
+        exchangeRateAtCreation:
+          formData.baseCurrency === "USD" ? currentRate : null,
       });
       Alert.alert("Éxito", "Cuenta por cobrar actualizada correctamente", [
         { text: "OK", onPress: () => navigation.goBack() },
@@ -195,7 +264,37 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.label}>Monto *</Text>
+            <Text style={styles.label}>Moneda del monto *</Text>
+            <View style={styles.currencyRow}>
+              {["VES", "USD"].map((code) => {
+                const active = formData.baseCurrency === code;
+                return (
+                  <TouchableOpacity
+                    key={code}
+                    style={[
+                      styles.currencyChip,
+                      active ? styles.currencyChipActive : null,
+                    ]}
+                    onPress={() => updateFormData("baseCurrency", code)}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={[
+                        styles.currencyChipText,
+                        active ? styles.currencyChipTextActive : null,
+                      ]}
+                    >
+                      {code === "USD" ? "Monto en USD" : "Monto en Bs"}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.label}>
+              {formData.baseCurrency === "USD" ? "Monto (USD)" : "Monto (VES)"}{" "}
+              *
+            </Text>
             <TextInput
               style={styles.input}
               placeholder="0.00"
@@ -204,6 +303,34 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
               onChangeText={(value) => updateFormData("amount", value)}
               keyboardType="numeric"
             />
+
+            <View style={styles.dualAmountCard}>
+              <View style={styles.dualAmountRow}>
+                <Text style={styles.dualAmountLabel}>USD</Text>
+                <Text style={styles.dualAmountValue}>
+                  {computedUSD === null
+                    ? "—"
+                    : formatCurrency(computedUSD, "USD")}
+                </Text>
+              </View>
+              <View style={styles.dualAmountRow}>
+                <Text style={styles.dualAmountLabel}>VES</Text>
+                <Text style={styles.dualAmountValue}>
+                  {computedVES === null
+                    ? "—"
+                    : formatCurrency(computedVES, "VES")}
+                </Text>
+              </View>
+              {currentRate > 0 ? (
+                <Text style={styles.dualAmountHint}>
+                  Tasa actual: 1 USD = VES. {currentRate.toFixed(2)}
+                </Text>
+              ) : (
+                <Text style={styles.dualAmountHint}>
+                  Define la tasa para ver equivalencias
+                </Text>
+              )}
+            </View>
 
             <Text style={styles.label}>Descripción</Text>
             <TextInput
@@ -362,6 +489,64 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     gap: 12,
+  },
+  currencyRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
+  },
+  currencyChip: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#f8fafc",
+    alignItems: "center",
+  },
+  currencyChipActive: {
+    borderColor: "#4CAF50",
+    backgroundColor: "#eaf6ee",
+  },
+  currencyChipText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6f7c8c",
+  },
+  currencyChipTextActive: {
+    color: "#2e7d32",
+  },
+  dualAmountCard: {
+    marginTop: 12,
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 12,
+    gap: 8,
+  },
+  dualAmountRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dualAmountLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6f7c8c",
+    letterSpacing: 0.4,
+  },
+  dualAmountValue: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#1f2633",
+  },
+  dualAmountHint: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#6f7c8c",
+    fontWeight: "600",
   },
   label: {
     fontSize: 12,
