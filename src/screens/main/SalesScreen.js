@@ -241,11 +241,6 @@ export const SalesScreen = () => {
         </View>
         <View style={styles.metaSeparator} />
         <View style={styles.metaBlock}>
-          <Text style={styles.metaLabel}>Productos</Text>
-          <Text style={styles.metaValue}>{item.itemCount || 0}</Text>
-        </View>
-        <View style={styles.metaSeparator} />
-        <View style={styles.metaBlock}>
           <Text style={styles.metaLabel}>Pago</Text>
           <Text style={styles.metaValue}>
             {getPaymentMethodText(item.paymentMethod)}
