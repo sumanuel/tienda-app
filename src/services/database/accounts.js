@@ -513,13 +513,24 @@ export const fixCorruptedAccountData = async () => {
 
 export const updateReceivableAmountsOnRateChange = async (newRate) => {
   try {
+    // 1) Congelar las que ya están efectivamente pagadas (tolerancia 0.01) antes de tocar montos.
+    // Esto evita que por redondeos queden como "pendientes" y luego cambien/disappezcan al recalcular.
+    await db.runAsync(
+      `UPDATE accounts_receivable
+       SET status = 'paid',
+           paidAt = COALESCE(paidAt, datetime('now')),
+           updatedAt = datetime('now')
+       WHERE status != 'paid'
+         AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) >= ROUND(amount, 2)`
+    );
+
     // Actualizar amounts para cuentas por cobrar USD-base (manuales y originadas en ventas)
     // Regla: NO tocar pagadas ni ya totalmente pagadas (aunque status esté inconsistente)
     await db.runAsync(
       `UPDATE accounts_receivable 
        SET amount = ROUND(baseAmountUSD * ?, 2) 
        WHERE status != 'paid'
-         AND (COALESCE(paidAmount, 0) + 0.01) < amount
+         AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) < ROUND(amount, 2)
          AND baseCurrency = 'USD'
          AND baseAmountUSD IS NOT NULL AND baseAmountUSD > 0`,
       [newRate]
