@@ -79,6 +79,20 @@ export const POSScreen = ({ navigation }) => {
     }
   }, [navigation, refreshProducts]);
 
+  // Auto-scroll cuando se muestra u oculta el campo de referencia
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      setTimeout(() => {
+        if (paymentMethod === "transfer" || paymentMethod === "pago_movil") {
+          scrollViewRef.current.scrollToEnd({ animated: true });
+        } else {
+          // Cuando se oculta, hacer scroll hacia arriba para mostrar los botones de pago
+          scrollViewRef.current.scrollTo({ x: 0, y: 400, animated: true }); // Ajustar Y según sea necesario
+        }
+      }, 200);
+    }
+  }, [paymentMethod]);
+
   // Filtrar productos (ordenados alfabéticamente)
   const filteredProducts = products
     .sort((a, b) => a.name.localeCompare(b.name))
