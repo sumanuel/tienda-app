@@ -336,17 +336,14 @@ export const AccountsReceivableScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.controlsCard}>
-        <View style={styles.searchWrapper}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar cuentas..."
-            placeholderTextColor="#9aa6b5"
-            value={searchQuery}
-            onChangeText={handleSearch}
-            returnKeyType="search"
-          />
-        </View>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar cuentas..."
+          placeholderTextColor="#9aa6b5"
+          value={searchQuery}
+          onChangeText={handleSearch}
+          returnKeyType="search"
+        />
       </View>
 
       <View style={styles.tabGroup}>
@@ -538,25 +535,13 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 4,
   },
-  searchWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f4f7fb",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#dde4ed",
-    paddingHorizontal: 14,
-    height: 48,
-  },
-  searchIcon: {
-    fontSize: 18,
-    color: "#6c7a8a",
-    marginRight: 8,
-  },
   searchInput: {
-    flex: 1,
+    backgroundColor: "#f3f5fa",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     fontSize: 15,
-    color: "#2f3a4c",
+    color: "#1f2633",
   },
   primaryButton: {
     marginTop: 14,
