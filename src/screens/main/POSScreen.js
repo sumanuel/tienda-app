@@ -837,32 +837,14 @@ export const POSScreen = ({ navigation }) => {
 
                 {(paymentMethod === "transfer" ||
                   paymentMethod === "pago_movil") && (
-                  <View style={styles.referenceContainer}>
-                    <View style={styles.referenceSection}>
-                      <Text style={styles.referenceLabel}>
-                        📄 Número de Referencia
-                        <Text style={styles.optionalText}> (opcional)</Text>
-                      </Text>
-                      <TextInput
-                        style={styles.referenceInput}
-                        placeholder={`Ingrese referencia de ${
-                          paymentMethod === "transfer"
-                            ? "transferencia"
-                            : "pago móvil"
-                        }`}
-                        value={referenceNumber}
-                        onChangeText={setReferenceNumber}
-                        keyboardType="numeric"
-                        maxLength={20}
-                        placeholderTextColor="#999"
-                      />
-                      <Text style={styles.referenceHint}>
-                        {paymentMethod === "transfer"
-                          ? "Ingrese el número de referencia de la transferencia bancaria"
-                          : "Ingrese el número de referencia del pago móvil"}
-                      </Text>
-                    </View>
-                  </View>
+                  <TextInput
+                    style={styles.simpleReferenceInput}
+                    value={referenceNumber}
+                    onChangeText={setReferenceNumber}
+                    placeholder="Número de referencia"
+                    keyboardType="default"
+                    autoCapitalize="none"
+                  />
                 )}
               </View>
             )}
@@ -1409,7 +1391,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 20,
-    marginBottom: 4,
+    marginBottom: 20,
     gap: 18,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
@@ -1421,27 +1403,30 @@ const styles = StyleSheet.create({
     marginHorizontal: -4,
   },
   paymentButtons: {
-    flexDirection: "row",
-    gap: 12,
+    gap: 8,
+    paddingVertical: 4,
   },
   paymentButton: {
-    width: 110,
-    paddingVertical: 16,
-    borderRadius: 16,
-    backgroundColor: "#f3f5fa",
+    backgroundColor: "#f7fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    padding: 12,
     alignItems: "center",
-    gap: 8,
+    minWidth: 80,
   },
   paymentButtonActive: {
     backgroundColor: "#2f5ae0",
+    borderColor: "#2f5ae0",
   },
   paymentButtonIcon: {
-    fontSize: 26,
+    fontSize: 16,
+    marginBottom: 4,
   },
   paymentButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#5b6472",
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#4a5568",
   },
   paymentButtonTextActive: {
     color: "#fff",
@@ -1481,6 +1466,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6f7c8c",
     lineHeight: 16,
+  },
+  simpleReferenceInput: {
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: "#f7fafc",
+    color: "#2d3748",
+    marginTop: 8,
   },
   modalFooter: {
     backgroundColor: "#fff",
