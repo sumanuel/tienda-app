@@ -64,7 +64,7 @@ function MainTabs() {
   const insets = useSafeAreaInsets();
   const [showAccountsMenu, setShowAccountsMenu] = useState(false);
   const [showFichaMenu, setShowFichaMenu] = useState(false);
-  const bottomOffset = insets.bottom + 62;
+  const bottomOffset = insets.bottom + 15;
 
   const handleNavigate = (routeName) => {
     setShowAccountsMenu(false);
@@ -329,9 +329,9 @@ const tabStyles = StyleSheet.create({
   menuCard: {
     width: "100%",
     backgroundColor: "#fff",
-    borderRadius: 22,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
+    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
@@ -341,26 +341,26 @@ const tabStyles = StyleSheet.create({
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   menuDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#e5eaf0",
   },
   menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: "#ecf4ef",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 10,
   },
   menuIconText: {
-    fontSize: 22,
+    fontSize: 16,
   },
   menuLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: "#2f3a4c",
   },
