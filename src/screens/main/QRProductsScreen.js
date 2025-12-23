@@ -18,6 +18,7 @@ export const QRProductsScreen = ({ navigation }) => {
   const { products, loading } = useProducts();
   const [startRange, setStartRange] = useState("");
   const [endRange, setEndRange] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const sortedProducts = [...products].sort((a, b) => {
     const numA = parseInt((a.barcode || "").replace("PROD-", "")) || 0;
@@ -32,19 +33,32 @@ export const QRProductsScreen = ({ navigation }) => {
     const num = parseInt((product.barcode || "").replace("PROD-", "")) || 0;
     return num >= startNum && num <= endNum;
   });
-
-  const renderProduct = ({ item }) => (
-    <View style={styles.productCard}>
-      <View style={styles.productInfo}>
-        <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productBarcode}>Código: {item.barcode}</Text>
-        <Text style={styles.productCategory}>{item.category}</Text>
-      </View>
-      <View style={styles.qrContainer}>
-        <QRCode value={item.barcode} size={80} />
-      </View>
-    </View>
-  );
+  const toggleSelection = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+  const renderProduct = ({ item }) => {
+    const isSelected = selectedIds.includes(item.id);
+    return (
+      <TouchableOpacity
+        style={[styles.productCard, isSelected && styles.productCardSelected]}
+        onPress={() => toggleSelection(item.id)}
+      >
+        <View style={styles.productInfo}>
+          <Text style={styles.productName}>{item.name}</Text>
+          <Text style={styles.productBarcode}>Código: {item.barcode}</Text>
+          <Text style={styles.productCategory}>{item.category}</Text>
+        </View>
+        <View style={styles.qrContainer}>
+          <QRCode value={item.barcode} size={80} />
+        </View>
+        <View style={styles.checkContainer}>
+          <Text style={styles.checkMark}>{isSelected ? "✓" : ""}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -141,6 +155,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  productCardSelected: {
+    backgroundColor: "#e8f5e8",
+    borderColor: "#4CAF50",
+    borderWidth: 2,
+  },
   productInfo: {
     flex: 1,
     justifyContent: "center",
@@ -192,6 +211,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "#666",
+  },
+  checkContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 16,
+  },
+  checkMark: {
+    fontSize: 24,
+    color: "#4CAF50",
+    fontWeight: "bold",
   },
 });
 
