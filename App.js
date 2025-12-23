@@ -23,6 +23,7 @@ import DashboardScreen from "./src/screens/main/DashboardScreen";
 import POSScreen from "./src/screens/main/POSScreen";
 import ProductsScreen from "./src/screens/main/ProductsScreen";
 import SalesScreen from "./src/screens/main/SalesScreen";
+import CancelledSalesScreen from "./src/screens/main/CancelledSalesScreen";
 import SaleDetailScreen from "./src/screens/main/SaleDetailScreen";
 import ExchangeRateScreen from "./src/screens/main/ExchangeRateScreen";
 import SettingsScreen from "./src/screens/main/SettingsScreen";
@@ -259,6 +260,12 @@ function MainTabs() {
             icon: "👥",
             label: "Clientes",
             onPress: () => handleNavigate("Customers"),
+          },
+          {
+            key: "cancelledSales",
+            icon: "🚫",
+            label: "Anuladas",
+            onPress: () => handleNavigate("CancelledSales"),
           },
         ]}
       />
@@ -609,6 +616,20 @@ export default function App() {
             component={SaleDetailScreen}
             options={{
               title: "Detalle de Venta",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="CancelledSales"
+            component={CancelledSalesScreen}
+            options={{
+              title: "Ventas Anuladas",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },
