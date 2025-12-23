@@ -46,6 +46,8 @@ import AccountsPayableScreen from "./src/screens/main/AccountsPayableScreen";
 import AddAccountPayableScreen from "./src/screens/main/AddAccountPayableScreen";
 import EditAccountPayableScreen from "./src/screens/main/EditAccountPayableScreen";
 import CapitalScreen from "./src/screens/main/CapitalScreen";
+import BusinessSettingsScreen from "./src/screens/main/BusinessSettingsScreen";
+import PricingSettingsScreen from "./src/screens/main/PricingSettingsScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
@@ -654,6 +656,34 @@ export default function App() {
             component={CancelledSalesScreen}
             options={{
               title: "Ventas Anuladas",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="BusinessSettings"
+            component={BusinessSettingsScreen}
+            options={{
+              title: "Datos del Negocio",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="PricingSettings"
+            component={PricingSettingsScreen}
+            options={{
+              title: "Margen de Ganancias",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },
