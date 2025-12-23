@@ -79,13 +79,23 @@ const CapitalScreen = () => {
       <View style={styles.grid}>
         <View style={[styles.infoCard, styles.cardSpacing]}>
           <Text style={styles.cardTitle}>Cuentas por Cobrar</Text>
-          <Text style={styles.cardAmount}>{formatAmount(totalReceivable)}</Text>
+          <Text style={styles.cardAmount}>
+            {formatUSD(totalReceivable / exchangeRate)}
+          </Text>
+          <Text style={styles.cardSubtitle}>
+            {formatAmount(totalReceivable)}{" "}
+            {exchangeRate ? `• Tasa: ${exchangeRate.toFixed(2)} VES.` : ""}
+          </Text>
         </View>
 
         <View style={styles.infoCard}>
           <Text style={styles.cardTitle}>Cuentas por Pagar</Text>
           <Text style={[styles.cardAmount, styles.payableAmount]}>
-            {formatAmount(totalPayable)}
+            {formatUSD(totalPayable / exchangeRate)}
+          </Text>
+          <Text style={styles.cardSubtitle}>
+            {formatAmount(totalPayable)}{" "}
+            {exchangeRate ? `• Tasa: ${exchangeRate.toFixed(2)} VES.` : ""}
           </Text>
         </View>
       </View>
@@ -170,10 +180,14 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: "#2e7d32",
-    marginBottom: 12,
+    marginBottom: 4,
   },
   payableAmount: {
     color: "#c62828",
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: "#6c7a8a",
   },
   cardRow: {
     flexDirection: "row",
