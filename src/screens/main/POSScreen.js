@@ -509,9 +509,7 @@ export const POSScreen = ({ navigation }) => {
             <Text style={styles.productName} numberOfLines={2}>
               {item.name.toUpperCase()}
             </Text>
-            <Text style={styles.productBarcode}>
-              Código: {item.barcode}
-            </Text>
+            <Text style={styles.productBarcode}>Código: {item.barcode}</Text>
           </View>
           <View style={styles.productRight}>
             <Text style={styles.productCategory}>{item.category}</Text>
