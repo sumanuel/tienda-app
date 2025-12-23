@@ -16,6 +16,12 @@ import QRCode from "react-native-qrcode-svg";
 export const QRProductsScreen = ({ navigation }) => {
   const { products, loading } = useProducts();
 
+  const sortedProducts = [...products].sort((a, b) => {
+    const numA = parseInt((a.barcode || '').replace('PROD-', '')) || 0;
+    const numB = parseInt((b.barcode || '').replace('PROD-', '')) || 0;
+    return numA - numB;
+  });
+
   const renderProduct = ({ item }) => (
     <View style={styles.productCard}>
       <View style={styles.productInfo}>
@@ -51,7 +57,7 @@ export const QRProductsScreen = ({ navigation }) => {
       </View>
 
       <FlatList
-        data={products}
+        data={sortedProducts}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderProduct}
         contentContainerStyle={styles.listContainer}
