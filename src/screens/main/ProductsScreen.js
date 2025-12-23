@@ -126,72 +126,38 @@ export const ProductsScreen = ({ navigation }) => {
     const lowStock = minStock ? stock <= minStock : stock <= 5;
 
     return (
-      <View style={styles.productCard}>
-        <TouchableOpacity
-          style={styles.productBody}
-          onPress={() => handleEditProduct(item)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.productHeader}>
-            <Text style={styles.productName}>{item.name}</Text>
-            <View style={styles.categoryChip}>
-              <Text style={styles.categoryChipText}>
-                {item.category || "General"}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.priceRow}>
-            <View style={styles.priceTag}>
-              <Text style={styles.priceTagLabel}>USD</Text>
-              <Text style={styles.priceTagValue}>
-                {formatCurrency(priceUSD, "USD", false)}
-              </Text>
-            </View>
-            {appliedRate ? (
-              <View style={styles.priceTagSecondary}>
-                <Text style={styles.priceTagSecondaryLabel}>VES</Text>
-                <Text style={styles.priceTagSecondaryValue}>
-                  {formatCurrency(priceVES, "VES", false)}
-                </Text>
-              </View>
-            ) : (
-              <Text style={styles.priceSecondary}>
-                Define una tasa para ver VES
-              </Text>
-            )}
-          </View>
-
-          <View style={styles.productFooter}>
-            <View
-              style={[
-                styles.stockBadge,
-                lowStock ? styles.stockBadgeAlert : null,
-              ]}
+      <TouchableOpacity
+        style={[styles.productCard, lowStock && styles.productCardDisabled]}
+        onPress={() => handleEditProduct(item)}
+        activeOpacity={0.85}
+      >
+        <View style={styles.productHeader}>
+          <Text style={styles.productName} numberOfLines={2}>
+            {item.name.toUpperCase()}
+          </Text>
+          <View style={styles.productRight}>
+            <Text style={styles.productCategory}>
+              {item.category || "General"}
+            </Text>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteProduct(item)}
             >
-              <Text
-                style={[
-                  styles.stockBadgeText,
-                  lowStock ? styles.stockBadgeTextAlert : null,
-                ]}
-              >
-                Stock {stock}
-              </Text>
-            </View>
-
-            {item.margin ? (
-              <Text style={styles.marginText}>Margen {item.margin}%</Text>
-            ) : null}
+              <Text style={styles.deleteButtonText}>✕</Text>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDeleteProduct(item)}
-        >
-          <Text style={styles.deleteButtonText}>✕</Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+        <View style={styles.productFooter}>
+          <Text style={styles.productPrice}>
+            VES. {priceVES.toFixed(2)} / USD. {priceUSD.toFixed(2)}
+          </Text>
+          <Text
+            style={[styles.productStock, lowStock && styles.productStockLow]}
+          >
+            Stock: {stock}
+          </Text>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -237,16 +203,13 @@ export const ProductsScreen = ({ navigation }) => {
             </Text>
           ) : null}
         </View>
-        <View style={styles.searchInputWrapper}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Nombre, categoría o referencia"
-            value={searchQuery}
-            onChangeText={handleSearch}
-            placeholderTextColor="#9aa2b1"
-          />
-        </View>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Nombre, categoría o referencia"
+          value={searchQuery}
+          onChangeText={handleSearch}
+          placeholderTextColor="#9aa2b1"
+        />
       </View>
     </View>
   );
@@ -294,7 +257,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   headerContent: {
-    gap: 18,
+    gap: 12,
     marginBottom: 8,
   },
   heroCard: {
@@ -302,7 +265,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fff",
     borderRadius: 18,
-    padding: 22,
+    padding: 18,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
@@ -373,8 +336,8 @@ const styles = StyleSheet.create({
   },
   searchCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 18,
+    padding: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
@@ -401,38 +364,30 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
   },
-  searchInputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f8f9fc",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#d9e0eb",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 10,
-  },
-  searchIcon: {
-    fontSize: 18,
-  },
+
   searchInput: {
-    flex: 1,
+    backgroundColor: "#f3f5fa",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     fontSize: 15,
     color: "#1f2633",
   },
   productCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 20,
+    padding: 10,
+    gap: 8,
+    flex: 1,
+    marginBottom: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 4,
-    gap: 16,
-    marginBottom: 12,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  productCardDisabled: {
+    opacity: 0.45,
   },
   productBody: {
     flex: 1,
@@ -441,25 +396,23 @@ const styles = StyleSheet.create({
   productHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
+  },
+  productRight: {
+    alignItems: "flex-end",
+    gap: 4,
   },
   productName: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: "#1f2633",
   },
-  categoryChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: "#f3f8ff",
-  },
-  categoryChipText: {
+  productCategory: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#2f5ae0",
+    color: "#6f7c8c",
+    fontStyle: "italic",
   },
   priceRow: {
     flexDirection: "row",
@@ -520,7 +473,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 12,
+  },
+  productPrice: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1f9254",
+  },
+  productStock: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2f5ae0",
+    backgroundColor: "#e8f1ff",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  productStockLow: {
+    backgroundColor: "#ffe8ec",
+    color: "#d6455d",
   },
   stockBadge: {
     paddingHorizontal: 14,
@@ -545,17 +515,17 @@ const styles = StyleSheet.create({
     color: "#6f7c8c",
   },
   deleteButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: "#fff0f0",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#f66570",
     justifyContent: "center",
     alignItems: "center",
   },
   deleteButtonText: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "700",
-    color: "#d62828",
+    color: "#fff",
   },
   fab: {
     position: "absolute",
