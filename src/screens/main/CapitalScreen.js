@@ -14,10 +14,6 @@ const CapitalScreen = () => {
 
   const totalReceivable = receivableStats?.totalAmount || 0;
   const totalPayable = payableStats?.totalAmount || 0;
-  const pendingReceivable = receivableStats?.pending || 0;
-  const pendingPayable = payableStats?.pending || 0;
-  const overdueReceivable = receivableStats?.overdue || 0;
-  const overduePayable = payableStats?.overdue || 0;
 
   const capital = totalReceivable - totalPayable;
 
@@ -84,18 +80,6 @@ const CapitalScreen = () => {
         <View style={[styles.infoCard, styles.cardSpacing]}>
           <Text style={styles.cardTitle}>Cuentas por Cobrar</Text>
           <Text style={styles.cardAmount}>{formatAmount(totalReceivable)}</Text>
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>Pendientes</Text>
-            <Text style={styles.cardValue}>
-              {formatAmount(pendingReceivable)}
-            </Text>
-          </View>
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>Vencidas</Text>
-            <Text style={styles.cardValue}>
-              {formatAmount(overdueReceivable)}
-            </Text>
-          </View>
         </View>
 
         <View style={styles.infoCard}>
@@ -103,14 +87,6 @@ const CapitalScreen = () => {
           <Text style={[styles.cardAmount, styles.payableAmount]}>
             {formatAmount(totalPayable)}
           </Text>
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>Pendientes</Text>
-            <Text style={styles.cardValue}>{formatAmount(pendingPayable)}</Text>
-          </View>
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>Vencidas</Text>
-            <Text style={styles.cardValue}>{formatAmount(overduePayable)}</Text>
-          </View>
         </View>
       </View>
 
