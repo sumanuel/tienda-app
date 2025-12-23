@@ -57,11 +57,17 @@ export const QRProductsScreen = ({ navigation }) => {
     const productsWithQR = await Promise.all(
       selectedProducts.map(async (product) => {
         try {
-          const qrSVG = await qrcode.toString(product.barcode, { type: 'svg', width: 200 });
+          const qrSVG = await qrcode.toString(product.barcode, {
+            type: "svg",
+            width: 200,
+          });
           return { ...product, qrSVG };
         } catch (error) {
           console.error("Error generating QR for", product.barcode, error);
-          return { ...product, qrSVG: `<svg width="200" height="200"><text x="50%" y="50%" text-anchor="middle">Error</text></svg>` };
+          return {
+            ...product,
+            qrSVG: `<svg width="200" height="200"><text x="50%" y="50%" text-anchor="middle">Error</text></svg>`,
+          };
         }
       })
     );
