@@ -28,6 +28,7 @@ export const SalesScreen = () => {
     getSaleDetails,
     loadSales,
     loadTodayStats,
+    cancelSale,
   } = useSales();
 
   const { rate } = useExchangeRateContext();
@@ -114,6 +115,28 @@ export const SalesScreen = () => {
 
   const handleShowDetails = (sale) => {
     navigation.navigate("SaleDetail", { saleId: sale.id });
+  };
+
+  const handleCancelSale = (sale) => {
+    Alert.alert(
+      "Anular venta",
+      `¿Anular la venta #${sale.id}? Esta acción no se puede deshacer.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Anular",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await cancelSale(sale.id);
+              Alert.alert("Éxito", "Venta anulada correctamente");
+            } catch (error) {
+              Alert.alert("Error", "No se pudo anular la venta");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleQuickRange = (type) => {
@@ -246,6 +269,13 @@ export const SalesScreen = () => {
             {getPaymentMethodText(item.paymentMethod)}
           </Text>
         </View>
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={() => handleCancelSale(item)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.cancelIcon}>🗑️</Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -604,6 +634,18 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 13,
+  },
+  cancelButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#fee2e2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelIcon: {
+    fontSize: 14,
+    color: "#dc2626",
   },
   saleMeta: {
     flexDirection: "row",

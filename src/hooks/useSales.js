@@ -4,6 +4,7 @@ import {
   getSaleById,
   insertSale,
   getTodaySales,
+  cancelSale as cancelSaleDB,
 } from "../services/database/sales";
 
 /**
@@ -83,6 +84,22 @@ export const useSales = () => {
   }, []);
 
   /**
+   * Cancela una venta
+   */
+  const cancelSale = useCallback(async (saleId) => {
+    try {
+      setError(null);
+      await cancelSaleDB(saleId);
+      await loadSales(); // Recargar lista
+      await loadTodayStats(); // Actualizar estadísticas
+    } catch (err) {
+      setError(err.message);
+      console.error("Error cancelling sale:", err);
+      throw err;
+    }
+  }, []);
+
+  /**
    * Calcula totales del período
    */
   const getPeriodTotals = useCallback(() => {
@@ -102,6 +119,7 @@ export const useSales = () => {
     loadTodayStats,
     registerSale,
     getSaleDetails,
+    cancelSale,
     getPeriodTotals,
     refresh: loadSales,
   };

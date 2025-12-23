@@ -104,6 +104,7 @@ export const getAllSales = async (limit = 100) => {
               (SELECT COUNT(*) FROM sale_items si WHERE si.saleId = s.id) as itemCount,
               (SELECT ROUND(SUM(si.quantity * COALESCE(si.priceUSD, 0)), 6) FROM sale_items si WHERE si.saleId = s.id) as totalUSD
        FROM sales s 
+       WHERE s.status != 'cancelled'
        ORDER BY s.createdAt DESC LIMIT ?;`,
       [limit]
     );
