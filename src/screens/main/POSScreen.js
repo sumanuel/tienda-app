@@ -637,23 +637,14 @@ export const POSScreen = ({ navigation }) => {
 
       <View style={styles.cartSummary}>
         <TouchableOpacity
-          style={styles.qrButton}
-          onPress={openQRScanner}
+          style={styles.cartSummaryButton}
+          onPress={() => setShowCart(true)}
           activeOpacity={0.85}
         >
-          <Text style={styles.qrButtonText}>QR</Text>
+          <Text style={styles.cartSummaryButtonText}>
+            Ver carrito ({cart.length})
+          </Text>
         </TouchableOpacity>
-        {cart.length > 0 && (
-          <TouchableOpacity
-            style={styles.cartSummaryButton}
-            onPress={() => setShowCart(true)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.cartSummaryButtonText}>
-              Ver carrito ({cart.length})
-            </Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Modal del carrito */}
@@ -672,7 +663,13 @@ export const POSScreen = ({ navigation }) => {
               <Text style={styles.backButtonText}>← Volver</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Carrito de Compras</Text>
-            <View style={{ width: 80 }} />
+            <TouchableOpacity
+              style={styles.qrButton}
+              onPress={openQRScanner}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.qrButtonText}>QR</Text>
+            </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent} ref={scrollViewRef}>
