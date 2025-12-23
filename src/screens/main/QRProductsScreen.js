@@ -7,9 +7,12 @@ import {
   SafeAreaView,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from "react-native";
 import { useProducts } from "../../hooks/useProducts";
 import QRCode from "react-native-qrcode-svg";
+import { printAsync } from "expo-print";
+import qrcode from "qrcode";
 
 /**
  * Pantalla para ver códigos QR de productos
@@ -37,6 +40,67 @@ export const QRProductsScreen = ({ navigation }) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
+  };
+
+  const printSelected = async () => {
+    if (selectedIds.length === 0) {
+      Alert.alert(
+        "Sin selección",
+        "Selecciona al menos un producto para imprimir."
+      );
+      return;
+    }
+
+    const selectedProducts = products.filter((p) => selectedIds.includes(p.id));
+
+    // Generate QR SVGs
+    const productsWithQR = await Promise.all(
+      selectedProducts.map(async (product) => {
+        try {
+          const qrSVG = await qrcode.toString(product.barcode, { type: 'svg', width: 200 });
+          return { ...product, qrSVG };
+        } catch (error) {
+          console.error("Error generating QR for", product.barcode, error);
+          return { ...product, qrSVG: `<svg width="200" height="200"><text x="50%" y="50%" text-anchor="middle">Error</text></svg>` };
+        }
+      })
+    );
+
+    const html = `
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .product { text-align: center; padding: 5px; }
+        .qr { width: 100px; height: 100px; margin: 0 auto; }
+        .qr svg { width: 100%; height: 100%; }
+        .name { font-size: 10px; margin-top: 5px; }
+      </style>
+    </head>
+    <body>
+      <div class="grid">
+        ${productsWithQR
+          .map(
+            (product) => `
+          <div class="product">
+            <div class="qr">${product.qrSVG}</div>
+            <div class="name">${product.name}</div>
+          </div>
+        `
+          )
+          .join("")}
+      </div>
+    </body>
+    </html>
+    `;
+
+    try {
+      await printAsync({ html });
+      Alert.alert("Impresión", "Los códigos QR han sido enviados a impresión.");
+    } catch (error) {
+      Alert.alert("Error", "No se pudo imprimir: " + error.message);
+    }
   };
   const renderProduct = ({ item }) => {
     const isSelected = selectedIds.includes(item.id);
@@ -99,6 +163,13 @@ export const QRProductsScreen = ({ navigation }) => {
             keyboardType="numeric"
           />
         </View>
+        {selectedIds.length > 0 && (
+          <TouchableOpacity style={styles.printButton} onPress={printSelected}>
+            <Text style={styles.printButtonText}>
+              Imprimir seleccionados ({selectedIds.length})
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -211,6 +282,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "#666",
+  },
+  printButton: {
+    backgroundColor: "#4CAF50",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    alignItems: "center",
+  },
+  printButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   checkContainer: {
     justifyContent: "center",
