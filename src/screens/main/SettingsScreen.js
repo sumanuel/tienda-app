@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 120,
-    gap: 24,
+    gap: 16,
   },
   loadingContainer: {
     flex: 1,
