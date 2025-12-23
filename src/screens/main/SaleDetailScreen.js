@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSales } from "../../hooks/useSales";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 
 /**
@@ -21,6 +22,27 @@ export const SaleDetailScreen = () => {
   const route = useRoute();
   const { saleId } = route.params;
   const { getSaleDetails } = useSales();
+
+  const { rate } = useExchangeRateContext();
+
+  const exchangeRate = Number(rate) || 0;
+
+  const calculateTotal = (saleData) => {
+    if (saleData?.paymentMethod === "por_cobrar" && exchangeRate > 0) {
+      const items = saleData?.items || [];
+      const totalUSD = items.reduce(
+        (sum, item) =>
+          sum + (Number(item.priceUSD) || 0) * (Number(item.quantity) || 0),
+        0
+      );
+
+      if (totalUSD > 0) {
+        return totalUSD * exchangeRate;
+      }
+    }
+
+    return saleData?.total || 0;
+  };
 
   const [sale, setSale] = useState(null);
   const [details, setDetails] = useState(null);
@@ -68,6 +90,7 @@ export const SaleDetailScreen = () => {
         <Text style={styles.detailItemName}>{item.productName}</Text>
         <Text style={styles.detailItemQuantity}>
           {item.quantity} × {formatCurrency(item.price, "VES")}
+          {item.priceUSD ? ` (${formatCurrency(item.priceUSD, "USD")})` : ""}
         </Text>
       </View>
       <Text style={styles.detailItemTotal}>
@@ -139,7 +162,7 @@ export const SaleDetailScreen = () => {
                 </View>
                 <View style={styles.saleAmountBadge}>
                   <Text style={styles.saleAmountText}>
-                    {formatCurrency(sale.total, "VES")}
+                    {formatCurrency(calculateTotal(sale), "VES")}
                   </Text>
                 </View>
               </View>

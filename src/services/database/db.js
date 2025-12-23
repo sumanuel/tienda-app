@@ -51,14 +51,35 @@ export const initAllTables = async () => {
           updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
-        -- Tabla de ventas
+        -- Tabla de ventas (schema actual)
         CREATE TABLE IF NOT EXISTS sales (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          total REAL NOT NULL,
-          items TEXT NOT NULL,
+          customerId INTEGER,
+          subtotal REAL DEFAULT 0,
+          tax REAL DEFAULT 0,
+          discount REAL DEFAULT 0,
+          total REAL DEFAULT 0,
+          currency TEXT DEFAULT 'VES',
+          exchangeRate REAL DEFAULT 0,
           paymentMethod TEXT,
-          customer TEXT,
+          paid REAL DEFAULT 0,
+          change REAL DEFAULT 0,
+          status TEXT DEFAULT 'completed',
+          notes TEXT,
           createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Tabla de items de venta
+        CREATE TABLE IF NOT EXISTS sale_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          saleId INTEGER NOT NULL,
+          productId INTEGER NOT NULL,
+          productName TEXT NOT NULL,
+          quantity INTEGER NOT NULL,
+          price REAL NOT NULL,
+          priceUSD REAL DEFAULT 0,
+          subtotal REAL NOT NULL,
+          FOREIGN KEY (saleId) REFERENCES sales(id)
         );
 
         -- Tabla de clientes
@@ -188,6 +209,47 @@ const runMigrations = async () => {
   try {
     console.log("Running database migrations...");
 
+    // Asegurar tabla sale_items y columna priceUSD
+    await db.execAsync(
+      `CREATE TABLE IF NOT EXISTS sale_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        saleId INTEGER NOT NULL,
+        productId INTEGER NOT NULL,
+        productName TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        price REAL NOT NULL,
+        priceUSD REAL DEFAULT 0,
+        subtotal REAL NOT NULL,
+        FOREIGN KEY (saleId) REFERENCES sales(id)
+      );`
+    );
+
+    const saleItemColumns = await db.getAllAsync(
+      "PRAGMA table_info(sale_items)"
+    );
+    const hasSaleItemPriceUSD = saleItemColumns.some(
+      (col) => col.name === "priceUSD"
+    );
+    if (!hasSaleItemPriceUSD) {
+      console.log("Adding priceUSD column to sale_items table...");
+      await db.runAsync(
+        "ALTER TABLE sale_items ADD COLUMN priceUSD REAL DEFAULT 0"
+      );
+      console.log("priceUSD column added successfully");
+    }
+
+    // Backfill básico para ventas existentes: priceUSD = price / exchangeRate
+    // (solo si priceUSD está en 0 y la venta tiene exchangeRate > 0)
+    await db.runAsync(
+      `UPDATE sale_items
+       SET priceUSD = ROUND(
+         price / (SELECT exchangeRate FROM sales WHERE sales.id = sale_items.saleId),
+         6
+       )
+       WHERE (priceUSD IS NULL OR priceUSD = 0)
+         AND COALESCE((SELECT exchangeRate FROM sales WHERE sales.id = sale_items.saleId), 0) > 0;`
+    );
+
     // Verificar y agregar columna documentNumber a accounts_receivable
     const receivableColumns = await db.getAllAsync(
       "PRAGMA table_info(accounts_receivable)"
@@ -201,6 +263,13 @@ const runMigrations = async () => {
     );
     const hasInvoiceNumber = receivableColumns.some(
       (col) => col.name === "invoiceNumber"
+    );
+
+    const hasBaseAmountUSD = receivableColumns.some(
+      (col) => col.name === "baseAmountUSD"
+    );
+    const hasExchangeRateAtCreation = receivableColumns.some(
+      (col) => col.name === "exchangeRateAtCreation"
     );
 
     if (!hasDocumentNumber) {
@@ -240,6 +309,44 @@ const runMigrations = async () => {
     } else {
       console.log("paidAmount column already exists");
     }
+
+    if (!hasBaseAmountUSD) {
+      console.log(
+        "Adding baseAmountUSD column to accounts_receivable table..."
+      );
+      await db.runAsync(
+        "ALTER TABLE accounts_receivable ADD COLUMN baseAmountUSD REAL DEFAULT 0"
+      );
+      console.log("baseAmountUSD column added successfully");
+    } else {
+      console.log("baseAmountUSD column already exists");
+    }
+
+    if (!hasExchangeRateAtCreation) {
+      console.log(
+        "Adding exchangeRateAtCreation column to accounts_receivable table..."
+      );
+      await db.runAsync(
+        "ALTER TABLE accounts_receivable ADD COLUMN exchangeRateAtCreation REAL DEFAULT 0"
+      );
+      console.log("exchangeRateAtCreation column added successfully");
+    } else {
+      console.log("exchangeRateAtCreation column already exists");
+    }
+
+    // Backfill baseAmountUSD para cuentas por cobrar originadas en ventas (invoiceNumber)
+    // baseAmountUSD = SUM(sale_items.quantity * sale_items.priceUSD)
+    await db.runAsync(
+      `UPDATE accounts_receivable
+       SET baseAmountUSD = COALESCE(
+         (SELECT ROUND(SUM(si.quantity * COALESCE(si.priceUSD, 0)), 6)
+          FROM sale_items si
+          WHERE CAST(si.saleId AS TEXT) = CAST(accounts_receivable.invoiceNumber AS TEXT)),
+         COALESCE(baseAmountUSD, 0)
+       )
+       WHERE (invoiceNumber IS NOT NULL AND TRIM(invoiceNumber) != '')
+         AND (baseAmountUSD IS NULL OR baseAmountUSD = 0);`
+    );
 
     // Verificar y agregar columnas faltantes a accounts_payable
     const payableColumns = await db.getAllAsync(

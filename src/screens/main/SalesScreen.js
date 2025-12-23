@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSales } from "../../hooks/useSales";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
@@ -28,6 +29,20 @@ export const SalesScreen = () => {
     loadSales,
     loadTodayStats,
   } = useSales();
+
+  const { rate } = useExchangeRateContext();
+
+  const exchangeRate = Number(rate) || 0;
+
+  const calculateTotal = (sale) => {
+    if (sale?.paymentMethod === "por_cobrar" && exchangeRate > 0) {
+      const totalUSD = Number(sale.totalUSD) || 0;
+      if (totalUSD > 0) {
+        return totalUSD * exchangeRate;
+      }
+    }
+    return sale?.total || 0;
+  };
 
   const [activeTab, setActiveTab] = useState("today");
   const [startDate, setStartDate] = useState(() => {
@@ -212,7 +227,7 @@ export const SalesScreen = () => {
         </View>
         <View style={styles.saleAmountBadge}>
           <Text style={styles.saleAmountText}>
-            {formatCurrency(item.total, "VES")}
+            {formatCurrency(calculateTotal(item), "VES")}
           </Text>
         </View>
       </View>

@@ -18,6 +18,7 @@ import {
   getAccountPayments,
   getAccountBalance,
   fixCorruptedAccountData,
+  updateReceivableAmountsOnRateChange,
 } from "../services/database/accounts";
 
 /**
@@ -174,6 +175,18 @@ export const useAccounts = () => {
     [loadAccounts]
   );
 
+  const updateReceivableAmounts = useCallback(
+    async (newRate) => {
+      try {
+        await updateReceivableAmountsOnRateChange(newRate);
+        await refresh();
+      } catch (error) {
+        throw error;
+      }
+    },
+    [refresh]
+  );
+
   // CRUD functions for accounts payable
   const addAccountPayable = useCallback(
     async (accountData) => {
@@ -276,6 +289,7 @@ export const useAccounts = () => {
     recordPayment,
     getPayments,
     getBalance,
+    updateReceivableAmounts,
     // Accounts payable CRUD
     addAccountPayable,
     editAccountPayable,

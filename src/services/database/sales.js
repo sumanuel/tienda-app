@@ -34,6 +34,7 @@ export const initSalesTable = async () => {
         productName TEXT NOT NULL,
         quantity INTEGER NOT NULL,
         price REAL NOT NULL,
+        priceUSD REAL DEFAULT 0,
         subtotal REAL NOT NULL,
         FOREIGN KEY (saleId) REFERENCES sales(id)
       );`
@@ -73,14 +74,15 @@ export const insertSale = async (sale, items) => {
     // Insertar items de la venta
     for (const item of items) {
       await db.runAsync(
-        `INSERT INTO sale_items (saleId, productId, productName, quantity, price, subtotal)
-         VALUES (?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO sale_items (saleId, productId, productName, quantity, price, priceUSD, subtotal)
+         VALUES (?, ?, ?, ?, ?, ?, ?);`,
         [
           saleId,
           item.productId,
           item.productName,
           item.quantity,
           item.price,
+          item.priceUSD || 0,
           item.quantity * item.price,
         ]
       );
@@ -99,7 +101,8 @@ export const getAllSales = async (limit = 100) => {
   try {
     const result = await db.getAllAsync(
       `SELECT s.*, 
-              (SELECT COUNT(*) FROM sale_items si WHERE si.saleId = s.id) as itemCount 
+              (SELECT COUNT(*) FROM sale_items si WHERE si.saleId = s.id) as itemCount,
+              (SELECT ROUND(SUM(si.quantity * COALESCE(si.priceUSD, 0)), 6) FROM sale_items si WHERE si.saleId = s.id) as totalUSD
        FROM sales s 
        ORDER BY s.createdAt DESC LIMIT ?;`,
       [limit]

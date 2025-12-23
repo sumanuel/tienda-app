@@ -6,7 +6,7 @@ import { db } from "./db";
 export const getAllAccountsReceivable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, createdAt, updatedAt FROM accounts_receivable ORDER BY createdAt DESC;"
+      "SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, baseAmountUSD, exchangeRateAtCreation, createdAt, updatedAt FROM accounts_receivable ORDER BY createdAt DESC;"
     );
     return result;
   } catch (error) {
@@ -21,7 +21,7 @@ export const searchAccountsReceivable = async (query) => {
   try {
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
-      `SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, createdAt, updatedAt FROM accounts_receivable 
+      `SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, baseAmountUSD, exchangeRateAtCreation, createdAt, updatedAt FROM accounts_receivable 
        WHERE customerName LIKE ? 
        OR documentNumber LIKE ? 
        OR description LIKE ?
@@ -115,6 +115,8 @@ export const createAccountReceivable = async (accountData) => {
       customerId,
       customerName,
       amount,
+      baseAmountUSD,
+      exchangeRateAtCreation,
       description,
       dueDate,
       documentNumber,
@@ -123,12 +125,14 @@ export const createAccountReceivable = async (accountData) => {
     } = accountData;
     const roundedAmount = Math.round(amount * 100) / 100;
     const result = await db.runAsync(
-      `INSERT INTO accounts_receivable (customerId, customerName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      `INSERT INTO accounts_receivable (customerId, customerName, amount, baseAmountUSD, exchangeRateAtCreation, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
         customerId || null,
         customerName,
         roundedAmount,
+        baseAmountUSD || null,
+        exchangeRateAtCreation || null,
         description || null,
         dueDate || null,
         documentNumber || null,
@@ -495,6 +499,24 @@ export const fixCorruptedAccountData = async () => {
     console.log("Datos corruptos corregidos");
   } catch (error) {
     console.error("Error fixing corrupted data:", error);
+    throw error;
+  }
+};
+
+export const updateReceivableAmountsOnRateChange = async (newRate) => {
+  try {
+    // Actualizar amounts para cuentas por cobrar pendientes con baseAmountUSD
+    await db.runAsync(
+      `UPDATE accounts_receivable 
+       SET amount = ROUND(baseAmountUSD * ?, 2) 
+       WHERE status != 'paid'
+         AND baseAmountUSD IS NOT NULL AND baseAmountUSD > 0
+         AND invoiceNumber IS NOT NULL AND TRIM(invoiceNumber) != ''`,
+      [newRate]
+    );
+    console.log("Amounts de cuentas por cobrar actualizados con nueva tasa");
+  } catch (error) {
+    console.error("Error updating receivable amounts:", error);
     throw error;
   }
 };
