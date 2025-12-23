@@ -39,24 +39,47 @@ const CapitalScreen = () => {
     const priceVES =
       Number(product.priceVES) ||
       (exchangeRate ? (Number(product.priceUSD) || 0) * exchangeRate : 0);
-    return sum + stock * priceVES;
+    return sum + Math.round(stock * priceVES * 100) / 100; // Redondear a 2 decimales
   }, 0);
+
+  // Redondear valores finales a 2 decimales para consistencia
+  const roundedInventorySellVES = Math.round(inventorySellVES * 100) / 100;
+  const roundedCapital = Math.round(capital * 100) / 100;
+  const roundedInventorySellUSD = Math.round(inventorySellUSD * 100) / 100;
+  const roundedExchangeRate = Math.round(exchangeRate * 100) / 100;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Capital Disponible</Text>
+        <Text style={styles.summaryTitle}>Capital Disponible USD</Text>
         <Text
           style={[
             styles.summaryAmount,
-            capital >= 0 ? styles.positiveValue : styles.negativeValue,
+            roundedInventorySellUSD + roundedCapital / roundedExchangeRate >= 0
+              ? styles.positiveValue
+              : styles.negativeValue,
           ]}
         >
-          {formatAmount(capital)}
+          {formatUSD(
+            roundedInventorySellUSD + roundedCapital / roundedExchangeRate
+          )}
         </Text>
-        <Text style={styles.summarySubtitle}>
-          Diferencia entre cuentas por cobrar y pagar
+        <Text style={styles.summarySubtitle}>Inventario + Capital actual</Text>
+      </View>
+
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Capital Disponible VES</Text>
+        <Text
+          style={[
+            styles.summaryAmount,
+            roundedInventorySellVES + roundedCapital >= 0
+              ? styles.positiveValue
+              : styles.negativeValue,
+          ]}
+        >
+          {formatAmount(roundedInventorySellVES + roundedCapital)}
         </Text>
+        <Text style={styles.summarySubtitle}>Inventario + Capital actual</Text>
       </View>
 
       <View style={styles.summaryCard}>
