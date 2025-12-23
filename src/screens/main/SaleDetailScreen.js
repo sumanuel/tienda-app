@@ -100,7 +100,9 @@ export const SaleDetailScreen = () => {
       : Number(item.subtotal) || quantity * displayPriceVES;
 
     return (
-      <View style={[styles.detailItem, index !== 0 && styles.detailItemSpacing]}>
+      <View
+        style={[styles.detailItem, index !== 0 && styles.detailItemSpacing]}
+      >
         <View style={styles.detailItemInfo}>
           <Text style={styles.detailItemName}>{item.productName}</Text>
           <Text style={styles.detailItemQuantity}>
