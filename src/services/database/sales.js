@@ -196,17 +196,13 @@ export const cancelSale = async (saleId) => {
 export const deleteSaleById = async (saleId) => {
   try {
     // Primero eliminar items de venta
-    await db.runAsync(
-      "DELETE FROM sale_items WHERE saleId = ?;",
-      [saleId]
-    );
-    
+    await db.runAsync("DELETE FROM sale_items WHERE saleId = ?;", [saleId]);
+
     // Luego eliminar venta
-    const result = await db.runAsync(
-      "DELETE FROM sales WHERE id = ?;",
-      [saleId]
-    );
-    
+    const result = await db.runAsync("DELETE FROM sales WHERE id = ?;", [
+      saleId,
+    ]);
+
     return result.changes;
   } catch (error) {
     throw error;
