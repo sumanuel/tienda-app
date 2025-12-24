@@ -82,7 +82,9 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
         invoiceNumber: account.invoiceNumber || "",
       });
       if (account.dueDate) {
-        setSelectedDate(new Date(account.dueDate));
+        const [y, m, d] = String(account.dueDate).split("-").map(Number);
+        const parsed = new Date(y, (m || 1) - 1, d || 1);
+        setSelectedDate(Number.isNaN(parsed.getTime()) ? new Date() : parsed);
       }
     }
   }, [account, rate]);

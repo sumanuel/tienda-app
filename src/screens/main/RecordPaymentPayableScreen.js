@@ -69,7 +69,14 @@ export const RecordPaymentPayableScreen = () => {
     setShowDatePicker(true);
   };
 
-  const paymentDateLabel = paymentDate.toISOString().split("T")[0];
+  const formatLocalDate = (date) => {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate()
+    )}`;
+  };
+
+  const paymentDateLabel = formatLocalDate(paymentDate);
 
   const handleRecordPayment = async () => {
     if (!paymentAmount || parseFloat(paymentAmount) <= 0) {

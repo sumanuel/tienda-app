@@ -112,6 +112,17 @@ export const AccountsPayableScreen = ({ navigation }) => {
 
   const getStatusAppearance = useCallback(
     (status, dueDate, paidAmount, amount) => {
+      const parseLocalYmd = (ymd) => {
+        if (!ymd || typeof ymd !== "string") return null;
+        const [y, m, d] = ymd.split("-").map(Number);
+        if (!y || !m || !d) return null;
+        const parsed = new Date(y, m - 1, d);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      };
+
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
       // Si está completamente pagada según los cálculos, mostrar como pagada
       const isFullyPaid = status === "paid" || paidAmount + 0.01 >= amount;
 
@@ -123,7 +134,8 @@ export const AccountsPayableScreen = ({ navigation }) => {
         };
       }
 
-      if (dueDate && new Date(dueDate) < new Date()) {
+      const dueLocal = parseLocalYmd(dueDate);
+      if (dueLocal && dueLocal < startOfToday) {
         return {
           label: "Vencida",
           backgroundColor: "#fdecea",
@@ -225,7 +237,13 @@ export const AccountsPayableScreen = ({ navigation }) => {
             </View>
             {item.dueDate ? (
               <Text style={styles.dueDate}>
-                Vence {new Date(item.dueDate).toLocaleDateString()}
+                Vence {(() => {
+                  const [y, m, d] = item.dueDate.split("-").map(Number);
+                  const parsed = new Date(y, m - 1, d);
+                  return Number.isNaN(parsed.getTime())
+                    ? item.dueDate
+                    : parsed.toLocaleDateString();
+                })()}
               </Text>
             ) : null}
           </View>
