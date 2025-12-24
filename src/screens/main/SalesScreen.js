@@ -67,28 +67,13 @@ export const SalesScreen = () => {
 
   const filteredSales = useMemo(() => {
     if (activeTab === "today") {
-      const now = new Date();
-      const startOfDay = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        0,
-        0,
-        0,
-        0
-      );
-      const endOfDay = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        23,
-        59,
-        59,
-        999
-      );
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setDate(endOfDay.getDate() + 1);
       return sales.filter((sale) => {
         const saleDate = new Date(sale.createdAt);
-        return saleDate >= startOfDay && saleDate <= endOfDay;
+        return saleDate >= startOfDay && saleDate < endOfDay;
       });
     }
 

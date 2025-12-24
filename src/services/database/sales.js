@@ -180,7 +180,9 @@ export const getTodaySales = async () => {
     const result = await db.getFirstAsync(
       `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total
        FROM sales
-       WHERE createdAt >= ? AND createdAt < ? AND status = 'completed';`,
+       WHERE datetime(createdAt) >= datetime(?)
+         AND datetime(createdAt) < datetime(?)
+         AND status = 'completed';`,
       [startIso, endIso]
     );
     return result;
