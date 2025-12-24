@@ -180,12 +180,6 @@ export const POSScreen = ({ navigation }) => {
    */
   const handleBarCodeScanned = ({ data }) => {
     setScanning(false);
-    console.log("Código escaneado:", data);
-    console.log("Productos disponibles:", products);
-    console.log(
-      "Barcodes disponibles:",
-      products.map((p) => p.barcode)
-    );
     const product = products.find((p) => p.barcode === data);
     if (product) {
       addToCart(product, { showAlert: false });
