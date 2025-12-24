@@ -94,9 +94,13 @@ export const POSScreen = ({ navigation }) => {
     }
   }, [paymentMethod]);
 
-  // Filtrar productos (ordenados alfabéticamente)
+  // Filtrar productos (ordenados por código de barras)
   const filteredProducts = products
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => {
+      const numA = parseInt((a.barcode || "").replace("PROD-", "")) || 0;
+      const numB = parseInt((b.barcode || "").replace("PROD-", "")) || 0;
+      return numA - numB;
+    })
     .filter((product) => {
       const matchesSearch = product.name
         .toLowerCase()
