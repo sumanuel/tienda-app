@@ -18,6 +18,7 @@ import { useSales } from "../../hooks/useSales";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
+import { updateProductStock } from "../../services/database/products";
 import { CameraView, useCameraPermissions } from "expo-camera";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
