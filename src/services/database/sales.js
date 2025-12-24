@@ -51,8 +51,8 @@ export const insertSale = async (sale, items) => {
   try {
     // Insertar venta
     const saleResult = await db.runAsync(
-      `INSERT INTO sales (customerId, subtotal, tax, discount, total, currency, exchangeRate, paymentMethod, paid, change, status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO sales (customerId, subtotal, tax, discount, total, currency, exchangeRate, paymentMethod, paid, change, status, notes, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         sale.customerId || null,
         sale.subtotal,
@@ -66,6 +66,7 @@ export const insertSale = async (sale, items) => {
         sale.change,
         sale.status || "completed",
         sale.notes || "",
+        new Date().toISOString(),
       ]
     );
 
@@ -189,6 +190,29 @@ export const cancelSale = async (saleId) => {
   }
 };
 
+/**
+ * Elimina una venta específica por ID
+ */
+export const deleteSaleById = async (saleId) => {
+  try {
+    // Primero eliminar items de venta
+    await db.runAsync(
+      "DELETE FROM sale_items WHERE saleId = ?;",
+      [saleId]
+    );
+    
+    // Luego eliminar venta
+    const result = await db.runAsync(
+      "DELETE FROM sales WHERE id = ?;",
+      [saleId]
+    );
+    
+    return result.changes;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export default {
   initSalesTable,
   insertSale,
@@ -197,4 +221,5 @@ export default {
   getSalesByDateRange,
   getTodaySales,
   cancelSale,
+  deleteSaleById,
 };
