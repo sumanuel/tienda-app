@@ -5,7 +5,10 @@ import {
   autoUpdateRate,
   setManualRate as setManualExchangeRate,
 } from "../services/exchange/rateService";
-import { updateReceivableAmountsOnRateChange } from "../services/database/accounts";
+import {
+  updateReceivableAmountsOnRateChange,
+  updatePayableAmountsOnRateChange,
+} from "../services/database/accounts";
 
 // Crear el contexto
 const ExchangeRateContext = createContext();
@@ -65,9 +68,10 @@ export const ExchangeRateProvider = ({ children }) => {
       // Recalcular cuentas por cobrar originadas en ventas
       try {
         await updateReceivableAmountsOnRateChange(Number(updated.rate) || 0);
+        await updatePayableAmountsOnRateChange(Number(updated.rate) || 0);
       } catch (recalcError) {
         console.warn(
-          "Error recalculating receivables on rate update:",
+          "Error recalculating accounts on rate update:",
           recalcError
         );
       }
@@ -98,9 +102,10 @@ export const ExchangeRateProvider = ({ children }) => {
       // Recalcular cuentas por cobrar originadas en ventas
       try {
         await updateReceivableAmountsOnRateChange(Number(updated.rate) || 0);
+        await updatePayableAmountsOnRateChange(Number(updated.rate) || 0);
       } catch (recalcError) {
         console.warn(
-          "Error recalculating receivables on manual rate:",
+          "Error recalculating accounts on manual rate:",
           recalcError
         );
       }

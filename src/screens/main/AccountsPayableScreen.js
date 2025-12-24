@@ -202,7 +202,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
           <View style={styles.amountRow}>
             <View style={styles.amountContainer}>
               <Text style={styles.amount}>
-                {formatCurrency(item.amount || 0, item.currency || "VES")}
+                {formatCurrency(item.amount || 0, item.baseCurrency || "VES")}
               </Text>
               {(item.paidAmount || 0) > 0 && (
                 <View style={styles.paymentInfo}>
@@ -210,14 +210,14 @@ export const AccountsPayableScreen = ({ navigation }) => {
                     Pagado:{" "}
                     {formatCurrency(
                       item.paidAmount || 0,
-                      item.currency || "VES"
+                      item.baseCurrency || "VES"
                     )}
                   </Text>
                   <Text style={styles.pendingText}>
                     Pendiente:{" "}
                     {formatCurrency(
                       Math.max(0, (item.amount || 0) - (item.paidAmount || 0)),
-                      item.currency || "VES"
+                      item.baseCurrency || "VES"
                     )}
                   </Text>
                 </View>

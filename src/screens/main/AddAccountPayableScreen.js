@@ -14,6 +14,8 @@ import {
 import { useAccounts } from "../../hooks/useAccounts";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
+import { formatCurrency } from "../../utils/currency";
 
 /**
  * Pantalla para agregar nueva cuenta por pagar
@@ -21,6 +23,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 export const AddAccountPayableScreen = ({ navigation }) => {
   const { addAccountPayable } = useAccounts();
   const { getSupplierByDocument, addSupplier } = useSuppliers();
+  const { rate } = useExchangeRateContext();
 
   const [loading, setLoading] = useState(false);
 
@@ -28,6 +31,7 @@ export const AddAccountPayableScreen = ({ navigation }) => {
     documentNumber: "",
     supplierName: "",
     amount: "",
+    baseCurrency: "VES",
     description: "",
     invoiceNumber: "",
     dueDate: "",
@@ -46,6 +50,28 @@ export const AddAccountPayableScreen = ({ navigation }) => {
   const updateFormData = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  const parseAmountInput = (value) => {
+    if (typeof value !== "string") return 0;
+    const normalized = value.replace(/,/g, ".").replace(/\s/g, "").trim();
+    const num = Number.parseFloat(normalized);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const currentRate = Number(rate) || 0;
+  const baseAmountValue = parseAmountInput(formData.amount);
+  const computedUSD =
+    formData.baseCurrency === "USD"
+      ? baseAmountValue
+      : currentRate > 0
+      ? baseAmountValue / currentRate
+      : null;
+  const computedVES =
+    formData.baseCurrency === "USD"
+      ? currentRate > 0
+        ? baseAmountValue * currentRate
+        : null
+      : baseAmountValue;
 
   const handleDocumentChange = async (documentNumber) => {
     updateFormData("documentNumber", documentNumber);
@@ -107,9 +133,17 @@ export const AddAccountPayableScreen = ({ navigation }) => {
       return;
     }
 
-    const amountValue = parseFloat(formData.amount.replace(",", "."));
-    if (Number.isNaN(amountValue) || amountValue <= 0) {
+    const baseAmount = parseAmountInput(formData.amount);
+    if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
       Alert.alert("Error", "El monto debe ser un número positivo");
+      return;
+    }
+
+    if (formData.baseCurrency === "USD" && currentRate <= 0) {
+      Alert.alert(
+        "Error",
+        "Debes definir una tasa de cambio para registrar un monto en USD"
+      );
       return;
     }
 
@@ -135,7 +169,12 @@ export const AddAccountPayableScreen = ({ navigation }) => {
       await addAccountPayable({
         supplierId: supplier?.id,
         supplierName: formData.supplierName.trim(),
-        amount: amountValue,
+        amount: computedVES ?? 0,
+        baseCurrency: formData.baseCurrency,
+        baseAmountUSD:
+          formData.baseCurrency === "USD" ? computedUSD ?? 0 : null,
+        exchangeRateAtCreation:
+          formData.baseCurrency === "USD" ? currentRate : null,
         description: formData.description.trim(),
         invoiceNumber: formData.invoiceNumber.trim(),
         dueDate: formData.dueDate,
@@ -220,7 +259,39 @@ export const AddAccountPayableScreen = ({ navigation }) => {
 
           <View style={styles.card}>
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Monto (Bs) *</Text>
+              <Text style={styles.fieldLabel}>Moneda del monto *</Text>
+              <View style={styles.currencyRow}>
+                {["VES", "USD"].map((code) => {
+                  const active = formData.baseCurrency === code;
+                  return (
+                    <TouchableOpacity
+                      key={code}
+                      style={[
+                        styles.currencyChip,
+                        active ? styles.currencyChipActive : null,
+                      ]}
+                      onPress={() => updateFormData("baseCurrency", code)}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[
+                          styles.currencyChipText,
+                          active ? styles.currencyChipTextActive : null,
+                        ]}
+                      >
+                        {code === "USD" ? "Monto en USD" : "Monto en Bs"}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>
+                {formData.baseCurrency === "USD" ? "Monto (USD)" : "Monto (Bs)"}{" "}
+                *
+              </Text>
               <TextInput
                 style={styles.input}
                 placeholder="0.00"
@@ -229,6 +300,34 @@ export const AddAccountPayableScreen = ({ navigation }) => {
                 onChangeText={(value) => updateFormData("amount", value)}
                 keyboardType="decimal-pad"
               />
+            </View>
+
+            <View style={styles.dualAmountCard}>
+              <View style={styles.dualAmountRow}>
+                <Text style={styles.dualAmountLabel}>USD</Text>
+                <Text style={styles.dualAmountValue}>
+                  {computedUSD === null
+                    ? "—"
+                    : formatCurrency(computedUSD, "USD")}
+                </Text>
+              </View>
+              <View style={styles.dualAmountRow}>
+                <Text style={styles.dualAmountLabel}>VES</Text>
+                <Text style={styles.dualAmountValue}>
+                  {computedVES === null
+                    ? "—"
+                    : formatCurrency(computedVES, "VES")}
+                </Text>
+              </View>
+              {currentRate > 0 ? (
+                <Text style={styles.dualAmountHint}>
+                  Tasa actual: 1 USD = VES. {currentRate.toFixed(2)}
+                </Text>
+              ) : (
+                <Text style={styles.dualAmountHint}>
+                  Define la tasa para ver equivalencias
+                </Text>
+              )}
             </View>
 
             <View style={styles.fieldGroup}>
@@ -507,6 +606,64 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 14,
+  },
+  currencyRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  currencyChip: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#d9e0eb",
+    backgroundColor: "#f8f9fc",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  currencyChipActive: {
+    backgroundColor: "#2f5ae0",
+    borderColor: "#2f5ae0",
+  },
+  currencyChipText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6f7c8c",
+  },
+  currencyChipTextActive: {
+    color: "#fff",
+  },
+  dualAmountCard: {
+    backgroundColor: "#f8f9fc",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e8edf2",
+    gap: 12,
+  },
+  dualAmountRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dualAmountLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6f7c8c",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  dualAmountValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  dualAmountHint: {
+    fontSize: 12,
+    color: "#9aa2b1",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });
 

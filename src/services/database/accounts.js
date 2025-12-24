@@ -157,6 +157,9 @@ export const createAccountPayable = async (accountData) => {
       supplierId,
       supplierName,
       amount,
+      baseCurrency,
+      baseAmountUSD,
+      exchangeRateAtCreation,
       description,
       dueDate,
       documentNumber,
@@ -165,12 +168,15 @@ export const createAccountPayable = async (accountData) => {
     } = accountData;
     const roundedAmount = Math.round(amount * 100) / 100;
     const result = await db.runAsync(
-      `INSERT INTO accounts_payable (supplierId, supplierName, amount, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      `INSERT INTO accounts_payable (supplierId, supplierName, amount, baseCurrency, baseAmountUSD, exchangeRateAtCreation, description, dueDate, documentNumber, invoiceNumber, status, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
         supplierId || null,
         supplierName,
         roundedAmount,
+        baseCurrency || "VES",
+        baseAmountUSD || null,
+        exchangeRateAtCreation || null,
         description || null,
         dueDate || null,
         documentNumber || null,
@@ -227,12 +233,29 @@ export const updateAccountReceivable = async (id, accountData) => {
  */
 export const updateAccountPayable = async (id, accountData) => {
   try {
-    const { supplierName, amount, description, dueDate } = accountData;
+    const {
+      supplierName,
+      amount,
+      baseCurrency,
+      baseAmountUSD,
+      exchangeRateAtCreation,
+      description,
+      dueDate,
+    } = accountData;
     await db.runAsync(
       `UPDATE accounts_payable
-       SET supplierName = ?, amount = ?, description = ?, dueDate = ?, updatedAt = datetime('now')
+       SET supplierName = ?, amount = ?, baseCurrency = ?, baseAmountUSD = ?, exchangeRateAtCreation = ?, description = ?, dueDate = ?, updatedAt = datetime('now')
        WHERE id = ?`,
-      [supplierName, amount, description || null, dueDate || null, id]
+      [
+        supplierName,
+        amount,
+        baseCurrency || "VES",
+        baseAmountUSD || null,
+        exchangeRateAtCreation || null,
+        description || null,
+        dueDate || null,
+        id,
+      ]
     );
   } catch (error) {
     throw error;
@@ -560,8 +583,8 @@ export const updateReceivableAmountsOnRateChange = async (newRate) => {
     // Actualizar amounts para cuentas por cobrar USD-base (manuales y originadas en ventas)
     // Regla: NO tocar pagadas ni ya totalmente pagadas (aunque status esté inconsistente)
     await db.runAsync(
-      `UPDATE accounts_receivable 
-       SET amount = ROUND(baseAmountUSD * ?, 2) 
+      `UPDATE accounts_receivable
+       SET amount = ROUND(baseAmountUSD * ?, 2)
        WHERE status != 'paid'
          AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) < ROUND(amount, 2)
          AND baseCurrency = 'USD'
@@ -571,6 +594,40 @@ export const updateReceivableAmountsOnRateChange = async (newRate) => {
     console.log("Amounts de cuentas por cobrar actualizados con nueva tasa");
   } catch (error) {
     console.error("Error updating receivable amounts:", error);
+    throw error;
+  }
+};
+
+/**
+ * Actualiza los montos de cuentas por pagar cuando cambia la tasa de cambio
+ */
+export const updatePayableAmountsOnRateChange = async (newRate) => {
+  try {
+    // 1) Congelar las que ya están efectivamente pagadas (tolerancia 0.01) antes de tocar montos.
+    // Esto evita que por redondeos queden como "pendientes" y luego cambien/disappezcan al recalcular.
+    await db.runAsync(
+      `UPDATE accounts_payable
+       SET status = 'paid',
+           paidAt = COALESCE(paidAt, datetime('now')),
+           updatedAt = datetime('now')
+       WHERE status != 'paid'
+         AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) >= ROUND(amount, 2)`
+    );
+
+    // Actualizar amounts para cuentas por pagar USD-base
+    // Regla: NO tocar pagadas ni ya totalmente pagadas (aunque status esté inconsistente)
+    await db.runAsync(
+      `UPDATE accounts_payable
+       SET amount = ROUND(baseAmountUSD * ?, 2)
+       WHERE status != 'paid'
+         AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) < ROUND(amount, 2)
+         AND baseCurrency = 'USD'
+         AND baseAmountUSD IS NOT NULL AND baseAmountUSD > 0`,
+      [newRate]
+    );
+    console.log("Amounts de cuentas por pagar actualizados con nueva tasa");
+  } catch (error) {
+    console.error("Error updating payable amounts:", error);
     throw error;
   }
 };

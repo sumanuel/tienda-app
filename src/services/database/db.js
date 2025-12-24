@@ -470,6 +470,47 @@ const runMigrations = async () => {
       // invoiceNumber column already exists in accounts_payable
     }
 
+    // Check for currency columns in accounts_payable
+    const hasPayableBaseCurrency = payableColumns.some(
+      (col) => col.name === "baseCurrency"
+    );
+    const hasPayableBaseAmountUSD = payableColumns.some(
+      (col) => col.name === "baseAmountUSD"
+    );
+    const hasPayableExchangeRateAtCreation = payableColumns.some(
+      (col) => col.name === "exchangeRateAtCreation"
+    );
+
+    if (!hasPayableBaseCurrency) {
+      console.log("Adding baseCurrency column to accounts_payable table...");
+      await db.runAsync(
+        "ALTER TABLE accounts_payable ADD COLUMN baseCurrency TEXT DEFAULT 'VES'"
+      );
+      console.log("baseCurrency column added successfully to accounts_payable");
+    }
+
+    if (!hasPayableBaseAmountUSD) {
+      console.log("Adding baseAmountUSD column to accounts_payable table...");
+      await db.runAsync(
+        "ALTER TABLE accounts_payable ADD COLUMN baseAmountUSD REAL"
+      );
+      console.log(
+        "baseAmountUSD column added successfully to accounts_payable"
+      );
+    }
+
+    if (!hasPayableExchangeRateAtCreation) {
+      console.log(
+        "Adding exchangeRateAtCreation column to accounts_payable table..."
+      );
+      await db.runAsync(
+        "ALTER TABLE accounts_payable ADD COLUMN exchangeRateAtCreation REAL"
+      );
+      console.log(
+        "exchangeRateAtCreation column added successfully to accounts_payable"
+      );
+    }
+
     console.log("Database migrations completed");
   } catch (error) {
     console.error("Error running migrations:", error);
