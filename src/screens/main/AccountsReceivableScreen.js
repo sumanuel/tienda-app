@@ -245,7 +245,8 @@ export const AccountsReceivableScreen = ({ navigation }) => {
             </View>
             {item.dueDate ? (
               <Text style={styles.dueDate}>
-                Vence {(() => {
+                Vence{" "}
+                {(() => {
                   const [y, m, d] = item.dueDate.split("-").map(Number);
                   const parsed = new Date(y, m - 1, d);
                   return Number.isNaN(parsed.getTime())
