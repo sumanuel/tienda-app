@@ -1,5 +1,19 @@
 import { db } from "./db";
 
+const getTodayUtcRangeForDevice = () => {
+  // Start/end of today's date in the device's local timezone.
+  // Converting to ISO gives us the equivalent UTC boundaries.
+  const startLocal = new Date();
+  startLocal.setHours(0, 0, 0, 0);
+  const endLocal = new Date(startLocal);
+  endLocal.setDate(endLocal.getDate() + 1);
+
+  return {
+    startIso: startLocal.toISOString(),
+    endIso: endLocal.toISOString(),
+  };
+};
+
 /**
  * Inicializa la tabla de ventas
  */
@@ -162,12 +176,12 @@ export const getSalesByDateRange = async (startDate, endDate) => {
  */
 export const getTodaySales = async () => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const { startIso, endIso } = getTodayUtcRangeForDevice();
     const result = await db.getFirstAsync(
-      `SELECT COUNT(*) as count, SUM(total) as total
+      `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total
        FROM sales
-       WHERE DATE(createdAt) = ? AND status = 'completed';`,
-      [today]
+       WHERE createdAt >= ? AND createdAt < ? AND status = 'completed';`,
+      [startIso, endIso]
     );
     return result;
   } catch (error) {
