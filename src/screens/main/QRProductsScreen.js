@@ -21,7 +21,6 @@ export const QRProductsScreen = ({ navigation }) => {
   const { products, loading } = useProducts();
   const [startRange, setStartRange] = useState("");
   const [endRange, setEndRange] = useState("");
-  const [selectedIds, setSelectedIds] = useState([]);
 
   const sortedProducts = [...products].sort((a, b) => {
     const numA = parseInt((a.barcode || "").replace("PROD-", "")) || 0;
@@ -36,43 +35,51 @@ export const QRProductsScreen = ({ navigation }) => {
     const num = parseInt((product.barcode || "").replace("PROD-", "")) || 0;
     return num >= startNum && num <= endNum;
   });
-  const toggleSelection = (id) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
 
   const printSelected = async () => {
-    if (selectedIds.length === 0) {
+    if (filteredProducts.length === 0) {
       Alert.alert(
-        "Sin selección",
-        "Selecciona al menos un producto para imprimir."
+        "Sin productos",
+        "No hay productos visibles para imprimir códigos QR."
       );
       return;
     }
 
-    const selectedProducts = products.filter((p) => selectedIds.includes(p.id));
+    // Confirmación creativa
+    Alert.alert(
+      "Generar códigos QR",
+      `¿Estás seguro de generar ${filteredProducts.length} códigos QR para los productos que ves en pantalla?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "¡Generar!",
+          onPress: async () => {
+            const productsToPrint = filteredProducts;
 
-    // Generate QR SVGs
-    const productsWithQR = await Promise.all(
-      selectedProducts.map(async (product) => {
-        try {
-          const qrSVG = await qrcode.toString(product.barcode, {
-            type: "svg",
-            width: 200,
-          });
-          return { ...product, qrSVG };
-        } catch (error) {
-          console.error("Error generating QR for", product.barcode, error);
-          return {
-            ...product,
-            qrSVG: `<svg width="200" height="200"><text x="50%" y="50%" text-anchor="middle">Error</text></svg>`,
-          };
-        }
-      })
-    );
+            // Generate QR SVGs
+            const productsWithQR = await Promise.all(
+              productsToPrint.map(async (product) => {
+                try {
+                  const qrSVG = await qrcode.toString(product.barcode, {
+                    type: "svg",
+                    width: 200,
+                  });
+                  return { ...product, qrSVG };
+                } catch (error) {
+                  console.error(
+                    "Error generating QR for",
+                    product.barcode,
+                    error
+                  );
+                  return {
+                    ...product,
+                    qrSVG: `<svg width="200" height="200"><text x="50%" y="50%" text-anchor="middle">Error</text></svg>`,
+                  };
+                }
+              })
+            );
 
-    const html = `
+            const html = `
     <html>
     <head>
       <style>
@@ -101,20 +108,23 @@ export const QRProductsScreen = ({ navigation }) => {
     </html>
     `;
 
-    try {
-      await printAsync({ html });
-      Alert.alert("Impresión", "Los códigos QR han sido enviados a impresión.");
-    } catch (error) {
-      Alert.alert("Error", "No se pudo imprimir: " + error.message);
-    }
+            try {
+              await printAsync({ html });
+              Alert.alert(
+                "¡Generación exitosa!",
+                "Los códigos QR han sido enviados a impresión. ¡Que tengas un día productivo! 📱✨"
+              );
+            } catch (error) {
+              Alert.alert("Error", "No se pudo imprimir: " + error.message);
+            }
+          },
+        },
+      ]
+    );
   };
   const renderProduct = ({ item }) => {
-    const isSelected = selectedIds.includes(item.id);
     return (
-      <TouchableOpacity
-        style={[styles.productCard, isSelected && styles.productCardSelected]}
-        onPress={() => toggleSelection(item.id)}
-      >
+      <View style={styles.productCard}>
         <View style={styles.productInfo}>
           <Text style={styles.productName}>{item.name}</Text>
           <Text style={styles.productBarcode}>Código: {item.barcode}</Text>
@@ -123,10 +133,7 @@ export const QRProductsScreen = ({ navigation }) => {
         <View style={styles.qrContainer}>
           <QRCode value={item.barcode} size={80} />
         </View>
-        <View style={styles.checkContainer}>
-          <Text style={styles.checkMark}>{isSelected ? "✓" : ""}</Text>
-        </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -151,12 +158,6 @@ export const QRProductsScreen = ({ navigation }) => {
         <View style={{ width: 80 }} />
       </View>
 
-      <View style={styles.filterInfoContainer}>
-        <Text style={styles.filterInfoText}>
-          Filtra productos por rango de códigos (ej: Desde 1 Hasta 10).
-        </Text>
-      </View>
-
       <View style={styles.searchContainer}>
         <View style={styles.rangeContainer}>
           <TextInput
@@ -178,19 +179,17 @@ export const QRProductsScreen = ({ navigation }) => {
       </View>
       <View style={styles.instructionsContainer}>
         <Text style={styles.instructionsText}>
-          Toca un producto para seleccionarlo. Los seleccionados se marcarán con
-          ✓.
+          Filtra los productos por rango y presiona "Generar QR" para generar
+          códigos QR de todos los productos visibles. ¡Fácil y rápido! 📱
         </Text>
       </View>
-      {selectedIds.length > 0 && (
-        <View style={styles.printContainer}>
-          <TouchableOpacity style={styles.printButton} onPress={printSelected}>
-            <Text style={styles.printButtonText}>
-              Imprimir seleccionados ({selectedIds.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <View style={styles.printContainer}>
+        <TouchableOpacity style={styles.printButton} onPress={printSelected}>
+          <Text style={styles.printButtonText}>
+            Generar QR ({filteredProducts.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
       <FlatList
         data={filteredProducts}
         keyExtractor={(item) => item.id.toString()}
@@ -245,11 +244,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  productCardSelected: {
-    backgroundColor: "#e8f5e8",
-    borderColor: "#4CAF50",
-    borderWidth: 2,
-  },
   productInfo: {
     flex: 1,
     justifyContent: "center",
@@ -281,18 +275,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
-  },
-  filterInfoContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#fff3cd",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  filterInfoText: {
-    fontSize: 14,
-    color: "#856404",
-    textAlign: "center",
   },
   instructionsContainer: {
     paddingHorizontal: 16,
@@ -342,16 +324,6 @@ const styles = StyleSheet.create({
   printButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "bold",
-  },
-  checkContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 16,
-  },
-  checkMark: {
-    fontSize: 24,
-    color: "#4CAF50",
     fontWeight: "bold",
   },
 });
