@@ -85,7 +85,11 @@ export const ProductsScreen = ({ navigation }) => {
   };
 
   const sortedProducts = useMemo(() => {
-    return [...products].sort((a, b) => a.name.localeCompare(b.name));
+    return [...products].sort((a, b) => {
+      const numA = parseInt((a.barcode || "").replace("PROD-", "")) || 0;
+      const numB = parseInt((b.barcode || "").replace("PROD-", "")) || 0;
+      return numA - numB;
+    });
   }, [products]);
 
   const metrics = useMemo(() => {
