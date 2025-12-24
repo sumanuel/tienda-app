@@ -922,6 +922,21 @@ export const POSScreen = ({ navigation }) => {
           facing="back"
           onBarcodeScanned={scanning ? handleBarCodeScanned : undefined}
         />
+        {/* Viewfinder overlay */}
+        <View style={styles.viewfinderOverlay}>
+          <View style={styles.viewfinderTop} />
+          <View style={styles.viewfinderMiddle}>
+            <View style={styles.viewfinderLeft} />
+            <View style={styles.viewfinderCenter}>
+              <View style={styles.viewfinderCorner} />
+              <View style={[styles.viewfinderCorner, styles.topRight]} />
+              <View style={[styles.viewfinderCorner, styles.bottomLeft]} />
+              <View style={[styles.viewfinderCorner, styles.bottomRight]} />
+            </View>
+            <View style={styles.viewfinderRight} />
+          </View>
+          <View style={styles.viewfinderBottom} />
+        </View>
         <TouchableOpacity
           style={styles.closeScannerButton}
           onPress={() => setScanning(false)}
@@ -1636,6 +1651,60 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     fontSize: 16,
+  },
+  viewfinderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "transparent",
+  },
+  viewfinderTop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  viewfinderMiddle: {
+    flexDirection: "row",
+    height: 200,
+  },
+  viewfinderLeft: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  viewfinderCenter: {
+    width: 200,
+    height: 200,
+    position: "relative",
+  },
+  viewfinderRight: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  viewfinderBottom: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  viewfinderCorner: {
+    position: "absolute",
+    width: 20,
+    height: 20,
+    borderColor: "#fff",
+    borderWidth: 3,
+  },
+  topRight: {
+    top: 0,
+    right: 0,
+    borderLeftWidth: 0,
+    borderBottomWidth: 0,
+  },
+  bottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderRightWidth: 0,
+    borderTopWidth: 0,
+  },
+  bottomRight: {
+    bottom: 0,
+    right: 0,
+    borderLeftWidth: 0,
+    borderTopWidth: 0,
   },
 });
 
