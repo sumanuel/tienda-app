@@ -9,6 +9,8 @@ import {
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useCustomers } from "../../hooks/useCustomers";
+import { getAllSales } from "../../services/database/sales";
+import { getAllAccountsReceivable } from "../../services/database/accounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 
 export const CustomersScreen = () => {
@@ -35,36 +37,68 @@ export const CustomersScreen = () => {
   );
 
   const confirmDeleteCustomer = useCallback(
-    (customer) => {
-      showAlert({
-        title: "Confirmar eliminación",
-        message: `¿Estás seguro de que quieres eliminar a ${customer.name}?`,
-        type: "warning",
-        buttons: [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Eliminar",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                await removeCustomer(customer.id);
-                showAlert({
-                  title: "Éxito",
-                  message: "Cliente eliminado correctamente",
-                  type: "success",
-                });
-              } catch (error) {
-                console.error("Error eliminando cliente:", error);
-                showAlert({
-                  title: "Error",
-                  message: "No se pudo eliminar el cliente",
-                  type: "error",
-                });
-              }
+    async (customer) => {
+      try {
+        // Verificar si el cliente tiene movimientos asociados
+        const [allSales, allReceivables] = await Promise.all([
+          getAllSales(),
+          getAllAccountsReceivable(),
+        ]);
+
+        const customerSales = allSales.filter(
+          (sale) => sale.customerId === customer.id
+        );
+        const customerReceivables = allReceivables.filter(
+          (account) => account.customerId === customer.id
+        );
+
+        if (customerSales.length > 0 || customerReceivables.length > 0) {
+          showAlert({
+            title: "No se puede eliminar",
+            message: `No se puede eliminar a ${customer.name} porque tiene ${customerSales.length} venta(s) y ${customerReceivables.length} cuenta(s) por cobrar asociada(s).`,
+            type: "error",
+          });
+          return;
+        }
+
+        // Si no tiene movimientos, mostrar confirmación de eliminación
+        showAlert({
+          title: "Confirmar eliminación",
+          message: `¿Estás seguro de que quieres eliminar a ${customer.name}?`,
+          type: "warning",
+          buttons: [
+            { text: "Cancelar", style: "cancel" },
+            {
+              text: "Eliminar",
+              style: "destructive",
+              onPress: async () => {
+                try {
+                  await removeCustomer(customer.id);
+                  showAlert({
+                    title: "Éxito",
+                    message: "Cliente eliminado correctamente",
+                    type: "success",
+                  });
+                } catch (error) {
+                  console.error("Error eliminando cliente:", error);
+                  showAlert({
+                    title: "Error",
+                    message: "No se pudo eliminar el cliente",
+                    type: "error",
+                  });
+                }
+              },
             },
-          },
-        ],
-      });
+          ],
+        });
+      } catch (error) {
+        console.error("Error verificando movimientos del cliente:", error);
+        showAlert({
+          title: "Error",
+          message: "No se pudo verificar los movimientos del cliente",
+          type: "error",
+        });
+      }
     },
     [removeCustomer, showAlert]
   );

@@ -6,14 +6,15 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Alert,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useProducts } from "../../hooks/useProducts";
+import { getAllSales } from "../../services/database/sales";
 import { getSettings } from "../../services/database/settings";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { db } from "../../services/database/db";
 
 /**
  * Pantalla de gestión de productos
@@ -61,36 +62,77 @@ export const ProductsScreen = ({ navigation }) => {
     navigation.navigate("EditProduct", { product });
   };
 
-  const handleDeleteProduct = (product) => {
-    showAlert({
-      title: "Eliminar Producto",
-      message: `¿Estás seguro de que quieres eliminar "${product.name}"?`,
-      type: "warning",
-      buttons: [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await removeProduct(product.id);
-              showAlert({
-                title: "Éxito",
-                message: "Producto eliminado correctamente",
-                type: "success",
-              });
-            } catch (error) {
-              console.error("Error eliminando producto:", error);
-              showAlert({
-                title: "Error",
-                message: "No se pudo eliminar el producto",
-                type: "error",
-              });
-            }
+  const handleDeleteProduct = async (product) => {
+    try {
+      // Verificar si el producto tiene movimientos asociados
+      const saleItemsResult = await db.getAllAsync(
+        `SELECT COUNT(*) as count FROM sale_items WHERE productId = ?`,
+        [product.id]
+      );
+      const salesCount = saleItemsResult[0]?.count || 0;
+
+      // Verificar movimientos de inventario (si existe la tabla)
+      let inventoryCount = 0;
+      try {
+        const inventoryResult = await db.getAllAsync(
+          `SELECT COUNT(*) as count FROM inventory_movements WHERE productId = ?`,
+          [product.id]
+        );
+        inventoryCount = inventoryResult[0]?.count || 0;
+      } catch (error) {
+        // Si no existe la tabla inventory_movements, continuar
+        console.log(
+          "Tabla inventory_movements no existe, omitiendo verificación"
+        );
+      }
+
+      if (salesCount > 0 || inventoryCount > 0) {
+        showAlert({
+          title: "No se puede eliminar",
+          message: `No se puede eliminar "${product.name}" porque tiene ${salesCount} venta(s) y ${inventoryCount} movimiento(s) de inventario asociado(s).`,
+          type: "error",
+        });
+        return;
+      }
+
+      // Si no tiene movimientos, mostrar confirmación de eliminación
+      showAlert({
+        title: "Eliminar Producto",
+        message: `¿Estás seguro de que quieres eliminar "${product.name}"?`,
+        type: "warning",
+        buttons: [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Eliminar",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await removeProduct(product.id);
+                showAlert({
+                  title: "Éxito",
+                  message: "Producto eliminado correctamente",
+                  type: "success",
+                });
+              } catch (error) {
+                console.error("Error eliminando producto:", error);
+                showAlert({
+                  title: "Error",
+                  message: "No se pudo eliminar el producto",
+                  type: "error",
+                });
+              }
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
+    } catch (error) {
+      console.error("Error verificando movimientos del producto:", error);
+      showAlert({
+        title: "Error",
+        message: "No se pudo verificar los movimientos del producto",
+        type: "error",
+      });
+    }
   };
 
   const sortedProducts = useMemo(() => {

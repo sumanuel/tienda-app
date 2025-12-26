@@ -40,7 +40,7 @@ export const searchAccountsReceivable = async (query) => {
 export const getAllAccountsPayable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT id, supplierName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;"
+      "SELECT id, supplierId, supplierName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;"
     );
     return result;
   } catch (error) {

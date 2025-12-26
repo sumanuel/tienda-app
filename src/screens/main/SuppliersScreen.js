@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSuppliers } from "../../hooks/useSuppliers";
+import { getAllAccountsPayable } from "../../services/database/accounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 
 export const SuppliersScreen = () => {
@@ -35,36 +36,61 @@ export const SuppliersScreen = () => {
   );
 
   const confirmDeleteSupplier = useCallback(
-    (supplier) => {
-      showAlert({
-        title: "Confirmar eliminación",
-        message: `¿Estás seguro de que quieres eliminar a ${supplier.name}?`,
-        type: "warning",
-        buttons: [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Eliminar",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                await removeSupplier(supplier.id);
-                showAlert({
-                  title: "Éxito",
-                  message: "Proveedor eliminado correctamente",
-                  type: "success",
-                });
-              } catch (error) {
-                console.error("Error eliminando proveedor:", error);
-                showAlert({
-                  title: "Error",
-                  message: "No se pudo eliminar el proveedor",
-                  type: "error",
-                });
-              }
+    async (supplier) => {
+      try {
+        // Verificar si el proveedor tiene movimientos asociados
+        const allPayables = await getAllAccountsPayable();
+        const supplierPayables = allPayables.filter(
+          (account) => account.supplierId === supplier.id
+        );
+
+        if (supplierPayables.length > 0) {
+          showAlert({
+            title: "No se puede eliminar",
+            message: `No se puede eliminar a ${supplier.name} porque tiene ${supplierPayables.length} cuenta(s) por pagar asociada(s).`,
+            type: "error",
+          });
+          return;
+        }
+
+        // Si no tiene movimientos, mostrar confirmación de eliminación
+        showAlert({
+          title: "Confirmar eliminación",
+          message: `¿Estás seguro de que quieres eliminar a ${supplier.name}?`,
+          type: "warning",
+          buttons: [
+            { text: "Cancelar", style: "cancel" },
+            {
+              text: "Eliminar",
+              style: "destructive",
+              onPress: async () => {
+                try {
+                  await removeSupplier(supplier.id);
+                  showAlert({
+                    title: "Éxito",
+                    message: "Proveedor eliminado correctamente",
+                    type: "success",
+                  });
+                } catch (error) {
+                  console.error("Error eliminando proveedor:", error);
+                  showAlert({
+                    title: "Error",
+                    message: "No se pudo eliminar el proveedor",
+                    type: "error",
+                  });
+                }
+              },
             },
-          },
-        ],
-      });
+          ],
+        });
+      } catch (error) {
+        console.error("Error verificando movimientos del proveedor:", error);
+        showAlert({
+          title: "Error",
+          message: "No se pudo verificar los movimientos del proveedor",
+          type: "error",
+        });
+      }
     },
     [removeSupplier, showAlert]
   );
