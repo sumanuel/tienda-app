@@ -13,6 +13,7 @@ import { useProducts } from "../../hooks/useProducts";
 import { getSettings } from "../../services/database/settings";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 /**
  * Pantalla de gestión de productos
@@ -20,6 +21,7 @@ import { formatCurrency } from "../../utils/currency";
 export const ProductsScreen = ({ navigation }) => {
   const { products, loading, search, loadProducts, removeProduct } =
     useProducts();
+  const { showAlert, CustomAlert } = useCustomAlert();
   const [searchQuery, setSearchQuery] = useState("");
   const [settings, setSettings] = useState({});
   const { rate: exchangeRate } = useExchangeRate();
@@ -60,28 +62,35 @@ export const ProductsScreen = ({ navigation }) => {
   };
 
   const handleDeleteProduct = (product) => {
-    Alert.alert(
-      "Eliminar Producto",
-      `¿Estás seguro de que quieres eliminar "${product.name}"?`,
-      [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
+    showAlert({
+      title: "Eliminar Producto",
+      message: `¿Estás seguro de que quieres eliminar "${product.name}"?`,
+      type: "warning",
+      buttons: [
+        { text: "Cancelar", style: "cancel" },
         {
           text: "Eliminar",
           style: "destructive",
           onPress: async () => {
             try {
               await removeProduct(product.id);
-              Alert.alert("Éxito", "Producto eliminado correctamente");
+              showAlert({
+                title: "Éxito",
+                message: "Producto eliminado correctamente",
+                type: "success",
+              });
             } catch (error) {
-              Alert.alert("Error", "No se pudo eliminar el producto");
+              console.error("Error eliminando producto:", error);
+              showAlert({
+                title: "Error",
+                message: "No se pudo eliminar el producto",
+                type: "error",
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const sortedProducts = useMemo(() => {
@@ -224,34 +233,37 @@ export const ProductsScreen = ({ navigation }) => {
   );
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={sortedProducts}
-        renderItem={renderProduct}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={header}
-        ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Aún no hay productos</Text>
-            <Text style={styles.emptySubtitle}>
-              Registra tu primer producto para visualizar métricas y control de
-              inventario.
-            </Text>
-          </View>
-        }
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      />
+    <>
+      <View style={styles.container}>
+        <FlatList
+          data={sortedProducts}
+          renderItem={renderProduct}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={header}
+          ListEmptyComponent={
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>Aún no hay productos</Text>
+              <Text style={styles.emptySubtitle}>
+                Registra tu primer producto para visualizar métricas y control
+                de inventario.
+              </Text>
+            </View>
+          }
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        />
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate("AddProduct")}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => navigation.navigate("AddProduct")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      </View>
+      <CustomAlert />
+    </>
   );
 };
 

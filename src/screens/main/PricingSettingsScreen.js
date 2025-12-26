@@ -8,10 +8,10 @@ import {
   TextInput,
   SafeAreaView,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { getSettings, saveSettings } from "../../services/database/settings";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 export const PricingSettingsScreen = () => {
   const {
@@ -20,6 +20,7 @@ export const PricingSettingsScreen = () => {
     loading: rateLoading,
     lastUpdate,
   } = useExchangeRate({ autoUpdate: false });
+  const { showAlert, CustomAlert } = useCustomAlert();
   const [isLoading, setIsLoading] = useState(true);
 
   const [margin, setMargin] = useState(30);
@@ -98,10 +99,11 @@ export const PricingSettingsScreen = () => {
         );
       } catch (error) {
         console.error("Error loading settings:", error);
-        Alert.alert(
-          "Error",
-          "No pudimos cargar la configuración. Intenta nuevamente."
-        );
+        showAlert({
+          title: "Error",
+          message: "No pudimos cargar la configuración. Intenta nuevamente.",
+          type: "error",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -161,7 +163,11 @@ export const PricingSettingsScreen = () => {
       numericMargin < 0 ||
       numericMargin > 200
     ) {
-      Alert.alert("Valor inválido", "Ingresa un margen entre 0 y 200");
+      showAlert({
+        title: "Valor inválido",
+        message: "Ingresa un margen entre 0 y 200",
+        type: "error",
+      });
       return;
     }
 
@@ -170,12 +176,20 @@ export const PricingSettingsScreen = () => {
         (value) => Number.isNaN(value) || value <= 0
       )
     ) {
-      Alert.alert("Valor inválido", "Verifica los valores de las monedas");
+      showAlert({
+        title: "Valor inválido",
+        message: "Verifica los valores de las monedas",
+        type: "error",
+      });
       return;
     }
 
     if (Number.isNaN(numericIva) || numericIva < 0 || numericIva > 100) {
-      Alert.alert("Valor inválido", "Ingresa un IVA entre 0 y 100");
+      showAlert({
+        title: "Valor inválido",
+        message: "Ingresa un IVA entre 0 y 100",
+        type: "error",
+      });
       return;
     }
 
@@ -208,10 +222,18 @@ export const PricingSettingsScreen = () => {
       setIva(numericIva);
 
       setEditingSection(null);
-      Alert.alert("Éxito", "Configuración de márgenes actualizada");
+      showAlert({
+        title: "Éxito",
+        message: "Configuración de márgenes actualizada",
+        type: "success",
+      });
     } catch (error) {
       console.error("Error saving pricing settings:", error);
-      Alert.alert("Error", "No pudimos actualizar los datos de márgenes");
+      showAlert({
+        title: "Error",
+        message: "No pudimos actualizar los datos de márgenes",
+        type: "error",
+      });
     } finally {
       setSavingSection(null);
     }
@@ -220,7 +242,11 @@ export const PricingSettingsScreen = () => {
   const handleSaveInventory = async () => {
     const numericLowStock = parseInt(formLowStock, 10);
     if (Number.isNaN(numericLowStock) || numericLowStock < 0) {
-      Alert.alert("Valor inválido", "Ingresa un umbral mayor o igual a 0");
+      showAlert({
+        title: "Valor inválido",
+        message: "Ingresa un umbral mayor o igual a 0",
+        type: "error",
+      });
       return;
     }
 
@@ -237,10 +263,18 @@ export const PricingSettingsScreen = () => {
       await saveSettings(updatedSettings);
       setLowStockThreshold(numericLowStock);
       setEditingSection(null);
-      Alert.alert("Éxito", "Configuración de stock actualizada");
+      showAlert({
+        title: "Éxito",
+        message: "Configuración de stock actualizada",
+        type: "success",
+      });
     } catch (error) {
       console.error("Error saving inventory settings:", error);
-      Alert.alert("Error", "No pudimos actualizar el umbral de stock");
+      showAlert({
+        title: "Error",
+        message: "No pudimos actualizar el umbral de stock",
+        type: "error",
+      });
     } finally {
       setSavingSection(null);
     }
@@ -464,6 +498,7 @@ export const PricingSettingsScreen = () => {
           </View>
         )}
       </ScrollView>
+      <CustomAlert />
     </SafeAreaView>
   );
 };

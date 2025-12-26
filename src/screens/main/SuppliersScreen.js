@@ -5,16 +5,17 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   TextInput,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSuppliers } from "../../hooks/useSuppliers";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 export const SuppliersScreen = () => {
   const navigation = useNavigation();
   const { suppliers, loading, error, search, removeSupplier, refresh } =
     useSuppliers();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -35,10 +36,11 @@ export const SuppliersScreen = () => {
 
   const confirmDeleteSupplier = useCallback(
     (supplier) => {
-      Alert.alert(
-        "Confirmar eliminación",
-        `¿Estás seguro de que quieres eliminar a ${supplier.name}?`,
-        [
+      showAlert({
+        title: "Confirmar eliminación",
+        message: `¿Estás seguro de que quieres eliminar a ${supplier.name}?`,
+        type: "warning",
+        buttons: [
           { text: "Cancelar", style: "cancel" },
           {
             text: "Eliminar",
@@ -46,16 +48,25 @@ export const SuppliersScreen = () => {
             onPress: async () => {
               try {
                 await removeSupplier(supplier.id);
-                Alert.alert("Éxito", "Proveedor eliminado correctamente");
+                showAlert({
+                  title: "Éxito",
+                  message: "Proveedor eliminado correctamente",
+                  type: "success",
+                });
               } catch (error) {
-                Alert.alert("Error", "No se pudo eliminar el proveedor");
+                console.error("Error eliminando proveedor:", error);
+                showAlert({
+                  title: "Error",
+                  message: "No se pudo eliminar el proveedor",
+                  type: "error",
+                });
               }
             },
           },
-        ]
-      );
+        ],
+      });
     },
-    [removeSupplier]
+    [removeSupplier, showAlert]
   );
 
   const sortedSuppliers = useMemo(() => {
@@ -199,6 +210,7 @@ export const SuppliersScreen = () => {
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
+      <CustomAlert />
     </View>
   );
 };

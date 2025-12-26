@@ -5,16 +5,17 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   TextInput,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useCustomers } from "../../hooks/useCustomers";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 export const CustomersScreen = () => {
   const navigation = useNavigation();
   const { customers, loading, error, search, removeCustomer, refresh } =
     useCustomers();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -35,10 +36,11 @@ export const CustomersScreen = () => {
 
   const confirmDeleteCustomer = useCallback(
     (customer) => {
-      Alert.alert(
-        "Confirmar eliminación",
-        `¿Estás seguro de que quieres eliminar a ${customer.name}?`,
-        [
+      showAlert({
+        title: "Confirmar eliminación",
+        message: `¿Estás seguro de que quieres eliminar a ${customer.name}?`,
+        type: "warning",
+        buttons: [
           { text: "Cancelar", style: "cancel" },
           {
             text: "Eliminar",
@@ -46,16 +48,25 @@ export const CustomersScreen = () => {
             onPress: async () => {
               try {
                 await removeCustomer(customer.id);
-                Alert.alert("Éxito", "Cliente eliminado correctamente");
+                showAlert({
+                  title: "Éxito",
+                  message: "Cliente eliminado correctamente",
+                  type: "success",
+                });
               } catch (error) {
-                Alert.alert("Error", "No se pudo eliminar el cliente");
+                console.error("Error eliminando cliente:", error);
+                showAlert({
+                  title: "Error",
+                  message: "No se pudo eliminar el cliente",
+                  type: "error",
+                });
               }
             },
           },
-        ]
-      );
+        ],
+      });
     },
-    [removeCustomer]
+    [removeCustomer, showAlert]
   );
 
   const sortedCustomers = useMemo(() => {
@@ -192,6 +203,7 @@ export const CustomersScreen = () => {
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
+      <CustomAlert />
     </View>
   );
 };

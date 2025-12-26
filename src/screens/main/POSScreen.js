@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
-  Alert,
   TextInput,
   Modal,
   Dimensions,
@@ -18,9 +17,9 @@ import { useSales } from "../../hooks/useSales";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 import { updateProductStock } from "../../services/database/products";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useCustomAlert } from "../../components/common/CustomAlert";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -118,7 +117,11 @@ export const POSScreen = ({ navigation }) => {
     const { showAlert: shouldShowAlert = true } = options;
 
     if (product.stock <= 0) {
-      Alert.alert("Sin stock", "Este producto no tiene stock disponible");
+      showAlert({
+        title: "Sin stock",
+        message: "Este producto no tiene stock disponible",
+        type: "error",
+      });
       return;
     }
 
@@ -225,14 +228,15 @@ export const POSScreen = ({ navigation }) => {
    * Limpia el carrito
    */
   const clearCart = () => {
-    Alert.alert(
-      "Limpiar carrito",
-      "¿Estás seguro de que quieres vaciar el carrito?",
-      [
+    showAlert({
+      title: "Limpiar carrito",
+      message: "¿Estás seguro de que quieres vaciar el carrito?",
+      type: "warning",
+      buttons: [
         { text: "Cancelar", style: "cancel" },
         { text: "Limpiar", onPress: () => setCart([]) },
-      ]
-    );
+      ],
+    });
   };
 
   /**
@@ -240,13 +244,21 @@ export const POSScreen = ({ navigation }) => {
    */
   const completeSale = async () => {
     if (cart.length === 0) {
-      Alert.alert("Error", "El carrito está vacío");
+      showAlert({
+        title: "Error",
+        message: "El carrito está vacío",
+        type: "error",
+      });
       return;
     }
 
     // Validar que se haya especificado la cédula del cliente
     if (!customerDocument.trim()) {
-      Alert.alert("Error", "Debe especificar la cédula del cliente");
+      showAlert({
+        title: "Error",
+        message: "Debe especificar la cédula del cliente",
+        type: "error",
+      });
       return;
     }
 
@@ -417,7 +429,11 @@ export const POSScreen = ({ navigation }) => {
     if (processingSale) return; // Evitar múltiples ejecuciones
 
     if (!newCustomerName.trim()) {
-      Alert.alert("Error", "El nombre del cliente es obligatorio");
+      showAlert({
+        title: "Error",
+        message: "El nombre del cliente es obligatorio",
+        type: "error",
+      });
       return;
     }
 

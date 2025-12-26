@@ -8,16 +8,17 @@ import {
   SafeAreaView,
   ActivityIndicator,
   TextInput,
-  Alert,
 } from "react-native";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import RateDisplay from "../../components/exchange/RateDisplay";
 import CurrencyConverter from "../../components/exchange/CurrencyConverter";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 export const ExchangeRateScreen = () => {
   const { rate, lastUpdate, setManualRate } = useExchangeRate({
     autoUpdate: false,
   });
+  const { showAlert, CustomAlert } = useCustomAlert();
   const [manualValue, setManualValue] = useState("0");
   const [saving, setSaving] = useState(false);
 
@@ -44,20 +45,29 @@ export const ExchangeRateScreen = () => {
   const handleManualSave = async () => {
     const numericValue = parseFloat(manualValue.replace(",", "."));
     if (Number.isNaN(numericValue) || numericValue <= 0) {
-      Alert.alert("Valor inválido", "Ingresa un número mayor a cero");
+      showAlert({
+        title: "Valor inválido",
+        message: "Ingresa un número mayor a cero",
+        type: "error",
+      });
       return;
     }
 
     try {
       setSaving(true);
       await setManualRate(numericValue);
-      Alert.alert(
-        "Tasa actualizada",
-        `Guardamos ${numericValue.toFixed(2)} VES por USD`
-      );
+      showAlert({
+        title: "Tasa actualizada",
+        message: `Guardamos ${numericValue.toFixed(2)} VES por USD`,
+        type: "success",
+      });
     } catch (error) {
-      Alert.alert("Error", "No pudimos guardar la tasa manual");
       console.error("Error saving manual rate:", error);
+      showAlert({
+        title: "Error",
+        message: "No pudimos guardar la tasa manual",
+        type: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -123,6 +133,7 @@ export const ExchangeRateScreen = () => {
 
         <CurrencyConverter exchangeRate={rate} style={styles.converter} />
       </ScrollView>
+      <CustomAlert />
     </SafeAreaView>
   );
 };

@@ -5,13 +5,13 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   TextInput,
   ActivityIndicator,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 export const AccountsPayableScreen = ({ navigation }) => {
   const {
@@ -26,6 +26,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
     recordPayment,
     getPayments,
   } = useAccounts();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
@@ -55,36 +56,47 @@ export const AccountsPayableScreen = ({ navigation }) => {
 
   const handleMarkAsPaid = useCallback(
     (account) => {
-      Alert.alert(
-        "Marcar como pagada",
-        `¿Confirmar que la cuenta de ${
+      showAlert({
+        title: "Marcar como pagada",
+        message: `¿Confirmar que la cuenta de ${
           account.supplierName
         } por ${formatCurrency(account.amount || 0, "VES")} ha sido pagada?`,
-        [
+        type: "warning",
+        buttons: [
           { text: "Cancelar", style: "cancel" },
           {
             text: "Confirmar",
             onPress: async () => {
               try {
                 await markPayableAsPaid(account.id);
-                Alert.alert("Éxito", "Cuenta marcada como pagada");
+                showAlert({
+                  title: "Éxito",
+                  message: "Cuenta marcada como pagada",
+                  type: "success",
+                });
               } catch (err) {
-                Alert.alert("Error", "No se pudo actualizar la cuenta");
+                console.error("Error marcando cuenta como pagada:", err);
+                showAlert({
+                  title: "Error",
+                  message: "No se pudo actualizar la cuenta",
+                  type: "error",
+                });
               }
             },
           },
-        ]
-      );
+        ],
+      });
     },
-    [markPayableAsPaid]
+    [markPayableAsPaid, showAlert]
   );
 
   const handleDelete = useCallback(
     (account) => {
-      Alert.alert(
-        "Eliminar cuenta",
-        `¿Eliminar la cuenta de ${account.supplierName}?`,
-        [
+      showAlert({
+        title: "Eliminar cuenta",
+        message: `¿Eliminar la cuenta de ${account.supplierName}?`,
+        type: "warning",
+        buttons: [
           { text: "Cancelar", style: "cancel" },
           {
             text: "Eliminar",
@@ -92,16 +104,25 @@ export const AccountsPayableScreen = ({ navigation }) => {
             onPress: async () => {
               try {
                 await removeAccountPayable(account.id);
-                Alert.alert("Éxito", "Cuenta eliminada correctamente");
+                showAlert({
+                  title: "Éxito",
+                  message: "Cuenta eliminada correctamente",
+                  type: "success",
+                });
               } catch (err) {
-                Alert.alert("Error", "No se pudo eliminar la cuenta");
+                console.error("Error eliminando cuenta:", err);
+                showAlert({
+                  title: "Error",
+                  message: "No se pudo eliminar la cuenta",
+                  type: "error",
+                });
               }
             },
           },
-        ]
-      );
+        ],
+      });
     },
-    [removeAccountPayable]
+    [removeAccountPayable, showAlert]
   );
 
   const totalAmount = payableStats?.totalAmount || 0;
@@ -449,6 +470,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
+      <CustomAlert />
     </View>
   );
 };

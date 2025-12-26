@@ -7,18 +7,19 @@ import {
   SafeAreaView,
   TouchableOpacity,
   TextInput,
-  Alert,
 } from "react-native";
 import { useProducts } from "../../hooks/useProducts";
 import QRCode from "react-native-qrcode-svg";
 import { printAsync } from "expo-print";
 import qrcode from "qrcode";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 /**
  * Pantalla para ver códigos QR de productos
  */
 export const QRProductsScreen = ({ navigation }) => {
   const { products, loading } = useProducts();
+  const { showAlert, CustomAlert } = useCustomAlert();
   const [startRange, setStartRange] = useState("");
   const [endRange, setEndRange] = useState("");
 
@@ -38,18 +39,20 @@ export const QRProductsScreen = ({ navigation }) => {
 
   const printSelected = async () => {
     if (filteredProducts.length === 0) {
-      Alert.alert(
-        "Sin productos",
-        "No hay productos visibles para imprimir códigos QR."
-      );
+      showAlert({
+        title: "Sin productos",
+        message: "No hay productos visibles para imprimir códigos QR.",
+        type: "warning",
+      });
       return;
     }
 
     // Confirmación creativa
-    Alert.alert(
-      "Generar códigos QR",
-      `¿Estás seguro de generar ${filteredProducts.length} códigos QR para los productos que ves en pantalla?`,
-      [
+    showAlert({
+      title: "Generar códigos QR",
+      message: `¿Estás seguro de generar ${filteredProducts.length} códigos QR para los productos que ves en pantalla?`,
+      type: "warning",
+      buttons: [
         { text: "Cancelar", style: "cancel" },
         {
           text: "¡Generar!",
@@ -110,17 +113,24 @@ export const QRProductsScreen = ({ navigation }) => {
 
             try {
               await printAsync({ html });
-              Alert.alert(
-                "¡Generación exitosa!",
-                "Los códigos QR han sido enviados a impresión. ¡Que tengas un día productivo! 📱✨"
-              );
+              showAlert({
+                title: "¡Generación exitosa!",
+                message:
+                  "Los códigos QR han sido enviados a impresión. ¡Que tengas un día productivo! 📱✨",
+                type: "success",
+              });
             } catch (error) {
-              Alert.alert("Error", "No se pudo imprimir: " + error.message);
+              console.error("Error printing QR codes:", error);
+              showAlert({
+                title: "Error",
+                message: "No se pudo imprimir: " + error.message,
+                type: "error",
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
   const renderProduct = ({ item }) => {
     return (
@@ -146,58 +156,61 @@ export const QRProductsScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>← Volver</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Imprimir Códigos QR</Text>
-        <View style={{ width: 80 }} />
-      </View>
-
-      <View style={styles.searchContainer}>
-        <View style={styles.rangeContainer}>
-          <TextInput
-            style={styles.rangeInput}
-            placeholder="Desde"
-            value={startRange}
-            onChangeText={setStartRange}
-            keyboardType="numeric"
-          />
-          <Text style={styles.rangeSeparator}>a</Text>
-          <TextInput
-            style={styles.rangeInput}
-            placeholder="Hasta"
-            value={endRange}
-            onChangeText={setEndRange}
-            keyboardType="numeric"
-          />
+    <>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>← Volver</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Imprimir Códigos QR</Text>
+          <View style={{ width: 80 }} />
         </View>
-      </View>
-      <View style={styles.instructionsContainer}>
-        <Text style={styles.instructionsText}>
-          Filtra los productos por rango y presiona "Generar QR" para generar
-          códigos QR de todos los productos visibles. ¡Fácil y rápido! 📱
-        </Text>
-      </View>
-      <View style={styles.printContainer}>
-        <TouchableOpacity style={styles.printButton} onPress={printSelected}>
-          <Text style={styles.printButtonText}>
-            Generar QR ({filteredProducts.length})
+
+        <View style={styles.searchContainer}>
+          <View style={styles.rangeContainer}>
+            <TextInput
+              style={styles.rangeInput}
+              placeholder="Desde"
+              value={startRange}
+              onChangeText={setStartRange}
+              keyboardType="numeric"
+            />
+            <Text style={styles.rangeSeparator}>a</Text>
+            <TextInput
+              style={styles.rangeInput}
+              placeholder="Hasta"
+              value={endRange}
+              onChangeText={setEndRange}
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+        <View style={styles.instructionsContainer}>
+          <Text style={styles.instructionsText}>
+            Filtra los productos por rango y presiona "Generar QR" para generar
+            códigos QR de todos los productos visibles. ¡Fácil y rápido! 📱
           </Text>
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={filteredProducts}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderProduct}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      />
-    </SafeAreaView>
+        </View>
+        <View style={styles.printContainer}>
+          <TouchableOpacity style={styles.printButton} onPress={printSelected}>
+            <Text style={styles.printButtonText}>
+              Generar QR ({filteredProducts.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          data={filteredProducts}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderProduct}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      </SafeAreaView>
+      <CustomAlert />
+    </>
   );
 };
 
