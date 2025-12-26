@@ -13,13 +13,27 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { getSettings, saveSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { syncNow } from "../../services/sync/syncService";
+import { createApiClient } from "../../services/sync/apiClient";
+import { bootstrapOutboxIfNeeded } from "../../services/sync/bootstrapOutbox";
 
 export const SettingsScreen = () => {
   const navigation = useNavigation();
   const { showAlert, CustomAlert } = useCustomAlert();
   const [isLoading, setIsLoading] = useState(true);
 
+  const DEV_DEFAULT_SYNC_BASEURL = "http://192.168.1.3:3002";
+
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
+
+  const [syncBaseUrl, setSyncBaseUrl] = useState(
+    __DEV__ ? DEV_DEFAULT_SYNC_BASEURL : ""
+  );
+  const [syncEmail, setSyncEmail] = useState("");
+  const [syncPassword, setSyncPassword] = useState("");
+  const [syncToken, setSyncToken] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const [editingSection, setEditingSection] = useState(null);
   const [savingSection, setSavingSection] = useState(null);
@@ -34,6 +48,13 @@ export const SettingsScreen = () => {
 
         const inventory = settings.inventory || {};
         const defaultLowStock = inventory.lowStockThreshold ?? 10;
+
+        const sync = settings.sync || {};
+        setSyncBaseUrl(
+          String(sync.baseUrl || (__DEV__ ? DEV_DEFAULT_SYNC_BASEURL : ""))
+        );
+        setSyncEmail(String(sync.email || ""));
+        setSyncToken(String(sync.token || ""));
 
         setLowStockThreshold(defaultLowStock);
         setFormLowStock(defaultLowStock.toString());
@@ -51,6 +72,197 @@ export const SettingsScreen = () => {
 
     loadSettings();
   }, []);
+
+  const normalizeBaseUrl = (value) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return "";
+    return trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
+  };
+
+  const persistSyncSettings = async ({ baseUrl, token, email }) => {
+    const settings = await getSettings();
+    const updatedSettings = {
+      ...settings,
+      sync: {
+        ...(settings.sync || {}),
+        baseUrl,
+        token,
+        email: email ?? (settings.sync || {}).email ?? "",
+      },
+    };
+    await saveSettings(updatedSettings);
+  };
+
+  const handleSaveSync = async () => {
+    const baseUrl = normalizeBaseUrl(syncBaseUrl);
+    const token = String(syncToken || "").trim();
+    const email = String(syncEmail || "").trim();
+
+    if (!baseUrl) {
+      showAlert({
+        title: "Falta Base URL",
+        message:
+          "Ingresa la URL base del servidor (ej: http://192.168.1.3:3002)",
+        type: "error",
+      });
+      return;
+    }
+
+    try {
+      // Validación mínima de URL
+      // eslint-disable-next-line no-new
+      new URL(baseUrl);
+    } catch {
+      showAlert({
+        title: "Base URL inválida",
+        message: "Revisa el formato. Ej: http://192.168.1.3:3002",
+        type: "error",
+      });
+      return;
+    }
+
+    try {
+      setSavingSection("sync");
+      await persistSyncSettings({ baseUrl, token, email });
+      setSyncBaseUrl(baseUrl);
+      showAlert({
+        title: "Éxito",
+        message: "Configuración de sync guardada",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error saving sync settings:", error);
+      showAlert({
+        title: "Error",
+        message: "No pudimos guardar la configuración de sync",
+        type: "error",
+      });
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const handleLogin = async () => {
+    const baseUrl = normalizeBaseUrl(syncBaseUrl);
+    const email = String(syncEmail || "").trim();
+    const password = String(syncPassword || "");
+
+    if (!baseUrl) {
+      showAlert({
+        title: "Falta Base URL",
+        message: "Configura la Base URL antes de iniciar sesión",
+        type: "error",
+      });
+      return;
+    }
+
+    if (!email || !password) {
+      showAlert({
+        title: "Faltan datos",
+        message: "Ingresa email y contraseña",
+        type: "error",
+      });
+      return;
+    }
+
+    try {
+      setIsLoggingIn(true);
+      const api = createApiClient({ baseUrl, token: null });
+      const resp = await api.post("/api/auth/login", { email, password });
+      const token = resp?.data?.data?.token;
+
+      if (!token) {
+        throw new Error("Login sin token en la respuesta");
+      }
+
+      setSyncToken(token);
+      setSyncPassword("");
+      await persistSyncSettings({ baseUrl, token, email });
+
+      showAlert({
+        title: "Sesión iniciada",
+        message: "Token guardado. Ya puedes sincronizar.",
+        type: "success",
+      });
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "No pudimos iniciar sesión";
+      console.error("Login error:", error);
+      showAlert({
+        title: "Login falló",
+        message,
+        type: "error",
+      });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    const baseUrl = normalizeBaseUrl(syncBaseUrl);
+    const token = String(syncToken || "").trim();
+    const email = String(syncEmail || "").trim();
+
+    if (!baseUrl) {
+      showAlert({
+        title: "Falta Base URL",
+        message: "Configura la Base URL antes de sincronizar",
+        type: "error",
+      });
+      return;
+    }
+
+    if (!token) {
+      showAlert({
+        title: "Falta Token",
+        message: "Pega tu JWT (sin 'Bearer') para poder sincronizar",
+        type: "error",
+      });
+      return;
+    }
+
+    try {
+      setIsSyncing(true);
+      await persistSyncSettings({ baseUrl, token, email });
+
+      const bootstrap = await bootstrapOutboxIfNeeded();
+
+      const result = await syncNow({ baseUrl, token });
+      const pushed = result?.push;
+      const pulled = result?.pull;
+
+      const bootstrapMsg = bootstrap?.bootstrapped
+        ? ` Bootstrap: +${bootstrap.productsEnqueued || 0} prod, +$${
+            bootstrap.customersEnqueued || 0
+          } cli, +${bootstrap.salesEnqueued || 0} ventas.`
+        : "";
+
+      showAlert({
+        title: "Sync completado",
+        message: `Push: ${pushed?.sent || 0} enviados, ${
+          pushed?.rejected || 0
+        } rechazados. Pull: +${pulled?.productsInserted || 0} productos, +${
+          pulled?.customersInserted || 0
+        } clientes, +${pulled?.salesInserted || 0} ventas.${bootstrapMsg}`,
+        type: "success",
+      });
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Error de sincronización";
+      console.error("Sync error:", error);
+      showAlert({
+        title: "Sync falló",
+        message,
+        type: "error",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const startEditing = (section) => {
     if (section === "inventory") {
@@ -225,6 +437,118 @@ export const SettingsScreen = () => {
               </TouchableOpacity>
               <TouchableOpacity style={styles.secondaryButton}>
                 <Text style={styles.secondaryButtonText}>Importar datos</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.formCard}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardIcon}>
+                <Text style={styles.cardIconText}>🔄</Text>
+              </View>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>Sincronización</Text>
+                <Text style={styles.cardSubtitle}>
+                  Enviar/recibir cambios con el servidor
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.cardContent}>
+              <Text style={styles.inputLabel}>Base URL</Text>
+              <TextInput
+                style={styles.input}
+                value={syncBaseUrl}
+                onChangeText={setSyncBaseUrl}
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder="http://192.168.1.3:3002"
+              />
+
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={syncEmail}
+                onChangeText={setSyncEmail}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                placeholder="tu@email.com"
+              />
+
+              <Text style={styles.inputLabel}>Contraseña</Text>
+              <TextInput
+                style={[styles.input, styles.tokenInput]}
+                value={syncPassword}
+                onChangeText={setSyncPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+                placeholder="••••••••"
+              />
+
+              <Text style={styles.inputLabel}>Token (JWT)</Text>
+              <TextInput
+                style={[styles.input, styles.tokenInput]}
+                value={syncToken}
+                onChangeText={setSyncToken}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+                placeholder="Pega aquí tu JWT"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.secondaryButton,
+                (isLoggingIn || isSyncing) && styles.buttonDisabled,
+              ]}
+              onPress={handleLogin}
+              disabled={isLoggingIn || isSyncing}
+              activeOpacity={0.85}
+            >
+              {isLoggingIn ? (
+                <ActivityIndicator color="#2f5ae0" />
+              ) : (
+                <Text style={styles.secondaryButtonText}>Iniciar sesión</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.quickActions}>
+              <TouchableOpacity
+                style={[
+                  styles.secondaryButton,
+                  (savingSection === "sync" || isSyncing) &&
+                    styles.buttonDisabled,
+                ]}
+                onPress={handleSaveSync}
+                disabled={savingSection === "sync" || isSyncing}
+                activeOpacity={0.85}
+              >
+                {savingSection === "sync" ? (
+                  <ActivityIndicator color="#2f5ae0" />
+                ) : (
+                  <Text style={styles.secondaryButtonText}>Guardar</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  isSyncing && styles.buttonDisabled,
+                ]}
+                onPress={handleSyncNow}
+                disabled={isSyncing}
+                activeOpacity={0.85}
+              >
+                {isSyncing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>
+                    Sincronizar ahora
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -568,6 +892,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#6f7c8c",
+  },
+  tokenInput: {
+    paddingRight: 16,
   },
 });
 

@@ -23,7 +23,17 @@ export const getPendingOutboxEvents = async (limit = 50) => {
     `SELECT id, eventId, type, entityId, payload, attempts, createdAt
      FROM outbox_events
      WHERE status = 'pending'
-     ORDER BY id ASC
+     ORDER BY
+       CASE type
+         WHEN 'product.upserted' THEN 10
+         WHEN 'customer.upserted' THEN 20
+         WHEN 'setting.upserted' THEN 30
+         WHEN 'exchange_rate.created' THEN 40
+         WHEN 'sale.created' THEN 80
+         WHEN 'sale.cancelled' THEN 90
+         ELSE 999
+       END ASC,
+       id ASC
      LIMIT ?;`,
     [limit]
   );

@@ -315,17 +315,13 @@ const runMigrations = async () => {
 
     if (!hasSaleItemCreatedAt) {
       console.log("Adding createdAt column to sale_items table...");
-      await db.runAsync(
-        "ALTER TABLE sale_items ADD COLUMN createdAt TEXT DEFAULT CURRENT_TIMESTAMP"
-      );
+      await db.runAsync("ALTER TABLE sale_items ADD COLUMN createdAt TEXT");
       console.log("createdAt column added successfully");
     }
 
     if (!hasSaleItemUpdatedAt) {
       console.log("Adding updatedAt column to sale_items table...");
-      await db.runAsync(
-        "ALTER TABLE sale_items ADD COLUMN updatedAt TEXT DEFAULT CURRENT_TIMESTAMP"
-      );
+      await db.runAsync("ALTER TABLE sale_items ADD COLUMN updatedAt TEXT");
       console.log("updatedAt column added successfully");
     }
     if (!hasSaleItemPriceUSD) {

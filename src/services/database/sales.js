@@ -77,10 +77,12 @@ export const insertSale = async (sale, items) => {
     let customerUuid = null;
     if (sale.customerId) {
       const customerRow = await db.getFirstAsync(
-        "SELECT uuid FROM customers WHERE id = ?;",
+        "SELECT uuid, documentNumber FROM customers WHERE id = ?;",
         [sale.customerId]
       );
-      customerUuid = customerRow?.uuid || null;
+      if (String(customerRow?.documentNumber || "") !== "1") {
+        customerUuid = customerRow?.uuid || null;
+      }
     }
 
     // Pre-cargar uuids de productos para items (productId INTEGER local -> products.uuid)

@@ -28,6 +28,18 @@ const upsertProduct = async (product) => {
     updatedAt: product.updatedAt || new Date().toISOString(),
   };
 
+  // SQLite en el cliente tiene barcode UNIQUE. Si el servidor envía un barcode
+  // que ya está asignado a otro UUID local, evitamos romper el pull.
+  if (values.barcode) {
+    const conflict = await db.getFirstAsync(
+      "SELECT uuid FROM products WHERE barcode = ? AND uuid != ? LIMIT 1;",
+      [values.barcode, values.uuid]
+    );
+    if (conflict?.uuid) {
+      values.barcode = null;
+    }
+  }
+
   if (existing?.id) {
     await db.runAsync(
       `UPDATE products

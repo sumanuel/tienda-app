@@ -129,6 +129,12 @@ const getDefaultSettings = () => ({
     type: "thermal",
     paperWidth: 58,
   },
+  sync: {
+    baseUrl: "",
+    token: "",
+    email: "",
+    bootstrapDone: false,
+  },
 });
 
 /**
