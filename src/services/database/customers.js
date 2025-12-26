@@ -2,8 +2,7 @@ import { db } from "./db";
 import { generateUuidV4 } from "./uuid";
 import { enqueueOutboxEvent } from "./outbox";
 
-const isGenericCustomerRow = (row) =>
-  String(row?.documentNumber || "") === "1";
+const isGenericCustomerRow = (row) => String(row?.documentNumber || "") === "1";
 
 const toServerCustomerPayload = (row) => ({
   id: row.uuid,

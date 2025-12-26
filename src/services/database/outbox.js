@@ -1,7 +1,11 @@
 import { db } from "./db";
 import { generateUuidV4 } from "./uuid";
 
-export const enqueueOutboxEvent = async ({ type, entityId = null, payload }) => {
+export const enqueueOutboxEvent = async ({
+  type,
+  entityId = null,
+  payload,
+}) => {
   const eventId = generateUuidV4();
   const payloadJson = JSON.stringify(payload ?? {});
 
@@ -71,7 +75,11 @@ export const bumpOutboxAttempt = async (eventId, errorMessage = null) => {
          lastAttemptAt = ?,
          lastError = ?
      WHERE eventId = ?;`,
-    [new Date().toISOString(), errorMessage ? String(errorMessage) : null, eventId]
+    [
+      new Date().toISOString(),
+      errorMessage ? String(errorMessage) : null,
+      eventId,
+    ]
   );
 };
 

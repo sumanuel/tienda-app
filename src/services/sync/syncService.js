@@ -6,7 +6,11 @@ import {
 } from "../database/outbox";
 import { createApiClient } from "./apiClient";
 import { applyPullData } from "./applyPull";
-import { getLastPullSince, getOrCreateDeviceId, setLastPullSince } from "./syncState";
+import {
+  getLastPullSince,
+  getOrCreateDeviceId,
+  setLastPullSince,
+} from "./syncState";
 
 export const pushOutbox = async ({ baseUrl, token, limit = 50 }) => {
   const deviceId = await getOrCreateDeviceId();

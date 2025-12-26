@@ -371,7 +371,14 @@ export const initSampleProducts = async () => {
         const uuid = generateUuidV4();
         await db.runAsync(
           "INSERT INTO products (uuid, name, priceUSD, category, stock, active) VALUES (?, ?, ?, ?, ?, ?);",
-          [uuid, product.name, product.priceUSD, product.category, product.stock, 1]
+          [
+            uuid,
+            product.name,
+            product.priceUSD,
+            product.category,
+            product.stock,
+            1,
+          ]
         );
       }
     });

@@ -152,9 +152,10 @@ const upsertCustomer = async (customer) => {
 const upsertSale = async (sale) => {
   if (!sale?.id) return { inserted: 0, updated: 0 };
 
-  const existing = await db.getFirstAsync("SELECT id FROM sales WHERE uuid = ?;", [
-    sale.id,
-  ]);
+  const existing = await db.getFirstAsync(
+    "SELECT id FROM sales WHERE uuid = ?;",
+    [sale.id]
+  );
 
   let customerIdLocal = null;
   if (sale.customerId) {
@@ -267,7 +268,8 @@ const upsertSaleItem = async (saleItem) => {
     quantity: saleItem.quantity ?? 0,
     price: saleItem.price ?? 0,
     priceUSD: saleItem.priceUSD ?? 0,
-    subtotal: saleItem.subtotal ?? (saleItem.quantity ?? 0) * (saleItem.price ?? 0),
+    subtotal:
+      saleItem.subtotal ?? (saleItem.quantity ?? 0) * (saleItem.price ?? 0),
     createdAt: saleItem.createdAt || new Date().toISOString(),
     updatedAt: saleItem.updatedAt || new Date().toISOString(),
   };
