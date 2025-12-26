@@ -8,13 +8,14 @@ import {
   TextInput,
   SafeAreaView,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { getSettings, saveSettings } from "../../services/database/settings";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 export const BusinessSettingsScreen = () => {
   const navigation = useNavigation();
+  const { showAlert, CustomAlert } = useCustomAlert();
   const [isLoading, setIsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -41,7 +42,11 @@ export const BusinessSettingsScreen = () => {
         setBusiness(businessInfo);
       } catch (error) {
         console.error("Error loading business data:", error);
-        Alert.alert("Error", "No pudimos cargar los datos del negocio");
+        showAlert({
+          title: "Error",
+          message: "No pudimos cargar los datos del negocio",
+          type: "error",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -53,7 +58,11 @@ export const BusinessSettingsScreen = () => {
   const handleSave = async () => {
     // Validar campos requeridos
     if (!business.name.trim()) {
-      Alert.alert("Campo requerido", "El nombre del negocio es obligatorio");
+      showAlert({
+        title: "Campo requerido",
+        message: "El nombre del negocio es obligatorio",
+        type: "error",
+      });
       return;
     }
 
@@ -65,15 +74,24 @@ export const BusinessSettingsScreen = () => {
         business,
       };
       await saveSettings(updatedSettings);
-      Alert.alert("Éxito", "Datos del negocio actualizados correctamente", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      showAlert({
+        title: "Éxito",
+        message: "Datos del negocio actualizados correctamente",
+        type: "success",
+        buttons: [
+          {
+            text: "OK",
+            onPress: () => navigation.goBack(),
+          },
+        ],
+      });
     } catch (error) {
       console.error("Error saving business data:", error);
-      Alert.alert("Error", "No se pudieron guardar los cambios");
+      showAlert({
+        title: "Error",
+        message: "No se pudieron guardar los cambios",
+        type: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -194,6 +212,7 @@ export const BusinessSettingsScreen = () => {
           </View>
         </View>
       </ScrollView>
+      <CustomAlert />
     </SafeAreaView>
   );
 };
