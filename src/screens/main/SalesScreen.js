@@ -15,6 +15,7 @@ import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 /**
  * Historial de ventas con estética de dashboard
@@ -32,6 +33,7 @@ export const SalesScreen = () => {
   } = useSales();
 
   const { rate } = useExchangeRateContext();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const exchangeRate = Number(rate) || 0;
 
@@ -103,25 +105,33 @@ export const SalesScreen = () => {
   };
 
   const handleCancelSale = (sale) => {
-    Alert.alert(
-      "Anular venta",
-      `¿Anular la venta #${sale.id}? Esta acción no se puede deshacer.`,
-      [
+    showAlert({
+      title: "Anular venta",
+      message: `¿Anular la venta #${sale.id}? Esta acción no se puede deshacer.`,
+      type: "warning",
+      buttons: [
         { text: "Cancelar", style: "cancel" },
         {
           text: "Anular",
-          style: "destructive",
           onPress: async () => {
             try {
               await cancelSale(sale.id);
-              Alert.alert("Éxito", "Venta anulada correctamente");
+              showAlert({
+                title: "Éxito",
+                message: "Venta anulada correctamente",
+                type: "success",
+              });
             } catch (error) {
-              Alert.alert("Error", "No se pudo anular la venta");
+              showAlert({
+                title: "Error",
+                message: "No se pudo anular la venta",
+                type: "error",
+              });
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleQuickRange = (type) => {
@@ -417,6 +427,7 @@ export const SalesScreen = () => {
           </View>
         }
       />
+      <CustomAlert />
     </SafeAreaView>
   );
 };

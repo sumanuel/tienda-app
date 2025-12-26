@@ -13,6 +13,7 @@ import {
 import { useProducts } from "../../hooks/useProducts";
 import { useExchangeRate } from "../../hooks/useExchangeRate";
 import { getSettings } from "../../services/database/settings";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 /**
  * Pantalla para agregar nuevo producto
@@ -20,6 +21,7 @@ import { getSettings } from "../../services/database/settings";
 export const AddProductScreen = ({ navigation }) => {
   const { addProduct } = useProducts();
   const { rate: exchangeRate } = useExchangeRate();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const [settings, setSettings] = useState({});
   const [cost, setCost] = useState("");
@@ -119,25 +121,39 @@ export const AddProductScreen = ({ navigation }) => {
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
-      Alert.alert("Error", "El nombre del producto es obligatorio");
+      showAlert({
+        title: "Error",
+        message: "El nombre del producto es obligatorio",
+        type: "error",
+      });
       return;
     }
 
     if (!cost || Number.isNaN(parseFloat(cost))) {
-      Alert.alert("Error", "El costo del producto debe ser un número válido");
+      showAlert({
+        title: "Error",
+        message: "El costo del producto debe ser un número válido",
+        type: "error",
+      });
       return;
     }
 
     if (!calculatedPrices.usd || !calculatedPrices.ves) {
-      Alert.alert(
-        "Error",
-        "No se pudieron calcular los precios. Revisa la configuración de tasas"
-      );
+      showAlert({
+        title: "Error",
+        message:
+          "No se pudieron calcular los precios. Revisa la configuración de tasas",
+        type: "error",
+      });
       return;
     }
 
     if (!formData.stock || Number.isNaN(parseInt(formData.stock, 10))) {
-      Alert.alert("Error", "El stock debe ser un número válido");
+      showAlert({
+        title: "Error",
+        message: "El stock debe ser un número válido",
+        type: "error",
+      });
       return;
     }
 
@@ -156,12 +172,19 @@ export const AddProductScreen = ({ navigation }) => {
 
       await addProduct(productData);
 
-      Alert.alert("Éxito", "Producto agregado correctamente", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      showAlert({
+        title: "Éxito",
+        message: "Producto agregado correctamente",
+        type: "success",
+        buttons: [{ text: "OK", onPress: () => navigation.goBack() }],
+      });
     } catch (error) {
       console.error("Error adding product:", error);
-      Alert.alert("Error", "No se pudo agregar el producto");
+      showAlert({
+        title: "Error",
+        message: "No se pudo agregar el producto",
+        type: "error",
+      });
     }
   };
 
@@ -418,6 +441,7 @@ export const AddProductScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <CustomAlert />
     </KeyboardAvoidingView>
   );
 };

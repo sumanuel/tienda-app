@@ -20,6 +20,7 @@ import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import { updateProductStock } from "../../services/database/products";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -37,6 +38,7 @@ export const POSScreen = ({ navigation }) => {
   const { addAccountReceivable } = useAccounts();
   const { getCustomerByDocument, ensureGenericCustomer, addCustomer } =
     useCustomers();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
@@ -150,14 +152,11 @@ export const POSScreen = ({ navigation }) => {
 
     // Mostrar feedback visual solo si se solicita
     if (showAlert) {
-      Alert.alert(
-        "✓",
-        `${product.name} agregado al carrito`,
-        [{ text: "OK" }],
-        {
-          cancelable: true,
-        }
-      );
+      showAlert({
+        title: "✓",
+        message: `${product.name} agregado al carrito`,
+        type: "success",
+      });
     }
   };
 
@@ -167,10 +166,11 @@ export const POSScreen = ({ navigation }) => {
   const openQRScanner = async () => {
     const { status } = await requestPermission();
     if (status !== "granted") {
-      Alert.alert(
-        "Permiso denegado",
-        "Se necesita permiso para acceder a la cámara."
-      );
+      showAlert({
+        title: "Permiso denegado",
+        message: "Se necesita permiso para acceder a la cámara.",
+        type: "error",
+      });
       return;
     }
     setScanning(true);
@@ -185,7 +185,11 @@ export const POSScreen = ({ navigation }) => {
     if (product) {
       addToCart(product, { showAlert: false });
     } else {
-      Alert.alert("Producto no encontrado", `Código: ${data}`);
+      showAlert({
+        title: "Producto no encontrado",
+        message: `Código: ${data}`,
+        type: "warning",
+      });
     }
   };
 
@@ -391,10 +395,18 @@ export const POSScreen = ({ navigation }) => {
             )}\nCliente: ${customerName}\n\n✅ Cuenta por cobrar creada automáticamente`
           : `Total: VES. ${total.toFixed(2)}\nCliente: ${customerName}`;
 
-      Alert.alert("✓ Venta completada", confirmationMessage);
+      showAlert({
+        title: "✓ Venta completada",
+        message: confirmationMessage,
+        type: "success",
+      });
     } catch (error) {
       console.error("Error completing sale:", error);
-      Alert.alert("Error", "No se pudo completar la venta");
+      showAlert({
+        title: "Error",
+        message: "No se pudo completar la venta",
+        type: "error",
+      });
     }
   };
 
@@ -495,10 +507,18 @@ export const POSScreen = ({ navigation }) => {
               2
             )}\nCliente: ${newCustomerName.trim()}\n\n✅ Cliente creado exitosamente`;
 
-      Alert.alert("✓ Venta completada", confirmationMessage);
+      showAlert({
+        title: "✓ Venta completada",
+        message: confirmationMessage,
+        type: "success",
+      });
     } catch (error) {
       console.error("Error creating customer and completing sale:", error);
-      Alert.alert("Error", "No se pudo crear el cliente y completar la venta");
+      showAlert({
+        title: "Error",
+        message: "No se pudo crear el cliente y completar la venta",
+        type: "error",
+      });
     } finally {
       setProcessingSale(false);
     }
@@ -997,6 +1017,7 @@ export const POSScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
+      <CustomAlert />
     </SafeAreaView>
   );
 };

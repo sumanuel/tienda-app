@@ -12,12 +12,14 @@ import {
   SafeAreaView,
 } from "react-native";
 import { useCustomers } from "../../hooks/useCustomers";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 /**
  * Pantalla para agregar nuevo cliente
  */
 export const AddCustomerScreen = ({ navigation }) => {
   const { addCustomer } = useCustomers();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const [formData, setFormData] = useState({
     documentNumber: "",
@@ -29,21 +31,36 @@ export const AddCustomerScreen = ({ navigation }) => {
 
   const handleSave = async () => {
     if (!formData.documentNumber.trim()) {
-      Alert.alert("Error", "La cédula del cliente es obligatoria");
+      showAlert({
+        title: "Error",
+        message: "La cédula del cliente es obligatoria",
+        type: "error",
+      });
       return;
     }
     if (!formData.name.trim()) {
-      Alert.alert("Error", "El nombre del cliente es obligatorio");
+      showAlert({
+        title: "Error",
+        message: "El nombre del cliente es obligatorio",
+        type: "error",
+      });
       return;
     }
 
     try {
       await addCustomer(formData);
-      Alert.alert("Éxito", "Cliente agregado correctamente", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      showAlert({
+        title: "Éxito",
+        message: "Cliente agregado correctamente",
+        type: "success",
+        buttons: [{ text: "OK", onPress: () => navigation.goBack() }],
+      });
     } catch (error) {
-      Alert.alert("Error", "No se pudo guardar el cliente");
+      showAlert({
+        title: "Error",
+        message: "No se pudo guardar el cliente",
+        type: "error",
+      });
     }
   };
 
@@ -183,6 +200,7 @@ export const AddCustomerScreen = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <CustomAlert />
     </SafeAreaView>
   );
 };

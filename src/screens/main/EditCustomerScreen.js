@@ -12,6 +12,7 @@ import {
   SafeAreaView,
 } from "react-native";
 import { useCustomers } from "../../hooks/useCustomers";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 /**
  * Pantalla para editar cliente existente
@@ -19,6 +20,7 @@ import { useCustomers } from "../../hooks/useCustomers";
 export const EditCustomerScreen = ({ navigation, route }) => {
   const { editCustomer } = useCustomers();
   const { customer } = route.params;
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const [formData, setFormData] = useState({
     documentNumber: "",
@@ -42,21 +44,36 @@ export const EditCustomerScreen = ({ navigation, route }) => {
 
   const handleSave = async () => {
     if (!formData.documentNumber.trim()) {
-      Alert.alert("Error", "La cédula del cliente es obligatoria");
+      showAlert({
+        title: "Error",
+        message: "La cédula del cliente es obligatoria",
+        type: "error",
+      });
       return;
     }
     if (!formData.name.trim()) {
-      Alert.alert("Error", "El nombre del cliente es obligatorio");
+      showAlert({
+        title: "Error",
+        message: "El nombre del cliente es obligatorio",
+        type: "error",
+      });
       return;
     }
 
     try {
       await editCustomer(customer.id, formData);
-      Alert.alert("Éxito", "Cliente actualizado correctamente", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      showAlert({
+        title: "Éxito",
+        message: "Cliente actualizado correctamente",
+        type: "success",
+        buttons: [{ text: "OK", onPress: () => navigation.goBack() }],
+      });
     } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar el cliente");
+      showAlert({
+        title: "Error",
+        message: "No se pudo actualizar el cliente",
+        type: "error",
+      });
     }
   };
 
@@ -196,6 +213,7 @@ export const EditCustomerScreen = ({ navigation, route }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <CustomAlert />
     </SafeAreaView>
   );
 };
