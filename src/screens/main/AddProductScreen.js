@@ -201,32 +201,33 @@ export const AddProductScreen = ({ navigation }) => {
   }, [calculatedPrices, exchangeRate]);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 80}
-    >
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.flex}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 80}
       >
-        <View style={styles.heroCard}>
-          <View style={styles.heroIcon}>
-            <Text style={styles.heroIconText}>🛒</Text>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.flex}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.heroCard}>
+            <View style={styles.heroIcon}>
+              <Text style={styles.heroIconText}>🛒</Text>
+            </View>
+            <View style={styles.heroTextContainer}>
+              <Text style={styles.heroTitle}>Nuevo producto</Text>
+              <Text style={styles.heroSubtitle}>
+                Calculamos automáticamente el precio sugerido según el margen
+                configurado.
+              </Text>
+            </View>
           </View>
-          <View style={styles.heroTextContainer}>
-            <Text style={styles.heroTitle}>Nuevo producto</Text>
-            <Text style={styles.heroSubtitle}>
-              Calculamos automáticamente el precio sugerido según el margen
-              configurado.
-            </Text>
-          </View>
-        </View>
 
-        {/* <View style={styles.summaryCard}>
+          {/* <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Precio sugerido (USD)</Text>
@@ -251,198 +252,204 @@ export const AddProductScreen = ({ navigation }) => {
           </Text>
         </View> */}
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Detalles del producto</Text>
-          <Text style={styles.sectionHint}>
-            Esta información se mostrará en el catálogo y comprobantes de venta.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Nombre *</Text>
-            <TextInput
-              ref={nameRef}
-              style={styles.input}
-              placeholder="Ingresa el nombre del producto"
-              placeholderTextColor="#9aa2b1"
-              value={formData.name}
-              onChangeText={(value) => handleInputChange("name", value)}
-              returnKeyType="next"
-              onFocus={() => scrollToField(nameRef)}
-              onSubmitEditing={() => categoryRef.current?.focus()}
-            />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Detalles del producto</Text>
+            <Text style={styles.sectionHint}>
+              Esta información se mostrará en el catálogo y comprobantes de
+              venta.
+            </Text>
           </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Categoría</Text>
-            <TextInput
-              ref={categoryRef}
-              style={styles.input}
-              placeholder="Ej: Bebidas, Hogar, Limpieza"
-              placeholderTextColor="#9aa2b1"
-              value={formData.category}
-              onChangeText={(value) => handleInputChange("category", value)}
-              returnKeyType="next"
-              onFocus={() => scrollToField(categoryRef)}
-              onSubmitEditing={() => descriptionRef.current?.focus()}
-            />
+          <View style={styles.card}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Nombre *</Text>
+              <TextInput
+                ref={nameRef}
+                style={styles.input}
+                placeholder="Ingresa el nombre del producto"
+                placeholderTextColor="#9aa2b1"
+                value={formData.name}
+                onChangeText={(value) => handleInputChange("name", value)}
+                returnKeyType="next"
+                onFocus={() => scrollToField(nameRef)}
+                onSubmitEditing={() => categoryRef.current?.focus()}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Categoría</Text>
+              <TextInput
+                ref={categoryRef}
+                style={styles.input}
+                placeholder="Ej: Bebidas, Hogar, Limpieza"
+                placeholderTextColor="#9aa2b1"
+                value={formData.category}
+                onChangeText={(value) => handleInputChange("category", value)}
+                returnKeyType="next"
+                onFocus={() => scrollToField(categoryRef)}
+                onSubmitEditing={() => descriptionRef.current?.focus()}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Descripción</Text>
+              <TextInput
+                ref={descriptionRef}
+                style={[styles.input, styles.textArea]}
+                placeholder="Características, presentación o notas internas"
+                placeholderTextColor="#9aa2b1"
+                value={formData.description}
+                onChangeText={(value) =>
+                  handleInputChange("description", value)
+                }
+                multiline
+                numberOfLines={4}
+                onFocus={() => scrollToField(descriptionRef)}
+              />
+            </View>
           </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Descripción</Text>
-            <TextInput
-              ref={descriptionRef}
-              style={[styles.input, styles.textArea]}
-              placeholder="Características, presentación o notas internas"
-              placeholderTextColor="#9aa2b1"
-              value={formData.description}
-              onChangeText={(value) => handleInputChange("description", value)}
-              multiline
-              numberOfLines={4}
-              onFocus={() => scrollToField(descriptionRef)}
-            />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Precio y margen</Text>
+            <Text style={styles.sectionHint}>
+              Ajusta el costo base y el margen para definir el precio sugerido.
+            </Text>
           </View>
-        </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Precio y margen</Text>
-          <Text style={styles.sectionHint}>
-            Ajusta el costo base y el margen para definir el precio sugerido.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.currencySwitch}>
-            {[
-              { code: "USD", label: "Costo en USD" },
-              { code: "Bs", label: "Costo en Bs" },
-            ].map((option) => {
-              const active = costCurrency === option.code;
-              return (
-                <TouchableOpacity
-                  key={option.code}
-                  style={[
-                    styles.currencyChip,
-                    active ? styles.currencyChipActive : null,
-                  ]}
-                  onPress={() => setCostCurrency(option.code)}
-                  activeOpacity={0.85}
-                >
-                  <Text
+          <View style={styles.card}>
+            <View style={styles.currencySwitch}>
+              {[
+                { code: "USD", label: "Costo en USD" },
+                { code: "Bs", label: "Costo en Bs" },
+              ].map((option) => {
+                const active = costCurrency === option.code;
+                return (
+                  <TouchableOpacity
+                    key={option.code}
                     style={[
-                      styles.currencyChipText,
-                      active ? styles.currencyChipTextActive : null,
+                      styles.currencyChip,
+                      active ? styles.currencyChipActive : null,
                     ]}
+                    onPress={() => setCostCurrency(option.code)}
+                    activeOpacity={0.85}
                   >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Costo *</Text>
-            <TextInput
-              ref={costRef}
-              style={styles.input}
-              placeholder="0.00"
-              placeholderTextColor="#9aa2b1"
-              value={cost}
-              onChangeText={setCost}
-              keyboardType="decimal-pad"
-              returnKeyType="next"
-              onFocus={() => scrollToField(costRef)}
-              onSubmitEditing={() => marginRef.current?.focus()}
-            />
-          </View>
-
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Margen (%)</Text>
-            <TextInput
-              ref={marginRef}
-              style={styles.input}
-              placeholder="30"
-              placeholderTextColor="#9aa2b1"
-              value={String(margin)}
-              onChangeText={(value) => setMargin(Number(value) || 0)}
-              keyboardType="numeric"
-              returnKeyType="done"
-              onFocus={() => scrollToField(marginRef)}
-              onSubmitEditing={() => stockRef.current?.focus()}
-            />
-          </View>
-
-          <View style={styles.priceGrid}>
-            <View style={styles.priceCard}>
-              <Text style={styles.priceLabel}>USD</Text>
-              <Text style={styles.priceValue}>
-                {calculatedPrices.usd ? `$${calculatedPrices.usd}` : "—"}
-              </Text>
-              <Text style={styles.priceHint}>Incluye margen aplicado</Text>
+                    <Text
+                      style={[
+                        styles.currencyChipText,
+                        active ? styles.currencyChipTextActive : null,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-            <View style={styles.priceCard}>
-              <Text style={styles.priceLabel}>Bs</Text>
-              <Text style={styles.priceValue}>
-                {calculatedPrices.ves ? `Bs ${calculatedPrices.ves}` : "—"}
-              </Text>
-              <Text style={styles.priceHint}>Conversión con tasa vigente</Text>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Costo *</Text>
+              <TextInput
+                ref={costRef}
+                style={styles.input}
+                placeholder="0.00"
+                placeholderTextColor="#9aa2b1"
+                value={cost}
+                onChangeText={setCost}
+                keyboardType="decimal-pad"
+                returnKeyType="next"
+                onFocus={() => scrollToField(costRef)}
+                onSubmitEditing={() => marginRef.current?.focus()}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Margen (%)</Text>
+              <TextInput
+                ref={marginRef}
+                style={styles.input}
+                placeholder="30"
+                placeholderTextColor="#9aa2b1"
+                value={String(margin)}
+                onChangeText={(value) => setMargin(Number(value) || 0)}
+                keyboardType="numeric"
+                returnKeyType="done"
+                onFocus={() => scrollToField(marginRef)}
+                onSubmitEditing={() => stockRef.current?.focus()}
+              />
+            </View>
+
+            <View style={styles.priceGrid}>
+              <View style={styles.priceCard}>
+                <Text style={styles.priceLabel}>USD</Text>
+                <Text style={styles.priceValue}>
+                  {calculatedPrices.usd ? `$${calculatedPrices.usd}` : "—"}
+                </Text>
+                <Text style={styles.priceHint}>Incluye margen aplicado</Text>
+              </View>
+              <View style={styles.priceCard}>
+                <Text style={styles.priceLabel}>Bs</Text>
+                <Text style={styles.priceValue}>
+                  {calculatedPrices.ves ? `Bs ${calculatedPrices.ves}` : "—"}
+                </Text>
+                <Text style={styles.priceHint}>
+                  Conversión con tasa vigente
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Inventario inicial</Text>
-          <Text style={styles.sectionHint}>
-            Define cuántas unidades ya tienes en stock para iniciar los
-            controles.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Cantidad *</Text>
-            <TextInput
-              ref={stockRef}
-              style={styles.input}
-              placeholder="0"
-              placeholderTextColor="#9aa2b1"
-              value={formData.stock}
-              onChangeText={(value) => handleInputChange("stock", value)}
-              keyboardType="numeric"
-              returnKeyType="done"
-              onFocus={() => scrollToField(stockRef)}
-              onSubmitEditing={handleSubmit}
-            />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Inventario inicial</Text>
+            <Text style={styles.sectionHint}>
+              Define cuántas unidades ya tienes en stock para iniciar los
+              controles.
+            </Text>
           </View>
 
-          <Text style={styles.helperText}>
-            Puedes ajustar el stock y margen luego desde la pantalla de edición
-            del producto.
-          </Text>
-        </View>
+          <View style={styles.card}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Cantidad *</Text>
+              <TextInput
+                ref={stockRef}
+                style={styles.input}
+                placeholder="0"
+                placeholderTextColor="#9aa2b1"
+                value={formData.stock}
+                onChangeText={(value) => handleInputChange("stock", value)}
+                keyboardType="numeric"
+                returnKeyType="done"
+                onFocus={() => scrollToField(stockRef)}
+                onSubmitEditing={handleSubmit}
+              />
+            </View>
 
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.secondaryButton]}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.secondaryButtonText}>Cancelar</Text>
-          </TouchableOpacity>
+            <Text style={styles.helperText}>
+              Puedes ajustar el stock y margen luego desde la pantalla de
+              edición del producto.
+            </Text>
+          </View>
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.primaryButton]}
-            onPress={handleSubmit}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.primaryButtonText}>Guardar producto</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.secondaryButton]}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.secondaryButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.primaryButton]}
+              onPress={handleSubmit}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.primaryButtonText}>Guardar producto</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
       <CustomAlert />
-    </KeyboardAvoidingView>
+    </>
   );
 };
 

@@ -12,12 +12,14 @@ import {
   SafeAreaView,
 } from "react-native";
 import { useSuppliers } from "../../hooks/useSuppliers";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 /**
  * Pantalla para agregar nuevo proveedor
  */
 export const AddSupplierScreen = ({ navigation }) => {
   const { addSupplier } = useSuppliers();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const [formData, setFormData] = useState({
     documentNumber: "",
@@ -31,21 +33,36 @@ export const AddSupplierScreen = ({ navigation }) => {
 
   const handleSave = async () => {
     if (!formData.documentNumber.trim()) {
-      Alert.alert("Error", "El RIF/Cédula del proveedor es obligatorio");
+      showAlert({
+        title: "Error",
+        message: "El RIF/Cédula del proveedor es obligatorio",
+        type: "error",
+      });
       return;
     }
     if (!formData.name.trim()) {
-      Alert.alert("Error", "El nombre del proveedor es obligatorio");
+      showAlert({
+        title: "Error",
+        message: "El nombre del proveedor es obligatorio",
+        type: "error",
+      });
       return;
     }
 
     try {
       await addSupplier(formData);
-      Alert.alert("Éxito", "Proveedor agregado correctamente", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      showAlert({
+        title: "Éxito",
+        message: "Proveedor agregado correctamente",
+        type: "success",
+        buttons: [{ text: "OK", onPress: () => navigation.goBack() }],
+      });
     } catch (error) {
-      Alert.alert("Error", "No se pudo guardar el proveedor");
+      showAlert({
+        title: "Error",
+        message: "No se pudo guardar el proveedor",
+        type: "error",
+      });
     }
   };
 
@@ -54,171 +71,179 @@ export const AddSupplierScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-      >
-        <ScrollView
+    <>
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
           style={styles.flex}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         >
-          <View style={styles.heroCard}>
-            <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>🏭</Text>
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.heroCard}>
+              <View style={styles.heroIcon}>
+                <Text style={styles.heroIconText}>🏭</Text>
+              </View>
+              <View style={styles.heroTextContainer}>
+                <Text style={styles.heroTitle}>Nuevo proveedor</Text>
+                <Text style={styles.heroSubtitle}>
+                  Registra tus aliados comerciales con los datos necesarios para
+                  compras ágiles.
+                </Text>
+              </View>
             </View>
-            <View style={styles.heroTextContainer}>
-              <Text style={styles.heroTitle}>Nuevo proveedor</Text>
-              <Text style={styles.heroSubtitle}>
-                Registra tus aliados comerciales con los datos necesarios para
-                compras ágiles.
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Identidad del proveedor</Text>
+              <Text style={styles.sectionHint}>
+                Nombre y documento permitirán vincular facturas y cuentas por
+                pagar.
               </Text>
             </View>
-          </View>
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Identidad del proveedor</Text>
-            <Text style={styles.sectionHint}>
-              Nombre y documento permitirán vincular facturas y cuentas por
-              pagar.
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>RIF/Cédula *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="J123456789"
-                placeholderTextColor="#9aa2b1"
-                value={formData.documentNumber}
-                onChangeText={(value) =>
-                  updateFormData("documentNumber", value)
-                }
-                autoCapitalize="characters"
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Razón social *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre de la empresa"
-                placeholderTextColor="#9aa2b1"
-                value={formData.name}
-                onChangeText={(value) => updateFormData("name", value)}
-              />
-            </View>
-          </View>
-
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Contacto directo</Text>
-            <Text style={styles.sectionHint}>
-              Asegúrate de tener un responsable para coordinar entregas y pagos.
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Persona de contacto</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre del responsable"
-                placeholderTextColor="#9aa2b1"
-                value={formData.contactPerson}
-                onChangeText={(value) => updateFormData("contactPerson", value)}
-              />
-            </View>
-
-            <View style={styles.dualRow}>
-              <View style={styles.dualField}>
-                <Text style={styles.fieldLabel}>Teléfono</Text>
+            <View style={styles.card}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>RIF/Cédula *</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ej: 0414-1234567"
+                  placeholder="J123456789"
                   placeholderTextColor="#9aa2b1"
-                  value={formData.phone}
-                  onChangeText={(value) => updateFormData("phone", value)}
-                  keyboardType="phone-pad"
+                  value={formData.documentNumber}
+                  onChangeText={(value) =>
+                    updateFormData("documentNumber", value)
+                  }
+                  autoCapitalize="characters"
                 />
               </View>
-              <View style={styles.dualField}>
-                <Text style={styles.fieldLabel}>Email</Text>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Razón social *</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="contacto@empresa.com"
+                  placeholder="Nombre de la empresa"
                   placeholderTextColor="#9aa2b1"
-                  value={formData.email}
-                  onChangeText={(value) => updateFormData("email", value)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
+                  value={formData.name}
+                  onChangeText={(value) => updateFormData("name", value)}
                 />
               </View>
             </View>
-          </View>
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Información adicional</Text>
-            <Text style={styles.sectionHint}>
-              Establece dirección y términos para ordenar y pagar sin
-              fricciones.
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Dirección</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Ciudad, estado, referencias"
-                placeholderTextColor="#9aa2b1"
-                value={formData.address}
-                onChangeText={(value) => updateFormData("address", value)}
-                multiline
-                numberOfLines={3}
-              />
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Contacto directo</Text>
+              <Text style={styles.sectionHint}>
+                Asegúrate de tener un responsable para coordinar entregas y
+                pagos.
+              </Text>
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Términos de pago</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ej: 30 días, contado, crédito"
-                placeholderTextColor="#9aa2b1"
-                value={formData.paymentTerms}
-                onChangeText={(value) => updateFormData("paymentTerms", value)}
-              />
+            <View style={styles.card}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Persona de contacto</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nombre del responsable"
+                  placeholderTextColor="#9aa2b1"
+                  value={formData.contactPerson}
+                  onChangeText={(value) =>
+                    updateFormData("contactPerson", value)
+                  }
+                />
+              </View>
+
+              <View style={styles.dualRow}>
+                <View style={styles.dualField}>
+                  <Text style={styles.fieldLabel}>Teléfono</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ej: 0414-1234567"
+                    placeholderTextColor="#9aa2b1"
+                    value={formData.phone}
+                    onChangeText={(value) => updateFormData("phone", value)}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+                <View style={styles.dualField}>
+                  <Text style={styles.fieldLabel}>Email</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="contacto@empresa.com"
+                    placeholderTextColor="#9aa2b1"
+                    value={formData.email}
+                    onChangeText={(value) => updateFormData("email", value)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
             </View>
 
-            <Text style={styles.helperText}>
-              Documenta los términos pactados para evitar retrasos y conservar
-              historial.
-            </Text>
-          </View>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Información adicional</Text>
+              <Text style={styles.sectionHint}>
+                Establece dirección y términos para ordenar y pagar sin
+                fricciones.
+              </Text>
+            </View>
 
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.secondaryButton]}
-              onPress={() => navigation.goBack()}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.secondaryButtonText}>Cancelar</Text>
-            </TouchableOpacity>
+            <View style={styles.card}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Dirección</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Ciudad, estado, referencias"
+                  placeholderTextColor="#9aa2b1"
+                  value={formData.address}
+                  onChangeText={(value) => updateFormData("address", value)}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
 
-            <TouchableOpacity
-              style={[styles.actionButton, styles.primaryButton]}
-              onPress={handleSave}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.primaryButtonText}>Guardar proveedor</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Términos de pago</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej: 30 días, contado, crédito"
+                  placeholderTextColor="#9aa2b1"
+                  value={formData.paymentTerms}
+                  onChangeText={(value) =>
+                    updateFormData("paymentTerms", value)
+                  }
+                />
+              </View>
+
+              <Text style={styles.helperText}>
+                Documenta los términos pactados para evitar retrasos y conservar
+                historial.
+              </Text>
+            </View>
+
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.secondaryButton]}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.secondaryButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.primaryButton]}
+                onPress={handleSave}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryButtonText}>Guardar proveedor</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+      <CustomAlert />
+    </>
   );
 };
 

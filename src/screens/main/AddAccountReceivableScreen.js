@@ -16,6 +16,7 @@ import { useCustomers } from "../../hooks/useCustomers";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 /**
  * Pantalla para agregar nueva cuenta por cobrar
@@ -24,6 +25,7 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
   const { addAccountReceivable } = useAccounts();
   const { getCustomerByDocument, addCustomer } = useCustomers();
   const { rate } = useExchangeRateContext();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const [loading, setLoading] = useState(false);
 
@@ -125,30 +127,48 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
     if (loading) return;
 
     if (!formData.documentNumber.trim()) {
-      Alert.alert("Error", "La cédula es obligatoria");
+      showAlert({
+        title: "Error",
+        message: "La cédula es obligatoria",
+        type: "error",
+      });
       return;
     }
     if (!formData.customerName.trim()) {
-      Alert.alert("Error", "El nombre del cliente es obligatorio");
+      showAlert({
+        title: "Error",
+        message: "El nombre del cliente es obligatorio",
+        type: "error",
+      });
       return;
     }
 
     const baseAmount = parseAmountInput(formData.amount);
     if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
-      Alert.alert("Error", "El monto debe ser un número positivo");
+      showAlert({
+        title: "Error",
+        message: "El monto debe ser un número positivo",
+        type: "error",
+      });
       return;
     }
 
     if (formData.baseCurrency === "USD" && currentRate <= 0) {
-      Alert.alert(
-        "Error",
-        "Debes definir una tasa de cambio para registrar un monto en USD"
-      );
+      showAlert({
+        title: "Error",
+        message:
+          "Debes definir una tasa de cambio para registrar un monto en USD",
+        type: "error",
+      });
       return;
     }
 
     if (!formData.dueDate.trim()) {
-      Alert.alert("Error", "La fecha de vencimiento es obligatoria");
+      showAlert({
+        title: "Error",
+        message: "La fecha de vencimiento es obligatoria",
+        type: "error",
+      });
       return;
     }
 
@@ -182,227 +202,241 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
         createdAt: new Date().toISOString(),
       });
 
-      Alert.alert("Éxito", "Cuenta por cobrar agregada correctamente");
+      showAlert({
+        title: "Éxito",
+        message: "Cuenta por cobrar agregada correctamente",
+        type: "success",
+      });
       safeBackToAccounts();
     } catch (error) {
       console.error("Error agregando cuenta por cobrar:", error);
-      Alert.alert("Error", "No se pudo guardar la cuenta por cobrar");
+      showAlert({
+        title: "Error",
+        message: "No se pudo guardar la cuenta por cobrar",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-      >
-        <ScrollView
+    <>
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
           style={styles.flex}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         >
-          <View style={styles.heroCard}>
-            <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>💳</Text>
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.heroCard}>
+              <View style={styles.heroIcon}>
+                <Text style={styles.heroIconText}>💳</Text>
+              </View>
+              <View style={styles.heroTextContainer}>
+                <Text style={styles.heroTitle}>Nueva cuenta por cobrar</Text>
+                <Text style={styles.heroSubtitle}>
+                  Registra la obligación del cliente y mantén el flujo de caja
+                  controlado.
+                </Text>
+              </View>
             </View>
-            <View style={styles.heroTextContainer}>
-              <Text style={styles.heroTitle}>Nueva cuenta por cobrar</Text>
-              <Text style={styles.heroSubtitle}>
-                Registra la obligación del cliente y mantén el flujo de caja
-                controlado.
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Datos del cliente</Text>
+              <Text style={styles.sectionHint}>
+                La cédula intentará autocompletar el nombre del cliente
+                existente.
               </Text>
             </View>
-          </View>
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Datos del cliente</Text>
-            <Text style={styles.sectionHint}>
-              La cédula intentará autocompletar el nombre del cliente existente.
-            </Text>
-          </View>
+            <View style={styles.card}>
+              <Text style={styles.label}>Cédula del cliente *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ej: V12345678"
+                placeholderTextColor="#9aa2b1"
+                value={formData.documentNumber}
+                onChangeText={handleDocumentChange}
+                keyboardType="numeric"
+              />
 
-          <View style={styles.card}>
-            <Text style={styles.label}>Cédula del cliente *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ej: V12345678"
-              placeholderTextColor="#9aa2b1"
-              value={formData.documentNumber}
-              onChangeText={handleDocumentChange}
-              keyboardType="numeric"
-            />
-
-            <Text style={styles.label}>Nombre completo *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ingresa el nombre"
-              placeholderTextColor="#9aa2b1"
-              value={formData.customerName}
-              onChangeText={(value) => updateFormData("customerName", value)}
-              autoCapitalize="words"
-            />
-          </View>
-
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Detalle de la cuenta</Text>
-            <Text style={styles.sectionHint}>
-              Usa montos positivos. Puedes asociar la factura para un mejor
-              seguimiento.
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.label}>Moneda del monto *</Text>
-            <View style={styles.currencyRow}>
-              {["VES", "USD"].map((code) => {
-                const active = formData.baseCurrency === code;
-                return (
-                  <TouchableOpacity
-                    key={code}
-                    style={[
-                      styles.currencyChip,
-                      active ? styles.currencyChipActive : null,
-                    ]}
-                    onPress={() => updateFormData("baseCurrency", code)}
-                    activeOpacity={0.85}
-                  >
-                    <Text
-                      style={[
-                        styles.currencyChipText,
-                        active ? styles.currencyChipTextActive : null,
-                      ]}
-                    >
-                      {code === "USD" ? "Monto en USD" : "Monto en Bs"}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+              <Text style={styles.label}>Nombre completo *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ingresa el nombre"
+                placeholderTextColor="#9aa2b1"
+                value={formData.customerName}
+                onChangeText={(value) => updateFormData("customerName", value)}
+                autoCapitalize="words"
+              />
             </View>
 
-            <Text style={styles.label}>
-              {formData.baseCurrency === "USD" ? "Monto (USD)" : "Monto (VES)"}{" "}
-              *
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0.00"
-              placeholderTextColor="#9aa2b1"
-              value={formData.amount}
-              onChangeText={(value) => updateFormData("amount", value)}
-              keyboardType="numeric"
-            />
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Detalle de la cuenta</Text>
+              <Text style={styles.sectionHint}>
+                Usa montos positivos. Puedes asociar la factura para un mejor
+                seguimiento.
+              </Text>
+            </View>
 
-            <View style={styles.dualAmountCard}>
-              <View style={styles.dualAmountRow}>
-                <Text style={styles.dualAmountLabel}>USD</Text>
-                <Text style={styles.dualAmountValue}>
-                  {computedUSD === null
-                    ? "—"
-                    : formatCurrency(computedUSD, "USD")}
-                </Text>
+            <View style={styles.card}>
+              <Text style={styles.label}>Moneda del monto *</Text>
+              <View style={styles.currencyRow}>
+                {["VES", "USD"].map((code) => {
+                  const active = formData.baseCurrency === code;
+                  return (
+                    <TouchableOpacity
+                      key={code}
+                      style={[
+                        styles.currencyChip,
+                        active ? styles.currencyChipActive : null,
+                      ]}
+                      onPress={() => updateFormData("baseCurrency", code)}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[
+                          styles.currencyChipText,
+                          active ? styles.currencyChipTextActive : null,
+                        ]}
+                      >
+                        {code === "USD" ? "Monto en USD" : "Monto en Bs"}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              <View style={styles.dualAmountRow}>
-                <Text style={styles.dualAmountLabel}>VES</Text>
-                <Text style={styles.dualAmountValue}>
-                  {computedVES === null
-                    ? "—"
-                    : formatCurrency(computedVES, "VES")}
-                </Text>
+
+              <Text style={styles.label}>
+                {formData.baseCurrency === "USD"
+                  ? "Monto (USD)"
+                  : "Monto (VES)"}{" "}
+                *
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                placeholderTextColor="#9aa2b1"
+                value={formData.amount}
+                onChangeText={(value) => updateFormData("amount", value)}
+                keyboardType="numeric"
+              />
+
+              <View style={styles.dualAmountCard}>
+                <View style={styles.dualAmountRow}>
+                  <Text style={styles.dualAmountLabel}>USD</Text>
+                  <Text style={styles.dualAmountValue}>
+                    {computedUSD === null
+                      ? "—"
+                      : formatCurrency(computedUSD, "USD")}
+                  </Text>
+                </View>
+                <View style={styles.dualAmountRow}>
+                  <Text style={styles.dualAmountLabel}>VES</Text>
+                  <Text style={styles.dualAmountValue}>
+                    {computedVES === null
+                      ? "—"
+                      : formatCurrency(computedVES, "VES")}
+                  </Text>
+                </View>
+                {currentRate > 0 ? (
+                  <Text style={styles.dualAmountHint}>
+                    Tasa actual: 1 USD = VES. {currentRate.toFixed(2)}
+                  </Text>
+                ) : (
+                  <Text style={styles.dualAmountHint}>
+                    Define la tasa para ver equivalencias
+                  </Text>
+                )}
               </View>
-              {currentRate > 0 ? (
-                <Text style={styles.dualAmountHint}>
-                  Tasa actual: 1 USD = VES. {currentRate.toFixed(2)}
+
+              <Text style={styles.label}>Descripción</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Describe el motivo de la cuenta"
+                placeholderTextColor="#9aa2b1"
+                value={formData.description}
+                onChangeText={(value) => updateFormData("description", value)}
+                multiline
+                numberOfLines={3}
+              />
+
+              <Text style={styles.label}>Número de factura (opcional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ingresa el número de factura"
+                placeholderTextColor="#9aa2b1"
+                value={formData.invoiceNumber}
+                onChangeText={(value) => updateFormData("invoiceNumber", value)}
+              />
+
+              <Text style={styles.label}>Fecha de vencimiento *</Text>
+              <TouchableOpacity
+                style={[styles.input, styles.datePickerTrigger]}
+                onPress={showDatePickerModal}
+              >
+                <Text
+                  style={
+                    formData.dueDate ? styles.dateText : styles.datePlaceholder
+                  }
+                >
+                  {formData.dueDate || "Selecciona la fecha"}
                 </Text>
-              ) : (
-                <Text style={styles.dualAmountHint}>
-                  Define la tasa para ver equivalencias
+              </TouchableOpacity>
+              {formData.dueDate ? (
+                <Text style={styles.helperInfo}>
+                  Programar recordatorios con anticipación ayuda a reducir la
+                  morosidad.
                 </Text>
+              ) : null}
+
+              {showDatePicker && (
+                <View style={styles.datePickerWrapper}>
+                  <DateTimePicker
+                    value={selectedDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={handleDateChange}
+                  />
+                  {Platform.OS === "ios" && (
+                    <TouchableOpacity
+                      style={styles.datePickerDone}
+                      onPress={closeDatePicker}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.datePickerDoneText}>Listo</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               )}
             </View>
 
-            <Text style={styles.label}>Descripción</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Describe el motivo de la cuenta"
-              placeholderTextColor="#9aa2b1"
-              value={formData.description}
-              onChangeText={(value) => updateFormData("description", value)}
-              multiline
-              numberOfLines={3}
-            />
-
-            <Text style={styles.label}>Número de factura (opcional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ingresa el número de factura"
-              placeholderTextColor="#9aa2b1"
-              value={formData.invoiceNumber}
-              onChangeText={(value) => updateFormData("invoiceNumber", value)}
-            />
-
-            <Text style={styles.label}>Fecha de vencimiento *</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.datePickerTrigger]}
-              onPress={showDatePickerModal}
-            >
-              <Text
-                style={
-                  formData.dueDate ? styles.dateText : styles.datePlaceholder
-                }
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.secondaryButton]}
+                onPress={() => navigation.goBack()}
               >
-                {formData.dueDate || "Selecciona la fecha"}
-              </Text>
-            </TouchableOpacity>
-            {formData.dueDate ? (
-              <Text style={styles.helperInfo}>
-                Programar recordatorios con anticipación ayuda a reducir la
-                morosidad.
-              </Text>
-            ) : null}
+                <Text style={styles.secondaryButtonText}>Cancelar</Text>
+              </TouchableOpacity>
 
-            {showDatePicker && (
-              <View style={styles.datePickerWrapper}>
-                <DateTimePicker
-                  value={selectedDate}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  onChange={handleDateChange}
-                />
-                {Platform.OS === "ios" && (
-                  <TouchableOpacity
-                    style={styles.datePickerDone}
-                    onPress={closeDatePicker}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.datePickerDoneText}>Listo</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
-
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.secondaryButton]}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.secondaryButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.primaryButton]}
-              onPress={handleSave}
-            >
-              <Text style={styles.primaryButtonText}>Guardar cuenta</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.primaryButton]}
+                onPress={handleSave}
+              >
+                <Text style={styles.primaryButtonText}>Guardar cuenta</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+      <CustomAlert />
+    </>
   );
 };
 

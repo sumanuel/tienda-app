@@ -285,150 +285,156 @@ export const SalesScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <FlatList
-        data={filteredSales}
-        renderItem={renderSale}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <View style={styles.headerContent}>
-            <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>📈</Text>
-              </View>
-              <View style={styles.heroCopy}>
-                <Text style={styles.heroTitle}>
-                  Historial de ventas ({summary.count})
-                </Text>
-                <Text style={styles.heroSubtitle}>
-                  Visualiza el desempeño de tus ventas y explora los detalles
-                  con un toque.
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.tabGroup}>
-              {[
-                { key: "today", label: "Hoy" },
-                { key: "all", label: "Histórico" },
-              ].map((tab) => {
-                const active = activeTab === tab.key;
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    style={[styles.tabChip, active && styles.tabChipActive]}
-                    onPress={() => setActiveTab(tab.key)}
-                    activeOpacity={0.85}
-                  >
-                    <Text
-                      style={[
-                        styles.tabChipText,
-                        active && styles.tabChipTextActive,
-                      ]}
-                    >
-                      {tab.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {activeTab === "all" && (
-              <View style={styles.dateCard}>
-                <View style={styles.dateRow}>
-                  <View style={styles.dateColumn}>
-                    <Text style={styles.dateLabel}>Desde</Text>
-                    <TouchableOpacity
-                      style={styles.dateSelector}
-                      onPress={() => setShowStartPicker(true)}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.dateCalendarIcon}>📅</Text>
-                      <Text style={styles.dateValue}>
-                        {formatDate(startDate)}
-                      </Text>
-                    </TouchableOpacity>
-
-                    {showStartPicker ? (
-                      <DateTimePicker
-                        value={startDate}
-                        mode="date"
-                        display={Platform.OS === "ios" ? "compact" : "default"}
-                        onChange={handleStartDateChange}
-                      />
-                    ) : null}
-                  </View>
-
-                  <View style={styles.dateColumn}>
-                    <Text style={styles.dateLabel}>Hasta</Text>
-                    <TouchableOpacity
-                      style={styles.dateSelector}
-                      onPress={() => setShowEndPicker(true)}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.dateCalendarIcon}>📅</Text>
-                      <Text style={styles.dateValue}>
-                        {formatDate(endDate)}
-                      </Text>
-                    </TouchableOpacity>
-
-                    {showEndPicker ? (
-                      <DateTimePicker
-                        value={endDate}
-                        mode="date"
-                        display={Platform.OS === "ios" ? "compact" : "default"}
-                        onChange={handleEndDateChange}
-                      />
-                    ) : null}
-                  </View>
+    <>
+      <SafeAreaView style={styles.container}>
+        <FlatList
+          data={filteredSales}
+          renderItem={renderSale}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={
+            <View style={styles.headerContent}>
+              <View style={styles.heroCard}>
+                <View style={styles.heroIcon}>
+                  <Text style={styles.heroIconText}>📈</Text>
                 </View>
-
-                <View style={styles.quickFilters}>
-                  <TouchableOpacity
-                    style={styles.quickFilter}
-                    onPress={() => handleQuickRange("currentMonth")}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.quickFilterText}>Este mes</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickFilter}
-                    onPress={() => handleQuickRange("lastMonth")}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.quickFilterText}>Mes anterior</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickFilter}
-                    onPress={() => handleQuickRange("week")}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.quickFilterText}>Esta semana</Text>
-                  </TouchableOpacity>
+                <View style={styles.heroCopy}>
+                  <Text style={styles.heroTitle}>
+                    Historial de ventas ({summary.count})
+                  </Text>
+                  <Text style={styles.heroSubtitle}>
+                    Visualiza el desempeño de tus ventas y explora los detalles
+                    con un toque.
+                  </Text>
                 </View>
               </View>
-            )}
-          </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🧾</Text>
-            <Text style={styles.emptyTitle}>
-              {activeTab === "today"
-                ? "No hay ventas registradas hoy"
-                : "No encontramos ventas en este rango"}
-            </Text>
-            <Text style={styles.emptySubtitle}>
-              {activeTab === "today"
-                ? "Registra una venta y aparecerá aquí al instante."
-                : "Ajusta el rango o sincroniza tus ventas recientes."}
-            </Text>
-          </View>
-        }
-      />
+
+              <View style={styles.tabGroup}>
+                {[
+                  { key: "today", label: "Hoy" },
+                  { key: "all", label: "Histórico" },
+                ].map((tab) => {
+                  const active = activeTab === tab.key;
+                  return (
+                    <TouchableOpacity
+                      key={tab.key}
+                      style={[styles.tabChip, active && styles.tabChipActive]}
+                      onPress={() => setActiveTab(tab.key)}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[
+                          styles.tabChipText,
+                          active && styles.tabChipTextActive,
+                        ]}
+                      >
+                        {tab.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {activeTab === "all" && (
+                <View style={styles.dateCard}>
+                  <View style={styles.dateRow}>
+                    <View style={styles.dateColumn}>
+                      <Text style={styles.dateLabel}>Desde</Text>
+                      <TouchableOpacity
+                        style={styles.dateSelector}
+                        onPress={() => setShowStartPicker(true)}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.dateCalendarIcon}>📅</Text>
+                        <Text style={styles.dateValue}>
+                          {formatDate(startDate)}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {showStartPicker ? (
+                        <DateTimePicker
+                          value={startDate}
+                          mode="date"
+                          display={
+                            Platform.OS === "ios" ? "compact" : "default"
+                          }
+                          onChange={handleStartDateChange}
+                        />
+                      ) : null}
+                    </View>
+
+                    <View style={styles.dateColumn}>
+                      <Text style={styles.dateLabel}>Hasta</Text>
+                      <TouchableOpacity
+                        style={styles.dateSelector}
+                        onPress={() => setShowEndPicker(true)}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.dateCalendarIcon}>📅</Text>
+                        <Text style={styles.dateValue}>
+                          {formatDate(endDate)}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {showEndPicker ? (
+                        <DateTimePicker
+                          value={endDate}
+                          mode="date"
+                          display={
+                            Platform.OS === "ios" ? "compact" : "default"
+                          }
+                          onChange={handleEndDateChange}
+                        />
+                      ) : null}
+                    </View>
+                  </View>
+
+                  <View style={styles.quickFilters}>
+                    <TouchableOpacity
+                      style={styles.quickFilter}
+                      onPress={() => handleQuickRange("currentMonth")}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.quickFilterText}>Este mes</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.quickFilter}
+                      onPress={() => handleQuickRange("lastMonth")}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.quickFilterText}>Mes anterior</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.quickFilter}
+                      onPress={() => handleQuickRange("week")}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.quickFilterText}>Esta semana</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>🧾</Text>
+              <Text style={styles.emptyTitle}>
+                {activeTab === "today"
+                  ? "No hay ventas registradas hoy"
+                  : "No encontramos ventas en este rango"}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {activeTab === "today"
+                  ? "Registra una venta y aparecerá aquí al instante."
+                  : "Ajusta el rango o sincroniza tus ventas recientes."}
+              </Text>
+            </View>
+          }
+        />
+      </SafeAreaView>
       <CustomAlert />
-    </SafeAreaView>
+    </>
   );
 };
 
