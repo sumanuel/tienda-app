@@ -35,6 +35,7 @@ export const initAllTables = async () => {
         -- Tabla de productos
         CREATE TABLE IF NOT EXISTS products (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT,
           name TEXT NOT NULL,
           barcode TEXT UNIQUE,
           category TEXT,
@@ -54,6 +55,7 @@ export const initAllTables = async () => {
         -- Tabla de ventas (schema actual)
         CREATE TABLE IF NOT EXISTS sales (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT,
           customerId INTEGER,
           subtotal REAL DEFAULT 0,
           tax REAL DEFAULT 0,
@@ -66,12 +68,14 @@ export const initAllTables = async () => {
           change REAL DEFAULT 0,
           status TEXT DEFAULT 'completed',
           notes TEXT,
-          createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
         -- Tabla de items de venta
         CREATE TABLE IF NOT EXISTS sale_items (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT,
           saleId INTEGER NOT NULL,
           productId INTEGER NOT NULL,
           productName TEXT NOT NULL,
@@ -79,12 +83,30 @@ export const initAllTables = async () => {
           price REAL NOT NULL,
           priceUSD REAL DEFAULT 0,
           subtotal REAL NOT NULL,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (saleId) REFERENCES sales(id)
+        );
+
+        -- Outbox para sincronización (offline-first)
+        CREATE TABLE IF NOT EXISTS outbox_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          eventId TEXT NOT NULL,
+          type TEXT NOT NULL,
+          entityId TEXT,
+          payload TEXT NOT NULL,
+          status TEXT DEFAULT 'pending',
+          attempts INTEGER DEFAULT 0,
+          lastAttemptAt TEXT,
+          sentAt TEXT,
+          lastError TEXT,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
         -- Tabla de clientes
         CREATE TABLE IF NOT EXISTS customers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT,
           name TEXT NOT NULL,
           email TEXT,
           phone TEXT,
@@ -189,8 +211,14 @@ export const initAllTables = async () => {
     // Crear índices fuera de la transacción principal
     await db.execAsync(`
       CREATE INDEX IF NOT EXISTS idx_barcode ON products(barcode);
+      CREATE INDEX IF NOT EXISTS idx_products_uuid ON products(uuid);
       CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(createdAt);
+      CREATE INDEX IF NOT EXISTS idx_sales_uuid ON sales(uuid);
+      CREATE INDEX IF NOT EXISTS idx_sale_items_uuid ON sale_items(uuid);
+      CREATE INDEX IF NOT EXISTS idx_outbox_status_created ON outbox_events(status, createdAt);
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_outbox_eventId ON outbox_events(eventId);
       CREATE INDEX IF NOT EXISTS idx_customer_name ON customers(name);
+      CREATE INDEX IF NOT EXISTS idx_customers_uuid ON customers(uuid);
       CREATE INDEX IF NOT EXISTS idx_supplier_name ON suppliers(name);
       CREATE INDEX IF NOT EXISTS idx_accounts_receivable_status ON accounts_receivable(status, dueDate);
       CREATE INDEX IF NOT EXISTS idx_accounts_payable_status ON accounts_payable(status, dueDate);
@@ -216,10 +244,42 @@ const runMigrations = async () => {
   try {
     console.log("Running database migrations...");
 
+    const tableExists = async (tableName) => {
+      const row = await db.getFirstAsync(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?;",
+        [tableName]
+      );
+      return !!row;
+    };
+
+    // Tabla outbox_events (siempre antes de encolar eventos)
+    await db.execAsync(
+      `CREATE TABLE IF NOT EXISTS outbox_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        eventId TEXT NOT NULL,
+        type TEXT NOT NULL,
+        entityId TEXT,
+        payload TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        attempts INTEGER DEFAULT 0,
+        lastAttemptAt TEXT,
+        sentAt TEXT,
+        lastError TEXT,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      );`
+    );
+    await db.execAsync(
+      "CREATE INDEX IF NOT EXISTS idx_outbox_status_created ON outbox_events(status, createdAt);"
+    );
+    await db.execAsync(
+      "CREATE UNIQUE INDEX IF NOT EXISTS uq_outbox_eventId ON outbox_events(eventId);"
+    );
+
     // Asegurar tabla sale_items y columna priceUSD
     await db.execAsync(
       `CREATE TABLE IF NOT EXISTS sale_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT,
         saleId INTEGER NOT NULL,
         productId INTEGER NOT NULL,
         productName TEXT NOT NULL,
@@ -227,6 +287,8 @@ const runMigrations = async () => {
         price REAL NOT NULL,
         priceUSD REAL DEFAULT 0,
         subtotal REAL NOT NULL,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (saleId) REFERENCES sales(id)
       );`
     );
@@ -234,9 +296,38 @@ const runMigrations = async () => {
     const saleItemColumns = await db.getAllAsync(
       "PRAGMA table_info(sale_items)"
     );
+    const hasSaleItemUuid = saleItemColumns.some((col) => col.name === "uuid");
     const hasSaleItemPriceUSD = saleItemColumns.some(
       (col) => col.name === "priceUSD"
     );
+    const hasSaleItemCreatedAt = saleItemColumns.some(
+      (col) => col.name === "createdAt"
+    );
+    const hasSaleItemUpdatedAt = saleItemColumns.some(
+      (col) => col.name === "updatedAt"
+    );
+
+    if (!hasSaleItemUuid) {
+      console.log("Adding uuid column to sale_items table...");
+      await db.runAsync("ALTER TABLE sale_items ADD COLUMN uuid TEXT");
+      console.log("uuid column added successfully");
+    }
+
+    if (!hasSaleItemCreatedAt) {
+      console.log("Adding createdAt column to sale_items table...");
+      await db.runAsync(
+        "ALTER TABLE sale_items ADD COLUMN createdAt TEXT DEFAULT CURRENT_TIMESTAMP"
+      );
+      console.log("createdAt column added successfully");
+    }
+
+    if (!hasSaleItemUpdatedAt) {
+      console.log("Adding updatedAt column to sale_items table...");
+      await db.runAsync(
+        "ALTER TABLE sale_items ADD COLUMN updatedAt TEXT DEFAULT CURRENT_TIMESTAMP"
+      );
+      console.log("updatedAt column added successfully");
+    }
     if (!hasSaleItemPriceUSD) {
       console.log("Adding priceUSD column to sale_items table...");
       await db.runAsync(
@@ -244,6 +335,18 @@ const runMigrations = async () => {
       );
       console.log("priceUSD column added successfully");
     }
+
+    // Backfill UUIDs en sale_items
+    await db.runAsync(
+      "UPDATE sale_items SET uuid = lower(hex(randomblob(16))) WHERE uuid IS NULL OR TRIM(uuid) = '';"
+    );
+
+    await db.runAsync(
+      "UPDATE sale_items SET createdAt = COALESCE(NULLIF(createdAt, ''), datetime('now')) WHERE createdAt IS NULL OR TRIM(createdAt) = '';"
+    );
+    await db.runAsync(
+      "UPDATE sale_items SET updatedAt = COALESCE(NULLIF(updatedAt, ''), createdAt) WHERE updatedAt IS NULL OR TRIM(updatedAt) = '';"
+    );
 
     // Backfill básico para ventas existentes: priceUSD = price / exchangeRate
     // (solo si priceUSD está en 0 y la venta tiene exchangeRate > 0)
@@ -256,6 +359,77 @@ const runMigrations = async () => {
        WHERE (priceUSD IS NULL OR priceUSD = 0)
          AND COALESCE((SELECT exchangeRate FROM sales WHERE sales.id = sale_items.saleId), 0) > 0;`
     );
+
+    // UUID + updatedAt para sales
+    if (await tableExists("sales")) {
+      const salesColumns = await db.getAllAsync("PRAGMA table_info(sales)");
+      const hasSalesUuid = salesColumns.some((col) => col.name === "uuid");
+      const hasSalesUpdatedAt = salesColumns.some(
+        (col) => col.name === "updatedAt"
+      );
+
+      if (!hasSalesUuid) {
+        console.log("Adding uuid column to sales table...");
+        await db.runAsync("ALTER TABLE sales ADD COLUMN uuid TEXT");
+        console.log("uuid column added successfully to sales");
+      }
+
+      if (!hasSalesUpdatedAt) {
+        console.log("Adding updatedAt column to sales table...");
+        await db.runAsync("ALTER TABLE sales ADD COLUMN updatedAt TEXT");
+        console.log("updatedAt column added successfully to sales");
+      }
+
+      await db.runAsync(
+        "UPDATE sales SET uuid = lower(hex(randomblob(16))) WHERE uuid IS NULL OR TRIM(uuid) = '';"
+      );
+      await db.runAsync(
+        "UPDATE sales SET updatedAt = COALESCE(NULLIF(updatedAt, ''), createdAt) WHERE updatedAt IS NULL OR TRIM(updatedAt) = '';"
+      );
+
+      await db.execAsync(
+        "CREATE INDEX IF NOT EXISTS idx_sales_uuid ON sales(uuid);"
+      );
+    }
+
+    // UUID para products/customers (tienen updatedAt ya)
+    if (await tableExists("products")) {
+      const productColumns = await db.getAllAsync(
+        "PRAGMA table_info(products)"
+      );
+      const hasProductUuid = productColumns.some((col) => col.name === "uuid");
+      if (!hasProductUuid) {
+        console.log("Adding uuid column to products table...");
+        await db.runAsync("ALTER TABLE products ADD COLUMN uuid TEXT");
+        console.log("uuid column added successfully to products");
+      }
+      await db.runAsync(
+        "UPDATE products SET uuid = lower(hex(randomblob(16))) WHERE uuid IS NULL OR TRIM(uuid) = '';"
+      );
+      await db.execAsync(
+        "CREATE INDEX IF NOT EXISTS idx_products_uuid ON products(uuid);"
+      );
+    }
+
+    if (await tableExists("customers")) {
+      const customerColumns = await db.getAllAsync(
+        "PRAGMA table_info(customers)"
+      );
+      const hasCustomerUuid = customerColumns.some(
+        (col) => col.name === "uuid"
+      );
+      if (!hasCustomerUuid) {
+        console.log("Adding uuid column to customers table...");
+        await db.runAsync("ALTER TABLE customers ADD COLUMN uuid TEXT");
+        console.log("uuid column added successfully to customers");
+      }
+      await db.runAsync(
+        "UPDATE customers SET uuid = lower(hex(randomblob(16))) WHERE uuid IS NULL OR TRIM(uuid) = '';"
+      );
+      await db.execAsync(
+        "CREATE INDEX IF NOT EXISTS idx_customers_uuid ON customers(uuid);"
+      );
+    }
 
     // Verificar y agregar columna documentNumber a accounts_receivable
     const receivableColumns = await db.getAllAsync(

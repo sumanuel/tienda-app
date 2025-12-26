@@ -1,4 +1,26 @@
 import { db } from "./db";
+import { generateUuidV4 } from "./uuid";
+import { enqueueOutboxEvent } from "./outbox";
+
+const isGenericCustomerRow = (row) =>
+  String(row?.documentNumber || "") === "1";
+
+const toServerCustomerPayload = (row) => ({
+  id: row.uuid,
+  name: row.name,
+  email: row.email || null,
+  phone: row.phone || null,
+  address: row.address || null,
+  documentType: row.documentType || null,
+  documentNumber: row.documentNumber || null,
+  totalPurchases: row.totalPurchases ?? 0,
+  active: row.active === 1,
+  createdAt: row.createdAt || null,
+  updatedAt: row.updatedAt || null,
+});
+
+const getCustomerRowById = async (id) =>
+  db.getFirstAsync("SELECT * FROM customers WHERE id = ?;", [id]);
 
 /**
  * Inicializa la tabla de clientes
@@ -8,6 +30,7 @@ export const initCustomersTable = async () => {
     await db.execAsync(
       `CREATE TABLE IF NOT EXISTS customers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT,
         name TEXT NOT NULL,
         email TEXT,
         phone TEXT,
@@ -82,11 +105,13 @@ export const createGenericCustomer = async () => {
       return existing.id;
     }
 
+    const uuid = generateUuidV4();
+
     // Crear cliente genérico
     const result = await db.runAsync(
-      `INSERT INTO customers (name, documentNumber, documentType)
-       VALUES (?, ?, ?);`,
-      ["Cliente Genérico", "1", "V"]
+      `INSERT INTO customers (uuid, name, documentNumber, documentType)
+       VALUES (?, ?, ?, ?);`,
+      [uuid, "Cliente Genérico", "1", "V"]
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -99,10 +124,13 @@ export const createGenericCustomer = async () => {
  */
 export const insertCustomer = async (customer) => {
   try {
+    const uuid = customer.uuid || generateUuidV4();
+    const nowIso = new Date().toISOString();
     const result = await db.runAsync(
-      `INSERT INTO customers (name, email, phone, address, documentType, documentNumber)
-       VALUES (?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO customers (uuid, name, email, phone, address, documentType, documentNumber)
+       VALUES (?, ?, ?, ?, ?, ?, ?);`,
       [
+        uuid,
         customer.name,
         customer.email || "",
         customer.phone || "",
@@ -111,6 +139,28 @@ export const insertCustomer = async (customer) => {
         customer.documentNumber || "",
       ]
     );
+
+    // Evitar sincronizar el cliente genérico (se crea localmente)
+    if (String(customer.documentNumber || "") !== "1") {
+      await enqueueOutboxEvent({
+        type: "customer.upserted",
+        entityId: uuid,
+        payload: {
+          id: uuid,
+          name: customer.name,
+          email: customer.email || null,
+          phone: customer.phone || null,
+          address: customer.address || null,
+          documentType: customer.documentType || null,
+          documentNumber: customer.documentNumber || null,
+          totalPurchases: customer.totalPurchases || 0,
+          active: true,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+      });
+    }
+
     return result.lastInsertRowId;
   } catch (error) {
     throw error;
@@ -137,6 +187,16 @@ export const updateCustomer = async (id, customer) => {
         id,
       ]
     );
+
+    const row = await getCustomerRowById(id);
+    if (row?.uuid && !isGenericCustomerRow(row)) {
+      await enqueueOutboxEvent({
+        type: "customer.upserted",
+        entityId: row.uuid,
+        payload: toServerCustomerPayload(row),
+      });
+    }
+
     return result.changes;
   } catch (error) {
     throw error;
@@ -152,6 +212,16 @@ export const deleteCustomer = async (id) => {
       "UPDATE customers SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
       [id]
     );
+
+    const row = await getCustomerRowById(id);
+    if (row?.uuid && !isGenericCustomerRow(row)) {
+      await enqueueOutboxEvent({
+        type: "customer.upserted",
+        entityId: row.uuid,
+        payload: toServerCustomerPayload(row),
+      });
+    }
+
     return result.changes;
   } catch (error) {
     throw error;

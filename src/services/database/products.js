@@ -1,4 +1,27 @@
 import { db } from "./db";
+import { generateUuidV4 } from "./uuid";
+import { enqueueOutboxEvent } from "./outbox";
+
+const toServerProductPayload = (row) => ({
+  id: row.uuid,
+  name: row.name,
+  barcode: row.barcode || null,
+  category: row.category || null,
+  description: row.description || null,
+  cost: row.cost ?? 0,
+  priceUSD: row.priceUSD ?? 0,
+  priceVES: row.priceVES ?? 0,
+  margin: row.margin ?? 0,
+  stock: row.stock ?? 0,
+  minStock: row.minStock ?? 0,
+  image: row.image || null,
+  active: row.active === 1,
+  createdAt: row.createdAt || null,
+  updatedAt: row.updatedAt || null,
+});
+
+const getProductRowById = async (id) =>
+  db.getFirstAsync("SELECT * FROM products WHERE id = ?;", [id]);
 
 /**
  * Inicializa la base de datos y crea las tablas necesarias
@@ -9,6 +32,7 @@ export const initDatabase = async () => {
     await db.execAsync(
       `CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT,
         name TEXT NOT NULL,
         barcode TEXT UNIQUE,
         category TEXT,
@@ -111,10 +135,13 @@ export const searchProducts = async (query) => {
 export const insertProduct = async (product) => {
   try {
     console.log("Insertando producto en BD:", product);
+    const uuid = product.uuid || generateUuidV4();
+    const nowIso = new Date().toISOString();
     const result = await db.runAsync(
-      `INSERT INTO products (name, barcode, category, description, cost, priceUSD, margin, stock, minStock, image, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO products (uuid, name, barcode, category, description, cost, priceUSD, margin, stock, minStock, image, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
+        uuid,
         product.name,
         product.barcode,
         product.category,
@@ -129,6 +156,30 @@ export const insertProduct = async (product) => {
       ]
     );
     console.log("Producto insertado, lastInsertRowId:", result.lastInsertRowId);
+
+    // Encolar evento para sync (usar UUID como id canonical)
+    await enqueueOutboxEvent({
+      type: "product.upserted",
+      entityId: uuid,
+      payload: {
+        id: uuid,
+        name: product.name,
+        barcode: product.barcode || null,
+        category: product.category || null,
+        description: product.description || null,
+        cost: product.cost || 0,
+        priceUSD: product.priceUSD || 0,
+        priceVES: product.priceVES || 0,
+        margin: product.margin || 0,
+        stock: product.stock || 0,
+        minStock: product.minStock || 0,
+        image: product.image || null,
+        active: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    });
+
     return result.lastInsertRowId;
   } catch (error) {
     console.error("Error insertando producto:", error);
@@ -161,6 +212,16 @@ export const updateProduct = async (id, product) => {
         id,
       ]
     );
+
+    const row = await getProductRowById(id);
+    if (row?.uuid) {
+      await enqueueOutboxEvent({
+        type: "product.upserted",
+        entityId: row.uuid,
+        payload: toServerProductPayload(row),
+      });
+    }
+
     return result.changes;
   } catch (error) {
     throw error;
@@ -191,6 +252,16 @@ export const deleteProduct = async (id) => {
       "UPDATE products SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
       [id]
     );
+
+    const row = await getProductRowById(id);
+    if (row?.uuid) {
+      await enqueueOutboxEvent({
+        type: "product.upserted",
+        entityId: row.uuid,
+        payload: toServerProductPayload(row),
+      });
+    }
+
     return result.changes;
   } catch (error) {
     throw error;
@@ -297,9 +368,10 @@ export const initSampleProducts = async () => {
 
     await db.withTransactionAsync(async () => {
       for (const product of sampleProducts) {
+        const uuid = generateUuidV4();
         await db.runAsync(
-          "INSERT INTO products (name, priceUSD, category, stock, active) VALUES (?, ?, ?, ?, ?);",
-          [product.name, product.priceUSD, product.category, product.stock, 1]
+          "INSERT INTO products (uuid, name, priceUSD, category, stock, active) VALUES (?, ?, ?, ?, ?, ?);",
+          [uuid, product.name, product.priceUSD, product.category, product.stock, 1]
         );
       }
     });

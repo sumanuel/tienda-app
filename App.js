@@ -54,6 +54,7 @@ import QRProductsScreen from "./src/screens/main/QRProductsScreen";
 import { initAllTables } from "./src/services/database/db";
 import { initSettingsTable } from "./src/services/database/settings";
 import { initSampleProducts } from "./src/services/database/products";
+import { runSyncSmoke } from "./src/services/sync/smokeSync";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -431,6 +432,13 @@ export default function App() {
 
       // Inicializar productos de ejemplo si no existen
       await initSampleProducts();
+
+      if (__DEV__) {
+        global.runSyncSmoke = runSyncSmoke;
+        console.log(
+          "DEV: global.runSyncSmoke({ baseUrl, token }) is available"
+        );
+      }
 
       console.log("Database initialized successfully");
       setIsReady(true);
