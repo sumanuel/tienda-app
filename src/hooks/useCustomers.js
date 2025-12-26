@@ -81,8 +81,9 @@ export const useCustomers = () => {
     async (customerData) => {
       try {
         setError(null);
-        await insertCustomer(customerData);
+        const customerId = await insertCustomer(customerData);
         await loadCustomers();
+        return customerId;
       } catch (err) {
         setError(err.message);
         console.error("Error adding customer:", err);

@@ -48,6 +48,7 @@ export const POSScreen = ({ navigation }) => {
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [pendingSaleData, setPendingSaleData] = useState(null);
+  const [processingSale, setProcessingSale] = useState(false);
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
@@ -401,12 +402,16 @@ export const POSScreen = ({ navigation }) => {
    * Crea un nuevo cliente y completa la venta pendiente
    */
   const createCustomerAndCompleteSale = async () => {
+    if (processingSale) return; // Evitar múltiples ejecuciones
+
     if (!newCustomerName.trim()) {
       Alert.alert("Error", "El nombre del cliente es obligatorio");
       return;
     }
 
     try {
+      setProcessingSale(true);
+
       // Crear el nuevo cliente
       const customerData = {
         name: newCustomerName.trim(),
@@ -494,6 +499,8 @@ export const POSScreen = ({ navigation }) => {
     } catch (error) {
       console.error("Error creating customer and completing sale:", error);
       Alert.alert("Error", "No se pudo crear el cliente y completar la venta");
+    } finally {
+      setProcessingSale(false);
     }
   };
 
@@ -972,10 +979,19 @@ export const POSScreen = ({ navigation }) => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
+                style={[
+                  styles.modalButton,
+                  styles.saveButton,
+                  processingSale && styles.buttonDisabled,
+                ]}
                 onPress={createCustomerAndCompleteSale}
+                disabled={processingSale}
               >
-                <Text style={styles.saveButtonText}>Crear y Vender</Text>
+                {processingSale ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Crear y Vender</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
