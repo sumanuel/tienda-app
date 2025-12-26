@@ -12,9 +12,11 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { getSettings, saveSettings } from "../../services/database/settings";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 
 export const SettingsScreen = () => {
   const navigation = useNavigation();
+  const { showAlert, CustomAlert } = useCustomAlert();
   const [isLoading, setIsLoading] = useState(true);
 
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
@@ -37,10 +39,11 @@ export const SettingsScreen = () => {
         setFormLowStock(defaultLowStock.toString());
       } catch (error) {
         console.error("Error loading settings:", error);
-        Alert.alert(
-          "Error",
-          "No pudimos cargar la configuración. Intenta nuevamente."
-        );
+        showAlert({
+          title: "Error",
+          message: "No pudimos cargar la configuración. Intenta nuevamente.",
+          type: "error",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -65,7 +68,11 @@ export const SettingsScreen = () => {
   const handleSaveInventory = async () => {
     const numericLowStock = parseInt(formLowStock, 10);
     if (Number.isNaN(numericLowStock) || numericLowStock < 0) {
-      Alert.alert("Valor inválido", "Ingresa un umbral mayor o igual a 0");
+      showAlert({
+        title: "Valor inválido",
+        message: "Ingresa un umbral mayor o igual a 0",
+        type: "error",
+      });
       return;
     }
 
@@ -82,10 +89,18 @@ export const SettingsScreen = () => {
       await saveSettings(updatedSettings);
       setLowStockThreshold(numericLowStock);
       setEditingSection(null);
-      Alert.alert("Éxito", "Umbral de stock bajo actualizado");
+      showAlert({
+        title: "Éxito",
+        message: "Umbral de stock bajo actualizado",
+        type: "success",
+      });
     } catch (error) {
       console.error("Error saving inventory settings:", error);
-      Alert.alert("Error", "No pudimos actualizar el umbral de stock");
+      showAlert({
+        title: "Error",
+        message: "No pudimos actualizar el umbral de stock",
+        type: "error",
+      });
     } finally {
       setSavingSection(null);
     }
@@ -101,173 +116,176 @@ export const SettingsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.heroCard}>
-          <View style={styles.heroIcon}>
-            <Text style={styles.heroIconText}>⚙️</Text>
-          </View>
-          <View style={styles.heroInfo}>
-            <Text style={styles.heroTitle}>Configuración</Text>
-            <Text style={styles.heroSubtitle}>
-              Gestiona los parámetros y datos de tu negocio.
-            </Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.formCard}
-          onPress={() => navigation.navigate("BusinessSettings")}
-          activeOpacity={0.8}
+    <>
+      <SafeAreaView style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <Text style={styles.cardIconText}>🏢</Text>
+          <View style={styles.heroCard}>
+            <View style={styles.heroIcon}>
+              <Text style={styles.heroIconText}>⚙️</Text>
             </View>
-            <View style={styles.cardInfo}>
-              <Text style={styles.cardTitle}>Datos del Negocio</Text>
-              <Text style={styles.cardSubtitle}>
-                Información fiscal y de contacto
+            <View style={styles.heroInfo}>
+              <Text style={styles.heroTitle}>Configuración</Text>
+              <Text style={styles.heroSubtitle}>
+                Gestiona los parámetros y datos de tu negocio.
               </Text>
             </View>
           </View>
-          <View style={styles.cardAction}>
-            <Text style={styles.cardActionText}>Configurar</Text>
-            <Text style={styles.cardArrow}>›</Text>
-          </View>
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.formCard}
-          onPress={() => navigation.navigate("PricingSettings")}
-          activeOpacity={0.8}
-        >
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <Text style={styles.cardIconText}>💰</Text>
-            </View>
-            <View style={styles.cardInfo}>
-              <Text style={styles.cardTitle}>Margen de ganancias</Text>
-              <Text style={styles.cardSubtitle}>
-                Márgenes y control de stocks
-              </Text>
-            </View>
-          </View>
-          <View style={styles.cardAction}>
-            <Text style={styles.cardActionText}>Configurar</Text>
-            <Text style={styles.cardArrow}>›</Text>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.formCard}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <Text style={styles.cardIconText}>📦</Text>
-            </View>
-            <View style={styles.cardInfo}>
-              <Text style={styles.cardTitle}>Inventario</Text>
-              <Text style={styles.cardSubtitle}>
-                Alertas y umbrales de stock
-              </Text>
-            </View>
-          </View>
-          <View style={styles.cardContent}>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Stock bajo</Text>
-              <Text style={styles.detailValue}>
-                {lowStockThreshold} unidades
-              </Text>
-            </View>
-          </View>
           <TouchableOpacity
-            style={styles.cardButton}
-            onPress={() => startEditing("inventory")}
+            style={styles.formCard}
+            onPress={() => navigation.navigate("BusinessSettings")}
             activeOpacity={0.8}
           >
-            <Text style={styles.cardButtonText}>Configurar inventario</Text>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardIcon}>
+                <Text style={styles.cardIconText}>🏢</Text>
+              </View>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>Datos del Negocio</Text>
+                <Text style={styles.cardSubtitle}>
+                  Información fiscal y de contacto
+                </Text>
+              </View>
+            </View>
+            <View style={styles.cardAction}>
+              <Text style={styles.cardActionText}>Configurar</Text>
+              <Text style={styles.cardArrow}>›</Text>
+            </View>
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.formCard}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <Text style={styles.cardIconText}>💾</Text>
+          <TouchableOpacity
+            style={styles.formCard}
+            onPress={() => navigation.navigate("PricingSettings")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.cardHeader}>
+              <View style={styles.cardIcon}>
+                <Text style={styles.cardIconText}>💰</Text>
+              </View>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>Margen de ganancias</Text>
+                <Text style={styles.cardSubtitle}>
+                  Márgenes y control de stocks
+                </Text>
+              </View>
             </View>
-            <View style={styles.cardInfo}>
-              <Text style={styles.cardTitle}>Sistema</Text>
-              <Text style={styles.cardSubtitle}>
-                Respaldos y gestión de datos
-              </Text>
+            <View style={styles.cardAction}>
+              <Text style={styles.cardActionText}>Configurar</Text>
+              <Text style={styles.cardArrow}>›</Text>
             </View>
-          </View>
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Exportar datos</Text>
+          </TouchableOpacity>
+
+          <View style={styles.formCard}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardIcon}>
+                <Text style={styles.cardIconText}>📦</Text>
+              </View>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>Inventario</Text>
+                <Text style={styles.cardSubtitle}>
+                  Alertas y umbrales de stock
+                </Text>
+              </View>
+            </View>
+            <View style={styles.cardContent}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Stock bajo</Text>
+                <Text style={styles.detailValue}>
+                  {lowStockThreshold} unidades
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.cardButton}
+              onPress={() => startEditing("inventory")}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.cardButtonText}>Configurar inventario</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Importar datos</Text>
-            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Modal de edición de inventario */}
-        {editingSection === "inventory" && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Configurar Inventario</Text>
-                <TouchableOpacity
-                  style={styles.modalCloseButton}
-                  onPress={cancelEditing}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.modalCloseText}>✕</Text>
-                </TouchableOpacity>
+          <View style={styles.formCard}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardIcon}>
+                <Text style={styles.cardIconText}>💾</Text>
               </View>
-
-              <View style={styles.modalBody}>
-                <Text style={styles.inputLabel}>Umbral de stock bajo</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="number-pad"
-                  value={formLowStock}
-                  onChangeText={setFormLowStock}
-                  placeholder="Ej: 10"
-                />
-              </View>
-
-              <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={cancelEditing}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.primaryButton,
-                    savingSection === "inventory" && styles.buttonDisabled,
-                  ]}
-                  onPress={handleSaveInventory}
-                  disabled={savingSection === "inventory"}
-                  activeOpacity={0.85}
-                >
-                  {savingSection === "inventory" ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>Guardar</Text>
-                  )}
-                </TouchableOpacity>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>Sistema</Text>
+                <Text style={styles.cardSubtitle}>
+                  Respaldos y gestión de datos
+                </Text>
               </View>
             </View>
+            <View style={styles.quickActions}>
+              <TouchableOpacity style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>Exportar datos</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>Importar datos</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+
+          {/* Modal de edición de inventario */}
+          {editingSection === "inventory" && (
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Configurar Inventario</Text>
+                  <TouchableOpacity
+                    style={styles.modalCloseButton}
+                    onPress={cancelEditing}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.modalCloseText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.modalBody}>
+                  <Text style={styles.inputLabel}>Umbral de stock bajo</Text>
+                  <TextInput
+                    style={styles.input}
+                    keyboardType="number-pad"
+                    value={formLowStock}
+                    onChangeText={setFormLowStock}
+                    placeholder="Ej: 10"
+                  />
+                </View>
+
+                <View style={styles.modalFooter}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={cancelEditing}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryButton,
+                      savingSection === "inventory" && styles.buttonDisabled,
+                    ]}
+                    onPress={handleSaveInventory}
+                    disabled={savingSection === "inventory"}
+                    activeOpacity={0.85}
+                  >
+                    {savingSection === "inventory" ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>Guardar</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+      <CustomAlert />
+    </>
   );
 };
 
