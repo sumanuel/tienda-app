@@ -183,7 +183,7 @@ export const CustomersScreen = () => {
       // Primero ordenar por número de cédula (tratando valores vacíos como último)
       const aDoc = a.documentNumber || "";
       const bDoc = b.documentNumber || "";
-      
+
       if (aDoc && bDoc) {
         // Ambos tienen cédula, comparar numéricamente si son números
         const aNum = parseInt(aDoc.replace(/\D/g, ""));
@@ -213,13 +213,20 @@ export const CustomersScreen = () => {
         <View style={styles.card}>
           <TouchableOpacity
             style={styles.cardBody}
-            onPress={isGeneric ? undefined : () =>
-              navigation.navigate("EditCustomer", { customer: item })
+            onPress={
+              isGeneric
+                ? undefined
+                : () => navigation.navigate("EditCustomer", { customer: item })
             }
             activeOpacity={isGeneric ? 1 : 0.85}
           >
             <View style={styles.cardHeader}>
-              <Text style={[styles.customerName, isGeneric && styles.genericCustomerName]}>
+              <Text
+                style={[
+                  styles.customerName,
+                  isGeneric && styles.genericCustomerName,
+                ]}
+              >
                 {item.name}
                 {isGeneric && " (ventas rápidas)"}
               </Text>

@@ -27,10 +27,10 @@ export const useCustomers = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Asegurar que el cliente genérico existe
       await createGenericCustomer();
-      
+
       const data = await getAllCustomers();
       setCustomers(data);
     } catch (err) {
