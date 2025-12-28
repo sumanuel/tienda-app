@@ -7,6 +7,7 @@ import {
   insertCustomer,
   updateCustomer,
   deleteCustomer,
+  cleanDuplicateCustomers,
 } from "../services/database/customers";
 
 /**
@@ -81,6 +82,19 @@ export const useCustomers = () => {
     async (customerData) => {
       try {
         setError(null);
+
+        // Verificar si ya existe un cliente con la misma cédula
+        if (customerData.documentNumber && customerData.documentNumber.trim()) {
+          const existingCustomer = await getCustomerByDocumentNumber(
+            customerData.documentNumber.trim()
+          );
+          if (existingCustomer) {
+            throw new Error(
+              `Ya existe un cliente con la cédula ${customerData.documentNumber}`
+            );
+          }
+        }
+
         const customerId = await insertCustomer(customerData);
         await loadCustomers();
         return customerId;
@@ -129,6 +143,19 @@ export const useCustomers = () => {
     return { total, active };
   }, [customers]);
 
+  const cleanDuplicates = useCallback(async () => {
+    try {
+      setError(null);
+      const cleanedCount = await cleanDuplicateCustomers();
+      await loadCustomers();
+      return cleanedCount;
+    } catch (err) {
+      setError(err.message);
+      console.error("Error cleaning duplicates:", err);
+      throw err;
+    }
+  }, [loadCustomers]);
+
   return {
     customers,
     loading,
@@ -141,6 +168,7 @@ export const useCustomers = () => {
     editCustomer,
     removeCustomer,
     getCustomerStats,
+    cleanDuplicates,
     refresh: loadCustomers,
   };
 };

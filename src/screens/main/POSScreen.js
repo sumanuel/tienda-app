@@ -440,20 +440,37 @@ export const POSScreen = ({ navigation }) => {
     try {
       setProcessingSale(true);
 
-      // Crear el nuevo cliente
-      const customerData = {
-        name: newCustomerName.trim(),
-        documentNumber: customerDocument,
-        documentType: "V", // Venezolano por defecto
-      };
+      let customerId;
 
-      const newCustomerId = await addCustomer(customerData);
+      // Verificar si el cliente ya existe
+      if (customerDocument.trim()) {
+        const existingCustomer = await getCustomerByDocument(
+          customerDocument.trim()
+        );
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+        } else {
+          // Crear el nuevo cliente
+          const customerData = {
+            name: newCustomerName.trim(),
+            documentNumber: customerDocument,
+            documentType: "V", // Venezolano por defecto
+          };
 
-      // Completar la venta con el nuevo cliente
+          customerId = await addCustomer(customerData);
+        }
+      } else {
+        // Si no hay cédula, usar cliente genérico
+        customerId = await ensureGenericCustomer();
+      }
+
+      // Completar la venta con el cliente
       const saleData = {
         ...pendingSaleData,
-        customerId: newCustomerId,
-        notes: `Cliente: ${newCustomerName.trim()}`,
+        customerId: customerId,
+        notes: customerDocument.trim()
+          ? `Cliente: ${newCustomerName.trim()}`
+          : "Cliente genérico",
       };
 
       const saleId = await addSale(saleData, pendingSaleData.saleItems);
