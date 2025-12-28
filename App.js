@@ -232,13 +232,13 @@ function MainTabs() {
         items={[
           {
             key: "accountsReceivable",
-            icon: "📥",
+            icon: "📈",
             label: "Cuentas por Cobrar",
             onPress: () => handleNavigate("AccountsReceivable"),
           },
           {
             key: "accountsPayable",
-            icon: "📤",
+            icon: "📉",
             label: "Cuentas por Pagar",
             onPress: () => handleNavigate("AccountsPayable"),
           },
