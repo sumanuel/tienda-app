@@ -181,23 +181,17 @@ export const InventoryEntryScreen = ({ navigation }) => {
           )}
 
           {product && !loading && (
-            <View style={[styles.productCard, styles.productCardClose]}>
+            <View style={styles.productCard}>
               <View style={styles.productHeader}>
-                <Text style={styles.productName}>{product.name}</Text>
+                <View style={styles.productNameRow}>
+                  <Text style={styles.productName}>{product.name}</Text>
+                  <Text style={styles.productStock}>
+                    {product.stock} unidades
+                  </Text>
+                </View>
                 <Text style={styles.productCode}>
                   Código: {product.barcode}
                 </Text>
-              </View>
-
-              <View style={styles.inventoryInfo}>
-                <Text style={styles.inventoryLabel}>Inventario Actual:</Text>
-                <Text style={styles.inventoryValue}>
-                  {product.stock} unidades
-                </Text>
-              </View>
-
-              <View style={styles.movementsSection}>
-                <Text style={styles.sectionTitle}>Movimientos de Entrada</Text>
               </View>
             </View>
           )}
@@ -258,8 +252,8 @@ const styles = StyleSheet.create({
   searchCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 18,
-    marginBottom: 20,
+    padding: 12,
+    marginBottom: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.07,
@@ -310,8 +304,8 @@ const styles = StyleSheet.create({
   productCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 18,
-    marginBottom: 10, // Reducido de 20 a 10 para pegar más la lista
+    padding: 12,
+    marginBottom: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.07,
@@ -319,19 +313,29 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   productCardClose: {
-    marginTop: -10, // Acerca la tarjeta del producto a la de búsqueda
+    marginTop: -10,
   },
   productHeader: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  productName: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#2f3a4c",
+  productNameRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 4,
   },
-  productCode: {
+  productName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2f3a4c",
+  },
+  productStock: {
     fontSize: 14,
+    fontWeight: "600",
+    color: "#4CAF50",
+  },
+  productCode: {
+    fontSize: 13,
     color: "#6c7a8a",
   },
   inventoryInfo: {
@@ -467,7 +471,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fff",
     borderRadius: 18,
-    padding: 18,
+    padding: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
@@ -475,30 +479,30 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   heroIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
+    width: 50,
+    height: 50,
+    borderRadius: 15,
     backgroundColor: "#f3f8ff",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 18,
+    marginRight: 12,
   },
   heroIconText: {
-    fontSize: 30,
+    fontSize: 24,
   },
   heroTextContainer: {
     flex: 1,
-    gap: 6,
+    gap: 4,
   },
   heroTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     color: "#1f2633",
   },
   heroSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#5b6472",
-    lineHeight: 20,
+    lineHeight: 18,
   },
 });
 
