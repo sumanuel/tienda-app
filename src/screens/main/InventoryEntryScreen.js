@@ -117,11 +117,18 @@ export const InventoryEntryScreen = ({ navigation }) => {
 
   const renderHeader = () => (
     <>
-      <View style={styles.header}>
-        <Text style={styles.title}>Entrada de Inventario</Text>
-        <Text style={styles.subtitle}>
-          Busca un producto por código para ver sus movimientos de entrada
-        </Text>
+      <View style={styles.headerContent}>
+        <View style={styles.heroCard}>
+          <View style={styles.heroIcon}>
+            <Text style={styles.heroIconText}>📥</Text>
+          </View>
+          <View style={styles.heroTextContainer}>
+            <Text style={styles.heroTitle}>Entrada de Inventario</Text>
+            <Text style={styles.heroSubtitle}>
+              Busca un producto por código para ver sus movimientos de entrada
+            </Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.searchCard}>
@@ -131,7 +138,7 @@ export const InventoryEntryScreen = ({ navigation }) => {
             placeholder="Código del producto"
             placeholderTextColor="#9aa6b5"
             value={productCode}
-            onChangeText={setProductCode}
+            onChangeText={handleSearch}
             returnKeyType="search"
             onSubmitEditing={handleSearch}
           />
@@ -438,6 +445,48 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: "#fff",
     fontWeight: "bold",
+  },
+  headerContent: {
+    gap: 12,
+    marginBottom: 8,
+  },
+  heroCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  heroIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: "#f3f8ff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 18,
+  },
+  heroIconText: {
+    fontSize: 30,
+  },
+  heroTextContainer: {
+    flex: 1,
+    gap: 6,
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: "#5b6472",
+    lineHeight: 20,
   },
 });
 
