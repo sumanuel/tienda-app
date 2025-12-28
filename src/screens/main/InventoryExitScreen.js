@@ -176,23 +176,17 @@ export const InventoryExitScreen = ({ navigation }) => {
           )}
 
           {product && !loading && (
-            <View style={[styles.productCard, styles.productCardClose]}>
+            <View style={styles.productCard}>
               <View style={styles.productHeader}>
-                <Text style={styles.productName}>{product.name}</Text>
+                <View style={styles.productNameRow}>
+                  <Text style={styles.productName}>{product.name}</Text>
+                  <Text style={styles.productStock}>
+                    {product.stock} unidades
+                  </Text>
+                </View>
                 <Text style={styles.productCode}>
                   Código: {product.barcode}
                 </Text>
-              </View>
-
-              <View style={styles.inventoryInfo}>
-                <Text style={styles.inventoryLabel}>Inventario Actual:</Text>
-                <Text style={styles.inventoryValue}>
-                  {product.stock} unidades
-                </Text>
-              </View>
-
-              <View style={styles.movementsSection}>
-                <Text style={styles.sectionTitle}>Movimientos de Salida</Text>
               </View>
             </View>
           )}
@@ -245,7 +239,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fff",
     borderRadius: 18,
-    padding: 18,
+    padding: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
@@ -253,16 +247,16 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   heroIcon: {
-    width: 60,
-    height: 60,
+    width: 50,
+    height: 50,
     borderRadius: 18,
     backgroundColor: "#f3f8ff",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 18,
+    marginRight: 12,
   },
   heroIconText: {
-    fontSize: 30,
+    fontSize: 24,
   },
   heroTextContainer: {
     flex: 1,
@@ -281,7 +275,7 @@ const styles = StyleSheet.create({
   searchCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 18,
+    padding: 12,
     marginBottom: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
@@ -332,8 +326,8 @@ const styles = StyleSheet.create({
   productCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 18,
-    marginBottom: 20,
+    padding: 12,
+    marginBottom: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.07,
@@ -341,40 +335,30 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   productCardClose: {
-    paddingBottom: 10,
+    marginTop: -10,
   },
   productHeader: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  productName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#2f3a4c",
-    marginBottom: 4,
-  },
-  productCode: {
-    fontSize: 14,
-    color: "#6c7a8a",
-  },
-  inventoryInfo: {
+  productNameRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: "#f7f9fc",
-    borderRadius: 14,
+    marginBottom: 4,
   },
-  inventoryLabel: {
-    fontSize: 14,
-    color: "#5b6472",
-    fontWeight: "600",
-  },
-  inventoryValue: {
+  productName: {
     fontSize: 16,
-    color: "#1f2633",
-    fontWeight: "700",
+    fontWeight: "600",
+    color: "#2f3a4c",
+  },
+  productStock: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#4CAF50",
+  },
+  productCode: {
+    fontSize: 13,
+    color: "#6c7a8a",
   },
   movementsSection: {
     paddingTop: 4,
