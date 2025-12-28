@@ -13,6 +13,7 @@ import {
 import { useProducts } from "../../hooks/useProducts";
 import { useExchangeRate } from "../../hooks/useExchangeRate";
 import { getSettings } from "../../services/database/settings";
+import { insertInventoryMovement } from "../../services/database/products";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 
 /**
@@ -170,7 +171,18 @@ export const AddProductScreen = ({ navigation }) => {
         description: formData.description.trim(),
       };
 
-      await addProduct(productData);
+      const productId = await addProduct(productData);
+
+      // Si hay stock inicial, registrar como movimiento de entrada
+      if (productData.stock > 0) {
+        await insertInventoryMovement(
+          productId,
+          "entry",
+          productData.stock,
+          0, // Stock anterior era 0
+          "Inventario Inicial"
+        );
+      }
 
       showAlert({
         title: "Éxito",
