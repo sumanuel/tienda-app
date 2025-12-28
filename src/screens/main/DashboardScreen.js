@@ -229,7 +229,7 @@ export const DashboardScreen = ({ navigation }) => {
             style={styles.statCard}
             onPress={() => navigation.navigate("InventoryEntry")}
           >
-            <Text style={styles.statIcon}>📦</Text>
+            <Text style={styles.statIcon}>📥</Text>
             <Text style={styles.statLabel}>Entrada Inventario</Text>
             <Text style={styles.statValue}>Registrar</Text>
           </TouchableOpacity>
