@@ -407,6 +407,26 @@ export const getProductEntryMovements = async (productId) => {
   }
 };
 
+/**
+ * Obtiene los movimientos de salida de un producto
+ */
+export const getProductExitMovements = async (productId) => {
+  try {
+    const result = await db.getAllAsync(
+      `SELECT id, type, quantity, previousStock, newStock, notes, createdAt
+       FROM inventory_movements
+       WHERE productId = ? AND type = 'exit'
+       ORDER BY createdAt DESC;`,
+      [productId]
+    );
+
+    return result;
+  } catch (error) {
+    console.error("Error obteniendo movimientos de salida:", error);
+    throw error;
+  }
+};
+
 export default {
   initDatabase,
   checkTableExists,
@@ -423,4 +443,5 @@ export default {
   getAllProductsWithQRCodes,
   insertInventoryMovement,
   getProductEntryMovements,
+  getProductExitMovements,
 };

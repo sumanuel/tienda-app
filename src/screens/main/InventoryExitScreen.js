@@ -11,10 +11,10 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import {
   getProductByBarcode,
-  getProductEntryMovements,
+  getProductExitMovements,
 } from "../../services/database/products";
 
-export const InventoryEntryScreen = ({ navigation }) => {
+export const InventoryExitScreen = ({ navigation }) => {
   const [productCode, setProductCode] = useState("");
   const [product, setProduct] = useState(null);
   const [movements, setMovements] = useState([]);
@@ -33,11 +33,7 @@ export const InventoryEntryScreen = ({ navigation }) => {
       const foundProduct = await getProductByBarcode(productCode.trim());
       if (foundProduct) {
         setProduct(foundProduct);
-
-        // Cargar movimientos de entrada del producto
-        const productMovements = await getProductEntryMovements(
-          foundProduct.id
-        );
+        const productMovements = await getProductExitMovements(foundProduct.id);
         setMovements(productMovements);
       } else {
         setProduct(null);
@@ -59,31 +55,27 @@ export const InventoryEntryScreen = ({ navigation }) => {
     setError(null);
   };
 
-  const handleAddEntry = () => {
+  const handleAddExit = () => {
     if (product) {
-      navigation.navigate("AddInventoryEntry", { product });
+      navigation.navigate("AddInventoryExit", { product });
     }
   };
 
-  // Refrescar producto cuando se regrese de agregar entrada
   useFocusEffect(
     React.useCallback(() => {
       if (product && productCode) {
-        // Refrescar el producto para obtener stock actualizado
         const refreshProduct = async () => {
           try {
             const updatedProduct = await getProductByBarcode(productCode);
             if (updatedProduct) {
               setProduct(updatedProduct);
-
-              // Recargar movimientos también
-              const productMovements = await getProductEntryMovements(
+              const productMovements = await getProductExitMovements(
                 updatedProduct.id
               );
               setMovements(productMovements);
             }
-          } catch (error) {
-            console.error("Error refrescando producto:", error);
+          } catch (refreshError) {
+            console.error("Error refrescando producto:", refreshError);
           }
         };
         refreshProduct();
@@ -98,13 +90,17 @@ export const InventoryEntryScreen = ({ navigation }) => {
           {new Date(item.createdAt).toLocaleDateString()}{" "}
           {new Date(item.createdAt).toLocaleTimeString()}
         </Text>
-        <View style={styles.movementBadge}>
-          <Text style={styles.movementBadgeText}>Entrada</Text>
+        <View style={[styles.movementBadge, styles.movementBadgeExit]}>
+          <Text
+            style={[styles.movementBadgeText, styles.movementBadgeTextExit]}
+          >
+            Salida
+          </Text>
         </View>
       </View>
 
       <View style={styles.movementDetails}>
-        <Text style={styles.movementQuantity}>+{item.quantity} unidades</Text>
+        <Text style={styles.movementQuantity}>-{item.quantity} unidades</Text>
         <Text style={styles.movementStock}>
           Stock: {item.previousStock} → {item.newStock}
         </Text>
@@ -122,8 +118,7 @@ export const InventoryEntryScreen = ({ navigation }) => {
         <Text style={styles.emptyEmoji}>📋</Text>
         <Text style={styles.emptyTitle}>Sin movimientos registrados</Text>
         <Text style={styles.emptySubtitle}>
-          El inventario actual ({product.stock} unidades) se considera como
-          registro inicial.
+          No hay salidas registradas para este producto.
         </Text>
       </View>
     );
@@ -136,13 +131,13 @@ export const InventoryEntryScreen = ({ navigation }) => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>📥</Text>
+                <Text style={styles.heroIconText}>📤</Text>
               </View>
               <View style={styles.heroTextContainer}>
-                <Text style={styles.heroTitle}>Entrada de Inventario</Text>
+                <Text style={styles.heroTitle}>Salida de Inventario</Text>
                 <Text style={styles.heroSubtitle}>
                   Busca un producto por código para ver sus movimientos de
-                  entrada
+                  salida (incluye ventas).
                 </Text>
               </View>
             </View>
@@ -197,7 +192,7 @@ export const InventoryEntryScreen = ({ navigation }) => {
               </View>
 
               <View style={styles.movementsSection}>
-                <Text style={styles.sectionTitle}>Movimientos de Entrada</Text>
+                <Text style={styles.sectionTitle}>Movimientos de Salida</Text>
               </View>
             </View>
           )}
@@ -217,10 +212,10 @@ export const InventoryEntryScreen = ({ navigation }) => {
       {product && (
         <TouchableOpacity
           style={styles.fab}
-          onPress={handleAddEntry}
+          onPress={handleAddExit}
           activeOpacity={0.85}
         >
-          <Text style={styles.fabIcon}>+</Text>
+          <Text style={styles.fabIcon}>-</Text>
         </TouchableOpacity>
       )}
     </>
@@ -239,224 +234,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 80, // Espacio para el FAB
-  },
-  header: {
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#2f3a4c",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#6c7a8a",
-    lineHeight: 22,
-  },
-  searchCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  textInput: {
-    flex: 1,
-    backgroundColor: "#f3f5fa",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    fontSize: 13,
-    color: "#1f2633",
-    marginRight: 12,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#ecf4ef",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 8,
-  },
-  iconText: {
-    fontSize: 16,
-  },
-  errorText: {
-    color: "#c62828",
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: "center",
-  },
-  loadingContainer: {
-    alignItems: "center",
-    paddingVertical: 20, // Reducido de 40 a 20 para menos separación
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
-    color: "#6c7a8a",
-  },
-  productCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 10, // Reducido de 20 a 10 para pegar más la lista
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  productCardClose: {
-    marginTop: -10, // Acerca la tarjeta del producto a la de búsqueda
-  },
-  productHeader: {
-    marginBottom: 16,
-  },
-  productName: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#2f3a4c",
-    marginBottom: 4,
-  },
-  productCode: {
-    fontSize: 14,
-    color: "#6c7a8a",
-  },
-  inventoryInfo: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#f8f9fa",
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  inventoryLabel: {
-    fontSize: 14,
-    color: "#6c7a8a",
-    fontWeight: "500",
-  },
-  inventoryValue: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2e7d32",
-  },
-  movementsSection: {
-    marginTop: 10, // Reducido de 20 a 10 para hacer la tarjeta más delgada
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2f3a4c",
-    marginBottom: 8, // Reducido de 12 a 8
-  },
-  emptyMovements: {
-    alignItems: "center",
-    paddingVertical: 32,
-    backgroundColor: "#f8f9fa",
-    borderRadius: 12,
-  },
-  emptyEmoji: {
-    fontSize: 32,
-    marginBottom: 12,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2f3a4c",
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: "#6c7a8a",
-    textAlign: "center",
-    lineHeight: 20,
-    paddingHorizontal: 16,
-  },
-  movementCard: {
-    backgroundColor: "#f8f9fa",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: "#4CAF50",
-  },
-  movementHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  movementDate: {
-    fontSize: 12,
-    color: "#6c7a8a",
-    fontWeight: "500",
-  },
-  movementBadge: {
-    backgroundColor: "#e8f5e8",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  movementBadgeText: {
-    fontSize: 10,
-    color: "#2e7d32",
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  movementDetails: {
-    marginBottom: 8,
-  },
-  movementQuantity: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2e7d32",
-    marginBottom: 4,
-  },
-  movementStock: {
-    fontSize: 13,
-    color: "#6c7a8a",
-  },
-  movementNotes: {
-    fontSize: 13,
-    color: "#4f6bed",
-    fontStyle: "italic",
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-  },
-  fab: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabIcon: {
-    fontSize: 28,
-    color: "#fff",
-    fontWeight: "bold",
+    paddingBottom: 80,
   },
   headerContent: {
     gap: 12,
@@ -500,6 +278,214 @@ const styles = StyleSheet.create({
     color: "#5b6472",
     lineHeight: 20,
   },
+  searchCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  textInput: {
+    flex: 1,
+    backgroundColor: "#f3f5fa",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    fontSize: 13,
+    color: "#1f2633",
+    marginRight: 12,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#ecf4ef",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+  iconText: {
+    fontSize: 16,
+  },
+  errorText: {
+    color: "#c62828",
+    fontSize: 14,
+    marginTop: 12,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    color: "#6c7a8a",
+    fontSize: 14,
+  },
+  productCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  productCardClose: {
+    paddingBottom: 10,
+  },
+  productHeader: {
+    marginBottom: 16,
+  },
+  productName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2f3a4c",
+    marginBottom: 4,
+  },
+  productCode: {
+    fontSize: 14,
+    color: "#6c7a8a",
+  },
+  inventoryInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#f7f9fc",
+    borderRadius: 14,
+  },
+  inventoryLabel: {
+    fontSize: 14,
+    color: "#5b6472",
+    fontWeight: "600",
+  },
+  inventoryValue: {
+    fontSize: 16,
+    color: "#1f2633",
+    fontWeight: "700",
+  },
+  movementsSection: {
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2f3a4c",
+    marginTop: 12,
+  },
+  movementCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  movementHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  movementDate: {
+    fontSize: 12,
+    color: "#6c7a8a",
+    fontWeight: "500",
+  },
+  movementBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  movementBadgeExit: {
+    backgroundColor: "#ffebee",
+  },
+  movementBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  movementBadgeTextExit: {
+    color: "#c62828",
+  },
+  movementDetails: {
+    marginTop: 6,
+  },
+  movementQuantity: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#c62828",
+    marginBottom: 4,
+  },
+  movementStock: {
+    fontSize: 13,
+    color: "#5b6472",
+  },
+  movementNotes: {
+    marginTop: 10,
+    fontSize: 13,
+    color: "#2f3a4c",
+    fontStyle: "italic",
+  },
+  emptyMovements: {
+    alignItems: "center",
+    paddingVertical: 30,
+  },
+  emptyEmoji: {
+    fontSize: 34,
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#2f3a4c",
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: "#6c7a8a",
+    textAlign: "center",
+    lineHeight: 18,
+    paddingHorizontal: 20,
+  },
+  fab: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#c62828",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabIcon: {
+    fontSize: 28,
+    color: "#fff",
+    fontWeight: "700",
+  },
 });
 
-export default InventoryEntryScreen;
+export default InventoryExitScreen;

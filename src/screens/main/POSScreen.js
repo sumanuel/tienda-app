@@ -18,7 +18,10 @@ import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
-import { updateProductStock } from "../../services/database/products";
+import {
+  updateProductStock,
+  insertInventoryMovement,
+} from "../../services/database/products";
 import { CameraView, useCameraPermissions } from "expo-camera";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -359,10 +362,23 @@ export const POSScreen = ({ navigation }) => {
       // Registrar la venta y obtener el ID
       const saleId = await addSale(saleData, saleItems);
 
+      const customerLabel = (customerName || "Cliente").trim() || "Cliente";
+      const paymentLabel = (paymentMethod || "").toString();
+      const saleMovementNote = paymentLabel
+        ? `Venta #${saleId} - ${customerLabel} - ${paymentLabel}`
+        : `Venta #${saleId} - ${customerLabel}`;
+
       // Actualizar stock de productos vendidos
       for (const item of cart) {
         const newStock = item.product.stock - item.quantity;
         await updateProductStock(item.product.id, newStock);
+        await insertInventoryMovement(
+          item.product.id,
+          "exit",
+          item.quantity,
+          item.product.stock,
+          saleMovementNote
+        );
         console.log(
           `Stock actualizado: ${item.name.toUpperCase()} - Nuevo stock: ${newStock}`
         );
@@ -486,10 +502,27 @@ export const POSScreen = ({ navigation }) => {
 
       const saleId = await addSale(saleData, pendingSaleData.saleItems);
 
+      const pendingCustomerLabel = customerDocument.trim()
+        ? newCustomerName.trim() || "Cliente"
+        : "Cliente genérico";
+      const pendingPaymentLabel = (
+        pendingSaleData.paymentMethod || ""
+      ).toString();
+      const pendingSaleMovementNote = pendingPaymentLabel
+        ? `Venta #${saleId} - ${pendingCustomerLabel} - ${pendingPaymentLabel}`
+        : `Venta #${saleId} - ${pendingCustomerLabel}`;
+
       // Actualizar stock de productos vendidos
       for (const item of cart) {
         const newStock = item.product.stock - item.quantity;
         await updateProductStock(item.product.id, newStock);
+        await insertInventoryMovement(
+          item.product.id,
+          "exit",
+          item.quantity,
+          item.product.stock,
+          pendingSaleMovementNote
+        );
         console.log(
           `Stock actualizado: ${item.name.toUpperCase()} - Nuevo stock: ${newStock}`
         );
