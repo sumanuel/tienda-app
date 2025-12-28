@@ -138,9 +138,10 @@ export const InventoryEntryScreen = ({ navigation }) => {
             placeholder="Código del producto"
             placeholderTextColor="#9aa6b5"
             value={productCode}
-            onChangeText={handleSearch}
+            onChangeText={setProductCode}
             returnKeyType="search"
             onSubmitEditing={handleSearch}
+            autoCapitalize="characters"
           />
           <TouchableOpacity style={styles.iconButton} onPress={handleSearch}>
             <Text style={styles.iconText}>🔍</Text>
@@ -195,16 +196,19 @@ export const InventoryEntryScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={movements}
-        renderItem={renderMovement}
-        keyExtractor={(item) => item.id.toString()}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmpty}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      />
+    <>
+      <View style={styles.container}>
+        <FlatList
+          data={movements}
+          renderItem={renderMovement}
+          keyExtractor={(item) => item.id.toString()}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        />
+      </View>
 
       {product && (
         <TouchableOpacity
@@ -215,7 +219,7 @@ export const InventoryEntryScreen = ({ navigation }) => {
           <Text style={styles.fabIcon}>+</Text>
         </TouchableOpacity>
       )}
-    </View>
+    </>
   );
 };
 
@@ -227,7 +231,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 100, // Espacio para el FAB
+    paddingBottom: 80, // Espacio para el FAB
   },
   header: {
     marginBottom: 20,
@@ -262,23 +266,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f3f5fa",
     borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    fontSize: 13,
     color: "#1f2633",
     marginRight: 12,
   },
   iconButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: "#ecf4ef",
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 8,
   },
   iconText: {
-    fontSize: 20,
+    fontSize: 16,
   },
   errorText: {
     color: "#c62828",

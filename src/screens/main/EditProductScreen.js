@@ -446,11 +446,12 @@ export const EditProductScreen = ({ navigation, route }) => {
                 returnKeyType="done"
                 onFocus={() => scrollToField(stockRef)}
                 onSubmitEditing={handleSubmit}
+                editable={false}
               />
             </View>
 
             <Text style={styles.helperText}>
-              Puedes ajustar el stock y margen luego cuantas veces lo necesites.
+              El stock se gestiona a través de movimientos de inventario.
             </Text>
           </View>
 
