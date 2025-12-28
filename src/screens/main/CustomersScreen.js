@@ -104,6 +104,16 @@ export const CustomersScreen = () => {
   const confirmDeleteCustomer = useCallback(
     async (customer) => {
       try {
+        // Verificar si es el cliente genérico
+        if (customer.documentNumber === "1") {
+          showAlert({
+            title: "No se puede eliminar",
+            message: "El cliente genérico no puede ser eliminado.",
+            type: "error",
+          });
+          return;
+        }
+
         // Verificar si el cliente tiene movimientos asociados
         const [allSales, allReceivables] = await Promise.all([
           getAllSales(),
@@ -169,25 +179,50 @@ export const CustomersScreen = () => {
   );
 
   const sortedCustomers = useMemo(() => {
-    return [...customers].sort((a, b) => a.name.localeCompare(b.name));
+    return [...customers].sort((a, b) => {
+      // Primero ordenar por número de cédula (tratando valores vacíos como último)
+      const aDoc = a.documentNumber || "";
+      const bDoc = b.documentNumber || "";
+      
+      if (aDoc && bDoc) {
+        // Ambos tienen cédula, comparar numéricamente si son números
+        const aNum = parseInt(aDoc.replace(/\D/g, ""));
+        const bNum = parseInt(bDoc.replace(/\D/g, ""));
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return aNum - bNum;
+        }
+        return aDoc.localeCompare(bDoc);
+      } else if (aDoc) {
+        return -1; // a tiene cédula, va primero
+      } else if (bDoc) {
+        return 1; // b tiene cédula, va primero
+      } else {
+        // Ninguno tiene cédula, ordenar por nombre
+        return a.name.localeCompare(b.name);
+      }
+    });
   }, [customers]);
 
   const renderCustomer = useCallback(
     ({ item }) => {
       const hasEmail = Boolean(item.email);
       const hasPhone = Boolean(item.phone);
+      const isGeneric = item.documentNumber === "1";
 
       return (
         <View style={styles.card}>
           <TouchableOpacity
             style={styles.cardBody}
-            onPress={() =>
+            onPress={isGeneric ? undefined : () =>
               navigation.navigate("EditCustomer", { customer: item })
             }
-            activeOpacity={0.85}
+            activeOpacity={isGeneric ? 1 : 0.85}
           >
             <View style={styles.cardHeader}>
-              <Text style={styles.customerName}>{item.name}</Text>
+              <Text style={[styles.customerName, isGeneric && styles.genericCustomerName]}>
+                {item.name}
+                {isGeneric && " (ventas rápidas)"}
+              </Text>
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>#{item.documentNumber}</Text>
               </View>
@@ -208,13 +243,15 @@ export const CustomersScreen = () => {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => confirmDeleteCustomer(item)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.deleteButtonText}>✕</Text>
-          </TouchableOpacity>
+          {!isGeneric && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => confirmDeleteCustomer(item)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.deleteButtonText}>✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
       );
     },
@@ -477,6 +514,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#1f2633",
+  },
+  genericCustomerName: {
+    color: "#6f7c8c",
+    fontStyle: "italic",
   },
   badge: {
     paddingHorizontal: 12,
