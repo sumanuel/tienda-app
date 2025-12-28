@@ -262,6 +262,17 @@ export const POSScreen = ({ navigation }) => {
       return;
     }
 
+    // Validar que el cliente genérico no use método de pago "por_cobrar"
+    if (customerDocument === "1" && paymentMethod === "por_cobrar") {
+      showAlert({
+        title: "Método de Pago No Permitido",
+        message:
+          "El cliente genérico es solo para ventas rápidas. No se permite el método de pago 'Por Cobrar' para este cliente.",
+        buttons: [{ text: "Entendido", style: "default" }],
+      });
+      return;
+    }
+
     try {
       let customerId = null;
       let customerName = "Cliente";
