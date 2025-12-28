@@ -76,9 +76,9 @@ export const getAccountsReceivableStats = async () => {
     const result = await db.getAllAsync(`
       SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) as pending,
-        SUM(CASE WHEN status = 'overdue' THEN amount ELSE 0 END) as overdue,
-        SUM(amount) as totalAmount
+        SUM(CASE WHEN status = 'pending' AND COALESCE(paidAmount, 0) < amount THEN (amount - COALESCE(paidAmount, 0)) ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'overdue' AND COALESCE(paidAmount, 0) < amount THEN (amount - COALESCE(paidAmount, 0)) ELSE 0 END) as overdue,
+        SUM(CASE WHEN status != 'paid' AND COALESCE(paidAmount, 0) < amount THEN (amount - COALESCE(paidAmount, 0)) ELSE 0 END) as totalAmount
       FROM accounts_receivable
     `);
     return result[0] || { total: 0, pending: 0, overdue: 0, totalAmount: 0 };
@@ -95,9 +95,9 @@ export const getAccountsPayableStats = async () => {
     const result = await db.getAllAsync(`
       SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) as pending,
-        SUM(CASE WHEN status = 'overdue' THEN amount ELSE 0 END) as overdue,
-        SUM(amount) as totalAmount
+        SUM(CASE WHEN status = 'pending' AND COALESCE(paidAmount, 0) < amount THEN (amount - COALESCE(paidAmount, 0)) ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'overdue' AND COALESCE(paidAmount, 0) < amount THEN (amount - COALESCE(paidAmount, 0)) ELSE 0 END) as overdue,
+        SUM(CASE WHEN status != 'paid' AND COALESCE(paidAmount, 0) < amount THEN (amount - COALESCE(paidAmount, 0)) ELSE 0 END) as totalAmount
       FROM accounts_payable
     `);
     return result[0] || { total: 0, pending: 0, overdue: 0, totalAmount: 0 };
