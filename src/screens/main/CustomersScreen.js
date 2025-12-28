@@ -15,8 +15,16 @@ import { useCustomAlert } from "../../components/common/CustomAlert";
 
 export const CustomersScreen = () => {
   const navigation = useNavigation();
-  const { customers, loading, error, search, removeCustomer, refresh } =
-    useCustomers();
+  const {
+    customers,
+    loading,
+    error,
+    search,
+    removeCustomer,
+    refresh,
+    cleanDuplicates,
+    recoverDeleted,
+  } = useCustomers();
   const { showAlert, CustomAlert } = useCustomAlert();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -29,12 +37,69 @@ export const CustomersScreen = () => {
     [search]
   );
 
-  // Recargar clientes cuando la pantalla se enfoque
-  useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [refresh])
-  );
+  const handleCleanDuplicates = useCallback(async () => {
+    showAlert({
+      title: "Limpiar duplicados",
+      message:
+        "¿Estás seguro de que quieres limpiar los clientes duplicados? Se mantendrá el más reciente de cada grupo.",
+      type: "warning",
+      buttons: [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Limpiar",
+          onPress: async () => {
+            try {
+              const result = await cleanDuplicates();
+              showAlert({
+                title: "Éxito",
+                message: `Se limpiaron ${result.cleanedCount} duplicados. Las cuentas asociadas fueron transferidas al cliente más reciente.`,
+                type: "success",
+              });
+            } catch (error) {
+              console.error("Error limpiando duplicados:", error);
+              showAlert({
+                title: "Error",
+                message: "No se pudieron limpiar los duplicados",
+                type: "error",
+              });
+            }
+          },
+        },
+      ],
+    });
+  }, [cleanDuplicates, showAlert]);
+
+  const handleRecoverDeleted = useCallback(async () => {
+    showAlert({
+      title: "Recuperar eliminados",
+      message:
+        "¿Estás seguro de que quieres recuperar todos los clientes eliminados?",
+      type: "warning",
+      buttons: [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Recuperar",
+          onPress: async () => {
+            try {
+              const recoveredCount = await recoverDeleted();
+              showAlert({
+                title: "Éxito",
+                message: `Se recuperaron ${recoveredCount} clientes eliminados.`,
+                type: "success",
+              });
+            } catch (error) {
+              console.error("Error recuperando clientes:", error);
+              showAlert({
+                title: "Error",
+                message: "No se pudieron recuperar los clientes",
+                type: "error",
+              });
+            }
+          },
+        },
+      ],
+    });
+  }, [recoverDeleted, showAlert]);
 
   const confirmDeleteCustomer = useCallback(
     async (customer) => {
@@ -181,6 +246,28 @@ export const CustomersScreen = () => {
           placeholderTextColor="#9aa2b1"
         />
       </View>
+
+      {/* <View style={styles.actionsCard}>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.cleanButton]}
+            onPress={handleCleanDuplicates}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.cleanButtonText}>🧹 Limpiar duplicados</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.recoverButton]}
+            onPress={handleRecoverDeleted}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.recoverButtonText}>
+              🔄 Recuperar eliminados
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View> */}
     </View>
   );
 
@@ -499,4 +586,48 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
   },
+  /* actionsCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  cleanButton: {
+    backgroundColor: "#f59e0b",
+    shadowColor: "#f59e0b",
+  },
+  cleanButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  recoverButton: {
+    backgroundColor: "#10b981",
+    shadowColor: "#10b981",
+  },
+  recoverButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  }, */
 });

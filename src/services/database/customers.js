@@ -174,16 +174,17 @@ export const deleteCustomer = async (id) => {
  */
 export const cleanDuplicateCustomers = async () => {
   try {
-    // Obtener grupos de clientes con la misma cédula
+    // Obtener grupos de clientes con la misma cédula (trim para evitar diferencias por espacios)
     const duplicates = await db.getAllAsync(`
-      SELECT documentNumber, COUNT(*) as count, GROUP_CONCAT(id) as ids
+      SELECT TRIM(documentNumber) as trimmedDoc, COUNT(*) as count, GROUP_CONCAT(id) as ids
       FROM customers
-      WHERE documentNumber IS NOT NULL AND documentNumber != ''
-      GROUP BY documentNumber
+      WHERE documentNumber IS NOT NULL AND TRIM(documentNumber) != ''
+      GROUP BY TRIM(documentNumber)
       HAVING count > 1
     `);
 
     let cleanedCount = 0;
+    let skippedCount = 0;
 
     for (const dup of duplicates) {
       const ids = dup.ids.split(",");
@@ -191,7 +192,19 @@ export const cleanDuplicateCustomers = async () => {
       const keepId = Math.max(...ids.map((id) => parseInt(id)));
       const removeIds = ids.filter((id) => parseInt(id) !== keepId);
 
-      // Desactivar los duplicados
+      // Transferir cuentas por cobrar de los duplicados al cliente que se mantiene
+      for (const removeId of removeIds) {
+        await db.runAsync(
+          "UPDATE accounts_receivable SET customerId = ?, updatedAt = CURRENT_TIMESTAMP WHERE customerId = ?;",
+          [keepId, removeId]
+        );
+        await db.runAsync(
+          "UPDATE sales SET customerId = ?, updatedAt = CURRENT_TIMESTAMP WHERE customerId = ?;",
+          [keepId, removeId]
+        );
+      }
+
+      // Desactivar los duplicados (ahora que no tienen cuentas asociadas)
       for (const removeId of removeIds) {
         await db.runAsync(
           "UPDATE customers SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
@@ -201,7 +214,21 @@ export const cleanDuplicateCustomers = async () => {
       }
     }
 
-    return cleanedCount;
+    return { cleanedCount, skippedCount };
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Recupera clientes eliminados (marcados como inactivos)
+ */
+export const recoverDeletedCustomers = async () => {
+  try {
+    const result = await db.runAsync(
+      "UPDATE customers SET active = 1, updatedAt = CURRENT_TIMESTAMP WHERE active = 0;"
+    );
+    return result.changes;
   } catch (error) {
     throw error;
   }
@@ -217,4 +244,5 @@ export default {
   updateCustomer,
   deleteCustomer,
   cleanDuplicateCustomers,
+  recoverDeletedCustomers,
 };

@@ -8,6 +8,7 @@ import {
   updateCustomer,
   deleteCustomer,
   cleanDuplicateCustomers,
+  recoverDeletedCustomers,
 } from "../services/database/customers";
 
 /**
@@ -146,12 +147,25 @@ export const useCustomers = () => {
   const cleanDuplicates = useCallback(async () => {
     try {
       setError(null);
-      const cleanedCount = await cleanDuplicateCustomers();
+      const result = await cleanDuplicateCustomers();
       await loadCustomers();
-      return cleanedCount;
+      return result;
     } catch (err) {
       setError(err.message);
       console.error("Error cleaning duplicates:", err);
+      throw err;
+    }
+  }, [loadCustomers]);
+
+  const recoverDeleted = useCallback(async () => {
+    try {
+      setError(null);
+      const recoveredCount = await recoverDeletedCustomers();
+      await loadCustomers();
+      return recoveredCount;
+    } catch (err) {
+      setError(err.message);
+      console.error("Error recovering deleted customers:", err);
       throw err;
     }
   }, [loadCustomers]);
@@ -169,6 +183,7 @@ export const useCustomers = () => {
     removeCustomer,
     getCustomerStats,
     cleanDuplicates,
+    recoverDeleted,
     refresh: loadCustomers,
   };
 };
