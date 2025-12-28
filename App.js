@@ -49,6 +49,8 @@ import CapitalScreen from "./src/screens/main/CapitalScreen";
 import BusinessSettingsScreen from "./src/screens/main/BusinessSettingsScreen";
 import PricingSettingsScreen from "./src/screens/main/PricingSettingsScreen";
 import QRProductsScreen from "./src/screens/main/QRProductsScreen";
+import InventoryEntryScreen from "./src/screens/main/InventoryEntryScreen";
+import AddInventoryEntryScreen from "./src/screens/main/AddInventoryEntryScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
@@ -476,6 +478,34 @@ export default function App() {
             component={EditProductScreen}
             options={{
               title: "Editar Producto",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="InventoryEntry"
+            component={InventoryEntryScreen}
+            options={{
+              title: "Entrada de Inventario",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AddInventoryEntry"
+            component={AddInventoryEntryScreen}
+            options={{
+              title: "Agregar Entrada",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },

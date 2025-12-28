@@ -511,6 +511,37 @@ const runMigrations = async () => {
       );
     }
 
+    // Crear tabla de movimientos de inventario si no existe
+    const inventoryMovementsExists = await db.getAllAsync(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='inventory_movements';"
+    );
+
+    if (inventoryMovementsExists.length === 0) {
+      console.log("Creating inventory_movements table...");
+      await db.execAsync(`
+        CREATE TABLE inventory_movements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          productId INTEGER NOT NULL,
+          type TEXT NOT NULL CHECK(type IN ('entry', 'exit')),
+          quantity INTEGER NOT NULL,
+          previousStock INTEGER NOT NULL,
+          newStock INTEGER NOT NULL,
+          notes TEXT,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (productId) REFERENCES products(id) ON DELETE CASCADE
+        );
+      `);
+
+      // Crear índice para la tabla
+      await db.execAsync(
+        "CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(productId);"
+      );
+
+      console.log("inventory_movements table created successfully");
+    } else {
+      console.log("inventory_movements table already exists");
+    }
+
     console.log("Database migrations completed");
   } catch (error) {
     console.error("Error running migrations:", error);

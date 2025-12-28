@@ -360,6 +360,53 @@ export const getAllProductsWithQRCodes = async () => {
   }
 };
 
+/**
+ * Registra un movimiento de inventario
+ */
+export const insertInventoryMovement = async (
+  productId,
+  type,
+  quantity,
+  previousStock,
+  notes = null
+) => {
+  try {
+    const newStock =
+      type === "entry" ? previousStock + quantity : previousStock - quantity;
+
+    const result = await db.runAsync(
+      `INSERT INTO inventory_movements (productId, type, quantity, previousStock, newStock, notes)
+       VALUES (?, ?, ?, ?, ?, ?);`,
+      [productId, type, quantity, previousStock, newStock, notes]
+    );
+
+    return result.lastInsertRowId;
+  } catch (error) {
+    console.error("Error insertando movimiento de inventario:", error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene los movimientos de entrada de un producto
+ */
+export const getProductEntryMovements = async (productId) => {
+  try {
+    const result = await db.getAllAsync(
+      `SELECT id, type, quantity, previousStock, newStock, notes, createdAt
+       FROM inventory_movements
+       WHERE productId = ? AND type = 'entry'
+       ORDER BY createdAt DESC;`,
+      [productId]
+    );
+
+    return result;
+  } catch (error) {
+    console.error("Error obteniendo movimientos de entrada:", error);
+    throw error;
+  }
+};
+
 export default {
   initDatabase,
   checkTableExists,
@@ -374,4 +421,6 @@ export default {
   getLowStockProducts,
   updateAllPricesWithExchangeRate,
   getAllProductsWithQRCodes,
+  insertInventoryMovement,
+  getProductEntryMovements,
 };
