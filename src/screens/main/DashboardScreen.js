@@ -222,6 +222,28 @@ export const DashboardScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
         </View>
+
+        <View style={styles.statsRow}>
+          {/* Entrada Inventario */}
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => navigation.navigate("InventoryEntry")}
+          >
+            <Text style={styles.statIcon}>📦</Text>
+            <Text style={styles.statLabel}>Entrada Inventario</Text>
+            <Text style={styles.statValue}>Registrar</Text>
+          </TouchableOpacity>
+
+          {/* Salida Inventario */}
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => navigation.navigate("InventoryExit")}
+          >
+            <Text style={styles.statIcon}>📤</Text>
+            <Text style={styles.statLabel}>Salida Inventario</Text>
+            <Text style={styles.statValue}>Registrar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
