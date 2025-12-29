@@ -176,7 +176,7 @@ export const InventoryExitScreen = ({ navigation }) => {
           )}
 
           {product && !loading && (
-            <View style={styles.productCard}>
+            <View style={[styles.productCard, styles.productCardClose]}>
               <View style={styles.productHeader}>
                 <View style={styles.productNameRow}>
                   <Text style={styles.productName}>{product.name}</Text>
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   productCardClose: {
-    marginTop: -10,
+    marginTop: -15,
   },
   productHeader: {
     marginBottom: 12,
