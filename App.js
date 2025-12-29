@@ -237,28 +237,10 @@ function MainTabs() {
           }}
         />
         <Tab.Screen
-          name="AddInventoryEntry"
-          component={AddInventoryEntryScreen}
-          options={{
-            title: "Agregar Entrada",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
           name="InventoryExit"
           component={InventoryExitScreen}
           options={{
             title: "Salida de Inventario",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
-          name="AddInventoryExit"
-          component={AddInventoryExitScreen}
-          options={{
-            title: "Agregar Salida",
             tabBarButton: () => null,
             tabBarItemStyle: { display: "none" },
           }}
@@ -741,6 +723,34 @@ export default function App() {
             component={PricingSettingsScreen}
             options={{
               title: "Margen de Ganancias",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AddInventoryEntry"
+            component={AddInventoryEntryScreen}
+            options={{
+              title: "Agregar Entrada",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AddInventoryExit"
+            component={AddInventoryExitScreen}
+            options={{
+              title: "Agregar Salida",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },
