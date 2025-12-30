@@ -172,11 +172,12 @@ export const SettingsScreen = () => {
   };
 
   const showBackupInfo = () => {
-    Alert.alert(
-      "💡 Recomendación de respaldo",
-      "Te recomendamos guardar tus respaldos en Google Drive u otro servicio en la nube para tener una copia segura fuera de tu dispositivo.\n\nEsto te protegerá en caso de pérdida, robo o daño del teléfono.",
-      [{ text: "Entendido" }]
-    );
+    showAlert({
+      title: "💡 Recomendación de respaldo",
+      message:
+        "Te recomendamos guardar tus respaldos en Google Drive u otro servicio en la nube para tener una copia segura fuera de tu dispositivo.\n\nEsto te protegerá en caso de pérdida, robo o daño del teléfono.",
+      type: "success",
+    });
   };
 
   if (isLoading) {
