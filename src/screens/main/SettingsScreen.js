@@ -163,7 +163,8 @@ export const SettingsScreen = () => {
   const handleImportData = async () => {
     showAlert({
       title: "Importar datos",
-      message: "Esto reemplazará los datos actuales por los del respaldo. ¿Deseas continuar?",
+      message:
+        "Esto reemplazará los datos actuales por los del respaldo. ¿Deseas continuar?",
       type: "warning",
       buttons: [
         { text: "Cancelar", style: "cancel" },
