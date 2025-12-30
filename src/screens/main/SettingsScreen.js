@@ -171,6 +171,14 @@ export const SettingsScreen = () => {
     );
   };
 
+  const showBackupInfo = () => {
+    Alert.alert(
+      "💡 Recomendación de respaldo",
+      "Te recomendamos guardar tus respaldos en Google Drive u otro servicio en la nube para tener una copia segura fuera de tu dispositivo.\n\nEsto te protegerá en caso de pérdida, robo o daño del teléfono.",
+      [{ text: "Entendido" }]
+    );
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -278,7 +286,16 @@ export const SettingsScreen = () => {
                 <Text style={styles.cardIconText}>💾</Text>
               </View>
               <View style={styles.cardInfo}>
-                <Text style={styles.cardTitle}>Sistema</Text>
+                <View style={styles.cardTitleRow}>
+                  <Text style={styles.cardTitle}>Sistema</Text>
+                  <TouchableOpacity
+                    onPress={showBackupInfo}
+                    style={styles.infoIcon}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.infoIconText}>i</Text>
+                  </TouchableOpacity>
+                </View>
                 <Text style={styles.cardSubtitle}>
                   Respaldos y gestión de datos
                 </Text>
@@ -539,6 +556,24 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: "#1f2633",
+  },
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  infoIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#2196F3",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  infoIconText: {
+    fontSize: 12,
+    color: "#fff",
+    fontWeight: "bold",
   },
   cardSubtitle: {
     fontSize: 14,
