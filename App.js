@@ -452,8 +452,10 @@ export default function App() {
       // Inicializar settings con valores por defecto
       await initSettingsTable();
 
-      // Inicializar productos de ejemplo si no existen
-      await initSampleProducts();
+      // Inicializar productos de ejemplo solo en desarrollo
+      if (__DEV__) {
+        await initSampleProducts();
+      }
 
       console.log("Database initialized successfully");
       setIsReady(true);

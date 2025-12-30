@@ -1,5 +1,4 @@
 import * as SQLite from "expo-sqlite";
-import { createGenericCustomer } from "./customers";
 
 /**
  * Instancia única de la base de datos
@@ -18,11 +17,10 @@ let tablesInitialized = false;
  */
 export const initAllTables = async () => {
   try {
-    // Ejecutar migraciones primero (siempre, independientemente del estado de inicialización)
-    await runMigrations();
-
     if (tablesInitialized) {
       console.log("Tables already initialized, skipping table creation...");
+      // Aún así, intentar ejecutar migraciones por si faltan columnas/tablas
+      await runMigrations();
       return;
     }
 
@@ -198,7 +196,10 @@ export const initAllTables = async () => {
     `);
 
     // Crear cliente genérico si no existe
-    await createGenericCustomer();
+    await ensureGenericCustomer();
+
+    // Ejecutar migraciones DESPUÉS de que exista el schema base
+    await runMigrations();
 
     tablesInitialized = true;
     console.log("All tables created successfully");
@@ -209,12 +210,44 @@ export const initAllTables = async () => {
 };
 
 /**
+ * Evita ciclos (db.js <-> customers.js) creando el cliente genérico directamente aquí.
+ */
+const ensureGenericCustomer = async () => {
+  try {
+    const existing = await db.getFirstAsync(
+      "SELECT id FROM customers WHERE documentNumber = ? AND active = 1 LIMIT 1;",
+      ["1"]
+    );
+
+    if (existing?.id) {
+      return existing.id;
+    }
+
+    const result = await db.runAsync(
+      `INSERT INTO customers (name, documentNumber, documentType)
+       VALUES (?, ?, ?);`,
+      ["Cliente Genérico", "1", "V"]
+    );
+    return result.lastInsertRowId;
+  } catch (error) {
+    // No bloquear inicialización completa si falla esto
+    console.warn("Error ensuring generic customer:", error);
+    return null;
+  }
+};
+
+/**
  * Ejecuta migraciones de base de datos
  * Agrega columnas faltantes a tablas existentes
  */
 const runMigrations = async () => {
   try {
     console.log("Running database migrations...");
+
+    // Si por alguna razón no existe sales aún, evitar queries que dependan de esa tabla.
+    const salesTable = await db.getFirstAsync(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='sales';"
+    );
 
     // Asegurar tabla sale_items y columna priceUSD
     await db.execAsync(
@@ -247,15 +280,19 @@ const runMigrations = async () => {
 
     // Backfill básico para ventas existentes: priceUSD = price / exchangeRate
     // (solo si priceUSD está en 0 y la venta tiene exchangeRate > 0)
-    await db.runAsync(
-      `UPDATE sale_items
-       SET priceUSD = ROUND(
-         price / (SELECT exchangeRate FROM sales WHERE sales.id = sale_items.saleId),
-         6
-       )
-       WHERE (priceUSD IS NULL OR priceUSD = 0)
-         AND COALESCE((SELECT exchangeRate FROM sales WHERE sales.id = sale_items.saleId), 0) > 0;`
-    );
+    if (salesTable?.name) {
+      await db.runAsync(
+        `UPDATE sale_items
+         SET priceUSD = ROUND(
+           price / (SELECT exchangeRate FROM sales WHERE sales.id = sale_items.saleId),
+           6
+         )
+         WHERE (priceUSD IS NULL OR priceUSD = 0)
+           AND COALESCE((SELECT exchangeRate FROM sales WHERE sales.id = sale_items.saleId), 0) > 0;`
+      );
+    } else {
+      console.log("Skipping sale_items priceUSD backfill: sales table missing");
+    }
 
     // Verificar y agregar columna documentNumber a accounts_receivable
     const receivableColumns = await db.getAllAsync(

@@ -216,6 +216,11 @@ export const getLowStockProducts = async () => {
  */
 export const initSampleProducts = async () => {
   try {
+    // Evitar poblar productos “fantasma” fuera de desarrollo
+    if (!__DEV__) {
+      return;
+    }
+
     // Verificar si ya hay productos
     const existingProducts = await db.getAllAsync(
       "SELECT COUNT(*) as count FROM products;"
