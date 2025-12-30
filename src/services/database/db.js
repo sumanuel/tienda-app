@@ -49,6 +49,19 @@ export const initAllTables = async () => {
           updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
+        -- Tabla de movimientos de inventario
+        CREATE TABLE IF NOT EXISTS inventory_movements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          productId INTEGER NOT NULL,
+          type TEXT NOT NULL,
+          quantity INTEGER NOT NULL,
+          previousStock INTEGER DEFAULT 0,
+          newStock INTEGER DEFAULT 0,
+          notes TEXT,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (productId) REFERENCES products(id)
+        );
+
         -- Tabla de ventas (schema actual)
         CREATE TABLE IF NOT EXISTS sales (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -187,6 +200,7 @@ export const initAllTables = async () => {
     // Crear índices fuera de la transacción principal
     await db.execAsync(`
       CREATE INDEX IF NOT EXISTS idx_barcode ON products(barcode);
+      CREATE INDEX IF NOT EXISTS idx_inventory_movements_product_date ON inventory_movements(productId, createdAt);
       CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(createdAt);
       CREATE INDEX IF NOT EXISTS idx_customer_name ON customers(name);
       CREATE INDEX IF NOT EXISTS idx_supplier_name ON suppliers(name);

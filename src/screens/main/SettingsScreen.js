@@ -13,11 +13,18 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { getSettings, saveSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import {
+  exportDatabaseBackup,
+  importDatabaseBackupFromUri,
+  pickBackupFile,
+  shareBackupFile,
+} from "../../services/backup/backupService";
 
 export const SettingsScreen = () => {
   const navigation = useNavigation();
   const { showAlert, CustomAlert } = useCustomAlert();
   const [isLoading, setIsLoading] = useState(true);
+  const [backupBusy, setBackupBusy] = useState(false);
 
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
 
@@ -104,6 +111,64 @@ export const SettingsScreen = () => {
     } finally {
       setSavingSection(null);
     }
+  };
+
+  const handleExportData = async () => {
+    try {
+      setBackupBusy(true);
+      const { uri } = await exportDatabaseBackup();
+      await shareBackupFile(uri);
+      showAlert({
+        title: "Respaldo creado",
+        message: "Tus datos fueron exportados correctamente.",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      showAlert({
+        title: "Error",
+        message: "No se pudo exportar el respaldo.",
+        type: "error",
+      });
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const doImport = async () => {
+    try {
+      setBackupBusy(true);
+      const file = await pickBackupFile();
+      if (!file) return;
+
+      await importDatabaseBackupFromUri(file.uri);
+
+      showAlert({
+        title: "Respaldo importado",
+        message: "Los datos se importaron correctamente.",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error importing data:", error);
+      showAlert({
+        title: "Error",
+        message: error?.message || "No se pudo importar el respaldo.",
+        type: "error",
+      });
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleImportData = async () => {
+    Alert.alert(
+      "Importar datos",
+      "Esto reemplazará los datos actuales por los del respaldo. ¿Deseas continuar?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Importar", style: "destructive", onPress: doImport },
+      ]
+    );
   };
 
   if (isLoading) {
@@ -220,11 +285,33 @@ export const SettingsScreen = () => {
               </View>
             </View>
             <View style={styles.quickActions}>
-              <TouchableOpacity style={styles.secondaryButton}>
-                <Text style={styles.secondaryButtonText}>Exportar datos</Text>
+              <TouchableOpacity
+                style={[
+                  styles.secondaryButton,
+                  backupBusy && styles.buttonDisabled,
+                ]}
+                onPress={handleExportData}
+                disabled={backupBusy}
+              >
+                {backupBusy ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Text style={styles.secondaryButtonText}>Exportar datos</Text>
+                )}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryButton}>
-                <Text style={styles.secondaryButtonText}>Importar datos</Text>
+              <TouchableOpacity
+                style={[
+                  styles.secondaryButton,
+                  backupBusy && styles.buttonDisabled,
+                ]}
+                onPress={handleImportData}
+                disabled={backupBusy}
+              >
+                {backupBusy ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Text style={styles.secondaryButtonText}>Importar datos</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -497,6 +584,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#2f5ae0",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   modalOverlay: {
     position: "absolute",
