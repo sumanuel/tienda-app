@@ -161,14 +161,15 @@ export const SettingsScreen = () => {
   };
 
   const handleImportData = async () => {
-    Alert.alert(
-      "Importar datos",
-      "Esto reemplazará los datos actuales por los del respaldo. ¿Deseas continuar?",
-      [
+    showAlert({
+      title: "Importar datos",
+      message: "Esto reemplazará los datos actuales por los del respaldo. ¿Deseas continuar?",
+      type: "warning",
+      buttons: [
         { text: "Cancelar", style: "cancel" },
-        { text: "Importar", style: "destructive", onPress: doImport },
-      ]
-    );
+        { text: "Importar", onPress: doImport },
+      ],
+    });
   };
 
   const showBackupInfo = () => {
