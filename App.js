@@ -14,6 +14,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Context
 import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
@@ -58,6 +59,7 @@ import AddInventoryEntryScreen from "./src/screens/main/AddInventoryEntryScreen"
 import InventoryExitScreen from "./src/screens/main/InventoryExitScreen";
 import AddInventoryExitScreen from "./src/screens/main/AddInventoryExitScreen";
 import AboutScreen from "./src/screens/main/AboutScreen";
+import OnboardingScreen from "./src/screens/main/OnboardingScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
@@ -379,6 +381,7 @@ const tabStyles = StyleSheet.create({
  */
 export default function App() {
   const [isReady, setIsReady] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     initializeApp();
@@ -389,6 +392,12 @@ export default function App() {
    */
   const initializeApp = async () => {
     try {
+      // Verificar si el usuario ya completó el onboarding
+      const onboardingCompleted = await AsyncStorage.getItem(
+        "onboardingCompleted"
+      );
+      setShowOnboarding(!onboardingCompleted);
+
       // Inicializar todas las tablas en una sola transacción
       await initAllTables();
 
@@ -414,6 +423,11 @@ export default function App() {
         <ActivityIndicator size="large" color="#4CAF50" />
       </View>
     );
+  }
+
+  // Mostrar onboarding si no se ha completado
+  if (showOnboarding) {
+    return <OnboardingScreen onComplete={() => setShowOnboarding(false)} />;
   }
 
   return (
