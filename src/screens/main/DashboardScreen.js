@@ -118,6 +118,16 @@ export const DashboardScreen = ({ navigation }) => {
           >
             <Text style={styles.currencyButtonText}>USD ($)</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.helpButton}
+            onPress={() => {
+              if (global.resetOnboarding) {
+                global.resetOnboarding();
+              }
+            }}
+          >
+            <Text style={styles.helpButtonText}>📖</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -312,6 +322,17 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "600",
     fontSize: 13,
+  },
+  helpButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginLeft: "auto",
+  },
+  helpButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
   },
 
   // Main Card styles

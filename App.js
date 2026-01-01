@@ -388,6 +388,23 @@ export default function App() {
   }, []);
 
   /**
+   * Resetea el onboarding para mostrarlo nuevamente
+   */
+  const resetOnboarding = async () => {
+    try {
+      await AsyncStorage.removeItem("onboardingCompleted");
+      setShowOnboarding(true);
+    } catch (error) {
+      console.error("Error resetting onboarding:", error);
+    }
+  };
+
+  // Hacer la función disponible globalmente para que pueda ser llamada desde otras pantallas
+  useEffect(() => {
+    global.resetOnboarding = resetOnboarding;
+  }, []);
+
+  /**
    * Inicializa la aplicación y la base de datos
    */
   const initializeApp = async () => {
