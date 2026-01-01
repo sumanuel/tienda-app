@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Tienda POS",
-    "slug": "tienda-app",
+    "name": "T-Suma",
+    "slug": "t-suma",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,14 +18,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tiendaapp.pos"
+      "bundleIdentifier": "com.tsuma.pos"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.tiendaapp.pos",
+      "package": "com.tsuma.pos",
       "permissions": [
         "CAMERA",
         "WRITE_EXTERNAL_STORAGE",
