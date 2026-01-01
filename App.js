@@ -18,6 +18,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // Context
 import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
 
+// Hooks and Utils
+import { useExchangeRate } from "./src/contexts/ExchangeRateContext";
+import { useCustomAlert } from "./src/components/common/CustomAlert";
+
 // Screens
 import DashboardScreen from "./src/screens/main/DashboardScreen";
 import POSScreen from "./src/screens/main/POSScreen";
@@ -73,12 +77,46 @@ function MainTabs() {
   const [showFichaMenu, setShowFichaMenu] = useState(false);
   const bottomOffset = insets.bottom + 15;
 
+  // Hooks para validaciones
+  const { rate: exchangeRate } = useExchangeRate();
+  const { showAlert, CustomAlert } = useCustomAlert();
+
   const handleNavigate = (routeName) => {
     setShowAccountsMenu(false);
     setShowFichaMenu(false);
     if (navigationRef.isReady()) {
       navigationRef.navigate(routeName);
     }
+  };
+
+  // Validar tasa de cambio antes de mostrar menú de cuentas (POS)
+  const handleAccountsTabPress = (e) => {
+    e.preventDefault();
+    if (!exchangeRate || exchangeRate <= 0) {
+      showAlert({
+        title: "Tasa de cambio requerida",
+        message:
+          "Debe configurar una tasa de cambio válida antes de realizar ventas. Ve a la sección de Tasa de Cambio.",
+        type: "error",
+      });
+      return;
+    }
+    setShowAccountsMenu(true);
+    setShowFichaMenu(false);
+  };
+
+  // Validar tasa de cambio antes de navegar a Productos
+  const handleProductsPress = () => {
+    if (!exchangeRate || exchangeRate <= 0) {
+      showAlert({
+        title: "Tasa de cambio requerida",
+        message:
+          "Debe configurar una tasa de cambio válida antes de gestionar productos. Ve a la sección de Tasa de Cambio.",
+        type: "error",
+      });
+      return;
+    }
+    handleNavigate("Products");
   };
 
   return (
@@ -120,11 +158,7 @@ function MainTabs() {
             title: "Punto de venta",
           }}
           listeners={{
-            tabPress: (e) => {
-              e.preventDefault();
-              setShowAccountsMenu(true);
-              setShowFichaMenu(false);
-            },
+            tabPress: handleAccountsTabPress,
           }}
         />
         <Tab.Screen
@@ -285,7 +319,7 @@ function MainTabs() {
             key: "products",
             icon: "📦",
             label: "Productos",
-            onPress: () => handleNavigate("Products"),
+            onPress: handleProductsPress,
           },
           {
             key: "qr",
@@ -313,6 +347,7 @@ function MainTabs() {
           },
         ]}
       />
+      <CustomAlert />
     </>
   );
 }
