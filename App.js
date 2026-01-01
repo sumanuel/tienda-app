@@ -187,108 +187,6 @@ function MainTabs() {
             title: "Configuraciones",
           }}
         />
-
-        {/* Screens accesibles desde menús, ocultas del tab bar (mantienen header + tab bar) */}
-        <Tab.Screen
-          name="ExchangeRate"
-          component={ExchangeRateScreen}
-          options={{
-            title: "Tasa de cambio",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
-          name="Products"
-          component={ProductsScreen}
-          options={{
-            title: "Productos",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
-          name="QRProducts"
-          component={QRProductsScreen}
-          options={{
-            title: "Códigos QR",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
-          name="Suppliers"
-          component={SuppliersScreen}
-          options={{
-            title: "Proveedores",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
-          name="Customers"
-          component={CustomersScreen}
-          options={{
-            title: "Clientes",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
-          name="AccountsReceivable"
-          component={AccountsReceivableScreen}
-          options={{
-            title: "Cuentas por cobrar",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
-          name="AccountsPayable"
-          component={AccountsPayableScreen}
-          options={{
-            title: "Cuentas por pagar",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
-          name="Capital"
-          component={CapitalScreen}
-          options={{
-            title: "Capital",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-
-        <Tab.Screen
-          name="InventoryEntry"
-          component={InventoryEntryScreen}
-          options={{
-            title: "Entrada de Inventario",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
-          name="InventoryExit"
-          component={InventoryExitScreen}
-          options={{
-            title: "Salida de Inventario",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
-        <Tab.Screen
-          name="About"
-          component={AboutScreen}
-          options={{
-            title: "Acerca de",
-            tabBarButton: () => null,
-            tabBarItemStyle: { display: "none" },
-          }}
-        />
       </Tab.Navigator>
 
       <QuickActionMenu
@@ -798,6 +696,160 @@ export default function App() {
             component={AddInventoryExitScreen}
             options={{
               title: "Agregar Salida",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="ExchangeRate"
+            component={ExchangeRateScreen}
+            options={{
+              title: "Tasa de cambio",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="Products"
+            component={ProductsScreen}
+            options={{
+              title: "Productos",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="QRProducts"
+            component={QRProductsScreen}
+            options={{
+              title: "Códigos QR",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="Suppliers"
+            component={SuppliersScreen}
+            options={{
+              title: "Proveedores",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="Customers"
+            component={CustomersScreen}
+            options={{
+              title: "Clientes",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AccountsReceivable"
+            component={AccountsReceivableScreen}
+            options={{
+              title: "Cuentas por cobrar",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="AccountsPayable"
+            component={AccountsPayableScreen}
+            options={{
+              title: "Cuentas por pagar",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="Capital"
+            component={CapitalScreen}
+            options={{
+              title: "Capital",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="InventoryEntry"
+            component={InventoryEntryScreen}
+            options={{
+              title: "Entrada de Inventario",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="InventoryExit"
+            component={InventoryExitScreen}
+            options={{
+              title: "Salida de Inventario",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+            }}
+          />
+          <Stack.Screen
+            name="About"
+            component={AboutScreen}
+            options={{
+              title: "Acerca de",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },

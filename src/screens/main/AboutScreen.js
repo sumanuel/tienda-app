@@ -27,18 +27,6 @@ export const AboutScreen = () => {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.backButtonText}>← Volver</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Acerca de T-Suma</Text>
-        </View>
-
         {/* Logo/Brand Section */}
         <View style={styles.brandCard}>
           <View style={styles.logoContainer}>
@@ -140,28 +128,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 120,
     gap: 16,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  backButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: "#2f5ae0",
-    fontWeight: "600",
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1f2633",
-    textAlign: "center",
-    marginRight: 60, // Compensar el botón de volver
   },
   brandCard: {
     backgroundColor: "#fff",
