@@ -57,6 +57,7 @@ import InventoryEntryScreen from "./src/screens/main/InventoryEntryScreen";
 import AddInventoryEntryScreen from "./src/screens/main/AddInventoryEntryScreen";
 import InventoryExitScreen from "./src/screens/main/InventoryExitScreen";
 import AddInventoryExitScreen from "./src/screens/main/AddInventoryExitScreen";
+import AboutScreen from "./src/screens/main/AboutScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
@@ -275,6 +276,15 @@ function MainTabs() {
           component={InventoryExitScreen}
           options={{
             title: "Salida de Inventario",
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
+          }}
+        />
+        <Tab.Screen
+          name="About"
+          component={AboutScreen}
+          options={{
+            title: "Acerca de",
             tabBarButton: () => null,
             tabBarItemStyle: { display: "none" },
           }}

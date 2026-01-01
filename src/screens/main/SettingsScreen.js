@@ -336,6 +336,28 @@ export const SettingsScreen = () => {
             </View>
           </View>
 
+          <TouchableOpacity
+            style={styles.formCard}
+            onPress={() => navigation.navigate("About")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.cardHeader}>
+              <View style={styles.cardIcon}>
+                <Text style={styles.cardIconText}>ℹ️</Text>
+              </View>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>Acerca de</Text>
+                <Text style={styles.cardSubtitle}>
+                  Información de la aplicación
+                </Text>
+              </View>
+            </View>
+            <View style={styles.cardAction}>
+              <Text style={styles.cardActionText}>Ver</Text>
+              <Text style={styles.cardArrow}>›</Text>
+            </View>
+          </TouchableOpacity>
+
           {/* Modal de edición de inventario */}
           {editingSection === "inventory" && (
             <View style={styles.modalOverlay}>
