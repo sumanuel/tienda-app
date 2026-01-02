@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "T-Suma",
-    "slug": "t-suma",
+    "slug": "tienda-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
