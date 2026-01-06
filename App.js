@@ -22,7 +22,7 @@ import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
 // Hooks and Utils
 import { useExchangeRate } from "./src/contexts/ExchangeRateContext";
 import { useCustomAlert } from "./src/components/common/CustomAlert";
-import { s, rf, vs, hs, spacing, iconSize } from "./src/utils/responsive";
+import { s, rf, vs, hs, spacing, borderRadius, iconSize } from "./src/utils/responsive";
 
 // Screens
 import DashboardScreen from "./src/screens/main/DashboardScreen";
@@ -131,7 +131,7 @@ function MainTabs() {
           tabBarInactiveTintColor: "#999",
           tabBarStyle: {
             paddingBottom: vs(insets.bottom + 5),
-            height: s(60) + insets.bottom,
+            height: iconSize.xl + insets.bottom + vs(10),
             paddingTop: vs(5),
           },
           headerShown: true,
@@ -349,38 +349,38 @@ const tabStyles = StyleSheet.create({
   menuCard: {
     width: "100%",
     backgroundColor: "#fff",
-    borderRadius: 18,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: s(6) },
     shadowOpacity: 0.12,
-    shadowRadius: 14,
+    shadowRadius: s(14),
     elevation: 6,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: spacing.xs,
   },
   menuDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#e5eaf0",
   },
   menuIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: iconSize.md,
+    height: iconSize.md,
+    borderRadius: borderRadius.sm,
     backgroundColor: "#ecf4ef",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
+    marginRight: spacing.sm,
   },
   menuIconText: {
-    fontSize: 16,
+    fontSize: rf(16),
   },
   menuLabel: {
-    fontSize: 14,
+    fontSize: rf(14),
     fontWeight: "600",
     color: "#2f3a4c",
   },
