@@ -9,7 +9,15 @@ import {
   SafeAreaView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { s, rf, vs, hs, spacing, borderRadius, iconSize } from "../../utils/responsive";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 const { width, height } = Dimensions.get("window");
 

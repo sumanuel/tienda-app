@@ -16,50 +16,61 @@ El sistema calcula factores de escala basados en las dimensiones de la pantalla 
 ## 🛠️ Funciones Disponibles
 
 ### Funciones de Escalado
+
 ```javascript
-import { s, rf, vs, hs, spacing, borderRadius, iconSize } from '../utils/responsive';
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../utils/responsive";
 
 // Escala general proporcional
-const size = s(100);        // Escala cualquier dimensión
+const size = s(100); // Escala cualquier dimensión
 
 // Escala específica para fuentes (con redondeo perfecto)
-const fontSize = rf(16);    // Tamaño de fuente responsive
+const fontSize = rf(16); // Tamaño de fuente responsive
 
 // Escala vertical (útil para margins/paddings verticales)
-const marginTop = vs(20);   // Margin vertical responsive
+const marginTop = vs(20); // Margin vertical responsive
 
 // Escala horizontal (útil para margins/paddings horizontales)
-const marginLeft = hs(15);  // Margin horizontal responsive
+const marginLeft = hs(15); // Margin horizontal responsive
 ```
 
 ### Constantes Predefinidas
+
 ```javascript
 // Espaciado consistente
-spacing.xs   // 4
-spacing.sm   // 8
-spacing.md   // 16
-spacing.lg   // 24
-spacing.xl   // 32
-spacing.xxl  // 48
+spacing.xs; // 4
+spacing.sm; // 8
+spacing.md; // 16
+spacing.lg; // 24
+spacing.xl; // 32
+spacing.xxl; // 48
 
 // Radios de borde
-borderRadius.sm   // 4
-borderRadius.md   // 8
-borderRadius.lg   // 12
-borderRadius.xl   // 16
-borderRadius.xxl  // 24
+borderRadius.sm; // 4
+borderRadius.md; // 8
+borderRadius.lg; // 12
+borderRadius.xl; // 16
+borderRadius.xxl; // 24
 
 // Tamaños de iconos
-iconSize.sm   // 16
-iconSize.md   // 24
-iconSize.lg   // 32
-iconSize.xl   // 48
-iconSize.xxl  // 64
+iconSize.sm; // 16
+iconSize.md; // 24
+iconSize.lg; // 32
+iconSize.xl; // 48
+iconSize.xxl; // 64
 ```
 
 ### Funciones de Detección
+
 ```javascript
-import { isTablet, isSmallDevice, isLargeDevice } from '../utils/responsive';
+import { isTablet, isSmallDevice, isLargeDevice } from "../utils/responsive";
 
 // Detectar tipo de dispositivo
 if (isTablet()) {
@@ -74,6 +85,7 @@ if (isSmallDevice()) {
 ## 🔄 Migración de Estilos
 
 ### ANTES (estilos fijos)
+
 ```javascript
 const styles = StyleSheet.create({
   container: {
@@ -92,19 +104,20 @@ const styles = StyleSheet.create({
 ```
 
 ### DESPUÉS (estilos responsive)
+
 ```javascript
 const styles = StyleSheet.create({
   container: {
-    padding: spacing.lg,    // 24
-    margin: spacing.md,     // 16
+    padding: spacing.lg, // 24
+    margin: spacing.md, // 16
   },
   title: {
-    fontSize: rf(24),       // Fuente responsive
-    marginBottom: vs(16),   // Margin vertical responsive
+    fontSize: rf(24), // Fuente responsive
+    marginBottom: vs(16), // Margin vertical responsive
   },
   card: {
-    borderRadius: borderRadius.md,  // 8
-    padding: spacing.md,             // 16
+    borderRadius: borderRadius.md, // 8
+    padding: spacing.md, // 16
   },
 });
 ```
@@ -124,7 +137,7 @@ const styles = StyleSheet.create({
 Para ver información de escalado actual:
 
 ```javascript
-import { logScalingInfo } from '../utils/responsive';
+import { logScalingInfo } from "../utils/responsive";
 
 // En useEffect o función de debug
 logScalingInfo(); // Muestra factores de escala en consola
@@ -142,10 +155,12 @@ logScalingInfo(); // Muestra factores de escala en consola
 - [x] DashboardScreen
 - [x] OnboardingScreen
 - [x] CustomAlert
-- [ ] SettingsScreen
-- [ ] POSScreen
-- [ ] ProductsScreen
-- [ ] SalesScreen
+- [x] SettingsScreen
+- [x] POSScreen
+- [x] ProductsScreen
+- [x] SalesScreen
+- [x] App.js (Bottom Tab Navigator)
+- [x] AddProductScreen
 
 ## 🚀 Próximos Pasos
 

@@ -6,7 +6,7 @@ const BASE_HEIGHT = 812;
 
 // Scale limits to prevent UI from becoming too small or too large
 const MIN_SCALE = 0.85; // Allow slight shrinking for very small devices
-const MAX_SCALE = 1.6;  // Cap scaling for very large screens
+const MAX_SCALE = 1.6; // Cap scaling for very large screens
 
 // Clamp function to keep values within bounds
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -118,7 +118,7 @@ export const isLargeDevice = () => {
 export const platformScale = (size) => {
   const scale = getScale();
   // Android often needs slightly different scaling
-  const platformMultiplier = Platform.OS === 'android' ? 1.02 : 1.0;
+  const platformMultiplier = Platform.OS === "android" ? 1.02 : 1.0;
   return size * scale * platformMultiplier;
 };
 
@@ -127,40 +127,38 @@ export const platformScale = (size) => {
  */
 export const spacing = {
   xs: s(4),
-  sm: s(8),
-  md: s(16),
-  lg: s(24),
-  xl: s(32),
-  xxl: s(48),
+  sm: s(6),
+  md: s(12),
+  lg: s(18),
+  xl: s(24),
+  xxl: s(36),
 };
 
 /**
  * Get responsive border radius values
  */
 export const borderRadius = {
-  sm: s(4),
-  md: s(8),
-  lg: s(12),
-  xl: s(16),
-  xxl: s(24),
+  sm: s(6),
+  md: s(12),
+  lg: s(18),
+  xl: s(24),
 };
 
 /**
  * Get responsive icon sizes
  */
 export const iconSize = {
-  sm: s(16),
-  md: s(24),
-  lg: s(32),
-  xl: s(48),
-  xxl: s(64),
+  sm: s(20),
+  md: s(28),
+  lg: s(44),
+  xl: s(56),
 };
 
 /**
  * Debug function to log current scaling info
  */
 export const logScalingInfo = () => {
-  console.log('=== Responsive Scaling Info ===');
+  console.log("=== Responsive Scaling Info ===");
   console.log(`Screen: ${screenWidth}x${screenHeight}`);
   console.log(`Width Scale: ${getWidthScale().toFixed(2)}x`);
   console.log(`Height Scale: ${getHeightScale().toFixed(2)}x`);
@@ -168,5 +166,5 @@ export const logScalingInfo = () => {
   console.log(`Is Tablet: ${isTablet()}`);
   console.log(`Is Small Device: ${isSmallDevice()}`);
   console.log(`Is Large Device: ${isLargeDevice()}`);
-  console.log('===============================');
+  console.log("===============================");
 };

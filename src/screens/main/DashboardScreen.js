@@ -15,7 +15,15 @@ import { useSuppliers } from "../../hooks/useSuppliers";
 import { useAccounts } from "../../hooks/useAccounts";
 import { getSettings } from "../../services/database/settings";
 import { formatCurrency } from "../../utils/currency";
-import { s, rf, vs, hs, spacing, borderRadius, iconSize } from "../../utils/responsive";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 import RateDisplay from "../../components/exchange/RateDisplay";
 
 /**

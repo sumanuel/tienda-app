@@ -23,7 +23,15 @@ import {
   insertInventoryMovement,
 } from "../../services/database/products";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { s, rf, vs, hs, spacing, borderRadius, iconSize } from "../../utils/responsive";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 

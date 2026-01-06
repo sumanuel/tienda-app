@@ -1,9 +1,18 @@
 // Ejemplo de uso del sistema responsive en tienda-app
 // Este archivo muestra cómo implementar el sistema responsive en diferentes componentes
 
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { s, rf, vs, hs, spacing, borderRadius, iconSize, logScalingInfo } from '../utils/responsive';
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+  logScalingInfo,
+} from "../utils/responsive";
 
 /**
  * EJEMPLOS DE USO DEL SISTEMA RESPONSIVE
@@ -46,44 +55,44 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: spacing.lg,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
 
   title: {
-    fontSize: rf(24),           // Fuente responsive
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: vs(8),        // Margin vertical responsive
+    fontSize: rf(24), // Fuente responsive
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: vs(8), // Margin vertical responsive
   },
 
   subtitle: {
     fontSize: rf(16),
-    color: '#666',
+    color: "#666",
     marginBottom: vs(20),
   },
 
   card: {
-    backgroundColor: '#fff',
-    borderRadius: borderRadius.lg,    // Radio de borde responsive
+    backgroundColor: "#fff",
+    borderRadius: borderRadius.lg, // Radio de borde responsive
     padding: spacing.lg,
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: s(2) },  // Sombra responsive
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: s(2) }, // Sombra responsive
     shadowOpacity: 0.1,
     shadowRadius: s(4),
   },
 
   cardTitle: {
     fontSize: rf(18),
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: vs(8),
   },
 
   cardText: {
     fontSize: rf(14),
-    color: '#666',
-    lineHeight: vs(20),         // Line height responsive
+    color: "#666",
+    lineHeight: vs(20), // Line height responsive
   },
 });
 

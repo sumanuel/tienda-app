@@ -19,7 +19,15 @@ import {
   pickBackupFile,
   shareBackupFile,
 } from "../../services/backup/backupService";
-import { s, rf, vs, hs, spacing, borderRadius, iconSize } from "../../utils/responsive";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 export const SettingsScreen = () => {
   const navigation = useNavigation();

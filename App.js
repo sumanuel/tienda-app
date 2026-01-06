@@ -150,7 +150,9 @@ function MainTabs() {
           component={DashboardScreen}
           options={{
             tabBarLabel: "Inicio",
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: iconSize.lg }}>🏠</Text>,
+            tabBarIcon: ({ color }) => (
+              <Text style={{ fontSize: iconSize.lg }}>🏠</Text>
+            ),
             headerShown: false,
           }}
         />
@@ -159,7 +161,9 @@ function MainTabs() {
           component={POSScreen}
           options={{
             tabBarLabel: "Cuentas",
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: iconSize.lg }}>💼</Text>,
+            tabBarIcon: ({ color }) => (
+              <Text style={{ fontSize: iconSize.lg }}>💼</Text>
+            ),
             title: "Punto de venta",
           }}
           listeners={{
@@ -171,7 +175,9 @@ function MainTabs() {
           component={SalesScreen}
           options={{
             tabBarLabel: "Ficha",
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: iconSize.lg }}>📂</Text>,
+            tabBarIcon: ({ color }) => (
+              <Text style={{ fontSize: iconSize.lg }}>📂</Text>
+            ),
             title: "Historial de ventas",
           }}
           listeners={{
@@ -187,7 +193,9 @@ function MainTabs() {
           component={SettingsScreen}
           options={{
             tabBarLabel: "Ajustes",
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: iconSize.lg }}>⚙️</Text>,
+            tabBarIcon: ({ color }) => (
+              <Text style={{ fontSize: iconSize.lg }}>⚙️</Text>
+            ),
             title: "Configuraciones",
           }}
         />

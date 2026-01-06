@@ -1,5 +1,14 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 export const InventoryScreen = () => {
   return (
@@ -18,14 +27,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   title: {
-    fontSize: 24,
+    fontSize: rf(24),
     fontWeight: "bold",
     color: "#333",
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: rf(16),
     color: "#666",
-    marginTop: 8,
+    marginTop: vs(8),
   },
 });
 
