@@ -14,6 +14,15 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 export const RecordPaymentScreen = () => {
   const navigation = useNavigation();
@@ -315,36 +324,36 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f7fa",
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: spacing.md,
+    fontSize: rf(16),
     color: "#666",
   },
   header: {
     backgroundColor: "#fff",
-    padding: 20,
-    paddingTop: 16,
+    padding: spacing.lg,
+    paddingTop: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: "#e1e5e9",
   },
   title: {
-    fontSize: 24,
+    fontSize: rf(24),
     fontWeight: "bold",
     color: "#1a202c",
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: rf(16),
     color: "#718096",
   },
   balanceCard: {
     backgroundColor: "#fff",
-    margin: 16,
-    padding: 20,
-    borderRadius: 12,
+    margin: spacing.md,
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: s(2) },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: s(4),
     elevation: 3,
   },
   balanceLabel: {

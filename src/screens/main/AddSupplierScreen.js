@@ -13,6 +13,15 @@ import {
 } from "react-native";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 /**
  * Pantalla para agregar nuevo proveedor
@@ -256,52 +265,52 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 60,
-    gap: 24,
+    paddingHorizontal: hs(16),
+    paddingTop: vs(16),
+    paddingBottom: vs(60),
+    gap: vs(24),
   },
   heroCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 22,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: s(10) },
     shadowOpacity: 0.08,
-    shadowRadius: 18,
+    shadowRadius: s(18),
     elevation: 8,
   },
   heroIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
+    width: s(60),
+    height: s(60),
+    borderRadius: borderRadius.lg,
     backgroundColor: "#fff5f3",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 18,
+    marginRight: hs(18),
   },
   heroIconText: {
-    fontSize: 30,
+    fontSize: iconSize.xl,
   },
   heroTextContainer: {
     flex: 1,
-    gap: 6,
+    gap: vs(6),
   },
   heroTitle: {
-    fontSize: 20,
+    fontSize: rf(20),
     fontWeight: "700",
     color: "#1f2633",
   },
   heroSubtitle: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#5b6472",
-    lineHeight: 20,
+    lineHeight: vs(20),
   },
   sectionHeader: {
-    gap: 4,
-    paddingHorizontal: 4,
+    gap: vs(4),
+    paddingHorizontal: hs(4),
   },
   sectionTitle: {
     fontSize: 16,

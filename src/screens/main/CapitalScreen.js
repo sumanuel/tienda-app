@@ -4,6 +4,7 @@ import { useAccounts } from "../../hooks/useAccounts";
 import { useInventory } from "../../hooks/useInventory";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 const CapitalScreen = () => {
   const { receivableStats, payableStats } = useAccounts();
@@ -140,29 +141,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8edf2",
   },
   content: {
-    padding: 12,
-    paddingBottom: 40,
+    padding: spacing.md,
+    paddingBottom: vs(40),
   },
   summaryCard: {
     backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: vs(10) },
     shadowOpacity: 0.08,
-    shadowRadius: 20,
+    shadowRadius: s(20),
     elevation: 6,
   },
   summaryTitle: {
-    fontSize: 16,
+    fontSize: rf(16),
     fontWeight: "600",
     color: "#2f3a4c",
   },
   summaryAmount: {
-    fontSize: 24,
+    fontSize: rf(24),
     fontWeight: "700",
-    marginTop: 8,
+    marginTop: vs(8),
   },
   positiveValue: {
     color: "#2e7d32",
@@ -171,83 +172,83 @@ const styles = StyleSheet.create({
     color: "#c62828",
   },
   summarySubtitle: {
-    marginTop: 4,
+    marginTop: vs(4),
     color: "#6c7a8a",
-    fontSize: 14,
+    fontSize: rf(14),
   },
   grid: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
   cardSpacing: {
-    marginRight: 16,
+    marginRight: hs(16),
   },
   infoCard: {
     flex: 1,
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: vs(6) },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowRadius: s(12),
     elevation: 4,
   },
   cardTitle: {
-    fontSize: 15,
+    fontSize: rf(15),
     fontWeight: "600",
     color: "#2f3a4c",
-    marginBottom: 6,
+    marginBottom: vs(6),
   },
   cardAmount: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: "700",
     color: "#2e7d32",
-    marginBottom: 2,
+    marginBottom: vs(2),
   },
   payableAmount: {
     color: "#c62828",
   },
   cardSubtitle: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#6c7a8a",
   },
   cardRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 6,
+    paddingVertical: vs(6),
   },
   cardLabel: {
-    fontSize: 13,
+    fontSize: rf(13),
     color: "#6c7a8a",
   },
   cardValue: {
-    fontSize: 14,
+    fontSize: rf(14),
     fontWeight: "600",
     color: "#2f3a4c",
   },
   noteCard: {
-    marginTop: 20,
+    marginTop: vs(20),
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: vs(6) },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowRadius: s(12),
     elevation: 4,
   },
   noteTitle: {
-    fontSize: 15,
+    fontSize: rf(15),
     fontWeight: "600",
     color: "#2f3a4c",
-    marginBottom: 6,
+    marginBottom: vs(6),
   },
   noteText: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#6c7a8a",
-    lineHeight: 20,
+    lineHeight: rf(20),
   },
 });
 

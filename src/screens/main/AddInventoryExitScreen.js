@@ -12,6 +12,15 @@ import {
   insertInventoryMovement,
 } from "../../services/database/products";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 export const AddInventoryExitScreen = ({ navigation, route }) => {
   const { product } = route.params;
@@ -159,20 +168,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8edf2",
   },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 36,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   headerContent: {
-    gap: 12,
-    marginBottom: 8,
+    gap: spacing.md,
+    marginBottom: spacing.sm,
   },
   heroCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
@@ -180,88 +189,88 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   heroIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
+    width: s(60),
+    height: s(60),
+    borderRadius: borderRadius.lg,
     backgroundColor: "#f3f8ff",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 18,
+    marginRight: spacing.lg,
   },
   heroIconText: {
-    fontSize: 30,
+    fontSize: rf(30),
   },
   heroTextContainer: {
     flex: 1,
-    gap: 6,
+    gap: s(6),
   },
   heroTitle: {
-    fontSize: 20,
+    fontSize: rf(20),
     fontWeight: "700",
     color: "#1f2633",
   },
   heroSubtitle: {
-    fontSize: 16,
+    fontSize: rf(16),
     color: "#5b6472",
-    lineHeight: 20,
+    lineHeight: rf(20),
   },
   productCode: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#6c7a8a",
     fontWeight: "500",
   },
   formCard: {
     backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.07,
     shadowRadius: 12,
     elevation: 4,
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   inputGroup: {
-    marginBottom: 18,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: 14,
+    fontSize: rf(14),
     fontWeight: "600",
     color: "#2f3a4c",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   textInput: {
     backgroundColor: "#f3f5fa",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 15,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    fontSize: rf(15),
     color: "#1f2633",
   },
   textArea: {
-    minHeight: 90,
-    paddingTop: 12,
+    minHeight: vs(90),
+    paddingTop: spacing.md,
   },
   summary: {
     backgroundColor: "#f7f9fc",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 18,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
   summaryText: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#2f3a4c",
     fontWeight: "600",
-    marginBottom: 6,
+    marginBottom: spacing.xs,
   },
   buttonContainer: {
     flexDirection: "row",
-    gap: 12,
+    gap: spacing.md,
   },
   button: {
     flex: 1,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.lg,
     alignItems: "center",
   },
   cancelButton: {
@@ -270,7 +279,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: "#6c7a8a",
     fontWeight: "600",
-    fontSize: 15,
+    fontSize: rf(15),
   },
   saveButton: {
     backgroundColor: "#c62828",
@@ -278,7 +287,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: "#fff",
     fontWeight: "600",
-    fontSize: 15,
+    fontSize: rf(15),
   },
 });
 

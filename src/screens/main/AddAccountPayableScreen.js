@@ -17,6 +17,15 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 /**
  * Pantalla para agregar nueva cuenta por pagar
@@ -472,17 +481,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 60,
-    gap: 24,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: vs(60),
+    gap: spacing.xl,
   },
   heroCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 22,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
@@ -490,13 +499,13 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   heroIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
+    width: iconSize.xl,
+    height: iconSize.xl,
+    borderRadius: borderRadius.lg,
     backgroundColor: "#fff5f3",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 18,
+    marginRight: spacing.lg,
   },
   heroIconText: {
     fontSize: 30,
@@ -530,8 +539,8 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 20,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
@@ -675,11 +684,11 @@ const styles = StyleSheet.create({
   },
   dualAmountCard: {
     backgroundColor: "#f8f9fc",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: "#e8edf2",
-    gap: 12,
+    gap: spacing.md,
   },
   dualAmountRow: {
     flexDirection: "row",

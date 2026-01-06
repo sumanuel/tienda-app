@@ -13,6 +13,15 @@ import QRCode from "react-native-qrcode-svg";
 import { printAsync } from "expo-print";
 import qrcode from "qrcode";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 /**
  * Pantalla para ver códigos QR de productos
@@ -141,7 +150,7 @@ export const QRProductsScreen = ({ navigation }) => {
           <Text style={styles.productCategory}>{item.category}</Text>
         </View>
         <View style={styles.qrContainer}>
-          <QRCode value={item.barcode} size={80} />
+          <QRCode value={item.barcode} size={iconSize.lg} />
         </View>
       </View>
     );
@@ -223,38 +232,38 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: hs(16),
+    paddingVertical: vs(12),
     backgroundColor: "#4CAF50",
   },
   backButton: {
     backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(6),
   },
   backButtonText: {
     color: "#fff",
     fontWeight: "600",
   },
   title: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: "bold",
     color: "#fff",
   },
   listContainer: {
-    padding: 16,
+    padding: spacing.md,
   },
   productCard: {
     flexDirection: "row",
     backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: s(4),
     elevation: 3,
   },
   productInfo: {
@@ -262,48 +271,48 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   productName: {
-    fontSize: 16,
+    fontSize: rf(16),
     fontWeight: "bold",
     color: "#333",
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   productBarcode: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#666",
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   productCategory: {
-    fontSize: 12,
+    fontSize: rf(12),
     color: "#999",
     fontStyle: "italic",
   },
   qrContainer: {
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 16,
+    marginLeft: hs(16),
   },
   searchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: hs(16),
+    paddingVertical: vs(12),
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
   },
   instructionsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: hs(16),
+    paddingVertical: vs(8),
     backgroundColor: "#f0f8ff",
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
   },
   instructionsText: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#333",
     textAlign: "center",
   },
   printContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: hs(16),
+    paddingVertical: vs(12),
     backgroundColor: "#fff",
   },
   rangeContainer: {
@@ -312,31 +321,31 @@ const styles = StyleSheet.create({
   },
   rangeInput: {
     flex: 1,
-    height: 40,
+    height: vs(40),
     borderWidth: 1,
     borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: hs(12),
+    fontSize: rf(16),
     backgroundColor: "#f9f9f9",
   },
   rangeSeparator: {
-    marginHorizontal: 8,
-    fontSize: 16,
+    marginHorizontal: hs(8),
+    fontSize: rf(16),
     fontWeight: "bold",
     color: "#666",
   },
   printButton: {
     backgroundColor: "#4CAF50",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 12,
+    borderRadius: borderRadius.sm,
+    paddingVertical: vs(12),
+    paddingHorizontal: hs(16),
+    marginTop: vs(12),
     alignItems: "center",
   },
   printButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: rf(16),
     fontWeight: "bold",
   },
 });

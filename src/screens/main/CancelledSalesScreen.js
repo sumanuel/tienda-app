@@ -12,6 +12,15 @@ import { useNavigation } from "@react-navigation/native";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { db } from "../../services/database/db";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 /**
  * Pantalla de ventas anuladas
@@ -182,23 +191,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: spacing.md,
+    fontSize: rf(16),
     color: "#6f7c8c",
   },
   listContent: {
-    padding: 16,
-    paddingBottom: 100,
+    padding: spacing.md,
+    paddingBottom: vs(100),
   },
   headerContent: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   heroCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
@@ -206,41 +215,41 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   heroIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: iconSize.xl,
+    height: iconSize.xl,
+    borderRadius: borderRadius.lg,
     backgroundColor: "#f3f8ff",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 16,
+    marginRight: spacing.md,
   },
   heroIconText: {
-    fontSize: 28,
+    fontSize: rf(28),
   },
   heroCopy: {
     flex: 1,
   },
   heroTitle: {
-    fontSize: 20,
+    fontSize: rf(20),
     fontWeight: "700",
     color: "#1f2633",
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   heroSubtitle: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#6f7c8c",
-    lineHeight: 20,
+    lineHeight: rf(20),
   },
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 60,
+    paddingVertical: vs(60),
   },
   emptyCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 32,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xxl,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
@@ -249,27 +258,27 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: rf(48),
+    marginBottom: spacing.md,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: "600",
     color: "#1f2633",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     textAlign: "center",
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#6f7c8c",
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: rf(20),
   },
   saleCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
@@ -279,22 +288,22 @@ const styles = StyleSheet.create({
   saleHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: spacing.md,
   },
   saleIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: iconSize.lg,
+    height: iconSize.lg,
+    borderRadius: borderRadius.lg,
     backgroundColor: "#fee2e2",
     alignItems: "center",
     justifyContent: "center",
   },
   saleIconText: {
-    fontSize: 24,
+    fontSize: rf(24),
   },
   saleInfo: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
   saleNumber: {
     fontSize: 16,
