@@ -2,6 +2,15 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { formatCurrency } from "../../utils/currency";
 import { formatExchangeRate } from "../../utils/exchange";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 /**
  * Componente para mostrar la tasa de cambio actual
@@ -45,12 +54,12 @@ export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: s(4) },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: s(8),
     elevation: 6,
     borderWidth: 1,
     borderColor: "#f1f5f9",
@@ -59,48 +68,48 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   label: {
-    fontSize: 16,
+    fontSize: rf(16),
     color: "#64748b",
     fontWeight: "600",
     letterSpacing: 0.5,
   },
   source: {
-    fontSize: 12,
+    fontSize: rf(12),
     color: "#10b981",
     fontWeight: "700",
     textTransform: "uppercase",
     backgroundColor: "#dcfce7",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
   },
   rateContainer: {
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   currency: {
-    fontSize: 18,
+    fontSize: rf(18),
     color: "#475569",
     fontWeight: "500",
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   rate: {
-    fontSize: 36,
+    fontSize: rf(36),
     fontWeight: "700",
     color: "#6366f1",
     letterSpacing: 1,
   },
   lastUpdate: {
-    fontSize: 12,
+    fontSize: rf(12),
     color: "#94a3b8",
     textAlign: "center",
     fontWeight: "500",
   },
   noRate: {
-    fontSize: 16,
+    fontSize: rf(16),
     color: "#94a3b8",
     textAlign: "center",
     fontWeight: "500",
