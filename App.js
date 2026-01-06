@@ -22,6 +22,7 @@ import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
 // Hooks and Utils
 import { useExchangeRate } from "./src/contexts/ExchangeRateContext";
 import { useCustomAlert } from "./src/components/common/CustomAlert";
+import { s, rf, vs, hs, spacing, iconSize } from "./src/utils/responsive";
 
 // Screens
 import DashboardScreen from "./src/screens/main/DashboardScreen";
@@ -129,9 +130,9 @@ function MainTabs() {
           tabBarActiveTintColor: "#4CAF50",
           tabBarInactiveTintColor: "#999",
           tabBarStyle: {
-            paddingBottom: insets.bottom + 5,
-            height: 60 + insets.bottom,
-            paddingTop: 5,
+            paddingBottom: vs(insets.bottom + 5),
+            height: s(60) + insets.bottom,
+            paddingTop: vs(5),
           },
           headerShown: true,
           headerStyle: {
@@ -140,6 +141,7 @@ function MainTabs() {
           headerTintColor: "#fff",
           headerTitleStyle: {
             fontWeight: "bold",
+            fontSize: rf(18),
           },
         }}
       >
@@ -148,7 +150,7 @@ function MainTabs() {
           component={DashboardScreen}
           options={{
             tabBarLabel: "Inicio",
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🏠</Text>,
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: iconSize.lg }}>🏠</Text>,
             headerShown: false,
           }}
         />
@@ -157,7 +159,7 @@ function MainTabs() {
           component={POSScreen}
           options={{
             tabBarLabel: "Cuentas",
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>💼</Text>,
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: iconSize.lg }}>💼</Text>,
             title: "Punto de venta",
           }}
           listeners={{
@@ -169,7 +171,7 @@ function MainTabs() {
           component={SalesScreen}
           options={{
             tabBarLabel: "Ficha",
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📂</Text>,
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: iconSize.lg }}>📂</Text>,
             title: "Historial de ventas",
           }}
           listeners={{
@@ -185,7 +187,7 @@ function MainTabs() {
           component={SettingsScreen}
           options={{
             tabBarLabel: "Ajustes",
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚙️</Text>,
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: iconSize.lg }}>⚙️</Text>,
             title: "Configuraciones",
           }}
         />

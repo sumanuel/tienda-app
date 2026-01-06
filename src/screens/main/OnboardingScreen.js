@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { s, rf, vs, hs, spacing, borderRadius, iconSize } from "../../utils/responsive";
 
 const { width, height } = Dimensions.get("window");
 
@@ -160,16 +161,16 @@ const styles = StyleSheet.create({
   skipContainer: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingHorizontal: hs(20),
+    paddingTop: vs(50),
   },
   skipButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: vs(8),
+    paddingHorizontal: hs(16),
   },
   skipText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: rf(16),
     fontWeight: "600",
   },
   scrollView: {
@@ -180,76 +181,76 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 40,
+    paddingHorizontal: hs(40),
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: s(120),
+    height: s(120),
+    borderRadius: s(60),
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 40,
+    marginBottom: vs(40),
   },
   icon: {
-    fontSize: 60,
+    fontSize: iconSize.xxl,
   },
   textContainer: {
     alignItems: "center",
-    maxWidth: 300,
+    maxWidth: s(300),
   },
   title: {
-    fontSize: 28,
+    fontSize: rf(28),
     fontWeight: "bold",
     color: "#fff",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: vs(20),
   },
   description: {
-    fontSize: 16,
+    fontSize: rf(16),
     color: "rgba(255, 255, 255, 0.9)",
     textAlign: "center",
-    lineHeight: 24,
+    lineHeight: vs(24),
   },
   boldText: {
-    fontSize: 16,
+    fontSize: rf(16),
     color: "#fff",
     fontStyle: "italic",
     fontWeight: "bold",
     textAlign: "center",
-    lineHeight: 24,
+    lineHeight: vs(24),
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    paddingTop: 20,
+    paddingHorizontal: hs(20),
+    paddingBottom: vs(40),
+    paddingTop: vs(20),
   },
   indicatorContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginBottom: 30,
+    marginBottom: vs(30),
   },
   indicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: s(10),
+    height: s(10),
+    borderRadius: s(5),
     backgroundColor: "rgba(255, 255, 255, 0.3)",
-    marginHorizontal: 5,
+    marginHorizontal: hs(5),
   },
   activeIndicator: {
     backgroundColor: "#fff",
-    width: 20,
+    width: s(20),
   },
   nextButton: {
     backgroundColor: "#fff",
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
+    paddingVertical: vs(15),
+    paddingHorizontal: hs(30),
+    borderRadius: borderRadius.xl,
     alignItems: "center",
   },
   nextButtonText: {
     color: "#4CAF50",
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: "bold",
   },
 });
