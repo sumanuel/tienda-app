@@ -22,7 +22,15 @@ import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
 // Hooks and Utils
 import { useExchangeRate } from "./src/contexts/ExchangeRateContext";
 import { useCustomAlert } from "./src/components/common/CustomAlert";
-import { s, rf, vs, hs, spacing, borderRadius, iconSize } from "./src/utils/responsive";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "./src/utils/responsive";
 
 // Screens
 import DashboardScreen from "./src/screens/main/DashboardScreen";
@@ -131,8 +139,12 @@ function MainTabs() {
           tabBarInactiveTintColor: "#999",
           tabBarStyle: {
             paddingBottom: vs(insets.bottom + 5),
-            height: iconSize.xl + insets.bottom + vs(10),
-            paddingTop: vs(5),
+            height: s(90) + insets.bottom,
+            paddingTop: vs(8),
+          },
+          tabBarLabelStyle: {
+            fontSize: rf(16),
+            fontWeight: "600",
           },
           headerShown: true,
           headerStyle: {
@@ -151,7 +163,9 @@ function MainTabs() {
           options={{
             tabBarLabel: "Inicio",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: iconSize.lg }}>🏠</Text>
+              <Text style={{ fontSize: s(60), color, fontWeight: "bold" }}>
+                🏠
+              </Text>
             ),
             headerShown: false,
           }}
@@ -162,7 +176,9 @@ function MainTabs() {
           options={{
             tabBarLabel: "Cuentas",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: iconSize.lg }}>💼</Text>
+              <Text style={{ fontSize: s(60), color, fontWeight: "bold" }}>
+                💼
+              </Text>
             ),
             title: "Punto de venta",
           }}
@@ -176,7 +192,9 @@ function MainTabs() {
           options={{
             tabBarLabel: "Ficha",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: iconSize.lg }}>📂</Text>
+              <Text style={{ fontSize: s(60), color, fontWeight: "bold" }}>
+                📂
+              </Text>
             ),
             title: "Historial de ventas",
           }}
@@ -194,7 +212,9 @@ function MainTabs() {
           options={{
             tabBarLabel: "Ajustes",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: iconSize.lg }}>⚙️</Text>
+              <Text style={{ fontSize: s(60), color, fontWeight: "bold" }}>
+                ⚙️
+              </Text>
             ),
             title: "Configuraciones",
           }}
@@ -477,6 +497,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -491,6 +512,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -505,6 +527,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -519,6 +542,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -533,6 +557,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -547,6 +572,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -561,6 +587,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -575,6 +602,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -589,6 +617,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -603,6 +632,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -617,6 +647,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -631,6 +662,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -645,6 +677,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -659,6 +692,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -673,6 +707,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -687,6 +722,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -701,6 +737,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -715,6 +752,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -729,6 +767,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -743,6 +782,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -757,6 +797,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -771,6 +812,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -785,6 +827,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -799,6 +842,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -813,6 +857,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -827,6 +872,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -841,6 +887,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -855,6 +902,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -869,6 +917,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -883,6 +932,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
@@ -897,6 +947,7 @@ export default function App() {
               headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
+                fontSize: rf(18),
               },
             }}
           />
