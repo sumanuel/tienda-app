@@ -433,17 +433,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8edf2",
   },
   content: {
-    paddingHorizontal: hs(16),
-    paddingTop: vs(16),
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
     paddingBottom: vs(120),
-    gap: vs(16),
+    gap: spacing.lg,
   },
   loadingContainer: {
     flex: 1,
     backgroundColor: "#e8edf2",
     alignItems: "center",
     justifyContent: "center",
-    gap: vs(16),
+    gap: spacing.lg,
   },
   loadingText: {
     fontSize: rf(14),
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.lg,
     flexDirection: "row",
-    gap: hs(18),
+    gap: spacing.xl,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: s(10) },
     shadowOpacity: 0.08,
@@ -463,8 +463,8 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   heroIcon: {
-    width: s(64),
-    height: s(64),
+    width: iconSize.xl,
+    height: iconSize.xl,
     borderRadius: borderRadius.lg,
     backgroundColor: "#f3f8ff",
     alignItems: "center",
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   },
   heroInfo: {
     flex: 1,
-    gap: vs(6),
+    gap: spacing.xs,
   },
   heroTitle: {
     fontSize: rf(22),
@@ -485,16 +485,16 @@ const styles = StyleSheet.create({
   heroSubtitle: {
     fontSize: rf(14),
     color: "#5b6472",
-    lineHeight: vs(20),
+    lineHeight: rf(20),
   },
   formArea: {
-    gap: vs(16),
+    gap: spacing.lg,
   },
   input: {
     backgroundColor: "#f3f5fa",
     borderRadius: borderRadius.md,
-    paddingVertical: vs(14),
-    paddingHorizontal: hs(16),
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
     fontSize: rf(15),
     color: "#1f2633",
   },
@@ -520,13 +520,13 @@ const styles = StyleSheet.create({
     color: "#1f2633",
     textAlign: "right",
     flexShrink: 1,
-    marginLeft: hs(12),
+    marginLeft: spacing.lg,
   },
   primaryButton: {
     flex: 1,
     backgroundColor: "#1f9254",
     borderRadius: borderRadius.lg,
-    paddingVertical: vs(14),
+    paddingVertical: spacing.lg,
     alignItems: "center",
   },
   primaryButtonText: {
@@ -540,14 +540,14 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: "row",
-    gap: hs(12),
+    gap: spacing.lg,
   },
   secondaryButtonOutline: {
     flex: 1,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: "#d5dbe7",
-    paddingVertical: vs(14),
+    paddingVertical: spacing.lg,
     alignItems: "center",
   },
   secondaryButtonOutlineText: {
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: borderRadius.xl,
     padding: spacing.lg,
-    gap: vs(18),
+    gap: spacing.xl,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: s(8) },
     shadowOpacity: 0.06,
@@ -568,12 +568,12 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: "row",
-    gap: hs(16),
+    gap: spacing.xl,
     alignItems: "center",
   },
   cardIcon: {
-    width: s(48),
-    height: s(48),
+    width: iconSize.lg,
+    height: iconSize.lg,
     borderRadius: borderRadius.md,
     backgroundColor: "#f3f8ff",
     alignItems: "center",
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   },
   cardInfo: {
     flex: 1,
-    gap: vs(4),
+    gap: spacing.xs,
   },
   cardTitle: {
     fontSize: rf(18),
@@ -597,9 +597,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   infoIcon: {
-    width: s(20),
-    height: s(20),
-    borderRadius: s(10),
+    width: iconSize.sm,
+    height: iconSize.sm,
+    borderRadius: borderRadius.sm,
     backgroundColor: "#2196F3",
     alignItems: "center",
     justifyContent: "center",
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     color: "#6f7c8c",
   },
   cardContent: {
-    gap: vs(12),
+    gap: spacing.lg,
   },
   cardAction: {
     flexDirection: "row",
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   cardButton: {
     backgroundColor: "#f0f3fa",
     borderRadius: borderRadius.md,
-    paddingVertical: vs(12),
+    paddingVertical: spacing.lg,
     alignItems: "center",
   },
   cardButtonText: {
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f0f3fa",
     borderRadius: borderRadius.md,
-    paddingVertical: vs(12),
+    paddingVertical: spacing.lg,
     alignItems: "center",
   },
   secondaryButtonText: {
@@ -690,9 +690,9 @@ const styles = StyleSheet.create({
     color: "#1f2633",
   },
   modalCloseButton: {
-    width: s(32),
-    height: s(32),
-    borderRadius: s(16),
+    width: iconSize.md,
+    height: iconSize.md,
+    borderRadius: borderRadius.sm,
     backgroundColor: "#f3f5fa",
     alignItems: "center",
     justifyContent: "center",
@@ -704,11 +704,11 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     padding: spacing.lg,
-    gap: vs(16),
+    gap: spacing.xl,
   },
   modalFooter: {
     flexDirection: "row",
-    gap: hs(12),
+    gap: spacing.lg,
     padding: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: "#e4e9f2",
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f3f5fa",
     borderRadius: borderRadius.md,
-    paddingVertical: vs(14),
+    paddingVertical: spacing.lg,
     alignItems: "center",
   },
   cancelButtonText: {
