@@ -89,15 +89,14 @@ function MainTabs() {
   const { width, height } = useWindowDimensions();
   const [showAccountsMenu, setShowAccountsMenu] = useState(false);
   const [showFichaMenu, setShowFichaMenu] = useState(false);
-  const bottomOffset = insets.bottom + 15;
 
-  const isTablet = Math.min(width, height) >= 768;
+  const isTablet = Math.min(width, height) >= 600;
   const tabIconFontSize = isTablet ? rf(32) : rf(22);
   const tabIconLineHeight = isTablet ? rf(34) : rf(24);
   const tabLabelFontSize = isTablet ? rf(15) : rf(12);
   const tabIconContainerHeight = isTablet ? 60 : 28;
   const tabIconContainerWidth = isTablet ? 60 : 28;
-
+  const bottomOffset = insets.bottom + (isTablet ? 130 : 15);
   // NOTE: insets are already in pixels; don't scale them with vs().
   // Also avoid scaling tab bar height too much on tablets (creates large blank space).
   // On some Android tablets, `insets.bottom` can be small/0 even with system buttons.
