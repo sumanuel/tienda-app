@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     marginRight: hs(18),
   },
   heroIconText: {
-    fontSize: iconSize.xl,
+    fontSize: iconSize.lg,
   },
   heroTextContainer: {
     flex: 1,
