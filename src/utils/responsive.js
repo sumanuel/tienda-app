@@ -152,6 +152,7 @@ export const iconSize = {
   md: s(28),
   lg: s(44),
   xl: s(56),
+  xxl: s(60),
 };
 
 /**
