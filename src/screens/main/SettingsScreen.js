@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   heroIconText: {
-    fontSize: iconSize.xl,
+    fontSize: iconSize.lg,
   },
   heroInfo: {
     flex: 1,
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cardIconText: {
-    fontSize: iconSize.lg,
+    fontSize: iconSize.md,
   },
   cardInfo: {
     flex: 1,
