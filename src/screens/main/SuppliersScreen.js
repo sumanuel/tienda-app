@@ -8,6 +8,7 @@ import {
   TextInput,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import { getAllAccountsPayable } from "../../services/database/accounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -23,9 +24,13 @@ import {
 
 export const SuppliersScreen = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { suppliers, loading, error, search, removeSupplier, refresh } =
     useSuppliers();
   const { showAlert, CustomAlert } = useCustomAlert();
+
+  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -233,13 +238,16 @@ export const SuppliersScreen = () => {
         keyExtractor={(item) => item.id.toString()}
         ListHeaderComponent={header}
         ListEmptyComponent={renderEmpty}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: listPaddingBottom },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       />
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: fabBottom }]}
         onPress={() => navigation.navigate("AddSupplier")}
         activeOpacity={0.85}
       >

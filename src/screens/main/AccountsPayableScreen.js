@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -23,6 +24,7 @@ import {
 } from "../../utils/responsive";
 
 export const AccountsPayableScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const {
     accountsPayable,
     loading,
@@ -36,6 +38,9 @@ export const AccountsPayableScreen = ({ navigation }) => {
     getPayments,
   } = useAccounts();
   const { showAlert, CustomAlert } = useCustomAlert();
+
+  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
@@ -463,7 +468,10 @@ export const AccountsPayableScreen = ({ navigation }) => {
         data={filteredAccounts}
         renderItem={renderAccount}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: listPaddingBottom },
+        ]}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={header}
         ListEmptyComponent={renderEmpty}
@@ -473,7 +481,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
       />
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: fabBottom }]}
         onPress={openAddScreen}
         activeOpacity={0.85}
       >

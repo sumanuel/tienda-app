@@ -9,6 +9,7 @@ import {
   FlatList,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getProductByBarcode,
   getProductExitMovements,
@@ -24,11 +25,15 @@ import {
 } from "../../utils/responsive";
 
 export const InventoryExitScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [productCode, setProductCode] = useState("");
   const [product, setProduct] = useState(null);
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const handleSearch = async () => {
     if (!productCode.trim()) {
@@ -206,7 +211,10 @@ export const InventoryExitScreen = ({ navigation }) => {
           renderItem={renderMovement}
           keyExtractor={(item) => item.id.toString()}
           ListEmptyComponent={renderEmpty}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: listPaddingBottom },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         />
@@ -214,7 +222,7 @@ export const InventoryExitScreen = ({ navigation }) => {
 
       {product && (
         <TouchableOpacity
-          style={styles.fab}
+          style={[styles.fab, { bottom: fabBottom }]}
           onPress={handleAddExit}
           activeOpacity={0.85}
         >

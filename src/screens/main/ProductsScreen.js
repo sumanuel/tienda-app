@@ -8,6 +8,7 @@ import {
   TextInput,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useProducts } from "../../hooks/useProducts";
 import { getAllSales } from "../../services/database/sales";
 import { getSettings } from "../../services/database/settings";
@@ -29,12 +30,16 @@ import {
  * Pantalla de gestión de productos
  */
 export const ProductsScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { products, loading, search, loadProducts, removeProduct } =
     useProducts();
   const { showAlert, CustomAlert } = useCustomAlert();
   const [searchQuery, setSearchQuery] = useState("");
   const [settings, setSettings] = useState({});
   const { rate: exchangeRate } = useExchangeRate();
+
+  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   // Cargar settings al montar
   useEffect(() => {
@@ -290,7 +295,10 @@ export const ProductsScreen = ({ navigation }) => {
           data={sortedProducts}
           renderItem={renderProduct}
           keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[
+            styles.list,
+            { paddingBottom: listPaddingBottom },
+          ]}
           ListHeaderComponent={header}
           ListEmptyComponent={
             <View style={styles.emptyCard}>
@@ -306,7 +314,7 @@ export const ProductsScreen = ({ navigation }) => {
         />
 
         <TouchableOpacity
-          style={styles.fab}
+          style={[styles.fab, { bottom: fabBottom }]}
           onPress={() => navigation.navigate("AddProduct")}
           activeOpacity={0.85}
         >

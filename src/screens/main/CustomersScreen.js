@@ -8,6 +8,7 @@ import {
   TextInput,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCustomers } from "../../hooks/useCustomers";
 import { getAllSales } from "../../services/database/sales";
 import { getAllAccountsReceivable } from "../../services/database/accounts";
@@ -24,6 +25,7 @@ import {
 
 export const CustomersScreen = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const {
     customers,
     loading,
@@ -35,6 +37,9 @@ export const CustomersScreen = () => {
     recoverDeleted,
   } = useCustomers();
   const { showAlert, CustomAlert } = useCustomAlert();
+
+  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -365,13 +370,16 @@ export const CustomersScreen = () => {
         keyExtractor={(item) => item.id.toString()}
         ListHeaderComponent={header}
         ListEmptyComponent={renderEmpty}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: listPaddingBottom },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       />
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: fabBottom }]}
         onPress={() => navigation.navigate("AddCustomer")}
         activeOpacity={0.85}
       >
