@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   Modal,
   StyleSheet,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -85,12 +86,23 @@ const navigationRef = createNavigationContainerRef();
  */
 function MainTabs() {
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const [showAccountsMenu, setShowAccountsMenu] = useState(false);
   const [showFichaMenu, setShowFichaMenu] = useState(false);
   const bottomOffset = insets.bottom + 15;
 
-  const tabBarBottomPadding = Math.max(insets.bottom, vs(6));
-  const tabBarHeight = vs(62) + tabBarBottomPadding;
+  const isTablet = Math.min(width, height) >= 768;
+  const tabIconFontSize = isTablet ? rf(32) : rf(22);
+  const tabIconLineHeight = isTablet ? rf(34) : rf(24);
+  const tabLabelFontSize = isTablet ? rf(15) : rf(12);
+  const tabIconContainerHeight = isTablet ? 44 : 28;
+
+  // NOTE: insets are already in pixels; don't scale them with vs().
+  // Also avoid scaling tab bar height too much on tablets (creates large blank space).
+  // On some Android tablets, `insets.bottom` can be small/0 even with system buttons.
+  // Keep a sensible minimum padding for the system navigation area.
+  const tabBarBottomPadding = Math.max(insets.bottom, isTablet ? 24 : 6);
+  const tabBarHeight = (isTablet ? 96 : 62) + tabBarBottomPadding;
 
   // Hooks para validaciones
   const { rate: exchangeRate } = useExchangeRate();
@@ -143,15 +155,24 @@ function MainTabs() {
           tabBarStyle: {
             paddingBottom: tabBarBottomPadding,
             height: tabBarHeight,
-            paddingTop: vs(6),
+            paddingTop: isTablet ? 10 : 6,
           },
           tabBarLabelPosition: "below-icon",
           tabBarLabelStyle: {
-            fontSize: rf(12),
+            fontSize: tabLabelFontSize,
             fontWeight: "600",
+            includeFontPadding: false,
+            marginTop: isTablet ? 2 : 0,
           },
           tabBarIconStyle: {
-            marginTop: vs(2),
+            height: tabIconContainerHeight,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+          tabBarItemStyle: {
+            paddingVertical: isTablet ? 8 : 4,
+            justifyContent: "center",
+            alignItems: "center",
           },
           headerShown: true,
           headerStyle: {
@@ -170,9 +191,24 @@ function MainTabs() {
           options={{
             tabBarLabel: "Inicio",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: rf(22), lineHeight: rf(24), color }}>
-                🏠
-              </Text>
+              <View
+                style={{
+                  height: tabIconContainerHeight,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: tabIconFontSize,
+                    lineHeight: tabIconLineHeight,
+                    includeFontPadding: false,
+                    color,
+                  }}
+                >
+                  🏠
+                </Text>
+              </View>
             ),
             headerShown: false,
           }}
@@ -183,9 +219,24 @@ function MainTabs() {
           options={{
             tabBarLabel: "Cuentas",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: rf(22), lineHeight: rf(24), color }}>
-                💼
-              </Text>
+              <View
+                style={{
+                  height: tabIconContainerHeight,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: tabIconFontSize,
+                    lineHeight: tabIconLineHeight,
+                    includeFontPadding: false,
+                    color,
+                  }}
+                >
+                  💼
+                </Text>
+              </View>
             ),
             title: "Punto de venta",
           }}
@@ -199,9 +250,24 @@ function MainTabs() {
           options={{
             tabBarLabel: "Ficha",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: rf(22), lineHeight: rf(24), color }}>
-                📂
-              </Text>
+              <View
+                style={{
+                  height: tabIconContainerHeight,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: tabIconFontSize,
+                    lineHeight: tabIconLineHeight,
+                    includeFontPadding: false,
+                    color,
+                  }}
+                >
+                  📂
+                </Text>
+              </View>
             ),
             title: "Historial de ventas",
           }}
@@ -219,9 +285,24 @@ function MainTabs() {
           options={{
             tabBarLabel: "Ajustes",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: rf(22), lineHeight: rf(24), color }}>
-                ⚙️
-              </Text>
+              <View
+                style={{
+                  height: tabIconContainerHeight,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: tabIconFontSize,
+                    lineHeight: tabIconLineHeight,
+                    includeFontPadding: false,
+                    color,
+                  }}
+                >
+                  ⚙️
+                </Text>
+              </View>
             ),
             title: "Configuraciones",
           }}
