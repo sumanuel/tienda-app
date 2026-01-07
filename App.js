@@ -89,6 +89,9 @@ function MainTabs() {
   const [showFichaMenu, setShowFichaMenu] = useState(false);
   const bottomOffset = insets.bottom + 15;
 
+  const tabBarBottomPadding = Math.max(insets.bottom, vs(6));
+  const tabBarHeight = vs(62) + tabBarBottomPadding;
+
   // Hooks para validaciones
   const { rate: exchangeRate } = useExchangeRate();
   const { showAlert, CustomAlert } = useCustomAlert();
@@ -138,13 +141,17 @@ function MainTabs() {
           tabBarActiveTintColor: "#4CAF50",
           tabBarInactiveTintColor: "#999",
           tabBarStyle: {
-            paddingBottom: vs(insets.bottom + 5),
-            height: s(90) + insets.bottom,
-            paddingTop: vs(8),
+            paddingBottom: tabBarBottomPadding,
+            height: tabBarHeight,
+            paddingTop: vs(6),
           },
+          tabBarLabelPosition: "below-icon",
           tabBarLabelStyle: {
-            fontSize: rf(16),
+            fontSize: rf(12),
             fontWeight: "600",
+          },
+          tabBarIconStyle: {
+            marginTop: vs(2),
           },
           headerShown: true,
           headerStyle: {
@@ -163,7 +170,7 @@ function MainTabs() {
           options={{
             tabBarLabel: "Inicio",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: s(60), color, fontWeight: "bold" }}>
+              <Text style={{ fontSize: rf(22), lineHeight: rf(24), color }}>
                 🏠
               </Text>
             ),
@@ -176,7 +183,7 @@ function MainTabs() {
           options={{
             tabBarLabel: "Cuentas",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: s(60), color, fontWeight: "bold" }}>
+              <Text style={{ fontSize: rf(22), lineHeight: rf(24), color }}>
                 💼
               </Text>
             ),
@@ -192,7 +199,7 @@ function MainTabs() {
           options={{
             tabBarLabel: "Ficha",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: s(60), color, fontWeight: "bold" }}>
+              <Text style={{ fontSize: rf(22), lineHeight: rf(24), color }}>
                 📂
               </Text>
             ),
@@ -212,7 +219,7 @@ function MainTabs() {
           options={{
             tabBarLabel: "Ajustes",
             tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: s(60), color, fontWeight: "bold" }}>
+              <Text style={{ fontSize: rf(22), lineHeight: rf(24), color }}>
                 ⚙️
               </Text>
             ),
