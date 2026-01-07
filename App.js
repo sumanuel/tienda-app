@@ -95,7 +95,8 @@ function MainTabs() {
   const tabIconFontSize = isTablet ? rf(32) : rf(22);
   const tabIconLineHeight = isTablet ? rf(34) : rf(24);
   const tabLabelFontSize = isTablet ? rf(15) : rf(12);
-  const tabIconContainerHeight = isTablet ? 44 : 28;
+  const tabIconContainerHeight = isTablet ? 60 : 28;
+  const tabIconContainerWidth = isTablet ? 60 : 28;
 
   // NOTE: insets are already in pixels; don't scale them with vs().
   // Also avoid scaling tab bar height too much on tablets (creates large blank space).
@@ -196,6 +197,7 @@ function MainTabs() {
                   height: tabIconContainerHeight,
                   justifyContent: "center",
                   alignItems: "center",
+                  width: tabIconContainerWidth,
                 }}
               >
                 <Text
@@ -224,6 +226,7 @@ function MainTabs() {
                   height: tabIconContainerHeight,
                   justifyContent: "center",
                   alignItems: "center",
+                  width: tabIconContainerWidth,
                 }}
               >
                 <Text
@@ -255,6 +258,7 @@ function MainTabs() {
                   height: tabIconContainerHeight,
                   justifyContent: "center",
                   alignItems: "center",
+                  width: tabIconContainerWidth,
                 }}
               >
                 <Text
@@ -290,6 +294,7 @@ function MainTabs() {
                   height: tabIconContainerHeight,
                   justifyContent: "center",
                   alignItems: "center",
+                  width: tabIconContainerWidth,
                 }}
               >
                 <Text
