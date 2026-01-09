@@ -74,7 +74,7 @@ import OnboardingScreen from "./src/screens/main/OnboardingScreen";
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
 import { initSettingsTable } from "./src/services/database/settings";
-import { initSampleProducts } from "./src/services/database/products";
+// import { initSampleProducts } from "./src/services/database/products";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -543,10 +543,10 @@ export default function App() {
       // Inicializar settings con valores por defecto
       await initSettingsTable();
 
-      // Inicializar productos de ejemplo solo en desarrollo
-      if (__DEV__) {
-        await initSampleProducts();
-      }
+      // Productos de ejemplo solo en desarrollo (removido para evitar creación en producción)
+      // if (__DEV__) {
+      //   await initSampleProducts();
+      // }
 
       console.log("Database initialized successfully");
       setIsReady(true);
