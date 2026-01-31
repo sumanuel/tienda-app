@@ -14,7 +14,11 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Context
@@ -498,6 +502,13 @@ const tabStyles = StyleSheet.create({
   },
 });
 
+const styles = StyleSheet.create({
+  containerStyle: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+});
+
 /**
  * Componente principal de la aplicación
  */
@@ -556,28 +567,26 @@ export default function App() {
     }
   };
 
-  if (!isReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-      </View>
-    );
-  }
-
-  // Mostrar onboarding si no se ha completado
-  if (showOnboarding) {
-    return <OnboardingScreen onComplete={() => setShowOnboarding(false)} />;
-  }
-
   return (
-    <ExchangeRateProvider>
-      <NavigationContainer ref={navigationRef}>
-        <Stack.Navigator>
-          <Stack.Screen
-            name="Main"
-            component={MainTabs}
-            options={{ headerShown: false }}
-          />
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.containerStyle} edges={["top", "left", "right"]}>
+        {!isReady ? (
+          <View
+            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          >
+            <ActivityIndicator size="large" color="#4CAF50" />
+          </View>
+        ) : showOnboarding ? (
+          <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
+        ) : (
+          <ExchangeRateProvider>
+            <NavigationContainer ref={navigationRef}>
+              <Stack.Navigator>
+                <Stack.Screen
+                  name="Main"
+                  component={MainTabs}
+                  options={{ headerShown: false }}
+                />
           <Stack.Screen
             name="AddProduct"
             component={AddProductScreen}
@@ -1043,8 +1052,11 @@ export default function App() {
               },
             }}
           />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </ExchangeRateProvider>
+              </Stack.Navigator>
+            </NavigationContainer>
+          </ExchangeRateProvider>
+        )}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
