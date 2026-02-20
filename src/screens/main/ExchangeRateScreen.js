@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   SafeAreaView,
   ActivityIndicator,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from "react-native";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import RateDisplay from "../../components/exchange/RateDisplay";
@@ -31,6 +34,9 @@ export const ExchangeRateScreen = () => {
   const [manualValue, setManualValue] = useState("0");
   const [saving, setSaving] = useState(false);
 
+  const scrollViewRef = useRef(null);
+  const manualInputRef = useRef(null);
+
   useEffect(() => {
     if (rate) {
       setManualValue(rate.toString());
@@ -47,7 +53,7 @@ export const ExchangeRateScreen = () => {
       {
         hour: "2-digit",
         minute: "2-digit",
-      }
+      },
     )}`;
   }, [lastUpdate]);
 
@@ -82,66 +88,99 @@ export const ExchangeRateScreen = () => {
     }
   };
 
+  const scrollToField = (ref) => {
+    if (ref?.current && scrollViewRef?.current) {
+      setTimeout(() => {
+        ref.current.measureLayout(
+          scrollViewRef.current,
+          (x, y) => {
+            scrollViewRef.current.scrollTo({
+              y: Math.max(y - 120, 0),
+              animated: true,
+            });
+          },
+          () => {},
+        );
+      }, 100);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 80}
       >
-        <View style={styles.heroCard}>
-          <View style={styles.heroIcon}>
-            <Text style={styles.heroIconText}>💱</Text>
-          </View>
-          <View style={styles.heroInfo}>
-            <Text style={styles.heroTitle}>Tasa de cambio</Text>
-            <Text style={styles.heroSubtitle}>
-              Administra la tasa oficial y tus referencias en un solo lugar.
-            </Text>
-          </View>
-        </View>
-
-        <RateDisplay
-          rate={rate}
-          source="BCV"
-          lastUpdate={lastUpdate}
-          style={styles.rateDisplay}
-        />
-
-        <View style={styles.manualCard}>
-          <Text style={styles.manualTitle}>Actualizar manualmente</Text>
-          <Text style={styles.manualSubtitle}>
-            Ingresa la tasa acordada para aplicar inmediatamente en la app.
-          </Text>
-          <View style={styles.manualInputRow}>
-            <View style={styles.manualBadge}>
-              <Text style={styles.manualBadgeText}>USD → VES</Text>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.heroCard}>
+            <View style={styles.heroIcon}>
+              <Text style={styles.heroIconText}>💱</Text>
             </View>
-            <TextInput
-              value={manualValue}
-              onChangeText={setManualValue}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              style={styles.manualInput}
-            />
-          </View>
-          <TouchableOpacity
-            style={[styles.secondaryButton, saving && styles.buttonDisabled]}
-            onPress={handleManualSave}
-            disabled={saving}
-            activeOpacity={0.85}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.secondaryButtonText}>
-                Guardar tasa manual
+            <View style={styles.heroInfo}>
+              <Text style={styles.heroTitle}>Tasa de cambio</Text>
+              <Text style={styles.heroSubtitle}>
+                Administra la tasa oficial y tus referencias en un solo lugar.
               </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            </View>
+          </View>
 
-        <CurrencyConverter exchangeRate={rate} style={styles.converter} />
-      </ScrollView>
+          <RateDisplay
+            rate={rate}
+            source="BCV"
+            lastUpdate={lastUpdate}
+            style={styles.rateDisplay}
+          />
+
+          <View style={styles.manualCard}>
+            <Text style={styles.manualTitle}>Actualizar manualmente</Text>
+            <Text style={styles.manualSubtitle}>
+              Ingresa la tasa acordada para aplicar inmediatamente en la app.
+            </Text>
+            <View style={styles.manualInputRow}>
+              <View style={styles.manualBadge}>
+                <Text style={styles.manualBadgeText}>USD → VES</Text>
+              </View>
+              <TextInput
+                ref={manualInputRef}
+                value={manualValue}
+                onChangeText={setManualValue}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                style={styles.manualInput}
+                returnKeyType="done"
+                blurOnSubmit
+                onSubmitEditing={() => Keyboard.dismiss()}
+                onFocus={() => scrollToField(manualInputRef)}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.secondaryButton, saving && styles.buttonDisabled]}
+              onPress={() => {
+                Keyboard.dismiss();
+                handleManualSave();
+              }}
+              disabled={saving}
+              activeOpacity={0.85}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.secondaryButtonText}>
+                  Guardar tasa manual
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <CurrencyConverter exchangeRate={rate} style={styles.converter} />
+        </ScrollView>
+      </KeyboardAvoidingView>
       <CustomAlert />
     </SafeAreaView>
   );
@@ -151,6 +190,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#e8edf2",
+  },
+  flex: {
+    flex: 1,
   },
   content: {
     padding: spacing.xl,
