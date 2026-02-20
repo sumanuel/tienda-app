@@ -65,8 +65,10 @@ import BusinessSettingsScreen from "./src/screens/main/BusinessSettingsScreen";
 import PricingSettingsScreen from "./src/screens/main/PricingSettingsScreen";
 import QRProductsScreen from "./src/screens/main/QRProductsScreen";
 import InventoryEntryScreen from "./src/screens/main/InventoryEntryScreen";
+import InventoryEntryDetailScreen from "./src/screens/main/InventoryEntryDetailScreen";
 import AddInventoryEntryScreen from "./src/screens/main/AddInventoryEntryScreen";
 import InventoryExitScreen from "./src/screens/main/InventoryExitScreen";
+import InventoryExitDetailScreen from "./src/screens/main/InventoryExitDetailScreen";
 import AddInventoryExitScreen from "./src/screens/main/AddInventoryExitScreen";
 import AboutScreen from "./src/screens/main/AboutScreen";
 import OnboardingScreen from "./src/screens/main/OnboardingScreen";
@@ -1028,10 +1030,40 @@ export default function App() {
             }}
           />
           <Stack.Screen
+            name="InventoryEntryDetail"
+            component={InventoryEntryDetailScreen}
+            options={{
+              title: "Entradas",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+                fontSize: rf(18),
+              },
+            }}
+          />
+          <Stack.Screen
             name="InventoryExit"
             component={InventoryExitScreen}
             options={{
               title: "Salida de Inventario",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+                fontSize: rf(18),
+              },
+            }}
+          />
+          <Stack.Screen
+            name="InventoryExitDetail"
+            component={InventoryExitDetailScreen}
+            options={{
+              title: "Salidas",
               headerStyle: {
                 backgroundColor: "#4CAF50",
               },

@@ -155,6 +155,9 @@ export const iconSize = {
   xxl: s(60),
 };
 
+// Alias por compatibilidad (typo común)
+export const iconoSize = iconSize;
+
 /**
  * Debug function to log current scaling info
  */
@@ -168,4 +171,24 @@ export const logScalingInfo = () => {
   console.log(`Is Small Device: ${isSmallDevice()}`);
   console.log(`Is Large Device: ${isLargeDevice()}`);
   console.log("===============================");
+};
+
+// Compatibilidad con imports default/namespace
+export default {
+  s,
+  ms,
+  rf,
+  vs,
+  hs,
+  screenWidth,
+  screenHeight,
+  isTablet,
+  isSmallDevice,
+  isLargeDevice,
+  platformScale,
+  spacing,
+  borderRadius,
+  iconSize,
+  iconoSize,
+  logScalingInfo,
 };
