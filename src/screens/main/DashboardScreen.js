@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
+import { showCustomAlert } from "../../components/common/CustomAlert";
 import { useSales } from "../../hooks/useSales";
 import { useInventory } from "../../hooks/useInventory";
 import { useCustomers } from "../../hooks/useCustomers";
@@ -52,6 +53,18 @@ export const DashboardScreen = ({ navigation }) => {
   } = useAccounts();
   const [refreshing, setRefreshing] = useState(false);
   const [businessName, setBusinessName] = useState("");
+
+  const requireExchangeRate = (contextMessage) => {
+    if (!rate || rate <= 0) {
+      showCustomAlert({
+        title: "Tasa de cambio requerida",
+        message: `Debe configurar una tasa de cambio válida antes de ${contextMessage}. Ve a la sección de Tasa de Cambio.`,
+        type: "error",
+      });
+      return false;
+    }
+    return true;
+  };
 
   // Cargar nombre del negocio
   useEffect(() => {
@@ -198,7 +211,10 @@ export const DashboardScreen = ({ navigation }) => {
           {/* Nueva Venta */}
           <TouchableOpacity
             style={styles.statCard}
-            onPress={() => navigation.navigate("POS")}
+            onPress={() => {
+              if (!requireExchangeRate("realizar ventas")) return;
+              navigation.navigate("POS");
+            }}
           >
             <Text style={styles.statIcon}>🛒</Text>
             <Text style={styles.statLabel}>Nueva Venta</Text>
@@ -210,7 +226,10 @@ export const DashboardScreen = ({ navigation }) => {
           {/* Cuentas por Cobrar */}
           <TouchableOpacity
             style={styles.statCard}
-            onPress={() => navigation.navigate("AccountsReceivable")}
+            onPress={() => {
+              if (!requireExchangeRate("gestionar cuentas por cobrar")) return;
+              navigation.navigate("AccountsReceivable");
+            }}
           >
             <Text style={styles.statIcon}>📈</Text>
             <Text style={styles.statLabel}>Por Cobrar</Text>
@@ -227,7 +246,10 @@ export const DashboardScreen = ({ navigation }) => {
           {/* Cuentas por Pagar */}
           <TouchableOpacity
             style={styles.statCard}
-            onPress={() => navigation.navigate("AccountsPayable")}
+            onPress={() => {
+              if (!requireExchangeRate("gestionar cuentas por pagar")) return;
+              navigation.navigate("AccountsPayable");
+            }}
           >
             <Text style={styles.statIcon}>📉</Text>
             <Text style={styles.statLabel}>Por Pagar</Text>
@@ -246,7 +268,12 @@ export const DashboardScreen = ({ navigation }) => {
           {/* Entrada Inventario */}
           <TouchableOpacity
             style={styles.statCard}
-            onPress={() => navigation.navigate("InventoryEntry")}
+            onPress={() => {
+              if (!requireExchangeRate("registrar entradas de inventario")) {
+                return;
+              }
+              navigation.navigate("InventoryEntry");
+            }}
           >
             <Text style={styles.statIcon}>📥</Text>
             <Text style={styles.statLabel}>Entrada Inventario</Text>
@@ -256,7 +283,12 @@ export const DashboardScreen = ({ navigation }) => {
           {/* Salida Inventario */}
           <TouchableOpacity
             style={styles.statCard}
-            onPress={() => navigation.navigate("InventoryExit")}
+            onPress={() => {
+              if (!requireExchangeRate("registrar salidas de inventario")) {
+                return;
+              }
+              navigation.navigate("InventoryExit");
+            }}
           >
             <Text style={styles.statIcon}>📤</Text>
             <Text style={styles.statLabel}>Salida Inventario</Text>
