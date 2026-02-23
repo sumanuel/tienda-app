@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Platform,
+  Modal,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSales } from "../../hooks/useSales";
@@ -16,6 +17,7 @@ import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { getSaleItemsCostUSDBySaleIds } from "../../services/database/sales";
 import {
   s,
   rf,
@@ -68,6 +70,14 @@ export const SalesScreen = () => {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
+  const [showTotalsModal, setShowTotalsModal] = useState(false);
+  const [totalsLoading, setTotalsLoading] = useState(false);
+  const [totals, setTotals] = useState({
+    soldVES: 0,
+    costVES: 0,
+    profitVES: 0,
+  });
+
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
       loadSales();
@@ -108,6 +118,53 @@ export const SalesScreen = () => {
       total,
     };
   }, [activeTab, todayStats, filteredSales]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!showTotalsModal) return;
+
+      try {
+        setTotalsLoading(true);
+
+        const saleIds = (filteredSales || []).map((sale) => sale.id);
+        const costRows = await getSaleItemsCostUSDBySaleIds(saleIds);
+        const costBySaleId = (costRows || []).reduce((acc, row) => {
+          const saleId = Number(row.saleId);
+          acc[saleId] = Number(row.costUSD) || 0;
+          return acc;
+        }, {});
+
+        const soldVES = (filteredSales || []).reduce(
+          (sum, sale) => sum + (Number(calculateTotal(sale)) || 0),
+          0,
+        );
+
+        const costVES = (filteredSales || []).reduce((sum, sale) => {
+          const saleId = Number(sale.id);
+          const costUSD = costBySaleId[saleId] || 0;
+          const rateAtSale = Number(sale.exchangeRate) || exchangeRate || 0;
+          return sum + costUSD * rateAtSale;
+        }, 0);
+
+        setTotals({
+          soldVES,
+          costVES,
+          profitVES: soldVES - costVES,
+        });
+      } catch (error) {
+        console.error("Error calculando totales de ventas:", error);
+        showAlert({
+          title: "Error",
+          message: "No se pudieron calcular los totales",
+          type: "error",
+        });
+      } finally {
+        setTotalsLoading(false);
+      }
+    };
+
+    run();
+  }, [showTotalsModal, filteredSales, exchangeRate, showAlert]);
 
   const handleShowDetails = (sale) => {
     navigation.navigate("SaleDetail", { saleId: sale.id });
@@ -172,7 +229,7 @@ export const SalesScreen = () => {
       23,
       59,
       59,
-      999
+      999,
     );
 
   const handleStartDateChange = (event, selected) => {
@@ -441,7 +498,70 @@ export const SalesScreen = () => {
             </View>
           }
         />
+
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setShowTotalsModal(true)}
+          activeOpacity={0.9}
+        >
+          <Text style={styles.fabIcon}>$</Text>
+        </TouchableOpacity>
       </SafeAreaView>
+
+      <Modal
+        visible={showTotalsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTotalsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Totales</Text>
+            <Text style={styles.modalSubtitle}>
+              {activeTab === "today"
+                ? "Ventas de hoy"
+                : `Rango: ${formatDate(startDate)} – ${formatDate(endDate)}`}
+            </Text>
+
+            {totalsLoading ? (
+              <View style={styles.modalLoading}>
+                <ActivityIndicator size="large" color="#2f5ae0" />
+                <Text style={styles.modalLoadingText}>Calculando...</Text>
+              </View>
+            ) : (
+              <View style={styles.modalBody}>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Total vendido</Text>
+                  <Text style={styles.modalValue}>
+                    {formatCurrency(totals.soldVES, "VES")}
+                  </Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Costo vendido</Text>
+                  <Text style={styles.modalValue}>
+                    {formatCurrency(totals.costVES, "VES")}
+                  </Text>
+                </View>
+                <View style={styles.modalDivider} />
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Ganancia</Text>
+                  <Text style={styles.modalValue}>
+                    {formatCurrency(totals.profitVES, "VES")}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowTotalsModal(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.modalCloseText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <CustomAlert />
     </>
   );
@@ -711,6 +831,96 @@ const styles = StyleSheet.create({
     color: "#6f7c8c",
     textAlign: "center",
     paddingHorizontal: hs(24),
+  },
+  fab: {
+    position: "absolute",
+    right: hs(18),
+    bottom: vs(24),
+    width: s(56),
+    height: s(56),
+    borderRadius: s(28),
+    backgroundColor: "#2f5ae0",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: s(10) },
+    shadowOpacity: 0.18,
+    shadowRadius: s(14),
+    elevation: 10,
+  },
+  fabIcon: {
+    color: "#fff",
+    fontSize: rf(22),
+    fontWeight: "800",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: hs(16),
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: s(420),
+    backgroundColor: "#fff",
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+  },
+  modalTitle: {
+    fontSize: rf(18),
+    fontWeight: "800",
+    color: "#1f2633",
+  },
+  modalSubtitle: {
+    marginTop: vs(6),
+    fontSize: rf(13),
+    color: "#5b6472",
+  },
+  modalBody: {
+    marginTop: vs(18),
+    gap: vs(12),
+  },
+  modalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  modalLabel: {
+    fontSize: rf(14),
+    color: "#5b6472",
+    fontWeight: "600",
+  },
+  modalValue: {
+    fontSize: rf(15),
+    color: "#1f2633",
+    fontWeight: "800",
+  },
+  modalDivider: {
+    height: s(1),
+    backgroundColor: "#e4e9f2",
+  },
+  modalCloseButton: {
+    marginTop: vs(18),
+    backgroundColor: "#f3f5fa",
+    borderRadius: borderRadius.md,
+    paddingVertical: vs(12),
+    alignItems: "center",
+  },
+  modalCloseText: {
+    fontSize: rf(14),
+    fontWeight: "800",
+    color: "#1f2633",
+  },
+  modalLoading: {
+    marginTop: vs(18),
+    alignItems: "center",
+    gap: vs(10),
+  },
+  modalLoadingText: {
+    fontSize: rf(13),
+    color: "#5b6472",
+    fontWeight: "600",
   },
   detailOverlay: {
     position: "absolute",

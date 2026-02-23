@@ -36,7 +36,7 @@ export const initSalesTable = async () => {
         status TEXT DEFAULT 'completed',
         notes TEXT,
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      );`
+      );`,
     );
 
     // Tabla de items de venta
@@ -51,7 +51,7 @@ export const initSalesTable = async () => {
         priceUSD REAL DEFAULT 0,
         subtotal REAL NOT NULL,
         FOREIGN KEY (saleId) REFERENCES sales(id)
-      );`
+      );`,
     );
   } catch (error) {
     throw error;
@@ -81,7 +81,7 @@ export const insertSale = async (sale, items) => {
         sale.status || "completed",
         sale.notes || "",
         new Date().toISOString(),
-      ]
+      ],
     );
 
     const saleId = saleResult.lastInsertRowId;
@@ -99,7 +99,7 @@ export const insertSale = async (sale, items) => {
           item.price,
           item.priceUSD || 0,
           item.quantity * item.price,
-        ]
+        ],
       );
     }
 
@@ -121,7 +121,7 @@ export const getAllSales = async (limit = 100) => {
        FROM sales s 
        WHERE s.status != 'cancelled'
        ORDER BY s.createdAt DESC LIMIT ?;`,
-      [limit]
+      [limit],
     );
     return result;
   } catch (error) {
@@ -146,7 +146,7 @@ export const getSaleById = async (saleId) => {
     // Obtener items
     const items = await db.getAllAsync(
       "SELECT * FROM sale_items WHERE saleId = ?;",
-      [saleId]
+      [saleId],
     );
 
     sale.items = items;
@@ -163,8 +163,35 @@ export const getSalesByDateRange = async (startDate, endDate) => {
   try {
     const result = await db.getAllAsync(
       "SELECT * FROM sales WHERE createdAt >= ? AND createdAt <= ? ORDER BY createdAt DESC;",
-      [startDate, endDate]
+      [startDate, endDate],
     );
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Obtiene el costo total (USD) de los items por cada saleId.
+ * Nota: se basa en products.cost (costo actual) y no guarda el costo histórico.
+ */
+export const getSaleItemsCostUSDBySaleIds = async (saleIds = []) => {
+  try {
+    if (!Array.isArray(saleIds) || saleIds.length === 0) {
+      return [];
+    }
+
+    const placeholders = saleIds.map(() => "?").join(",");
+    const result = await db.getAllAsync(
+      `SELECT si.saleId as saleId,
+              COALESCE(SUM(si.quantity * COALESCE(p.cost, 0)), 0) as costUSD
+       FROM sale_items si
+       LEFT JOIN products p ON p.id = si.productId
+       WHERE si.saleId IN (${placeholders})
+       GROUP BY si.saleId;`,
+      saleIds,
+    );
+
     return result;
   } catch (error) {
     throw error;
@@ -183,7 +210,7 @@ export const getTodaySales = async () => {
        WHERE datetime(createdAt) >= datetime(?)
          AND datetime(createdAt) < datetime(?)
          AND status = 'completed';`,
-      [startIso, endIso]
+      [startIso, endIso],
     );
     return result;
   } catch (error) {
@@ -198,7 +225,7 @@ export const cancelSale = async (saleId) => {
   try {
     const result = await db.runAsync(
       "UPDATE sales SET status = 'cancelled' WHERE id = ?;",
-      [saleId]
+      [saleId],
     );
     return result.changes;
   } catch (error) {
@@ -231,6 +258,7 @@ export default {
   getAllSales,
   getSaleById,
   getSalesByDateRange,
+  getSaleItemsCostUSDBySaleIds,
   getTodaySales,
   cancelSale,
   deleteSaleById,

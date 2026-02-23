@@ -128,7 +128,9 @@ export const POSScreen = ({ navigation }) => {
   const addToCart = (product, options = {}) => {
     const { showAlert: shouldShowAlert = true } = options;
 
-    if (product.stock <= 0) {
+    const stockValue = Number(product.stock) || 0;
+
+    if (stockValue === 0) {
       showAlert({
         title: "Sin stock",
         message: "Este producto no tiene stock disponible",
@@ -231,7 +233,7 @@ export const POSScreen = ({ navigation }) => {
             quantity: newQuantity,
             subtotal: newQuantity * item.price,
           }
-        : item
+        : item,
     );
     setCart(updatedCart);
   };
@@ -297,9 +299,8 @@ export const POSScreen = ({ navigation }) => {
           customerName = "Cliente Genérico";
         } else {
           // Buscar cliente por cédula
-          const existingCustomer = await getCustomerByDocument(
-            customerDocument
-          );
+          const existingCustomer =
+            await getCustomerByDocument(customerDocument);
           if (existingCustomer) {
             customerId = existingCustomer.id;
             customerName = existingCustomer.name;
@@ -386,10 +387,10 @@ export const POSScreen = ({ navigation }) => {
           "exit",
           item.quantity,
           item.product.stock,
-          saleMovementNote
+          saleMovementNote,
         );
         console.log(
-          `Stock actualizado: ${item.name.toUpperCase()} - Nuevo stock: ${newStock}`
+          `Stock actualizado: ${item.name.toUpperCase()} - Nuevo stock: ${newStock}`,
         );
       }
 
@@ -406,7 +407,7 @@ export const POSScreen = ({ navigation }) => {
                 Number(item.product?.priceUSD) ||
                 (exchangeRate ? Number(item.price) / exchangeRate : 0)) *
                 (Number(item.quantity) || 0),
-            0
+            0,
           );
           const accountData = {
             customerName: customerName.trim() || "Cliente",
@@ -439,7 +440,7 @@ export const POSScreen = ({ navigation }) => {
       const confirmationMessage =
         paymentMethod === "por_cobrar"
           ? `Total: VES. ${total.toFixed(
-              2
+              2,
             )}\nCliente: ${customerName}\n\n✅ Cuenta por cobrar creada automáticamente`
           : `Total: VES. ${total.toFixed(2)}\nCliente: ${customerName}`;
 
@@ -481,7 +482,7 @@ export const POSScreen = ({ navigation }) => {
       // Verificar si el cliente ya existe
       if (customerDocument.trim()) {
         const existingCustomer = await getCustomerByDocument(
-          customerDocument.trim()
+          customerDocument.trim(),
         );
         if (existingCustomer) {
           customerId = existingCustomer.id;
@@ -530,10 +531,10 @@ export const POSScreen = ({ navigation }) => {
           "exit",
           item.quantity,
           item.product.stock,
-          pendingSaleMovementNote
+          pendingSaleMovementNote,
         );
         console.log(
-          `Stock actualizado: ${item.name.toUpperCase()} - Nuevo stock: ${newStock}`
+          `Stock actualizado: ${item.name.toUpperCase()} - Nuevo stock: ${newStock}`,
         );
       }
 
@@ -552,7 +553,7 @@ export const POSScreen = ({ navigation }) => {
                   ? Number(item.price) / pendingSaleData.exchangeRate
                   : 0)) *
                 (Number(item.quantity) || 0),
-            0
+            0,
           );
           const accountData = {
             customerName: newCustomerName.trim(),
@@ -587,10 +588,10 @@ export const POSScreen = ({ navigation }) => {
       const confirmationMessage =
         pendingSaleData.paymentMethod === "por_cobrar"
           ? `Total: VES. ${pendingSaleData.total.toFixed(
-              2
+              2,
             )}\nCliente: ${newCustomerName.trim()}\n\n✅ Cliente creado y cuenta por cobrar generada`
           : `Total: VES. ${pendingSaleData.total.toFixed(
-              2
+              2,
             )}\nCliente: ${newCustomerName.trim()}\n\n✅ Cliente creado exitosamente`;
 
       showAlert({
@@ -623,7 +624,8 @@ export const POSScreen = ({ navigation }) => {
    * Renderiza un producto
    */
   const renderProduct = ({ item }) => {
-    const isOutOfStock = item.stock <= 0;
+    const stockValue = Number(item.stock) || 0;
+    const isOutOfStock = stockValue === 0;
     return (
       <TouchableOpacity
         style={[styles.productCard, isOutOfStock && styles.productCardDisabled]}
@@ -657,7 +659,7 @@ export const POSScreen = ({ navigation }) => {
               isOutOfStock && styles.productStockLow,
             ]}
           >
-            Stock: {item.stock}
+            Stock: {stockValue}
           </Text>
         </View>
       </TouchableOpacity>
