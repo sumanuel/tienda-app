@@ -74,8 +74,11 @@ export const SalesScreen = () => {
   const [totalsLoading, setTotalsLoading] = useState(false);
   const [totals, setTotals] = useState({
     soldVES: 0,
+    soldUSD: 0,
     costVES: 0,
+    costUSD: 0,
     profitVES: 0,
+    profitUSD: 0,
   });
 
   useEffect(() => {
@@ -139,6 +142,22 @@ export const SalesScreen = () => {
           0,
         );
 
+        const soldUSD = (filteredSales || []).reduce((sum, sale) => {
+          const totalUSD = Number(sale.totalUSD) || 0;
+          if (totalUSD > 0) {
+            return sum + totalUSD;
+          }
+
+          const totalVES = Number(calculateTotal(sale)) || 0;
+          const rateAtSale = Number(sale.exchangeRate) || exchangeRate || 0;
+          return sum + (rateAtSale > 0 ? totalVES / rateAtSale : 0);
+        }, 0);
+
+        const costUSD = (filteredSales || []).reduce((sum, sale) => {
+          const saleId = Number(sale.id);
+          return sum + (costBySaleId[saleId] || 0);
+        }, 0);
+
         const costVES = (filteredSales || []).reduce((sum, sale) => {
           const saleId = Number(sale.id);
           const costUSD = costBySaleId[saleId] || 0;
@@ -148,8 +167,11 @@ export const SalesScreen = () => {
 
         setTotals({
           soldVES,
+          soldUSD,
           costVES,
+          costUSD,
           profitVES: soldVES - costVES,
+          profitUSD: soldUSD - costUSD,
         });
       } catch (error) {
         console.error("Error calculando totales de ventas:", error);
@@ -532,22 +554,37 @@ export const SalesScreen = () => {
               <View style={styles.modalBody}>
                 <View style={styles.modalRow}>
                   <Text style={styles.modalLabel}>Total vendido</Text>
-                  <Text style={styles.modalValue}>
-                    {formatCurrency(totals.soldVES, "VES")}
-                  </Text>
+                  <View style={styles.modalValueBlock}>
+                    <Text style={styles.modalValue}>
+                      {formatCurrency(totals.soldVES, "VES")}
+                    </Text>
+                    <Text style={styles.modalValueSecondary}>
+                      {formatCurrency(totals.soldUSD, "USD")}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.modalRow}>
                   <Text style={styles.modalLabel}>Costo vendido</Text>
-                  <Text style={styles.modalValue}>
-                    {formatCurrency(totals.costVES, "VES")}
-                  </Text>
+                  <View style={styles.modalValueBlock}>
+                    <Text style={styles.modalValue}>
+                      {formatCurrency(totals.costVES, "VES")}
+                    </Text>
+                    <Text style={styles.modalValueSecondary}>
+                      {formatCurrency(totals.costUSD, "USD")}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.modalDivider} />
                 <View style={styles.modalRow}>
                   <Text style={styles.modalLabel}>Ganancia</Text>
-                  <Text style={styles.modalValue}>
-                    {formatCurrency(totals.profitVES, "VES")}
-                  </Text>
+                  <View style={styles.modalValueBlock}>
+                    <Text style={styles.modalValue}>
+                      {formatCurrency(totals.profitVES, "VES")}
+                    </Text>
+                    <Text style={styles.modalValueSecondary}>
+                      {formatCurrency(totals.profitUSD, "USD")}
+                    </Text>
+                  </View>
                 </View>
               </View>
             )}
@@ -895,6 +932,15 @@ const styles = StyleSheet.create({
     fontSize: rf(15),
     color: "#1f2633",
     fontWeight: "800",
+  },
+  modalValueBlock: {
+    alignItems: "flex-end",
+    gap: vs(4),
+  },
+  modalValueSecondary: {
+    fontSize: rf(12),
+    color: "#6f7c8c",
+    fontWeight: "700",
   },
   modalDivider: {
     height: s(1),
