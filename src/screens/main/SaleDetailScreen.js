@@ -8,11 +8,15 @@ import {
   SafeAreaView,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
+import { getCustomerById } from "../../services/database/customers";
 import {
   s,
   rf,
@@ -28,6 +32,8 @@ export const SaleDetailScreen = () => {
   const { saleId } = route.params;
   const { getSaleDetails } = useSales();
 
+  const insets = useSafeAreaInsets();
+
   const { rate } = useExchangeRateContext();
 
   const exchangeRate = Number(rate) || 0;
@@ -38,7 +44,7 @@ export const SaleDetailScreen = () => {
       const totalUSD = items.reduce(
         (sum, item) =>
           sum + (Number(item.priceUSD) || 0) * (Number(item.quantity) || 0),
-        0
+        0,
       );
 
       if (totalUSD > 0) {
@@ -52,10 +58,30 @@ export const SaleDetailScreen = () => {
   const [sale, setSale] = useState(null);
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [customer, setCustomer] = useState(null);
 
   useEffect(() => {
     loadSaleDetails();
   }, [saleId]);
+
+  useEffect(() => {
+    const loadCustomer = async () => {
+      try {
+        const customerId = sale?.customerId;
+        if (!customerId) {
+          setCustomer(null);
+          return;
+        }
+        const found = await getCustomerById(customerId);
+        setCustomer(found);
+      } catch (error) {
+        console.warn("Error loading customer for sale:", error);
+        setCustomer(null);
+      }
+    };
+
+    loadCustomer();
+  }, [sale?.customerId]);
 
   const loadSaleDetails = async () => {
     try {
@@ -69,6 +95,70 @@ export const SaleDetailScreen = () => {
       navigation.goBack();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const buildWhatsAppInvoiceText = () => {
+    const created = sale?.createdAt ? new Date(sale.createdAt) : new Date();
+    const customerName =
+      customer?.name ||
+      (sale?.notes ? sale.notes.replace("Cliente: ", "") : "Cliente");
+
+    const items = details?.items || [];
+    const lines = items.map((it) => {
+      const quantity = Number(it.quantity) || 0;
+      const priceUSD = Number(it.priceUSD) || 0;
+      const shouldRecalc =
+        sale?.paymentMethod === "por_cobrar" &&
+        exchangeRate > 0 &&
+        priceUSD > 0;
+      const displayPriceVES = shouldRecalc
+        ? priceUSD * exchangeRate
+        : Number(it.price) || 0;
+      const subtotalVES = quantity * displayPriceVES;
+      return `- ${it.productName} x${quantity}: ${formatCurrency(subtotalVES, "VES")}`;
+    });
+
+    const totalVES = formatCurrency(calculateTotal(sale), "VES");
+    const totalUSDNumber = (details?.items || []).reduce(
+      (sum, it) =>
+        sum + (Number(it.priceUSD) || 0) * (Number(it.quantity) || 0),
+      0,
+    );
+    const totalUSD =
+      totalUSDNumber > 0 ? formatCurrency(totalUSDNumber, "USD") : null;
+
+    const parts = [
+      `Factura - Venta #${sale?.id}`,
+      `Fecha: ${created.toLocaleDateString("es-VE")} ${created.toLocaleTimeString(
+        [],
+        {
+          hour: "2-digit",
+          minute: "2-digit",
+        },
+      )}`,
+      `Cliente: ${customerName}`,
+      "",
+      "Productos:",
+      ...lines,
+      "",
+      `Total: ${totalVES}${totalUSD ? ` (${totalUSD})` : ""}`,
+    ];
+
+    return parts.join("\n");
+  };
+
+  const handleSendWhatsAppInvoice = async () => {
+    try {
+      const phone = customer?.phone;
+      const text = buildWhatsAppInvoiceText();
+      await openWhatsApp({ phone, text });
+    } catch (error) {
+      console.error("Error sending WhatsApp invoice:", error);
+      Alert.alert(
+        "No se pudo enviar",
+        error?.message || "No se pudo abrir WhatsApp",
+      );
     }
   };
 
@@ -232,6 +322,19 @@ export const SaleDetailScreen = () => {
         }
         contentContainerStyle={styles.listContent}
       />
+
+      {isValidWhatsAppPhone(customer?.phone) ? (
+        <TouchableOpacity
+          style={[
+            styles.whatsappFab,
+            { bottom: vs(24) + Math.max(insets.bottom, vs(24)) },
+          ]}
+          onPress={handleSendWhatsAppInvoice}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.whatsappFabText}>✉️</Text>
+        </TouchableOpacity>
+      ) : null}
     </SafeAreaView>
   );
 };
@@ -245,6 +348,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: s(16),
     paddingTop: s(16),
     paddingBottom: s(110),
+  },
+  whatsappFab: {
+    position: "absolute",
+    right: s(18),
+    width: iconSize.xl,
+    height: iconSize.xl,
+    borderRadius: iconSize.xl / 2,
+    backgroundColor: "#4CAF50",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: s(10) },
+    shadowOpacity: 0.15,
+    shadowRadius: s(12),
+    elevation: 6,
+  },
+  whatsappFabText: {
+    color: "#fff",
+    fontSize: rf(22),
   },
   headerContent: {
     gap: s(18),

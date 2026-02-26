@@ -30,6 +30,36 @@ export const InventoryExitDetailScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const parseMovementDate = (createdAt) => {
+    if (!createdAt) return new Date();
+
+    if (createdAt instanceof Date) {
+      return createdAt;
+    }
+
+    if (typeof createdAt === "number") {
+      return new Date(createdAt);
+    }
+
+    const asString = String(createdAt);
+
+    // ISO (con timezone) => parse directo
+    if (asString.includes("T")) {
+      const parsed = new Date(asString);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+
+    // SQLite CURRENT_TIMESTAMP: "YYYY-MM-DD HH:mm:ss" (UTC)
+    if (asString.includes(" ")) {
+      const normalized = `${asString.replace(" ", "T")}Z`;
+      const parsed = new Date(normalized);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+
+    const fallback = new Date(asString);
+    return Number.isNaN(fallback.getTime()) ? new Date() : fallback;
+  };
+
   const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
@@ -76,8 +106,8 @@ export const InventoryExitDetailScreen = ({ navigation, route }) => {
     <View style={styles.movementCard}>
       <View style={styles.movementHeader}>
         <Text style={styles.movementDate}>
-          {new Date(item.createdAt).toLocaleDateString()}{" "}
-          {new Date(item.createdAt).toLocaleTimeString()}
+          {parseMovementDate(item.createdAt).toLocaleDateString()}{" "}
+          {parseMovementDate(item.createdAt).toLocaleTimeString()}
         </Text>
         <View style={styles.movementBadge}>
           <Text

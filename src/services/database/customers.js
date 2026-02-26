@@ -18,7 +18,7 @@ export const initCustomersTable = async () => {
         active INTEGER DEFAULT 1,
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
         updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
-      );`
+      );`,
     );
   } catch (error) {
     throw error;
@@ -31,9 +31,25 @@ export const initCustomersTable = async () => {
 export const getAllCustomers = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT * FROM customers WHERE active = 1 ORDER BY name;"
+      "SELECT * FROM customers WHERE active = 1 ORDER BY name;",
     );
     return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Obtiene un cliente activo por id
+ */
+export const getCustomerById = async (id) => {
+  try {
+    if (!id) return null;
+    const result = await db.getFirstAsync(
+      "SELECT * FROM customers WHERE id = ? AND active = 1 LIMIT 1;",
+      [id],
+    );
+    return result || null;
   } catch (error) {
     throw error;
   }
@@ -48,7 +64,7 @@ export const searchCustomers = async (query) => {
       `SELECT * FROM customers
        WHERE (name LIKE ? OR phone LIKE ? OR documentNumber LIKE ?) AND active = 1
        ORDER BY name;`,
-      [`%${query}%`, `%${query}%`, `%${query}%`]
+      [`%${query}%`, `%${query}%`, `%${query}%`],
     );
     return result;
   } catch (error) {
@@ -61,9 +77,10 @@ export const searchCustomers = async (query) => {
  */
 export const getCustomerByDocumentNumber = async (documentNumber) => {
   try {
+    const normalized = (documentNumber || "").toString().trim();
     const result = await db.getAllAsync(
-      "SELECT * FROM customers WHERE documentNumber = ? AND active = 1;",
-      [documentNumber]
+      "SELECT * FROM customers WHERE TRIM(documentNumber) = ? AND active = 1;",
+      [normalized],
     );
     return result[0] || null;
   } catch (error) {
@@ -86,7 +103,7 @@ export const createGenericCustomer = async () => {
     const result = await db.runAsync(
       `INSERT INTO customers (name, documentNumber, documentType)
        VALUES (?, ?, ?);`,
-      ["Cliente Genérico", "1", "V"]
+      ["Cliente Genérico", "1", "V"],
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -109,7 +126,7 @@ export const insertCustomer = async (customer) => {
         customer.address || "",
         customer.documentType || "",
         customer.documentNumber || "",
-      ]
+      ],
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -135,7 +152,7 @@ export const updateCustomer = async (id, customer) => {
         customer.documentType,
         customer.documentNumber,
         id,
-      ]
+      ],
     );
     return result.changes;
   } catch (error) {
@@ -151,17 +168,17 @@ export const deleteCustomer = async (id) => {
     // Verificar si el cliente tiene cuentas por cobrar pendientes
     const accountsResult = await db.getAllAsync(
       "SELECT COUNT(*) as count FROM accounts_receivable WHERE customerId = ? AND status != 'paid' AND COALESCE(paidAmount, 0) < amount;",
-      [id]
+      [id],
     );
     if (accountsResult[0].count > 0) {
       throw new Error(
-        "No se puede eliminar el cliente porque tiene cuentas por cobrar pendientes"
+        "No se puede eliminar el cliente porque tiene cuentas por cobrar pendientes",
       );
     }
 
     const result = await db.runAsync(
       "UPDATE customers SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
-      [id]
+      [id],
     );
     return result.changes;
   } catch (error) {
@@ -196,11 +213,11 @@ export const cleanDuplicateCustomers = async () => {
       for (const removeId of removeIds) {
         await db.runAsync(
           "UPDATE accounts_receivable SET customerId = ?, updatedAt = CURRENT_TIMESTAMP WHERE customerId = ?;",
-          [keepId, removeId]
+          [keepId, removeId],
         );
         await db.runAsync(
           "UPDATE sales SET customerId = ?, updatedAt = CURRENT_TIMESTAMP WHERE customerId = ?;",
-          [keepId, removeId]
+          [keepId, removeId],
         );
       }
 
@@ -208,7 +225,7 @@ export const cleanDuplicateCustomers = async () => {
       for (const removeId of removeIds) {
         await db.runAsync(
           "UPDATE customers SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
-          [removeId]
+          [removeId],
         );
         cleanedCount++;
       }
@@ -226,7 +243,7 @@ export const cleanDuplicateCustomers = async () => {
 export const recoverDeletedCustomers = async () => {
   try {
     const result = await db.runAsync(
-      "UPDATE customers SET active = 1, updatedAt = CURRENT_TIMESTAMP WHERE active = 0;"
+      "UPDATE customers SET active = 1, updatedAt = CURRENT_TIMESTAMP WHERE active = 0;",
     );
     return result.changes;
   } catch (error) {
@@ -237,6 +254,7 @@ export const recoverDeletedCustomers = async () => {
 export default {
   initCustomersTable,
   getAllCustomers,
+  getCustomerById,
   searchCustomers,
   getCustomerByDocumentNumber,
   createGenericCustomer,

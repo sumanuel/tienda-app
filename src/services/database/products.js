@@ -23,12 +23,12 @@ export const initDatabase = async () => {
         active INTEGER DEFAULT 1,
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
         updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
-      );`
+      );`,
     );
 
     // Índice para búsqueda rápida por código de barras
     await db.execAsync(
-      "CREATE INDEX IF NOT EXISTS idx_barcode ON products(barcode);"
+      "CREATE INDEX IF NOT EXISTS idx_barcode ON products(barcode);",
     );
   } catch (error) {
     throw error;
@@ -41,7 +41,7 @@ export const initDatabase = async () => {
 export const checkTableExists = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name='products';"
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='products';",
     );
     return result.length > 0;
   } catch (error) {
@@ -63,7 +63,7 @@ export const getAllProducts = async () => {
     }
 
     const result = await db.getAllAsync(
-      "SELECT * FROM products WHERE active = 1 ORDER BY name;"
+      "SELECT * FROM products WHERE active = 1 ORDER BY name;",
     );
     // console.log("Productos obtenidos de BD:", result.length);
     return result;
@@ -80,7 +80,7 @@ export const getProductByBarcode = async (barcode) => {
   try {
     const result = await db.getFirstAsync(
       "SELECT * FROM products WHERE barcode = ? AND active = 1;",
-      [barcode]
+      [barcode],
     );
     return result || null;
   } catch (error) {
@@ -97,7 +97,7 @@ export const searchProducts = async (query) => {
       `SELECT * FROM products
        WHERE (name LIKE ? OR category LIKE ?) AND active = 1
        ORDER BY name;`,
-      [`%${query}%`, `%${query}%`]
+      [`%${query}%`, `%${query}%`],
     );
     return result;
   } catch (error) {
@@ -126,7 +126,7 @@ export const insertProduct = async (product) => {
         product.minStock || 0,
         product.image || "",
         1, // active
-      ]
+      ],
     );
     console.log("Producto insertado, lastInsertRowId:", result.lastInsertRowId);
     return result.lastInsertRowId;
@@ -159,7 +159,7 @@ export const updateProduct = async (id, product) => {
         product.minStock,
         product.image,
         id,
-      ]
+      ],
     );
     return result.changes;
   } catch (error) {
@@ -174,7 +174,7 @@ export const updateProductStock = async (id, newStock) => {
   try {
     const result = await db.runAsync(
       "UPDATE products SET stock = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
-      [newStock, id]
+      [newStock, id],
     );
     return result.changes;
   } catch (error) {
@@ -189,7 +189,7 @@ export const deleteProduct = async (id) => {
   try {
     const result = await db.runAsync(
       "UPDATE products SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
-      [id]
+      [id],
     );
     return result.changes;
   } catch (error) {
@@ -203,7 +203,7 @@ export const deleteProduct = async (id) => {
 export const getLowStockProducts = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT * FROM products WHERE stock <= minStock AND active = 1 ORDER BY stock;"
+      "SELECT * FROM products WHERE stock <= minStock AND active = 1 ORDER BY stock;",
     );
     return result;
   } catch (error) {
@@ -223,7 +223,7 @@ export const initSampleProducts = async () => {
 
     // Verificar si ya hay productos
     const existingProducts = await db.getAllAsync(
-      "SELECT COUNT(*) as count FROM products;"
+      "SELECT COUNT(*) as count FROM products;",
     );
     if (existingProducts[0].count > 0) {
       console.log("Productos ya existen, saltando inicialización");
@@ -304,7 +304,7 @@ export const initSampleProducts = async () => {
       for (const product of sampleProducts) {
         await db.runAsync(
           "INSERT INTO products (name, priceUSD, category, stock, active) VALUES (?, ?, ?, ?, ?);",
-          [product.name, product.priceUSD, product.category, product.stock, 1]
+          [product.name, product.priceUSD, product.category, product.stock, 1],
         );
       }
     });
@@ -323,7 +323,7 @@ export const initSampleProducts = async () => {
 export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
   try {
     console.log(
-      `Actualizando precios con nueva tasa: 1 USD = ${exchangeRate} VES`
+      `Actualizando precios con nueva tasa: 1 USD = ${exchangeRate} VES`,
     );
 
     // Actualizar todos los productos activos con precio USD > 0
@@ -332,7 +332,7 @@ export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
        SET priceVES = ROUND(priceUSD * ?, 2),
            updatedAt = CURRENT_TIMESTAMP
        WHERE active = 1 AND priceUSD > 0;`,
-      [exchangeRate]
+      [exchangeRate],
     );
 
     console.log(`Precios actualizados: ${result.changes} productos`);
@@ -352,7 +352,7 @@ export const getAllProductsWithQRCodes = async () => {
       `SELECT id, name, barcode, category, priceUSD, stock
        FROM products
        WHERE active = 1
-       ORDER BY name ASC;`
+       ORDER BY name ASC;`,
     );
 
     // Agregar código QR generado para cada producto
@@ -373,16 +373,18 @@ export const insertInventoryMovement = async (
   type,
   quantity,
   previousStock,
-  notes = null
+  notes = null,
 ) => {
   try {
     const newStock =
       type === "entry" ? previousStock + quantity : previousStock - quantity;
 
+    const createdAt = new Date().toISOString();
+
     const result = await db.runAsync(
-      `INSERT INTO inventory_movements (productId, type, quantity, previousStock, newStock, notes)
-       VALUES (?, ?, ?, ?, ?, ?);`,
-      [productId, type, quantity, previousStock, newStock, notes]
+      `INSERT INTO inventory_movements (productId, type, quantity, previousStock, newStock, notes, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?);`,
+      [productId, type, quantity, previousStock, newStock, notes, createdAt],
     );
 
     return result.lastInsertRowId;
@@ -402,7 +404,7 @@ export const getProductEntryMovements = async (productId) => {
        FROM inventory_movements
        WHERE productId = ? AND type = 'entry'
        ORDER BY createdAt DESC;`,
-      [productId]
+      [productId],
     );
 
     return result;
@@ -422,7 +424,7 @@ export const getProductExitMovements = async (productId) => {
        FROM inventory_movements
        WHERE productId = ? AND type = 'exit'
        ORDER BY createdAt DESC;`,
-      [productId]
+      [productId],
     );
 
     return result;

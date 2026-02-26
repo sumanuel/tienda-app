@@ -43,12 +43,19 @@ export const CustomersScreen = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Recargar clientes cuando la pantalla se enfoque
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
+
   const handleSearch = useCallback(
     (query) => {
       setSearchQuery(query);
       search(query);
     },
-    [search]
+    [search],
   );
 
   const handleCleanDuplicates = useCallback(async () => {
@@ -135,10 +142,10 @@ export const CustomersScreen = () => {
         ]);
 
         const customerSales = allSales.filter(
-          (sale) => sale.customerId === customer.id
+          (sale) => sale.customerId === customer.id,
         );
         const customerReceivables = allReceivables.filter(
-          (account) => account.customerId === customer.id
+          (account) => account.customerId === customer.id,
         );
 
         if (customerSales.length > 0 || customerReceivables.length > 0) {
@@ -189,7 +196,7 @@ export const CustomersScreen = () => {
         });
       }
     },
-    [removeCustomer, showAlert]
+    [removeCustomer, showAlert],
   );
 
   const sortedCustomers = useMemo(() => {
@@ -276,7 +283,7 @@ export const CustomersScreen = () => {
         </View>
       );
     },
-    [navigation, confirmDeleteCustomer]
+    [navigation, confirmDeleteCustomer],
   );
 
   const header = (

@@ -20,6 +20,10 @@ import {
   shareBackupFile,
 } from "../../services/backup/backupService";
 import {
+  exportDataToExcel,
+  shareExcelFile,
+} from "../../services/export/excelExportService";
+import {
   s,
   rf,
   vs,
@@ -34,6 +38,7 @@ export const SettingsScreen = () => {
   const { showAlert, CustomAlert } = useCustomAlert();
   const [isLoading, setIsLoading] = useState(true);
   const [backupBusy, setBackupBusy] = useState(false);
+  const [excelBusy, setExcelBusy] = useState(false);
 
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
 
@@ -180,6 +185,29 @@ export const SettingsScreen = () => {
         { text: "Importar", onPress: doImport },
       ],
     });
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setExcelBusy(true);
+      const { uri } = await exportDataToExcel();
+      await shareExcelFile(uri);
+      showAlert({
+        title: "Excel generado",
+        message:
+          "Se exportaron tus datos a un archivo de Excel con varias hojas.",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error exporting excel:", error);
+      showAlert({
+        title: "Error",
+        message: "No se pudo exportar a Excel.",
+        type: "error",
+      });
+    } finally {
+      setExcelBusy(false);
+    }
   };
 
   const showBackupInfo = () => {
@@ -343,6 +371,24 @@ export const SettingsScreen = () => {
                 )}
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              style={[
+                styles.secondaryButtonOutline,
+                (excelBusy || backupBusy) && styles.buttonDisabled,
+              ]}
+              onPress={handleExportExcel}
+              disabled={excelBusy || backupBusy}
+              activeOpacity={0.85}
+            >
+              {excelBusy ? (
+                <ActivityIndicator />
+              ) : (
+                <Text style={styles.secondaryButtonOutlineText}>
+                  Exportar a Excel
+                </Text>
+              )}
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
