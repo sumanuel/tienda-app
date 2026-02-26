@@ -40,6 +40,22 @@ export const getAllCustomers = async () => {
 };
 
 /**
+ * Obtiene un cliente activo por id
+ */
+export const getCustomerById = async (id) => {
+  try {
+    if (!id) return null;
+    const result = await db.getFirstAsync(
+      "SELECT * FROM customers WHERE id = ? AND active = 1 LIMIT 1;",
+      [id],
+    );
+    return result || null;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Busca clientes por nombre, teléfono o cédula
  */
 export const searchCustomers = async (query) => {
@@ -238,6 +254,7 @@ export const recoverDeletedCustomers = async () => {
 export default {
   initCustomersTable,
   getAllCustomers,
+  getCustomerById,
   searchCustomers,
   getCustomerByDocumentNumber,
   createGenericCustomer,

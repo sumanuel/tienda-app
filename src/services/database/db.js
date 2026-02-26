@@ -204,6 +204,10 @@ export const initAllTables = async () => {
       CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(createdAt);
       CREATE INDEX IF NOT EXISTS idx_customer_name ON customers(name);
       CREATE INDEX IF NOT EXISTS idx_supplier_name ON suppliers(name);
+      -- Evita duplicados de proveedores por documento (normalizado) entre activos
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_suppliers_document_normalized_active
+        ON suppliers(UPPER(TRIM(documentNumber)))
+        WHERE active = 1 AND TRIM(documentNumber) != '';
       CREATE INDEX IF NOT EXISTS idx_accounts_receivable_status ON accounts_receivable(status, dueDate);
       CREATE INDEX IF NOT EXISTS idx_accounts_payable_status ON accounts_payable(status, dueDate);
       CREATE INDEX IF NOT EXISTS idx_active_rate ON exchange_rates(isActive, createdAt);
@@ -230,7 +234,7 @@ const ensureGenericCustomer = async () => {
   try {
     const existing = await db.getFirstAsync(
       "SELECT id FROM customers WHERE documentNumber = ? AND active = 1 LIMIT 1;",
-      ["1"]
+      ["1"],
     );
 
     if (existing?.id) {
@@ -240,7 +244,7 @@ const ensureGenericCustomer = async () => {
     const result = await db.runAsync(
       `INSERT INTO customers (name, documentNumber, documentType)
        VALUES (?, ?, ?);`,
-      ["Cliente Genérico", "1", "V"]
+      ["Cliente Genérico", "1", "V"],
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -258,9 +262,92 @@ const runMigrations = async () => {
   try {
     console.log("Running database migrations...");
 
+    // Limpieza + constraint de unicidad para proveedores (por documento normalizado)
+    try {
+      const suppliersTable = await db.getFirstAsync(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='suppliers';",
+      );
+
+      if (suppliersTable?.name) {
+        // Normalizar espacios
+        await db.runAsync(
+          "UPDATE suppliers SET documentNumber = TRIM(documentNumber) WHERE documentNumber IS NOT NULL;",
+        );
+
+        // Encontrar duplicados entre activos usando normalización case-insensitive + trim
+        const duplicateGroups = await db.getAllAsync(
+          `SELECT UPPER(TRIM(documentNumber)) AS norm, COUNT(*) AS cnt
+           FROM suppliers
+           WHERE active = 1 AND TRIM(COALESCE(documentNumber, '')) != ''
+           GROUP BY norm
+           HAVING cnt > 1;`,
+        );
+
+        for (const group of duplicateGroups) {
+          const norm = group?.norm;
+          if (!norm) continue;
+
+          const ids = await db.getAllAsync(
+            `SELECT id
+             FROM suppliers
+             WHERE active = 1 AND UPPER(TRIM(documentNumber)) = ?
+             ORDER BY id DESC;`,
+            [norm],
+          );
+
+          if (!ids || ids.length <= 1) continue;
+
+          const keepId = ids[0].id;
+          const removeIds = ids.slice(1).map((r) => r.id);
+
+          const keepSupplier = await db.getFirstAsync(
+            "SELECT id, name FROM suppliers WHERE id = ? LIMIT 1;",
+            [keepId],
+          );
+
+          await db.withTransactionAsync(async () => {
+            // Transferir cuentas por pagar hacia el proveedor que se conservará
+            if (removeIds.length > 0) {
+              const placeholders = removeIds.map(() => "?").join(",");
+              await db.runAsync(
+                `UPDATE accounts_payable
+                 SET supplierId = ?,
+                     supplierName = COALESCE(?, supplierName),
+                     updatedAt = datetime('now')
+                 WHERE supplierId IN (${placeholders});`,
+                [keepId, keepSupplier?.name || null, ...removeIds],
+              );
+
+              // Desactivar duplicados
+              await db.runAsync(
+                `UPDATE suppliers
+                 SET active = 0,
+                     updatedAt = datetime('now')
+                 WHERE id IN (${placeholders});`,
+                removeIds,
+              );
+            }
+          });
+        }
+
+        // Crear índice UNIQUE parcial por documento normalizado
+        await db.execAsync(
+          `CREATE UNIQUE INDEX IF NOT EXISTS ux_suppliers_document_normalized_active
+             ON suppliers(UPPER(TRIM(documentNumber)))
+             WHERE active = 1 AND TRIM(documentNumber) != '';`,
+        );
+      }
+    } catch (suppliersMigrationError) {
+      // No bloquear el arranque completo si falla por datos heredados.
+      console.warn(
+        "Warning running suppliers unique-index migration:",
+        suppliersMigrationError,
+      );
+    }
+
     // Si por alguna razón no existe sales aún, evitar queries que dependan de esa tabla.
     const salesTable = await db.getFirstAsync(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name='sales';"
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='sales';",
     );
 
     // Asegurar tabla sale_items y columna priceUSD
@@ -275,19 +362,19 @@ const runMigrations = async () => {
         priceUSD REAL DEFAULT 0,
         subtotal REAL NOT NULL,
         FOREIGN KEY (saleId) REFERENCES sales(id)
-      );`
+      );`,
     );
 
     const saleItemColumns = await db.getAllAsync(
-      "PRAGMA table_info(sale_items)"
+      "PRAGMA table_info(sale_items)",
     );
     const hasSaleItemPriceUSD = saleItemColumns.some(
-      (col) => col.name === "priceUSD"
+      (col) => col.name === "priceUSD",
     );
     if (!hasSaleItemPriceUSD) {
       console.log("Adding priceUSD column to sale_items table...");
       await db.runAsync(
-        "ALTER TABLE sale_items ADD COLUMN priceUSD REAL DEFAULT 0"
+        "ALTER TABLE sale_items ADD COLUMN priceUSD REAL DEFAULT 0",
       );
       console.log("priceUSD column added successfully");
     }
@@ -302,7 +389,7 @@ const runMigrations = async () => {
            6
          )
          WHERE (priceUSD IS NULL OR priceUSD = 0)
-           AND COALESCE((SELECT exchangeRate FROM sales WHERE sales.id = sale_items.saleId), 0) > 0;`
+           AND COALESCE((SELECT exchangeRate FROM sales WHERE sales.id = sale_items.saleId), 0) > 0;`,
       );
     } else {
       console.log("Skipping sale_items priceUSD backfill: sales table missing");
@@ -310,35 +397,35 @@ const runMigrations = async () => {
 
     // Verificar y agregar columna documentNumber a accounts_receivable
     const receivableColumns = await db.getAllAsync(
-      "PRAGMA table_info(accounts_receivable)"
+      "PRAGMA table_info(accounts_receivable)",
     );
     const hasDocumentNumber = receivableColumns.some(
-      (col) => col.name === "documentNumber"
+      (col) => col.name === "documentNumber",
     );
     const hasInvoiceNumber = receivableColumns.some(
-      (col) => col.name === "invoiceNumber"
+      (col) => col.name === "invoiceNumber",
     );
 
     const hasPaidAtReceivable = receivableColumns.some(
-      (col) => col.name === "paidAt"
+      (col) => col.name === "paidAt",
     );
     const hasBaseCurrency = receivableColumns.some(
-      (col) => col.name === "baseCurrency"
+      (col) => col.name === "baseCurrency",
     );
 
     const hasBaseAmountUSD = receivableColumns.some(
-      (col) => col.name === "baseAmountUSD"
+      (col) => col.name === "baseAmountUSD",
     );
     const hasExchangeRateAtCreation = receivableColumns.some(
-      (col) => col.name === "exchangeRateAtCreation"
+      (col) => col.name === "exchangeRateAtCreation",
     );
 
     if (!hasDocumentNumber) {
       console.log(
-        "Adding documentNumber column to accounts_receivable table..."
+        "Adding documentNumber column to accounts_receivable table...",
       );
       await db.runAsync(
-        "ALTER TABLE accounts_receivable ADD COLUMN documentNumber TEXT"
+        "ALTER TABLE accounts_receivable ADD COLUMN documentNumber TEXT",
       );
       console.log("documentNumber column added successfully");
     } else {
@@ -347,10 +434,10 @@ const runMigrations = async () => {
 
     if (!hasInvoiceNumber) {
       console.log(
-        "Adding invoiceNumber column to accounts_receivable table..."
+        "Adding invoiceNumber column to accounts_receivable table...",
       );
       await db.runAsync(
-        "ALTER TABLE accounts_receivable ADD COLUMN invoiceNumber TEXT"
+        "ALTER TABLE accounts_receivable ADD COLUMN invoiceNumber TEXT",
       );
       console.log("invoiceNumber column added successfully");
     } else {
@@ -359,12 +446,12 @@ const runMigrations = async () => {
 
     // Verificar y agregar columna paidAmount a accounts_receivable
     const hasPaidAmount = receivableColumns.some(
-      (col) => col.name === "paidAmount"
+      (col) => col.name === "paidAmount",
     );
     if (!hasPaidAmount) {
       console.log("Adding paidAmount column to accounts_receivable table...");
       await db.runAsync(
-        "ALTER TABLE accounts_receivable ADD COLUMN paidAmount REAL DEFAULT 0"
+        "ALTER TABLE accounts_receivable ADD COLUMN paidAmount REAL DEFAULT 0",
       );
       console.log("paidAmount column added successfully");
     } else {
@@ -374,7 +461,7 @@ const runMigrations = async () => {
     if (!hasPaidAtReceivable) {
       console.log("Adding paidAt column to accounts_receivable table...");
       await db.runAsync(
-        "ALTER TABLE accounts_receivable ADD COLUMN paidAt TEXT"
+        "ALTER TABLE accounts_receivable ADD COLUMN paidAt TEXT",
       );
       console.log("paidAt column added successfully");
     } else {
@@ -384,7 +471,7 @@ const runMigrations = async () => {
     if (!hasBaseCurrency) {
       console.log("Adding baseCurrency column to accounts_receivable table...");
       await db.runAsync(
-        "ALTER TABLE accounts_receivable ADD COLUMN baseCurrency TEXT DEFAULT 'VES'"
+        "ALTER TABLE accounts_receivable ADD COLUMN baseCurrency TEXT DEFAULT 'VES'",
       );
       console.log("baseCurrency column added successfully");
     } else {
@@ -393,10 +480,10 @@ const runMigrations = async () => {
 
     if (!hasBaseAmountUSD) {
       console.log(
-        "Adding baseAmountUSD column to accounts_receivable table..."
+        "Adding baseAmountUSD column to accounts_receivable table...",
       );
       await db.runAsync(
-        "ALTER TABLE accounts_receivable ADD COLUMN baseAmountUSD REAL DEFAULT 0"
+        "ALTER TABLE accounts_receivable ADD COLUMN baseAmountUSD REAL DEFAULT 0",
       );
       console.log("baseAmountUSD column added successfully");
     } else {
@@ -405,10 +492,10 @@ const runMigrations = async () => {
 
     if (!hasExchangeRateAtCreation) {
       console.log(
-        "Adding exchangeRateAtCreation column to accounts_receivable table..."
+        "Adding exchangeRateAtCreation column to accounts_receivable table...",
       );
       await db.runAsync(
-        "ALTER TABLE accounts_receivable ADD COLUMN exchangeRateAtCreation REAL DEFAULT 0"
+        "ALTER TABLE accounts_receivable ADD COLUMN exchangeRateAtCreation REAL DEFAULT 0",
       );
       console.log("exchangeRateAtCreation column added successfully");
     } else {
@@ -420,13 +507,13 @@ const runMigrations = async () => {
       `UPDATE accounts_receivable
        SET baseCurrency = 'USD'
        WHERE (invoiceNumber IS NOT NULL AND TRIM(invoiceNumber) != '')
-         AND COALESCE(baseAmountUSD, 0) > 0;`
+         AND COALESCE(baseAmountUSD, 0) > 0;`,
     );
 
     await db.runAsync(
       `UPDATE accounts_receivable
        SET baseCurrency = COALESCE(NULLIF(baseCurrency, ''), 'VES')
-       WHERE baseCurrency IS NULL OR TRIM(baseCurrency) = '';`
+       WHERE baseCurrency IS NULL OR TRIM(baseCurrency) = '';`,
     );
 
     // Corregir status para cuentas ya saldadas (evita que "desaparezcan" al cambiar la tasa)
@@ -434,7 +521,7 @@ const runMigrations = async () => {
       `UPDATE accounts_receivable
        SET status = 'paid', paidAt = COALESCE(paidAt, datetime('now')), updatedAt = datetime('now')
        WHERE status != 'paid'
-         AND (COALESCE(paidAmount, 0) + 0.01) >= COALESCE(amount, 0);`
+         AND (COALESCE(paidAmount, 0) + 0.01) >= COALESCE(amount, 0);`,
     );
 
     // Backfill baseAmountUSD para cuentas por cobrar originadas en ventas (invoiceNumber)
@@ -448,35 +535,56 @@ const runMigrations = async () => {
          COALESCE(baseAmountUSD, 0)
        )
        WHERE (invoiceNumber IS NOT NULL AND TRIM(invoiceNumber) != '')
-         AND (baseAmountUSD IS NULL OR baseAmountUSD = 0);`
+         AND (baseAmountUSD IS NULL OR baseAmountUSD = 0);`,
+    );
+
+    // Backfill customerId en cuentas por cobrar originadas en ventas (invoiceNumber = saleId)
+    // Esto permite obtener el teléfono del cliente vía JOIN y enviar WhatsApp.
+    await db.runAsync(
+      `UPDATE accounts_receivable
+       SET customerId = (
+         SELECT s.customerId
+         FROM sales s
+         WHERE CAST(s.id AS TEXT) = CAST(accounts_receivable.invoiceNumber AS TEXT)
+         LIMIT 1
+       )
+       WHERE (customerId IS NULL OR customerId = 0)
+         AND (invoiceNumber IS NOT NULL AND TRIM(invoiceNumber) != '')
+         AND EXISTS (
+           SELECT 1
+           FROM sales s
+           WHERE CAST(s.id AS TEXT) = CAST(accounts_receivable.invoiceNumber AS TEXT)
+             AND s.customerId IS NOT NULL
+             AND s.customerId != 0
+         );`,
     );
 
     // Verificar y agregar columnas faltantes a accounts_payable
     const payableColumns = await db.getAllAsync(
-      "PRAGMA table_info(accounts_payable)"
+      "PRAGMA table_info(accounts_payable)",
     );
 
     const hasPayableSupplierId = payableColumns.some(
-      (col) => col.name === "supplierId"
+      (col) => col.name === "supplierId",
     );
     const hasPayableDocumentNumber = payableColumns.some(
-      (col) => col.name === "documentNumber"
+      (col) => col.name === "documentNumber",
     );
     const hasPayableInvoiceNumber = payableColumns.some(
-      (col) => col.name === "invoiceNumber"
+      (col) => col.name === "invoiceNumber",
     );
 
     const hasPayablePaidAmount = payableColumns.some(
-      (col) => col.name === "paidAmount"
+      (col) => col.name === "paidAmount",
     );
     const hasPayablePaidAt = payableColumns.some(
-      (col) => col.name === "paidAt"
+      (col) => col.name === "paidAt",
     );
 
     if (!hasPayablePaidAmount) {
       console.log("Adding paidAmount column to accounts_payable table...");
       await db.runAsync(
-        "ALTER TABLE accounts_payable ADD COLUMN paidAmount REAL DEFAULT 0"
+        "ALTER TABLE accounts_payable ADD COLUMN paidAmount REAL DEFAULT 0",
       );
       console.log("paidAmount column added successfully to accounts_payable");
     }
@@ -490,7 +598,7 @@ const runMigrations = async () => {
     if (!hasPayableSupplierId) {
       console.log("Adding supplierId column to accounts_payable table...");
       await db.runAsync(
-        "ALTER TABLE accounts_payable ADD COLUMN supplierId INTEGER REFERENCES suppliers (id)"
+        "ALTER TABLE accounts_payable ADD COLUMN supplierId INTEGER REFERENCES suppliers (id)",
       );
       console.log("supplierId column added successfully to accounts_payable");
     } else {
@@ -500,10 +608,10 @@ const runMigrations = async () => {
     if (!hasPayableDocumentNumber) {
       console.log("Adding documentNumber column to accounts_payable table...");
       await db.runAsync(
-        "ALTER TABLE accounts_payable ADD COLUMN documentNumber TEXT"
+        "ALTER TABLE accounts_payable ADD COLUMN documentNumber TEXT",
       );
       console.log(
-        "documentNumber column added successfully to accounts_payable"
+        "documentNumber column added successfully to accounts_payable",
       );
     } else {
       // documentNumber column already exists in accounts_payable
@@ -512,10 +620,10 @@ const runMigrations = async () => {
     if (!hasPayableInvoiceNumber) {
       console.log("Adding invoiceNumber column to accounts_payable table...");
       await db.runAsync(
-        "ALTER TABLE accounts_payable ADD COLUMN invoiceNumber TEXT"
+        "ALTER TABLE accounts_payable ADD COLUMN invoiceNumber TEXT",
       );
       console.log(
-        "invoiceNumber column added successfully to accounts_payable"
+        "invoiceNumber column added successfully to accounts_payable",
       );
     } else {
       // invoiceNumber column already exists in accounts_payable
@@ -523,19 +631,19 @@ const runMigrations = async () => {
 
     // Check for currency columns in accounts_payable
     const hasPayableBaseCurrency = payableColumns.some(
-      (col) => col.name === "baseCurrency"
+      (col) => col.name === "baseCurrency",
     );
     const hasPayableBaseAmountUSD = payableColumns.some(
-      (col) => col.name === "baseAmountUSD"
+      (col) => col.name === "baseAmountUSD",
     );
     const hasPayableExchangeRateAtCreation = payableColumns.some(
-      (col) => col.name === "exchangeRateAtCreation"
+      (col) => col.name === "exchangeRateAtCreation",
     );
 
     if (!hasPayableBaseCurrency) {
       console.log("Adding baseCurrency column to accounts_payable table...");
       await db.runAsync(
-        "ALTER TABLE accounts_payable ADD COLUMN baseCurrency TEXT DEFAULT 'VES'"
+        "ALTER TABLE accounts_payable ADD COLUMN baseCurrency TEXT DEFAULT 'VES'",
       );
       console.log("baseCurrency column added successfully to accounts_payable");
     }
@@ -543,28 +651,28 @@ const runMigrations = async () => {
     if (!hasPayableBaseAmountUSD) {
       console.log("Adding baseAmountUSD column to accounts_payable table...");
       await db.runAsync(
-        "ALTER TABLE accounts_payable ADD COLUMN baseAmountUSD REAL"
+        "ALTER TABLE accounts_payable ADD COLUMN baseAmountUSD REAL",
       );
       console.log(
-        "baseAmountUSD column added successfully to accounts_payable"
+        "baseAmountUSD column added successfully to accounts_payable",
       );
     }
 
     if (!hasPayableExchangeRateAtCreation) {
       console.log(
-        "Adding exchangeRateAtCreation column to accounts_payable table..."
+        "Adding exchangeRateAtCreation column to accounts_payable table...",
       );
       await db.runAsync(
-        "ALTER TABLE accounts_payable ADD COLUMN exchangeRateAtCreation REAL"
+        "ALTER TABLE accounts_payable ADD COLUMN exchangeRateAtCreation REAL",
       );
       console.log(
-        "exchangeRateAtCreation column added successfully to accounts_payable"
+        "exchangeRateAtCreation column added successfully to accounts_payable",
       );
     }
 
     // Crear tabla de movimientos de inventario si no existe
     const inventoryMovementsExists = await db.getAllAsync(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name='inventory_movements';"
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='inventory_movements';",
     );
 
     if (inventoryMovementsExists.length === 0) {
@@ -585,7 +693,7 @@ const runMigrations = async () => {
 
       // Crear índice para la tabla
       await db.execAsync(
-        "CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(productId);"
+        "CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(productId);",
       );
 
       console.log("inventory_movements table created successfully");

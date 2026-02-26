@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
 import {
   s,
   rf,
@@ -46,6 +47,56 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
 
+  const buildReceivableWhatsAppText = useCallback((account) => {
+    const customerName = account?.customerName || "Cliente";
+    const amount = Number(account?.amount) || 0;
+    const paidAmount = Number(account?.paidAmount) || 0;
+    const pendingAmount = Math.max(0, amount - paidAmount);
+    const baseAmountUSD = Number(account?.baseAmountUSD) || 0;
+
+    const parts = [`Hola ${customerName},`];
+    parts.push("Te escribo para compartirte un recordatorio de pago.");
+
+    if (account?.invoiceNumber) {
+      parts.push(`Factura: ${account.invoiceNumber}`);
+    }
+    if (account?.description) {
+      parts.push(`Concepto: ${account.description}`);
+    }
+    if (account?.dueDate) {
+      parts.push(`Vence: ${account.dueDate}`);
+    }
+
+    parts.push(`Monto: ${formatCurrency(amount, "VES")}`);
+    if (baseAmountUSD > 0) {
+      parts.push(`Monto (USD): ${formatCurrency(baseAmountUSD, "USD")}`);
+    }
+    if (paidAmount > 0) {
+      parts.push(`Pagado: ${formatCurrency(paidAmount, "VES")}`);
+      parts.push(`Pendiente: ${formatCurrency(pendingAmount, "VES")}`);
+    }
+
+    return parts.join("\n");
+  }, []);
+
+  const handleSendWhatsApp = useCallback(
+    async (account) => {
+      try {
+        const phone = account?.customerPhone;
+        const text = buildReceivableWhatsAppText(account);
+        await openWhatsApp({ phone, text });
+      } catch (err) {
+        console.error("Error sending WhatsApp message:", err);
+        showAlert({
+          title: "No se pudo enviar",
+          message: err?.message || "No se pudo abrir WhatsApp",
+          type: "error",
+        });
+      }
+    },
+    [buildReceivableWhatsAppText, showAlert],
+  );
+
   const handleSearch = useCallback(
     async (query) => {
       setSearchQuery(query);
@@ -55,7 +106,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         await searchReceivable(query);
       }
     },
-    [refresh, searchReceivable]
+    [refresh, searchReceivable],
   );
 
   // Filtrar cuentas basado en el tab activo
@@ -82,21 +133,21 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     (account) => {
       navigation.navigate("EditAccountReceivable", { account });
     },
-    [navigation]
+    [navigation],
   );
 
   const openRecordPaymentScreen = useCallback(
     (account) => {
       navigation.navigate("RecordPayment", { account });
     },
-    [navigation]
+    [navigation],
   );
 
   const openPaymentHistoryScreen = useCallback(
     (account) => {
       navigation.navigate("PaymentHistory", { account });
     },
-    [navigation]
+    [navigation],
   );
 
   const handleMarkAsPaid = useCallback(
@@ -132,7 +183,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         ],
       });
     },
-    [markReceivableAsPaid, showAlert]
+    [markReceivableAsPaid, showAlert],
   );
 
   const handleDelete = useCallback(
@@ -167,7 +218,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         ],
       });
     },
-    [removeAccountReceivable, showAlert]
+    [removeAccountReceivable, showAlert],
   );
 
   const totalAmount = receivableStats?.totalAmount || 0;
@@ -215,7 +266,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         color: "#ef6c00",
       };
     },
-    []
+    [],
   );
 
   const renderAccount = useCallback(
@@ -224,7 +275,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         item.status,
         item.dueDate,
         item.paidAmount || 0,
-        item.amount
+        item.amount,
       );
 
       return (
@@ -265,14 +316,14 @@ export const AccountsReceivableScreen = ({ navigation }) => {
                     Pagado:{" "}
                     {formatCurrency(
                       item.paidAmount || 0,
-                      item.currency || "VES"
+                      item.currency || "VES",
                     )}
                   </Text>
                   <Text style={styles.pendingText}>
                     Pendiente:{" "}
                     {formatCurrency(
                       Math.max(0, (item.amount || 0) - (item.paidAmount || 0)),
-                      item.currency || "VES"
+                      item.currency || "VES",
                     )}
                   </Text>
                 </View>
@@ -315,6 +366,8 @@ export const AccountsReceivableScreen = ({ navigation }) => {
               const isFullyPaid =
                 item.status === "paid" || paidAmount >= item.amount;
               const hasPayments = paidAmount > 0;
+              const canSendWhatsapp =
+                !isFullyPaid && isValidWhatsAppPhone(item.customerPhone);
               return (
                 <>
                   {!isFullyPaid && (
@@ -329,6 +382,20 @@ export const AccountsReceivableScreen = ({ navigation }) => {
                   )}
 
                   <View style={styles.iconContainer}>
+                    {canSendWhatsapp && (
+                      <TouchableOpacity
+                        style={[
+                          styles.iconButton,
+                          hasPayments && !isFullyPaid && styles.iconButtonSmall,
+                          (!hasPayments || isFullyPaid) &&
+                            styles.iconButtonNormal,
+                        ]}
+                        onPress={() => handleSendWhatsApp(item)}
+                      >
+                        <Text style={styles.iconButtonText}>WA</Text>
+                      </TouchableOpacity>
+                    )}
+
                     {hasPayments && (
                       <TouchableOpacity
                         style={[
@@ -364,10 +431,11 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     [
       getStatusAppearance,
       handleDelete,
+      handleSendWhatsApp,
       openRecordPaymentScreen,
       openPaymentHistoryScreen,
       openEditScreen,
-    ]
+    ],
   );
 
   const header = (
@@ -444,7 +512,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       refresh();
-    }, [refresh])
+    }, [refresh]),
   );
 
   if (loading) {

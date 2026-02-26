@@ -6,7 +6,7 @@ import { db } from "./db";
 export const getAllAccountsReceivable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, baseCurrency, baseAmountUSD, exchangeRateAtCreation, createdAt, updatedAt FROM accounts_receivable ORDER BY createdAt DESC;"
+      "SELECT ar.id, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId ORDER BY ar.createdAt DESC;",
     );
     return result;
   } catch (error) {
@@ -21,12 +21,12 @@ export const searchAccountsReceivable = async (query) => {
   try {
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
-      `SELECT id, customerName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, invoiceNumber, dueDate, baseCurrency, baseAmountUSD, exchangeRateAtCreation, createdAt, updatedAt FROM accounts_receivable 
+      `SELECT ar.id, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId
        WHERE customerName LIKE ? 
        OR documentNumber LIKE ? 
        OR description LIKE ?
-       ORDER BY createdAt DESC;`,
-      [searchTerm, searchTerm, searchTerm]
+       ORDER BY ar.createdAt DESC;`,
+      [searchTerm, searchTerm, searchTerm],
     );
     return result;
   } catch (error) {
@@ -40,7 +40,7 @@ export const searchAccountsReceivable = async (query) => {
 export const getAllAccountsPayable = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT id, supplierId, supplierName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;"
+      "SELECT id, supplierId, supplierName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;",
     );
     return result;
   } catch (error) {
@@ -60,7 +60,7 @@ export const searchAccountsPayable = async (query) => {
        OR documentNumber LIKE ? 
        OR description LIKE ?
        ORDER BY createdAt DESC;`,
-      [searchTerm, searchTerm, searchTerm]
+      [searchTerm, searchTerm, searchTerm],
     );
     return result;
   } catch (error) {
@@ -140,7 +140,7 @@ export const createAccountReceivable = async (accountData) => {
         documentNumber || null,
         invoiceNumber || null,
         createdAt || new Date().toISOString(),
-      ]
+      ],
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -182,7 +182,7 @@ export const createAccountPayable = async (accountData) => {
         documentNumber || null,
         invoiceNumber || null,
         createdAt || new Date().toISOString(),
-      ]
+      ],
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -221,7 +221,7 @@ export const updateAccountReceivable = async (id, accountData) => {
         documentNumber || null,
         invoiceNumber || null,
         id,
-      ]
+      ],
     );
   } catch (error) {
     throw error;
@@ -255,7 +255,7 @@ export const updateAccountPayable = async (id, accountData) => {
         description || null,
         dueDate || null,
         id,
-      ]
+      ],
     );
   } catch (error) {
     throw error;
@@ -271,7 +271,7 @@ export const markAccountReceivableAsPaid = async (id) => {
       `UPDATE accounts_receivable
        SET status = 'paid', paidAt = datetime('now'), updatedAt = datetime('now')
        WHERE id = ?`,
-      [id]
+      [id],
     );
   } catch (error) {
     throw error;
@@ -287,7 +287,7 @@ export const markAccountPayableAsPaid = async (id) => {
       `UPDATE accounts_payable
        SET status = 'paid', paidAt = datetime('now'), updatedAt = datetime('now')
        WHERE id = ?`,
-      [id]
+      [id],
     );
   } catch (error) {
     throw error;
@@ -302,7 +302,7 @@ export const deleteAccountReceivable = async (id) => {
     // Primero eliminar los pagos asociados
     await db.runAsync(
       "DELETE FROM account_payments WHERE accountId = ? AND accountType = 'receivable'",
-      [id]
+      [id],
     );
     // Luego eliminar la cuenta
     await db.runAsync("DELETE FROM accounts_receivable WHERE id = ?", [id]);
@@ -319,7 +319,7 @@ export const deleteAccountPayable = async (id) => {
     // Primero eliminar los pagos asociados
     await db.runAsync(
       "DELETE FROM account_payments WHERE accountId = ? AND accountType = 'payable'",
-      [id]
+      [id],
     );
     // Luego eliminar la cuenta
     await db.runAsync("DELETE FROM accounts_payable WHERE id = ?", [id]);
@@ -334,7 +334,7 @@ export const deleteAccountPayable = async (id) => {
 export const recordAccountPayment = async (
   accountId,
   paymentData,
-  accountType = "receivable"
+  accountType = "receivable",
 ) => {
   try {
     const { amount, paymentMethod, paymentDate, reference, notes } =
@@ -353,7 +353,7 @@ export const recordAccountPayment = async (
     // Evitar pagar más de lo debido (validación a nivel de BD)
     const currentAccount = await db.getFirstAsync(
       `SELECT ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount FROM ${tableName} WHERE id = ?`,
-      [accountId]
+      [accountId],
     );
 
     if (!currentAccount) {
@@ -362,7 +362,7 @@ export const recordAccountPayment = async (
 
     const remaining = Math.max(
       0,
-      (currentAccount.amount || 0) - (currentAccount.paidAmount || 0)
+      (currentAccount.amount || 0) - (currentAccount.paidAmount || 0),
     );
 
     if (remaining <= 0) {
@@ -385,7 +385,7 @@ export const recordAccountPayment = async (
         paymentDate || new Date().toISOString(),
         reference || "",
         notes || "",
-      ]
+      ],
     );
 
     // Actualizar el monto pagado en la cuenta
@@ -393,13 +393,13 @@ export const recordAccountPayment = async (
       `UPDATE ${tableName}
        SET paidAmount = ROUND(CASE WHEN (COALESCE(paidAmount, 0) + ?) < 0 THEN 0 ELSE (COALESCE(paidAmount, 0) + ?) END, 2), updatedAt = datetime('now')
        WHERE id = ?`,
-      [roundedAmount, roundedAmount, accountId]
+      [roundedAmount, roundedAmount, accountId],
     );
 
     // Verificar si la cuenta está completamente pagada (con tolerancia de 1 centavo)
     const account = await db.getFirstAsync(
       `SELECT ROUND(amount, 2) as amount, ROUND(paidAmount, 2) as paidAmount FROM ${tableName} WHERE id = ?`,
-      [accountId]
+      [accountId],
     );
 
     if (account && account.paidAmount + 0.01 >= account.amount) {
@@ -407,7 +407,7 @@ export const recordAccountPayment = async (
         `UPDATE ${tableName}
          SET status = 'paid', paidAt = datetime('now'), updatedAt = datetime('now')
          WHERE id = ?`,
-        [accountId]
+        [accountId],
       );
     }
   } catch (error) {
@@ -420,14 +420,14 @@ export const recordAccountPayment = async (
  */
 export const getAccountPayments = async (
   accountId,
-  accountType = "receivable"
+  accountType = "receivable",
 ) => {
   try {
     const result = await db.getAllAsync(
       `SELECT id, accountId, accountType, ROUND(amount, 2) as amount, paymentMethod, paymentDate, reference, notes FROM account_payments
        WHERE accountId = ? AND accountType = ?
        ORDER BY paymentDate DESC`,
-      [accountId, accountType]
+      [accountId, accountType],
     );
     return result;
   } catch (error) {
@@ -440,7 +440,7 @@ export const getAccountPayments = async (
  */
 export const getAccountBalance = async (
   accountId,
-  accountType = "receivable"
+  accountType = "receivable",
 ) => {
   try {
     const tableName =
@@ -448,7 +448,7 @@ export const getAccountBalance = async (
 
     const account = await db.getFirstAsync(
       `SELECT ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount FROM ${tableName} WHERE id = ?`,
-      [accountId]
+      [accountId],
     );
 
     if (!account) {
@@ -524,14 +524,14 @@ export const fixCorruptedAccountData = async () => {
     await db.runAsync(
       `UPDATE accounts_receivable 
        SET paidAmount = 0 
-       WHERE COALESCE(paidAmount, 0) < 0`
+       WHERE COALESCE(paidAmount, 0) < 0`,
     );
 
     // Corregir cuentas por pagar con paidAmount negativo
     await db.runAsync(
       `UPDATE accounts_payable 
        SET paidAmount = 0 
-       WHERE COALESCE(paidAmount, 0) < 0`
+       WHERE COALESCE(paidAmount, 0) < 0`,
     );
 
     // Recalcular paidAmount basado en los pagos registrados
@@ -544,15 +544,15 @@ export const fixCorruptedAccountData = async () => {
           [
             account.id,
             tableName === "accounts_payable" ? "payable" : "receivable",
-          ]
+          ],
         );
         const correctPaidAmount = Math.max(
           0,
-          Math.round((totalPaid?.total || 0) * 100) / 100
+          Math.round((totalPaid?.total || 0) * 100) / 100,
         );
         await db.runAsync(
           `UPDATE ${tableName} SET paidAmount = ? WHERE id = ?`,
-          [correctPaidAmount, account.id]
+          [correctPaidAmount, account.id],
         );
       }
     };
@@ -577,7 +577,7 @@ export const updateReceivableAmountsOnRateChange = async (newRate) => {
            paidAt = COALESCE(paidAt, datetime('now')),
            updatedAt = datetime('now')
        WHERE status != 'paid'
-         AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) >= ROUND(amount, 2)`
+         AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) >= ROUND(amount, 2)`,
     );
 
     // Actualizar amounts para cuentas por cobrar USD-base (manuales y originadas en ventas)
@@ -589,7 +589,7 @@ export const updateReceivableAmountsOnRateChange = async (newRate) => {
          AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) < ROUND(amount, 2)
          AND baseCurrency = 'USD'
          AND baseAmountUSD IS NOT NULL AND baseAmountUSD > 0`,
-      [newRate]
+      [newRate],
     );
     console.log("Amounts de cuentas por cobrar actualizados con nueva tasa");
   } catch (error) {
@@ -611,7 +611,7 @@ export const updatePayableAmountsOnRateChange = async (newRate) => {
            paidAt = COALESCE(paidAt, datetime('now')),
            updatedAt = datetime('now')
        WHERE status != 'paid'
-         AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) >= ROUND(amount, 2)`
+         AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) >= ROUND(amount, 2)`,
     );
 
     // Actualizar amounts para cuentas por pagar USD-base
@@ -623,7 +623,7 @@ export const updatePayableAmountsOnRateChange = async (newRate) => {
          AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) < ROUND(amount, 2)
          AND baseCurrency = 'USD'
          AND baseAmountUSD IS NOT NULL AND baseAmountUSD > 0`,
-      [newRate]
+      [newRate],
     );
     console.log("Amounts de cuentas por pagar actualizados con nueva tasa");
   } catch (error) {

@@ -410,7 +410,9 @@ export const POSScreen = ({ navigation }) => {
             0,
           );
           const accountData = {
+            customerId: customerId || null,
             customerName: customerName.trim() || "Cliente",
+            documentNumber: customerDocument?.trim() || null,
             amount: total,
             baseCurrency: "USD",
             baseAmountUSD,
@@ -556,7 +558,9 @@ export const POSScreen = ({ navigation }) => {
             0,
           );
           const accountData = {
+            customerId: customerId || null,
             customerName: newCustomerName.trim(),
+            documentNumber: customerDocument?.trim() || null,
             amount: pendingSaleData.total,
             baseCurrency: "USD",
             baseAmountUSD,

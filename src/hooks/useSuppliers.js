@@ -58,7 +58,9 @@ export const useSuppliers = () => {
   const getSupplierByDocument = useCallback(async (documentNumber) => {
     try {
       setError(null);
-      const supplier = await getSupplierByDocumentNumber(documentNumber);
+      const supplier = await getSupplierByDocumentNumber(
+        normalizeDocument(documentNumber),
+      );
       return supplier;
     } catch (err) {
       setError(err.message);
@@ -71,7 +73,26 @@ export const useSuppliers = () => {
     async (supplierData) => {
       try {
         setError(null);
-        await insertSupplier(supplierData);
+        const normalizedDocument = normalizeDocument(
+          supplierData?.documentNumber,
+        );
+
+        if (normalizedDocument) {
+          const existing =
+            await getSupplierByDocumentNumber(normalizedDocument);
+          if (existing) {
+            throw new Error(
+              `Ya existe un proveedor con el documento ${normalizedDocument}`,
+            );
+          }
+        }
+
+        const payload = {
+          ...supplierData,
+          documentNumber: normalizedDocument,
+        };
+
+        await insertSupplier(payload);
         await loadSuppliers();
       } catch (err) {
         setError(err.message);
@@ -93,7 +114,7 @@ export const useSuppliers = () => {
         if (normalizedDocument) {
           const existing =
             await getSupplierByDocumentNumber(normalizedDocument);
-          if (existing) {
+          if (existing && Number(existing.id) !== Number(id)) {
             throw new Error(
               `Ya existe un proveedor con el documento ${normalizedDocument}`,
             );
@@ -105,7 +126,8 @@ export const useSuppliers = () => {
           documentNumber: normalizedDocument,
         };
 
-        await insertSupplier(payload);
+        await updateSupplier(id, payload);
+        await loadSuppliers();
       } catch (err) {
         setError(err.message);
         console.error("Error editing supplier:", err);
