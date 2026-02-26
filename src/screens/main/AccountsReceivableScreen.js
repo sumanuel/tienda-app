@@ -384,25 +384,16 @@ export const AccountsReceivableScreen = ({ navigation }) => {
                   <View style={styles.iconContainer}>
                     {canSendWhatsapp && (
                       <TouchableOpacity
-                        style={[
-                          styles.iconButton,
-                          hasPayments && !isFullyPaid && styles.iconButtonSmall,
-                          (!hasPayments || isFullyPaid) &&
-                            styles.iconButtonNormal,
-                        ]}
+                        style={styles.iconButton}
                         onPress={() => handleSendWhatsApp(item)}
                       >
-                        <Text style={styles.iconButtonText}>📩</Text>
+                        <Text style={styles.iconButtonText}>✉️</Text>
                       </TouchableOpacity>
                     )}
 
                     {hasPayments && (
                       <TouchableOpacity
-                        style={[
-                          styles.iconButton,
-                          !isFullyPaid && styles.iconButtonSmall,
-                          isFullyPaid && styles.iconButtonNormal,
-                        ]}
+                        style={styles.iconButton}
                         onPress={() => openPaymentHistoryScreen(item)}
                       >
                         <Text style={styles.iconButtonText}>📋</Text>
@@ -410,12 +401,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
                     )}
 
                     <TouchableOpacity
-                      style={[
-                        styles.iconButton,
-                        hasPayments && !isFullyPaid && styles.iconButtonSmall,
-                        (!hasPayments || isFullyPaid) &&
-                          styles.iconButtonNormal,
-                      ]}
+                      style={styles.iconButton}
                       onPress={() => handleDelete(item)}
                     >
                       <Text style={styles.iconButtonText}>🗑️</Text>

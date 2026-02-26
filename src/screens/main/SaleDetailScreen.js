@@ -332,7 +332,7 @@ export const SaleDetailScreen = () => {
           onPress={handleSendWhatsAppInvoice}
           activeOpacity={0.85}
         >
-          <Text style={styles.whatsappFabText}>📩</Text>
+          <Text style={styles.whatsappFabText}>✉️</Text>
         </TouchableOpacity>
       ) : null}
     </SafeAreaView>
@@ -366,9 +366,7 @@ const styles = StyleSheet.create({
   },
   whatsappFabText: {
     color: "#fff",
-    fontWeight: "800",
-    fontSize: rf(14),
-    letterSpacing: 0.4,
+    fontSize: rf(22),
   },
   headerContent: {
     gap: s(18),
