@@ -18,7 +18,7 @@ export const initSuppliersTable = async () => {
         active INTEGER DEFAULT 1,
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
         updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
-      );`
+      );`,
     );
   } catch (error) {
     throw error;
@@ -31,7 +31,7 @@ export const initSuppliersTable = async () => {
 export const getAllSuppliers = async () => {
   try {
     const result = await db.getAllAsync(
-      "SELECT * FROM suppliers WHERE active = 1 ORDER BY name;"
+      "SELECT * FROM suppliers WHERE active = 1 ORDER BY name;",
     );
     return result;
   } catch (error) {
@@ -48,7 +48,7 @@ export const searchSuppliers = async (query) => {
       `SELECT * FROM suppliers
        WHERE (name LIKE ? OR phone LIKE ? OR documentNumber LIKE ?) AND active = 1
        ORDER BY name;`,
-      [`%${query}%`, `%${query}%`, `%${query}%`]
+      [`%${query}%`, `%${query}%`, `%${query}%`],
     );
     return result;
   } catch (error) {
@@ -72,7 +72,7 @@ export const insertSupplier = async (supplier) => {
         supplier.address || "",
         supplier.contactPerson || "",
         supplier.paymentTerms || "",
-      ]
+      ],
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -99,7 +99,7 @@ export const updateSupplier = async (id, supplier) => {
         supplier.contactPerson,
         supplier.paymentTerms,
         id,
-      ]
+      ],
     );
     return result.changes;
   } catch (error) {
@@ -114,7 +114,7 @@ export const deleteSupplier = async (id) => {
   try {
     const result = await db.runAsync(
       "UPDATE suppliers SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
-      [id]
+      [id],
     );
     return result.changes;
   } catch (error) {
@@ -127,9 +127,10 @@ export const deleteSupplier = async (id) => {
  */
 export const getSupplierByDocumentNumber = async (documentNumber) => {
   try {
+    const normalized = (documentNumber || "").toString().trim();
     const result = await db.getFirstAsync(
-      "SELECT * FROM suppliers WHERE documentNumber = ? AND active = 1;",
-      [documentNumber]
+      "SELECT * FROM suppliers WHERE TRIM(documentNumber) = ? COLLATE NOCASE AND active = 1;",
+      [normalized],
     );
     return result;
   } catch (error) {

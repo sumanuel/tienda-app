@@ -67,7 +67,7 @@ export const AddCustomerScreen = ({ navigation }) => {
     } catch (error) {
       showAlert({
         title: "Error",
-        message: "No se pudo guardar el cliente",
+        message: error?.message || "No se pudo guardar el cliente",
         type: "error",
       });
     }

@@ -69,7 +69,7 @@ export const AddSupplierScreen = ({ navigation }) => {
     } catch (error) {
       showAlert({
         title: "Error",
-        message: "No se pudo guardar el proveedor",
+        message: error?.message || "No se pudo guardar el proveedor",
         type: "error",
       });
     }

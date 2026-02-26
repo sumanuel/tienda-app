@@ -16,6 +16,9 @@ export const useSuppliers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const normalizeDocument = (value) =>
+    (value || "").toString().trim().toUpperCase();
+
   useEffect(() => {
     loadSuppliers();
   }, []);
@@ -49,7 +52,7 @@ export const useSuppliers = () => {
         console.error("Error searching suppliers:", err);
       }
     },
-    [loadSuppliers]
+    [loadSuppliers],
   );
 
   const getSupplierByDocument = useCallback(async (documentNumber) => {
@@ -76,22 +79,40 @@ export const useSuppliers = () => {
         throw err;
       }
     },
-    [loadSuppliers]
+    [loadSuppliers],
   );
 
   const editSupplier = useCallback(
     async (id, supplierData) => {
       try {
         setError(null);
-        await updateSupplier(id, supplierData);
-        await loadSuppliers();
+
+        const normalizedDocument = normalizeDocument(
+          supplierData?.documentNumber,
+        );
+        if (normalizedDocument) {
+          const existing =
+            await getSupplierByDocumentNumber(normalizedDocument);
+          if (existing) {
+            throw new Error(
+              `Ya existe un proveedor con el documento ${normalizedDocument}`,
+            );
+          }
+        }
+
+        const payload = {
+          ...supplierData,
+          documentNumber: normalizedDocument,
+        };
+
+        await insertSupplier(payload);
       } catch (err) {
         setError(err.message);
         console.error("Error editing supplier:", err);
         throw err;
       }
     },
-    [loadSuppliers]
+    [loadSuppliers],
   );
 
   const removeSupplier = useCallback(
@@ -106,7 +127,7 @@ export const useSuppliers = () => {
         throw err;
       }
     },
-    [loadSuppliers]
+    [loadSuppliers],
   );
 
   const getSupplierStats = useCallback(() => {
