@@ -392,7 +392,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
                         ]}
                         onPress={() => handleSendWhatsApp(item)}
                       >
-                        <Text style={styles.iconButtonText}>WA</Text>
+                        <Text style={styles.iconButtonText}>📩</Text>
                       </TouchableOpacity>
                     )}
 

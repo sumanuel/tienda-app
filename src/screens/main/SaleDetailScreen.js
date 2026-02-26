@@ -332,7 +332,7 @@ export const SaleDetailScreen = () => {
           onPress={handleSendWhatsAppInvoice}
           activeOpacity={0.85}
         >
-          <Text style={styles.whatsappFabText}>WA</Text>
+          <Text style={styles.whatsappFabText}>📩</Text>
         </TouchableOpacity>
       ) : null}
     </SafeAreaView>
