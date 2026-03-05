@@ -94,7 +94,9 @@ export const AboutScreen = () => {
             onPress={handleEmailPress}
             activeOpacity={0.8}
           >
-            <Text style={styles.contactButtonText}>📧 soporte@tsuma.com</Text>
+            <Text style={styles.contactButtonText}>
+              📧 jesusprada27@gmail.com
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -102,7 +104,9 @@ export const AboutScreen = () => {
             onPress={handleWebsitePress}
             activeOpacity={0.8}
           >
-            <Text style={styles.contactButtonText}>🌐 www.tsuma.com</Text>
+            <Text style={styles.contactButtonText}>
+              🌐 https://trenkit.com/
+            </Text>
           </TouchableOpacity>
         </View>
 
