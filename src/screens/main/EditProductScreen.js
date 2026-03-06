@@ -52,16 +52,12 @@ export const EditProductScreen = ({ navigation, route }) => {
   }, []);
 
   useEffect(() => {
-    if (cost && settings.pricing) {
-      const costValue = parseFloat(cost);
-      if (!isNaN(costValue)) {
-        const baseCurrency = settings.pricing?.baseCurrency || "USD";
-        const currencies = settings.pricing?.currencies || {
-          USD: 280,
-          EURO: 300,
-          USD2: 350,
-        };
+    const rateFromSettings = Number(settings?.pricing?.currencies?.USD) || 0;
+    const appliedRate = Number(exchangeRate) || rateFromSettings || 0;
 
+    if (cost && appliedRate) {
+      const costValue = parseFloat(cost);
+      if (!Number.isNaN(costValue)) {
         // Calculate selling price in cost currency
         const sellingPriceInCostCurrency = costValue * (1 + margin / 100);
 
@@ -69,11 +65,11 @@ export const EditProductScreen = ({ navigation, route }) => {
         let usdPrice, vesPrice;
         if (costCurrency === "USD") {
           usdPrice = sellingPriceInCostCurrency;
-          vesPrice = usdPrice * currencies.USD;
+          vesPrice = usdPrice * appliedRate;
         } else {
           // Bs
           vesPrice = sellingPriceInCostCurrency;
-          usdPrice = vesPrice / currencies.USD;
+          usdPrice = vesPrice / appliedRate;
         }
 
         setCalculatedPrices({
@@ -84,7 +80,7 @@ export const EditProductScreen = ({ navigation, route }) => {
     } else {
       setCalculatedPrices({ usd: "", ves: "" });
     }
-  }, [cost, costCurrency, margin, settings]);
+  }, [cost, costCurrency, margin, settings, exchangeRate]);
 
   // Refs para navegación entre campos
   const nameRef = useRef(null);
@@ -104,7 +100,7 @@ export const EditProductScreen = ({ navigation, route }) => {
           (x, y) => {
             scrollViewRef.current.scrollTo({ y: y - 100, animated: true });
           },
-          () => {}
+          () => {},
         );
       }, 100);
     }
@@ -356,7 +352,7 @@ export const EditProductScreen = ({ navigation, route }) => {
             <View style={styles.currencySwitch}>
               {[
                 { code: "USD", label: "Costo en USD" },
-                { code: "Bs", label: "Costo en Bs" },
+                { code: "Bs", label: "Costo en VES" },
               ].map((option) => {
                 const active = costCurrency === option.code;
                 return (
@@ -423,9 +419,9 @@ export const EditProductScreen = ({ navigation, route }) => {
                 <Text style={styles.priceHint}>Incluye margen aplicado</Text>
               </View>
               <View style={styles.priceCard}>
-                <Text style={styles.priceLabel}>Bs</Text>
+                <Text style={styles.priceLabel}>VES</Text>
                 <Text style={styles.priceValue}>
-                  {calculatedPrices.ves ? `Bs ${calculatedPrices.ves}` : "—"}
+                  {calculatedPrices.ves ? `VES ${calculatedPrices.ves}` : "—"}
                 </Text>
                 <Text style={styles.priceHint}>
                   Conversión con tasa vigente
