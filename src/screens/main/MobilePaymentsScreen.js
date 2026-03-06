@@ -30,6 +30,41 @@ import {
   vs,
 } from "../../utils/responsive";
 
+const parseSqliteDateTime = (value) => {
+  if (!value) return new Date();
+
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return new Date(value);
+  }
+
+  const asString = String(value);
+
+  // ISO (con timezone) => parse directo
+  if (asString.includes("T")) {
+    const parsed = new Date(asString);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+
+  // SQLite CURRENT_TIMESTAMP / datetime('now'): "YYYY-MM-DD HH:mm:ss" (UTC)
+  if (asString.includes(" ")) {
+    const normalized = `${asString.replace(" ", "T")}Z`;
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+
+  const fallback = new Date(asString);
+  return Number.isNaN(fallback.getTime()) ? new Date() : fallback;
+};
+
+const formatLocalDateTime = (value) => {
+  const parsed = parseSqliteDateTime(value);
+  return `${parsed.toLocaleDateString()} ${parsed.toLocaleTimeString()}`;
+};
+
 export const MobilePaymentsScreen = () => {
   const insets = useSafeAreaInsets();
   const { showAlert, CustomAlert } = useCustomAlert();
@@ -215,9 +250,14 @@ export const MobilePaymentsScreen = () => {
           <Text style={styles.paymentAmount}>
             {formatCurrency(amount, "VES")}
           </Text>
+          {item?.createdAt ? (
+            <Text style={styles.paymentCreatedAt}>
+              Agregado: {formatLocalDateTime(item.createdAt)}
+            </Text>
+          ) : null}
           {activeTab === "verified" && item?.verifiedAt ? (
             <Text style={styles.paymentVerifiedAt}>
-              Verificado: {item.verifiedAt}
+              Verificado: {formatLocalDateTime(item.verifiedAt)}
             </Text>
           ) : null}
         </View>
@@ -239,6 +279,20 @@ export const MobilePaymentsScreen = () => {
   return (
     <>
       <View style={styles.container}>
+        <View style={styles.headerContent}>
+          <View style={styles.heroCard}>
+            <View style={styles.heroIcon}>
+              <Text style={styles.heroIconText}>📲</Text>
+            </View>
+            <View style={styles.heroTextContainer}>
+              <Text style={styles.heroTitle}>Pago movil</Text>
+              <Text style={styles.heroSubtitle}>
+                Registra pagos pendientes y confirma verificados con fecha.
+              </Text>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.tabs}>
           <TouchableOpacity
             style={[
@@ -403,10 +457,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f6f8fb",
   },
+  headerContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: vs(16),
+    paddingBottom: vs(4),
+  },
+  heroCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: s(10) },
+    shadowOpacity: 0.08,
+    shadowRadius: s(18),
+    elevation: 8,
+  },
+  heroIcon: {
+    width: s(56),
+    height: s(56),
+    borderRadius: borderRadius.lg,
+    backgroundColor: "#f3f8ff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: hs(16),
+  },
+  heroIconText: {
+    fontSize: rf(26),
+  },
+  heroTextContainer: {
+    flex: 1,
+    gap: vs(6),
+  },
+  heroTitle: {
+    fontSize: rf(20),
+    fontWeight: "800",
+    color: "#1f2633",
+  },
+  heroSubtitle: {
+    fontSize: rf(13),
+    color: "#5b6472",
+    lineHeight: vs(18),
+  },
   tabs: {
     flexDirection: "row",
     paddingHorizontal: spacing.lg,
-    paddingTop: vs(14),
+    paddingTop: vs(12),
     paddingBottom: vs(10),
     gap: hs(10),
   },
@@ -503,6 +600,12 @@ const styles = StyleSheet.create({
     color: "#4CAF50",
   },
   paymentVerifiedAt: {
+    marginTop: vs(4),
+    fontSize: rf(12),
+    color: "#667085",
+    fontWeight: "600",
+  },
+  paymentCreatedAt: {
     marginTop: vs(6),
     fontSize: rf(12),
     color: "#667085",
