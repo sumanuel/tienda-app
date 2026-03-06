@@ -7,7 +7,6 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import {
   ActivityIndicator,
-  Alert,
   View,
   Text,
   Linking,
@@ -74,6 +73,7 @@ import InventoryExitDetailScreen from "./src/screens/main/InventoryExitDetailScr
 import AddInventoryExitScreen from "./src/screens/main/AddInventoryExitScreen";
 import AboutScreen from "./src/screens/main/AboutScreen";
 import OnboardingScreen from "./src/screens/main/OnboardingScreen";
+import MobilePaymentsScreen from "./src/screens/main/MobilePaymentsScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
@@ -379,6 +379,12 @@ function MainTabs() {
             onPress: handleQRPress,
           },
           {
+            key: "mobilePayments",
+            icon: "📲",
+            label: "Pago movil",
+            onPress: () => handleNavigate("MobilePayments"),
+          },
+          {
             key: "suppliers",
             icon: "🏢",
             label: "Proveedores",
@@ -524,6 +530,8 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const hasCheckedStoreUpdateRef = useRef(false);
+  const { showAlert: showAppAlert, CustomAlert: AppCustomAlert } =
+    useCustomAlert();
 
   useEffect(() => {
     initializeApp();
@@ -540,10 +548,11 @@ export default function App() {
       const updateInfo = await checkForStoreUpdate();
       if (!updateInfo?.updateAvailable) return;
 
-      Alert.alert(
-        "Nueva versión en Play Store",
-        `Hay una actualización disponible.\n\nVersión actual: ${updateInfo.installedVersion}\nNueva versión: ${updateInfo.latestVersion}`,
-        [
+      showAppAlert({
+        title: "Nueva versión en Play Store",
+        message: `Hay una actualización disponible.\n\nVersión actual: ${updateInfo.installedVersion}\nNueva versión: ${updateInfo.latestVersion}`,
+        type: "info",
+        buttons: [
           { text: "Más tarde", style: "cancel" },
           {
             text: "Actualizar",
@@ -557,11 +566,11 @@ export default function App() {
             },
           },
         ],
-      );
+      });
     };
 
     maybePromptUpdate();
-  }, [isReady, showOnboarding]);
+  }, [isReady, showOnboarding, showAppAlert]);
 
   /**
    * Resetea el onboarding para mostrarlo nuevamente
@@ -948,6 +957,21 @@ export default function App() {
             }}
           />
           <Stack.Screen
+            name="MobilePayments"
+            component={MobilePaymentsScreen}
+            options={{
+              title: "Pago movil",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+                fontSize: rf(18),
+              },
+            }}
+          />
+          <Stack.Screen
             name="Products"
             component={ProductsScreen}
             options={{
@@ -1129,6 +1153,7 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
+      <AppCustomAlert />
     </ExchangeRateProvider>
   );
 }
