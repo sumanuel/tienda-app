@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   NavigationContainer,
   createNavigationContainerRef,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   View,
   Text,
+  Linking,
   TouchableOpacity,
   Modal,
   StyleSheet,
@@ -72,10 +73,12 @@ import InventoryExitDetailScreen from "./src/screens/main/InventoryExitDetailScr
 import AddInventoryExitScreen from "./src/screens/main/AddInventoryExitScreen";
 import AboutScreen from "./src/screens/main/AboutScreen";
 import OnboardingScreen from "./src/screens/main/OnboardingScreen";
+import MobilePaymentsScreen from "./src/screens/main/MobilePaymentsScreen";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
 import { initSettingsTable } from "./src/services/database/settings";
+import { checkForStoreUpdate } from "./src/services/storeUpdate/storeUpdateService";
 // import { initSampleProducts } from "./src/services/database/products";
 
 const Stack = createStackNavigator();
@@ -376,6 +379,12 @@ function MainTabs() {
             onPress: handleQRPress,
           },
           {
+            key: "mobilePayments",
+            icon: "📲",
+            label: "Pago movil",
+            onPress: () => handleNavigate("MobilePayments"),
+          },
+          {
             key: "suppliers",
             icon: "🏢",
             label: "Proveedores",
@@ -520,10 +529,48 @@ const tabStyles = StyleSheet.create({
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const hasCheckedStoreUpdateRef = useRef(false);
+  const { showAlert: showAppAlert, CustomAlert: AppCustomAlert } =
+    useCustomAlert();
 
   useEffect(() => {
     initializeApp();
   }, []);
+
+  useEffect(() => {
+    const maybePromptUpdate = async () => {
+      if (!isReady) return;
+      if (showOnboarding) return;
+      if (hasCheckedStoreUpdateRef.current) return;
+
+      hasCheckedStoreUpdateRef.current = true;
+
+      const updateInfo = await checkForStoreUpdate();
+      if (!updateInfo?.updateAvailable) return;
+
+      showAppAlert({
+        title: "Nueva versión en Play Store",
+        message: `Hay una actualización disponible.\n\nVersión actual: ${updateInfo.installedVersion}\nNueva versión: ${updateInfo.latestVersion}`,
+        type: "info",
+        buttons: [
+          { text: "Más tarde", style: "cancel" },
+          {
+            text: "Actualizar",
+            onPress: async () => {
+              if (!updateInfo.url) return;
+              try {
+                await Linking.openURL(updateInfo.url);
+              } catch (error) {
+                console.error("Error opening update URL:", error);
+              }
+            },
+          },
+        ],
+      });
+    };
+
+    maybePromptUpdate();
+  }, [isReady, showOnboarding, showAppAlert]);
 
   /**
    * Resetea el onboarding para mostrarlo nuevamente
@@ -910,6 +957,21 @@ export default function App() {
             }}
           />
           <Stack.Screen
+            name="MobilePayments"
+            component={MobilePaymentsScreen}
+            options={{
+              title: "Pago movil",
+              headerStyle: {
+                backgroundColor: "#4CAF50",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+                fontSize: rf(18),
+              },
+            }}
+          />
+          <Stack.Screen
             name="Products"
             component={ProductsScreen}
             options={{
@@ -1091,6 +1153,7 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
+      <AppCustomAlert />
     </ExchangeRateProvider>
   );
 }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "T-Suma",
     "slug": "tienda-app",
-    "version": "0.1.1.260224",
+    "version": "0.1.1.260306",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -21,7 +21,7 @@
       "bundleIdentifier": "com.trenkit.tsuma"
     },
     "android": {
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4CAF50"
@@ -39,6 +39,12 @@
     "extra": {
       "eas": {
         "projectId": "d6973b85-728c-4f43-86bb-f97aba791748"
+      },
+      "storeUpdate": {
+        "androidPackage": "com.trenkit.tsuma",
+        "versionCheckUrl": "https://raw.githubusercontent.com/sumanuel/tienda-update/main/version.json",
+        "timeoutMs": 7000,
+        "allowDevChecks": true
       }
     },
     "plugins": ["@react-native-community/datetimepicker", "expo-camera"]

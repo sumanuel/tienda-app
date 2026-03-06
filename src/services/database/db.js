@@ -194,6 +194,17 @@ export const initAllTables = async () => {
           value TEXT NOT NULL,
           updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Tabla de pagos móviles
+        CREATE TABLE IF NOT EXISTS mobile_payments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          reference TEXT NOT NULL,
+          customerName TEXT NOT NULL,
+          amount REAL NOT NULL,
+          verified INTEGER DEFAULT 0,
+          verifiedAt TEXT,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+        );
       `);
     });
 
@@ -211,6 +222,7 @@ export const initAllTables = async () => {
       CREATE INDEX IF NOT EXISTS idx_accounts_receivable_status ON accounts_receivable(status, dueDate);
       CREATE INDEX IF NOT EXISTS idx_accounts_payable_status ON accounts_payable(status, dueDate);
       CREATE INDEX IF NOT EXISTS idx_active_rate ON exchange_rates(isActive, createdAt);
+      CREATE INDEX IF NOT EXISTS idx_mobile_payments_verified_createdAt ON mobile_payments(verified, createdAt);
     `);
 
     // Crear cliente genérico si no existe
@@ -363,6 +375,23 @@ const runMigrations = async () => {
         subtotal REAL NOT NULL,
         FOREIGN KEY (saleId) REFERENCES sales(id)
       );`,
+    );
+
+    // Asegurar tabla mobile_payments (Pago movil)
+    await db.execAsync(
+      `CREATE TABLE IF NOT EXISTS mobile_payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reference TEXT NOT NULL,
+        customerName TEXT NOT NULL,
+        amount REAL NOT NULL,
+        verified INTEGER DEFAULT 0,
+        verifiedAt TEXT,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      );`,
+    );
+
+    await db.execAsync(
+      "CREATE INDEX IF NOT EXISTS idx_mobile_payments_verified_createdAt ON mobile_payments(verified, createdAt);",
     );
 
     const saleItemColumns = await db.getAllAsync(
