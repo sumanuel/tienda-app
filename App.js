@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   NavigationContainer,
   createNavigationContainerRef,
@@ -7,8 +7,10 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import {
   ActivityIndicator,
+  Alert,
   View,
   Text,
+  Linking,
   TouchableOpacity,
   Modal,
   StyleSheet,
@@ -76,6 +78,7 @@ import OnboardingScreen from "./src/screens/main/OnboardingScreen";
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
 import { initSettingsTable } from "./src/services/database/settings";
+import { checkForStoreUpdate } from "./src/services/storeUpdate/storeUpdateService";
 // import { initSampleProducts } from "./src/services/database/products";
 
 const Stack = createStackNavigator();
@@ -520,10 +523,45 @@ const tabStyles = StyleSheet.create({
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const hasCheckedStoreUpdateRef = useRef(false);
 
   useEffect(() => {
     initializeApp();
   }, []);
+
+  useEffect(() => {
+    const maybePromptUpdate = async () => {
+      if (!isReady) return;
+      if (showOnboarding) return;
+      if (hasCheckedStoreUpdateRef.current) return;
+
+      hasCheckedStoreUpdateRef.current = true;
+
+      const updateInfo = await checkForStoreUpdate();
+      if (!updateInfo?.updateAvailable) return;
+
+      Alert.alert(
+        "Nueva versión en Play Store",
+        `Hay una actualización disponible.\n\nVersión actual: ${updateInfo.installedVersion}\nNueva versión: ${updateInfo.latestVersion}`,
+        [
+          { text: "Más tarde", style: "cancel" },
+          {
+            text: "Actualizar",
+            onPress: async () => {
+              if (!updateInfo.url) return;
+              try {
+                await Linking.openURL(updateInfo.url);
+              } catch (error) {
+                console.error("Error opening update URL:", error);
+              }
+            },
+          },
+        ],
+      );
+    };
+
+    maybePromptUpdate();
+  }, [isReady, showOnboarding]);
 
   /**
    * Resetea el onboarding para mostrarlo nuevamente

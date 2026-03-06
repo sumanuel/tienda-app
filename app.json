@@ -39,6 +39,12 @@
     "extra": {
       "eas": {
         "projectId": "d6973b85-728c-4f43-86bb-f97aba791748"
+      },
+      "storeUpdate": {
+        "androidPackage": "com.trenkit.tsuma",
+        "versionCheckUrl": "https://raw.githubusercontent.com/sumanuel/tienda-update/main/version.json",
+        "timeoutMs": 7000,
+        "allowDevChecks": true
       }
     },
     "plugins": ["@react-native-community/datetimepicker", "expo-camera"]
