@@ -32,12 +32,9 @@ export const getCurrentRate = async () => {
   try {
     const rate = await getActiveExchangeRate();
 
-    if (!rate) {
-      // Si no hay tasa, intentar obtener una nueva
-      return await updateExchangeRate();
-    }
-
-    return rate;
+    // Si no hay tasa guardada, retornar null.
+    // La app decide cómo manejarlo (ej. redirigir a configurar tasa).
+    return rate || null;
   } catch (error) {
     throw new Error(`Failed to get current rate: ${error.message}`);
   }
@@ -48,17 +45,17 @@ export const getCurrentRate = async () => {
  * @param {number} rate - Tasa manual
  * @returns {Promise<object>} Tasa guardada
  */
-export const setManualRate = async (rate) => {
+export const setManualRate = async (rate, source = "MANUAL") => {
   try {
     if (!rate || rate <= 0) {
       throw new Error("Invalid rate value");
     }
 
     console.log("Saving manual rate to DB:", rate);
-    await insertExchangeRate("MANUAL", rate);
+    await insertExchangeRate(source || "MANUAL", rate);
 
     return {
-      source: "MANUAL",
+      source: source || "MANUAL",
       rate,
       updatedAt: new Date().toISOString(),
     };

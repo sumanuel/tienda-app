@@ -205,6 +205,16 @@ export const initAllTables = async () => {
           verifiedAt TEXT,
           createdAt TEXT DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Tabla de notificaciones (ej. consulta diaria de tasa)
+        CREATE TABLE IF NOT EXISTS rate_notifications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type TEXT NOT NULL,
+          message TEXT NOT NULL,
+          rate REAL,
+          source TEXT,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+        );
       `);
     });
 
@@ -223,6 +233,7 @@ export const initAllTables = async () => {
       CREATE INDEX IF NOT EXISTS idx_accounts_payable_status ON accounts_payable(status, dueDate);
       CREATE INDEX IF NOT EXISTS idx_active_rate ON exchange_rates(isActive, createdAt);
       CREATE INDEX IF NOT EXISTS idx_mobile_payments_verified_createdAt ON mobile_payments(verified, createdAt);
+      CREATE INDEX IF NOT EXISTS idx_rate_notifications_createdAt ON rate_notifications(createdAt);
     `);
 
     // Crear cliente genérico si no existe
@@ -273,6 +284,21 @@ const ensureGenericCustomer = async () => {
 const runMigrations = async () => {
   try {
     console.log("Running database migrations...");
+
+    // Asegurar tabla de notificaciones
+    await db.execAsync(
+      `CREATE TABLE IF NOT EXISTS rate_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        message TEXT NOT NULL,
+        rate REAL,
+        source TEXT,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      );`,
+    );
+    await db.execAsync(
+      "CREATE INDEX IF NOT EXISTS idx_rate_notifications_createdAt ON rate_notifications(createdAt);",
+    );
 
     // Limpieza + constraint de unicidad para proveedores (por documento normalizado)
     try {

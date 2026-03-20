@@ -26,6 +26,7 @@ import {
   iconSize,
 } from "../../utils/responsive";
 import RateDisplay from "../../components/exchange/RateDisplay";
+import { useRateNotifications } from "../../contexts/RateNotificationsContext";
 
 /**
  * Pantalla principal del Dashboard
@@ -36,7 +37,7 @@ export const DashboardScreen = ({ navigation }) => {
     loading: rateLoading,
     lastUpdate,
     updateRate,
-  } = useExchangeRate({ autoUpdate: true, updateInterval: 30 });
+  } = useExchangeRate({ autoUpdate: false });
   const { todayStats, loading: salesLoading, loadTodayStats } = useSales();
   const {
     stats: inventoryStats,
@@ -53,6 +54,8 @@ export const DashboardScreen = ({ navigation }) => {
   } = useAccounts();
   const [refreshing, setRefreshing] = useState(false);
   const [businessName, setBusinessName] = useState("");
+  const { count: notificationCount, refreshCount: refreshNotificationsCount } =
+    useRateNotifications();
 
   const requireExchangeRate = (contextMessage) => {
     if (!rate || rate <= 0) {
@@ -87,6 +90,7 @@ export const DashboardScreen = ({ navigation }) => {
     const unsubscribe = navigation.addListener("focus", () => {
       refreshInventory();
       refreshAccounts();
+      refreshNotificationsCount();
     });
 
     return unsubscribe;
@@ -139,6 +143,20 @@ export const DashboardScreen = ({ navigation }) => {
             onPress={() => navigation.navigate("ExchangeRate")}
           >
             <Text style={styles.currencyButtonText}>USD ($)</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate("RateNotifications")}
+          >
+            <Text style={styles.notificationButtonText}>🔔</Text>
+            {(notificationCount || 0) > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {(notificationCount || 0) > 99 ? "99+" : notificationCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.helpButton}
@@ -339,6 +357,7 @@ const styles = StyleSheet.create({
   currencyButtons: {
     flexDirection: "row",
     gap: hs(12),
+    alignItems: "center",
   },
   currencyButtonActive: {
     backgroundColor: "#ffffff",
@@ -369,11 +388,40 @@ const styles = StyleSheet.create({
     paddingVertical: vs(8),
     paddingHorizontal: hs(12),
     borderRadius: borderRadius.xl,
-    marginLeft: "auto",
   },
   helpButtonText: {
     color: "#ffffff",
     fontSize: rf(16),
+  },
+
+  notificationButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingVertical: vs(8),
+    paddingHorizontal: hs(12),
+    borderRadius: borderRadius.xl,
+    marginLeft: "auto",
+    position: "relative",
+  },
+  notificationButtonText: {
+    color: "#ffffff",
+    fontSize: rf(16),
+  },
+  badge: {
+    position: "absolute",
+    top: vs(-6),
+    right: hs(-6),
+    minWidth: hs(18),
+    height: vs(18),
+    borderRadius: borderRadius.xl,
+    paddingHorizontal: hs(5),
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    color: "#4CAF50",
+    fontSize: rf(10),
+    fontWeight: "800",
   },
 
   // Main Card styles

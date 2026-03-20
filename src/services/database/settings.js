@@ -7,7 +7,7 @@ export const initSettingsTable = async () => {
   try {
     // Verificar si ya existen configuraciones
     const existing = await db.getFirstAsync(
-      "SELECT value FROM settings WHERE key = 'app_settings';"
+      "SELECT value FROM settings WHERE key = 'app_settings';",
     );
 
     // Solo insertar si no existen
@@ -17,7 +17,7 @@ export const initSettingsTable = async () => {
 
       await db.runAsync(
         `INSERT INTO settings (key, value) VALUES ('app_settings', ?);`,
-        [settingsJson]
+        [settingsJson],
       );
       console.log("Default settings inserted");
     }
@@ -33,7 +33,7 @@ export const initSettingsTable = async () => {
 export const getSettings = async () => {
   try {
     const result = await db.getFirstAsync(
-      "SELECT value FROM settings WHERE key = 'app_settings';"
+      "SELECT value FROM settings WHERE key = 'app_settings';",
     );
 
     if (result && result.value) {
@@ -56,7 +56,7 @@ export const saveSettings = async (settings) => {
     await db.runAsync(
       `INSERT OR REPLACE INTO settings (key, value, updatedAt) 
        VALUES ('app_settings', ?, datetime('now'));`,
-      [settingsJson]
+      [settingsJson],
     );
     return true;
   } catch (error) {
@@ -112,6 +112,14 @@ const getDefaultSettings = () => ({
     defaultSource: "BCV",
     alertOnRateChange: true,
     rateChangeThreshold: 5,
+    // Consulta diaria (7pm) desde API externa con confirmación del usuario
+    dailyPromptEnabled: true,
+    dailyPromptHour: 19,
+    dailyPromptMinute: 0,
+    externalApiUrl: "https://ve.dolarapi.com/v1/dolares/oficial",
+    // Ruta del valor dentro del JSON, por ejemplo: "rate" o "data.usd".
+    // Para DolarApi oficial: "promedio"
+    externalApiValuePath: "promedio",
   },
   inventory: {
     trackStock: true,
