@@ -326,6 +326,25 @@ export const DashboardScreen = ({ navigation }) => {
               <Text style={styles.statValue}>Registrar</Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.statsRow}>
+            {/* Movimientos de inventario */}
+            <TouchableOpacity
+              style={styles.statCard}
+              onPress={() => {
+                if (
+                  !requireExchangeRate("consultar movimientos de inventario")
+                ) {
+                  return;
+                }
+                navigation.navigate("InventoryMovements");
+              }}
+            >
+              <Text style={styles.statIcon}>📋</Text>
+              <Text style={styles.statLabel}>Movimientos de inventario</Text>
+              <Text style={styles.statValue}>Ver</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
       <CustomAlert />

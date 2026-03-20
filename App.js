@@ -72,6 +72,8 @@ import AddInventoryEntryScreen from "./src/screens/main/AddInventoryEntryScreen"
 import InventoryExitScreen from "./src/screens/main/InventoryExitScreen";
 import InventoryExitDetailScreen from "./src/screens/main/InventoryExitDetailScreen";
 import AddInventoryExitScreen from "./src/screens/main/AddInventoryExitScreen";
+import InventoryMovementsScreen from "./src/screens/main/InventoryMovementsScreen";
+import InventoryMovementsDetailScreen from "./src/screens/main/InventoryMovementsDetailScreen";
 import AboutScreen from "./src/screens/main/AboutScreen";
 import OnboardingScreen from "./src/screens/main/OnboardingScreen";
 import MobilePaymentsScreen from "./src/screens/main/MobilePaymentsScreen";
@@ -1138,6 +1140,36 @@ export default function App() {
               component={InventoryEntryScreen}
               options={{
                 title: "Entrada de Inventario",
+                headerStyle: {
+                  backgroundColor: "#4CAF50",
+                },
+                headerTintColor: "#fff",
+                headerTitleStyle: {
+                  fontWeight: "bold",
+                  fontSize: rf(18),
+                },
+              }}
+            />
+            <Stack.Screen
+              name="InventoryMovements"
+              component={InventoryMovementsScreen}
+              options={{
+                title: "Movimientos de inventario",
+                headerStyle: {
+                  backgroundColor: "#4CAF50",
+                },
+                headerTintColor: "#fff",
+                headerTitleStyle: {
+                  fontWeight: "bold",
+                  fontSize: rf(18),
+                },
+              }}
+            />
+            <Stack.Screen
+              name="InventoryMovementsDetail"
+              component={InventoryMovementsDetailScreen}
+              options={{
+                title: "Movimientos",
                 headerStyle: {
                   backgroundColor: "#4CAF50",
                 },
