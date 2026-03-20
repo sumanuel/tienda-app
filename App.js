@@ -152,6 +152,12 @@ function MainTabs() {
         message:
           "Debe configurar una tasa de cambio válida antes de realizar ventas. Ve a la sección de Tasa de Cambio.",
         type: "error",
+        buttons: [
+          {
+            text: "OK",
+            onPress: () => handleNavigate("ExchangeRate"),
+          },
+        ],
       });
       return;
     }
@@ -167,6 +173,12 @@ function MainTabs() {
         message:
           "Debe configurar una tasa de cambio válida antes de gestionar productos. Ve a la sección de Tasa de Cambio.",
         type: "error",
+        buttons: [
+          {
+            text: "OK",
+            onPress: () => handleNavigate("ExchangeRate"),
+          },
+        ],
       });
       return;
     }
@@ -181,6 +193,12 @@ function MainTabs() {
         message:
           "Debe configurar una tasa de cambio válida antes de generar códigos QR. Ve a la sección de Tasa de Cambio.",
         type: "error",
+        buttons: [
+          {
+            text: "OK",
+            onPress: () => handleNavigate("ExchangeRate"),
+          },
+        ],
       });
       return;
     }

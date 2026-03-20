@@ -125,6 +125,24 @@ const DailyExternalRatePrompt = () => {
       // Marcar como consultado hoy para evitar múltiples prompts.
       await AsyncStorage.setItem(STORAGE_KEY_LAST_CHECKED_DATE, todayKey);
 
+      // Guardar el aviso SIEMPRE (actualice o no el usuario)
+      try {
+        const storedMessage = `Consulta diaria (${pad2(hour)}:${pad2(
+          minute,
+        )}): ${fetchedRate.toFixed(2)} VES por USD (${String(apiSource)}).`;
+
+        await insertRateNotification({
+          type: "exchange_rate",
+          message: storedMessage,
+          rate: fetchedRate,
+          source: String(apiSource),
+        });
+      } catch (error) {
+        console.warn("Error storing rate notification:", error);
+      } finally {
+        refreshCount();
+      }
+
       const messageBase = `Se detectó una tasa USD: ${fetchedRate.toFixed(
         2,
       )} VES por USD`;
@@ -136,26 +154,6 @@ const DailyExternalRatePrompt = () => {
         {
           text: "Más tarde",
           style: "cancel",
-          onPress: async () => {
-            const storedMessage = `Consulta diaria (${pad2(hour)}:${pad2(
-              minute,
-            )}): ${fetchedRate.toFixed(2)} VES por USD (${String(
-              apiSource,
-            )}). Pendiente de actualizar.`;
-
-            try {
-              await insertRateNotification({
-                type: "exchange_rate",
-                message: storedMessage,
-                rate: fetchedRate,
-                source: String(apiSource),
-              });
-            } catch (error) {
-              console.warn("Error storing rate notification:", error);
-            } finally {
-              refreshCount();
-            }
-          },
         },
         {
           text: "Actualizar",

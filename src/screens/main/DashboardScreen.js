@@ -8,7 +8,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
-import { showCustomAlert } from "../../components/common/CustomAlert";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 import { useSales } from "../../hooks/useSales";
 import { useInventory } from "../../hooks/useInventory";
 import { useCustomers } from "../../hooks/useCustomers";
@@ -32,6 +32,7 @@ import { useRateNotifications } from "../../contexts/RateNotificationsContext";
  * Pantalla principal del Dashboard
  */
 export const DashboardScreen = ({ navigation }) => {
+  const { showAlert, CustomAlert } = useCustomAlert();
   const {
     rate,
     loading: rateLoading,
@@ -59,10 +60,16 @@ export const DashboardScreen = ({ navigation }) => {
 
   const requireExchangeRate = (contextMessage) => {
     if (!rate || rate <= 0) {
-      showCustomAlert({
+      showAlert({
         title: "Tasa de cambio requerida",
         message: `Debe configurar una tasa de cambio válida antes de ${contextMessage}. Ve a la sección de Tasa de Cambio.`,
         type: "error",
+        buttons: [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("ExchangeRate"),
+          },
+        ],
       });
       return false;
     }
@@ -123,198 +130,206 @@ export const DashboardScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Header con información del negocio */}
-      <View style={styles.header}>
-        <Text style={styles.businessName}>{businessName.toUpperCase()}</Text>
-        <Text style={styles.lastSession}>Última Sesión: {formatDate()}</Text>
-        <View style={styles.currencyButtons}>
-          <TouchableOpacity style={styles.currencyButtonActive}>
-            <Text style={styles.currencyButtonTextActive}>VES</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.currencyButton}
-            onPress={() => navigation.navigate("ExchangeRate")}
-          >
-            <Text style={styles.currencyButtonText}>USD ($)</Text>
-          </TouchableOpacity>
+    <>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* Header con información del negocio */}
+        <View style={styles.header}>
+          <Text style={styles.businessName}>{businessName.toUpperCase()}</Text>
+          <Text style={styles.lastSession}>Última Sesión: {formatDate()}</Text>
+          <View style={styles.currencyButtons}>
+            <TouchableOpacity style={styles.currencyButtonActive}>
+              <Text style={styles.currencyButtonTextActive}>VES</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.currencyButton}
+              onPress={() => navigation.navigate("ExchangeRate")}
+            >
+              <Text style={styles.currencyButtonText}>USD ($)</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => navigation.navigate("RateNotifications")}
-          >
-            <Text style={styles.notificationButtonText}>🔔</Text>
-            {(notificationCount || 0) > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {(notificationCount || 0) > 99 ? "99+" : notificationCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.helpButton}
-            onPress={() => {
-              if (global.resetOnboarding) {
-                global.resetOnboarding();
-              }
-            }}
-          >
-            <Text style={styles.helpButtonText}>📖</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={() => navigation.navigate("RateNotifications")}
+            >
+              <Text style={styles.notificationButtonText}>🔔</Text>
+              {(notificationCount || 0) > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {(notificationCount || 0) > 99 ? "99+" : notificationCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.helpButton}
+              onPress={() => {
+                if (global.resetOnboarding) {
+                  global.resetOnboarding();
+                }
+              }}
+            >
+              <Text style={styles.helpButtonText}>📖</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Tarjeta Principal - Balance del Día */}
-      <View style={styles.mainCard}>
-        <View style={styles.mainCardHeader}>
-          <View>
-            <Text style={styles.mainCardTitle}>Balance del Día</Text>
-            <Text style={styles.accountNumber}>
-              Ventas •{" "}
-              {new Date().toLocaleDateString("es-VE", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })}
+        {/* Tarjeta Principal - Balance del Día */}
+        <View style={styles.mainCard}>
+          <View style={styles.mainCardHeader}>
+            <View>
+              <Text style={styles.mainCardTitle}>Balance del Día</Text>
+              <Text style={styles.accountNumber}>
+                Ventas •{" "}
+                {new Date().toLocaleDateString("es-VE", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate("Sales")}>
+              <Text style={styles.shareIcon}>📊</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.balanceSection}>
+            <Text style={styles.balanceLabel}>TOTAL DE VENTAS</Text>
+            <Text style={styles.balanceAmount}>
+              {formatCurrency(todayStats?.total || 0, "VES")}
+            </Text>
+            <Text style={styles.salesCount}>
+              {todayStats?.count || 0}{" "}
+              {todayStats?.count === 1
+                ? "venta realizada"
+                : "ventas realizadas"}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate("Sales")}>
-            <Text style={styles.shareIcon}>📊</Text>
-          </TouchableOpacity>
-        </View>
 
-        <View style={styles.balanceSection}>
-          <Text style={styles.balanceLabel}>TOTAL DE VENTAS</Text>
-          <Text style={styles.balanceAmount}>
-            {formatCurrency(todayStats?.total || 0, "VES")}
-          </Text>
-          <Text style={styles.salesCount}>
-            {todayStats?.count || 0}{" "}
-            {todayStats?.count === 1 ? "venta realizada" : "ventas realizadas"}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.viewDetailsButton}
-          onPress={() => navigation.navigate("Sales")}
-        >
-          <Text style={styles.viewDetailsButtonText}>VER TODAS LAS VENTAS</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Sección de Estadísticas */}
-      <Text style={styles.sectionTitle}>Resumen General</Text>
-
-      <View style={styles.statsGrid}>
-        <View style={styles.statsRow}>
-          {/* Tasa de Cambio */}
           <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => navigation.navigate("ExchangeRate")}
+            style={styles.viewDetailsButton}
+            onPress={() => navigation.navigate("Sales")}
           >
-            <Text style={styles.statIcon}>💱</Text>
-            <Text style={styles.statLabel}>Tasa de Cambio</Text>
-            <Text style={styles.statValue}>
-              {rate ? `${rate.toFixed(2)} VES.` : "Cargando..."}
+            <Text style={styles.viewDetailsButtonText}>
+              VER TODAS LAS VENTAS
             </Text>
           </TouchableOpacity>
-
-          {/* Nueva Venta */}
-          <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => {
-              if (!requireExchangeRate("realizar ventas")) return;
-              navigation.navigate("POS");
-            }}
-          >
-            <Text style={styles.statIcon}>🛒</Text>
-            <Text style={styles.statLabel}>Nueva Venta</Text>
-            <Text style={styles.statValue}>Iniciar</Text>
-          </TouchableOpacity>
         </View>
 
-        <View style={styles.statsRow}>
-          {/* Cuentas por Cobrar */}
-          <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => {
-              if (!requireExchangeRate("gestionar cuentas por cobrar")) return;
-              navigation.navigate("AccountsReceivable");
-            }}
-          >
-            <Text style={styles.statIcon}>📈</Text>
-            <Text style={styles.statLabel}>Por Cobrar</Text>
-            <Text style={styles.statValue}>
-              {formatCurrency(receivableStats?.pending || 0, "VES")}
-            </Text>
-            {(receivableStats?.overdue || 0) > 0 && (
-              <Text style={styles.statWarning}>
-                {(receivableStats?.overdue || 0).toFixed(2)} vencidas
+        {/* Sección de Estadísticas */}
+        <Text style={styles.sectionTitle}>Resumen General</Text>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statsRow}>
+            {/* Tasa de Cambio */}
+            <TouchableOpacity
+              style={styles.statCard}
+              onPress={() => navigation.navigate("ExchangeRate")}
+            >
+              <Text style={styles.statIcon}>💱</Text>
+              <Text style={styles.statLabel}>Tasa de Cambio</Text>
+              <Text style={styles.statValue}>
+                {rate ? `${rate.toFixed(2)} VES.` : "Cargando..."}
               </Text>
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-          {/* Cuentas por Pagar */}
-          <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => {
-              if (!requireExchangeRate("gestionar cuentas por pagar")) return;
-              navigation.navigate("AccountsPayable");
-            }}
-          >
-            <Text style={styles.statIcon}>📉</Text>
-            <Text style={styles.statLabel}>Por Pagar</Text>
-            <Text style={styles.statValue}>
-              {formatCurrency(payableStats?.pending || 0, "VES")}
-            </Text>
-            {(payableStats?.overdue || 0) > 0 && (
-              <Text style={styles.statWarning}>
-                {(payableStats?.overdue || 0).toFixed(2)} vencidas
+            {/* Nueva Venta */}
+            <TouchableOpacity
+              style={styles.statCard}
+              onPress={() => {
+                if (!requireExchangeRate("realizar ventas")) return;
+                navigation.navigate("POS");
+              }}
+            >
+              <Text style={styles.statIcon}>🛒</Text>
+              <Text style={styles.statLabel}>Nueva Venta</Text>
+              <Text style={styles.statValue}>Iniciar</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statsRow}>
+            {/* Cuentas por Cobrar */}
+            <TouchableOpacity
+              style={styles.statCard}
+              onPress={() => {
+                if (!requireExchangeRate("gestionar cuentas por cobrar"))
+                  return;
+                navigation.navigate("AccountsReceivable");
+              }}
+            >
+              <Text style={styles.statIcon}>📈</Text>
+              <Text style={styles.statLabel}>Por Cobrar</Text>
+              <Text style={styles.statValue}>
+                {formatCurrency(receivableStats?.pending || 0, "VES")}
               </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+              {(receivableStats?.overdue || 0) > 0 && (
+                <Text style={styles.statWarning}>
+                  {(receivableStats?.overdue || 0).toFixed(2)} vencidas
+                </Text>
+              )}
+            </TouchableOpacity>
 
-        <View style={styles.statsRow}>
-          {/* Entrada Inventario */}
-          <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => {
-              if (!requireExchangeRate("registrar entradas de inventario")) {
-                return;
-              }
-              navigation.navigate("InventoryEntry");
-            }}
-          >
-            <Text style={styles.statIcon}>📥</Text>
-            <Text style={styles.statLabel}>Entrada Inventario</Text>
-            <Text style={styles.statValue}>Registrar</Text>
-          </TouchableOpacity>
+            {/* Cuentas por Pagar */}
+            <TouchableOpacity
+              style={styles.statCard}
+              onPress={() => {
+                if (!requireExchangeRate("gestionar cuentas por pagar")) return;
+                navigation.navigate("AccountsPayable");
+              }}
+            >
+              <Text style={styles.statIcon}>📉</Text>
+              <Text style={styles.statLabel}>Por Pagar</Text>
+              <Text style={styles.statValue}>
+                {formatCurrency(payableStats?.pending || 0, "VES")}
+              </Text>
+              {(payableStats?.overdue || 0) > 0 && (
+                <Text style={styles.statWarning}>
+                  {(payableStats?.overdue || 0).toFixed(2)} vencidas
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
 
-          {/* Salida Inventario */}
-          <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => {
-              if (!requireExchangeRate("registrar salidas de inventario")) {
-                return;
-              }
-              navigation.navigate("InventoryExit");
-            }}
-          >
-            <Text style={styles.statIcon}>📤</Text>
-            <Text style={styles.statLabel}>Salida Inventario</Text>
-            <Text style={styles.statValue}>Registrar</Text>
-          </TouchableOpacity>
+          <View style={styles.statsRow}>
+            {/* Entrada Inventario */}
+            <TouchableOpacity
+              style={styles.statCard}
+              onPress={() => {
+                if (!requireExchangeRate("registrar entradas de inventario")) {
+                  return;
+                }
+                navigation.navigate("InventoryEntry");
+              }}
+            >
+              <Text style={styles.statIcon}>📥</Text>
+              <Text style={styles.statLabel}>Entrada Inventario</Text>
+              <Text style={styles.statValue}>Registrar</Text>
+            </TouchableOpacity>
+
+            {/* Salida Inventario */}
+            <TouchableOpacity
+              style={styles.statCard}
+              onPress={() => {
+                if (!requireExchangeRate("registrar salidas de inventario")) {
+                  return;
+                }
+                navigation.navigate("InventoryExit");
+              }}
+            >
+              <Text style={styles.statIcon}>📤</Text>
+              <Text style={styles.statLabel}>Salida Inventario</Text>
+              <Text style={styles.statValue}>Registrar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+      <CustomAlert />
+    </>
   );
 };
 
