@@ -1,5 +1,53 @@
 import { db } from "./db";
 
+const isPlainObject = (value) => {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.prototype.toString.call(value) === "[object Object]"
+  );
+};
+
+const deepMergeDefaults = (defaults, current) => {
+  if (!isPlainObject(defaults)) return current;
+  if (!isPlainObject(current)) return { ...defaults };
+
+  const merged = { ...defaults };
+
+  for (const key of Object.keys(current)) {
+    const currentValue = current[key];
+    const defaultValue = defaults[key];
+
+    if (isPlainObject(defaultValue) && isPlainObject(currentValue)) {
+      merged[key] = deepMergeDefaults(defaultValue, currentValue);
+      continue;
+    }
+
+    // Arrays u otros tipos: respetar lo que ya tenga el usuario
+    merged[key] = currentValue;
+  }
+
+  return merged;
+};
+
+const stableStringify = (value) => {
+  // Para comparar objetos sin depender del orden de claves en JSON.stringify.
+  const seen = new WeakSet();
+  const replacer = (_, v) => {
+    if (!isPlainObject(v)) return v;
+    if (seen.has(v)) return v;
+    seen.add(v);
+    return Object.keys(v)
+      .sort()
+      .reduce((acc, k) => {
+        acc[k] = v[k];
+        return acc;
+      }, {});
+  };
+  return JSON.stringify(value, replacer);
+};
+
 /**
  * Inicializa la tabla de configuraciones con valores por defecto
  */
@@ -37,7 +85,16 @@ export const getSettings = async () => {
     );
 
     if (result && result.value) {
-      return JSON.parse(result.value);
+      const parsed = JSON.parse(result.value);
+      const defaults = getDefaultSettings();
+      const merged = deepMergeDefaults(defaults, parsed);
+
+      // Si agregamos claves nuevas por defaults, persistirlas.
+      if (stableStringify(parsed) !== stableStringify(merged)) {
+        await saveSettings(merged);
+      }
+
+      return merged;
     }
 
     return getDefaultSettings();
@@ -45,6 +102,16 @@ export const getSettings = async () => {
     console.error("Error getting settings:", error);
     return getDefaultSettings();
   }
+};
+
+/**
+ * Asegura que existan los defaults y que el JSON tenga nuevas claves.
+ * Útil después de importar un respaldo.
+ */
+export const ensureSettingsDefaults = async () => {
+  await initSettingsTable();
+  await getSettings();
+  return true;
 };
 
 /**
@@ -158,4 +225,5 @@ export default {
   saveSettings,
   updateSetting,
   resetSettings,
+  ensureSettingsDefaults,
 };
