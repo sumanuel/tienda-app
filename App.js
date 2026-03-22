@@ -86,8 +86,10 @@ import { initAllTables } from "./src/services/database/db";
 import {
   getSettings,
   initSettingsTable,
+  saveSettings,
 } from "./src/services/database/settings";
 import { registerDailyRateBackgroundTask } from "./src/services/exchange/dailyRateBackgroundTask";
+import { getCurrentRate } from "./src/services/exchange/rateService";
 // import { initSampleProducts } from "./src/services/database/products";
 
 const Stack = createStackNavigator();
@@ -619,15 +621,64 @@ export default function App() {
 
       // Si aún no llenó datos del negocio, pedirlos al entrar.
       let isBusinessConfigured = false;
+      let inferredBusinessConfigured = false;
+      let hasRate = false;
       try {
-        const currentSettings = await getSettings();
-        isBusinessConfigured = Boolean(currentSettings?.business?.isConfigured);
+        const [currentSettings, currentRate] = await Promise.all([
+          getSettings(),
+          getCurrentRate(),
+        ]);
+
+        const business = currentSettings?.business || {};
+        const name = String(business?.name || "").trim();
+        const nameIsDefault = name.toLowerCase() === "mi tienda";
+        const hasAnyExtraData = [
+          business?.rif,
+          business?.address,
+          business?.phone,
+          business?.email,
+        ].some((v) => String(v || "").trim().length > 0);
+
+        inferredBusinessConfigured =
+          (name && !nameIsDefault) || Boolean(hasAnyExtraData);
+        isBusinessConfigured =
+          Boolean(business?.isConfigured) || inferredBusinessConfigured;
+
+        hasRate = Boolean(currentRate?.rate && currentRate.rate > 0);
+
+        // Migración automática: si inferimos que está configurado, persistir el flag.
+        if (!business?.isConfigured && inferredBusinessConfigured) {
+          await saveSettings({
+            ...currentSettings,
+            business: {
+              ...business,
+              isConfigured: true,
+            },
+          });
+        }
       } catch (error) {
         console.warn("Error loading settings for onboarding check:", error);
       }
 
       const needsBusinessSetup = !isBusinessConfigured;
-      const shouldShowOnboarding = !onboardingCompleted || needsBusinessSetup;
+
+      // Si el usuario ya tiene negocio configurado y una tasa guardada,
+      // consideramos onboarding completo (migración para usuarios antiguos).
+      const inferredOnboardingCompleted =
+        !needsBusinessSetup && Boolean(hasRate);
+
+      if (!onboardingCompleted && inferredOnboardingCompleted) {
+        try {
+          await AsyncStorage.setItem("onboardingCompleted", "true");
+          await AsyncStorage.setItem("onboardingSlidesSeen", "true");
+        } catch (error) {
+          console.warn("Error migrating onboarding flags:", error);
+        }
+      }
+
+      const shouldShowOnboarding =
+        needsBusinessSetup ||
+        (!onboardingCompleted && !inferredOnboardingCompleted);
       const initialStep = needsBusinessSetup
         ? "business"
         : !onboardingCompleted && onboardingSlidesSeen

@@ -89,6 +89,29 @@ export const getSettings = async () => {
       const defaults = getDefaultSettings();
       const merged = deepMergeDefaults(defaults, parsed);
 
+      // Migración suave: si el usuario ya tenía un nombre distinto al default,
+      // considerar que el negocio ya fue configurado.
+      try {
+        const name = String(merged?.business?.name || "").trim();
+        const isConfigured = Boolean(merged?.business?.isConfigured);
+        const nameIsDefault = name.toLowerCase() === "mi tienda";
+        const hasAnyExtraData = [
+          merged?.business?.rif,
+          merged?.business?.address,
+          merged?.business?.phone,
+          merged?.business?.email,
+        ].some((v) => String(v || "").trim().length > 0);
+
+        if (!isConfigured && ((name && !nameIsDefault) || hasAnyExtraData)) {
+          merged.business = {
+            ...(merged.business || {}),
+            isConfigured: true,
+          };
+        }
+      } catch (_) {
+        // noop
+      }
+
       // Si agregamos claves nuevas por defaults, persistirlas.
       if (stableStringify(parsed) !== stableStringify(merged)) {
         await saveSettings(merged);

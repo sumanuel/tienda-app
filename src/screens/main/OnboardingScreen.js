@@ -6,16 +6,19 @@ import {
   Dimensions,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   TextInput,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import PhoneInput from "../../components/common/PhoneInput";
 import { getSettings, saveSettings } from "../../services/database/settings";
-import { setManualRate } from "../../services/exchange/rateService";
+import {
+  getCurrentRate,
+  setManualRate,
+} from "../../services/exchange/rateService";
 import {
   s,
   rf,
@@ -64,6 +67,7 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
   const [step, setStep] = useState(initialStep); // slides | business | currency
   const { showAlert, CustomAlert } = useCustomAlert();
   const scrollViewRef = useRef(null);
+  const rateDirtyRef = useRef(false);
 
   const [business, setBusiness] = useState({
     name: "",
@@ -103,6 +107,14 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
           ...prev,
           ...existingBusiness,
         }));
+
+        // Si ya existe una tasa guardada, precargarla.
+        // Esto aplica especialmente cuando el usuario reabre el onboarding desde el librito.
+        const currentRate = await getCurrentRate();
+        const savedRate = currentRate?.rate;
+        if (!rateDirtyRef.current && savedRate && savedRate > 0) {
+          setRateInput(String(savedRate));
+        }
       } catch (error) {
         console.warn("Onboarding settings load failed:", error);
       }
@@ -207,7 +219,7 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       {step === "slides" && (
         <View style={styles.skipContainer}>
           <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
@@ -415,7 +427,10 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
                     placeholder="Ej: 38.50"
                     placeholderTextColor="#9aa2b1"
                     value={rateInput}
-                    onChangeText={setRateInput}
+                    onChangeText={(text) => {
+                      rateDirtyRef.current = true;
+                      setRateInput(text);
+                    }}
                     keyboardType="decimal-pad"
                   />
                 </View>
@@ -482,7 +497,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-end",
     paddingHorizontal: hs(20),
-    paddingTop: vs(50),
+    paddingTop: vs(10),
   },
   skipButton: {
     paddingVertical: vs(8),
