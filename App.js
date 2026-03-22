@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   NavigationContainer,
   createNavigationContainerRef,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   AppState,
   Platform,
+  StatusBar as RNStatusBar,
   View,
   Text,
   TouchableOpacity,
@@ -611,21 +612,28 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingInitialStep, setOnboardingInitialStep] = useState("slides");
 
-  useEffect(() => {
-    const applyImmersiveMode = async () => {
-      try {
-        if (Platform.OS !== "android") return;
-
-        // Oculta la barra de navegación y permite que reaparezca temporalmente con swipe.
-        await NavigationBar.setBehaviorAsync("overlay-swipe");
-        await NavigationBar.setPositionAsync("absolute");
-        await NavigationBar.setBackgroundColorAsync("#00000000");
-        await NavigationBar.setVisibilityAsync("hidden");
-      } catch (error) {
-        console.warn("Immersive mode setup failed:", error);
+  const applyImmersiveMode = useCallback(async () => {
+    try {
+      // Ocultar status bar en ambas plataformas.
+      RNStatusBar.setHidden(true, "fade");
+      if (Platform.OS === "android") {
+        RNStatusBar.setTranslucent(true);
+        RNStatusBar.setBackgroundColor("transparent", true);
       }
-    };
 
+      if (Platform.OS !== "android") return;
+
+      // Oculta la barra de navegación y permite que reaparezca temporalmente con swipe.
+      await NavigationBar.setBehaviorAsync("overlay-swipe");
+      await NavigationBar.setPositionAsync("absolute");
+      await NavigationBar.setBackgroundColorAsync("#00000000");
+      await NavigationBar.setVisibilityAsync("hidden");
+    } catch (error) {
+      console.warn("Immersive mode setup failed:", error);
+    }
+  }, []);
+
+  useEffect(() => {
     applyImmersiveMode();
 
     // Algunos dispositivos vuelven a mostrar la barra al regresar a foreground.
@@ -636,7 +644,7 @@ export default function App() {
     });
 
     return () => sub.remove();
-  }, []);
+  }, [applyImmersiveMode]);
 
   useEffect(() => {
     initializeApp();
@@ -807,7 +815,11 @@ export default function App() {
         <RateNotificationsProvider>
           <DailyExternalRatePrompt />
           <StoreUpdatePrompt />
-          <NavigationContainer ref={navigationRef}>
+          <NavigationContainer
+            ref={navigationRef}
+            onReady={applyImmersiveMode}
+            onStateChange={applyImmersiveMode}
+          >
             <Stack.Navigator>
               <Stack.Screen
                 name="Main"
