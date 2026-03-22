@@ -16,18 +16,23 @@
     "@react-navigation/native": "~7.0.0",
     "@react-navigation/stack": "~7.0.0",
     "axios": "^1.6.0",
-    "expo": "~54.0.30",
+    "expo": "~54.0.33",
+    "expo-background-fetch": "~14.0.9",
     "expo-camera": "~17.0.10",
+    "expo-dev-client": "~6.0.20",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.21",
+    "expo-localization": "~17.0.8",
     "expo-print": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
+    "expo-task-manager": "~14.0.9",
     "qrcode": "^1.5.4",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-chart-kit": "^6.12.0",
+    "react-native-country-picker-modal": "^2.0.0",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-safe-area-context": "^5.0.0",
@@ -37,7 +42,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "babel-preset-expo": "^54.0.9"
+    "babel-preset-expo": "~54.0.10",
+    "react-refresh": "^0.18.0"
   },
   "private": true
 }

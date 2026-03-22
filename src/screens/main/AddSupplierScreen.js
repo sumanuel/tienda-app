@@ -6,13 +6,13 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
 } from "react-native";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import PhoneInput from "../../components/common/PhoneInput";
 import {
   s,
   rf,
@@ -166,13 +166,10 @@ export const AddSupplierScreen = ({ navigation }) => {
               <View style={styles.dualRow}>
                 <View style={styles.dualField}>
                   <Text style={styles.fieldLabel}>Teléfono</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Ej: 0414-1234567"
-                    placeholderTextColor="#9aa2b1"
+                  <PhoneInput
                     value={formData.phone}
                     onChangeText={(value) => updateFormData("phone", value)}
-                    keyboardType="phone-pad"
+                    placeholder="Ej: 4121234567"
                   />
                 </View>
                 <View style={styles.dualField}>

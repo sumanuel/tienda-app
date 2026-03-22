@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  Linking,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import {
@@ -36,6 +37,7 @@ const RateNotificationsScreen = () => {
   const { refreshCount } = useRateNotifications();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const suppressOpenRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -80,19 +82,64 @@ const RateNotificationsScreen = () => {
     );
   };
 
+  const getTypeMeta = (type) => {
+    switch (type) {
+      case "store_update":
+        return { icon: "⬆️", label: "Actualización" };
+      case "exchange_rate":
+        return { icon: "💱", label: "Tasa" };
+      default:
+        return { icon: "🔔", label: "Aviso" };
+    }
+  };
+
+  const maybeOpenUpdate = async (item) => {
+    if (suppressOpenRef.current) {
+      suppressOpenRef.current = false;
+      return;
+    }
+    if (item?.type !== "store_update") return;
+    const url = String(item?.source || "").trim();
+    if (!url || !/^https?:\/\//i.test(url)) return;
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      console.warn("Error opening store update URL:", error);
+    }
+  };
+
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
+    <TouchableOpacity
+      activeOpacity={item?.type === "store_update" ? 0.85 : 1}
+      onPress={() => maybeOpenUpdate(item)}
+      style={[styles.card, item?.type === "store_update" && styles.cardUpdate]}
+    >
       <View style={styles.cardHeader}>
-        <Text style={styles.date}>{formatDateTime(item.createdAt)}</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerIcon}>{getTypeMeta(item.type).icon}</Text>
+          <View style={styles.headerTextBlock}>
+            <Text style={styles.typeLabel}>{getTypeMeta(item.type).label}</Text>
+            <Text style={styles.date}>{formatDateTime(item.createdAt)}</Text>
+          </View>
+        </View>
         <TouchableOpacity
           style={styles.deleteButton}
-          onPress={() => handleDelete(item.id)}
+          onPress={() => {
+            suppressOpenRef.current = true;
+            handleDelete(item.id);
+          }}
         >
           <Text style={styles.deleteText}>🗑️</Text>
         </TouchableOpacity>
       </View>
       <Text style={styles.message}>{item.message}</Text>
-    </View>
+      {item?.type === "store_update" &&
+        String(item?.source || "")
+          .trim()
+          .match(/^https?:\/\//i) && (
+          <Text style={styles.tapHint}>Toca para abrir Play Store</Text>
+        )}
+    </TouchableOpacity>
   );
 
   return (
@@ -155,11 +202,33 @@ const styles = StyleSheet.create({
     shadowRadius: s(8),
     elevation: 2,
   },
+  cardUpdate: {
+    borderWidth: 1,
+    borderColor: "#bde5c5",
+    backgroundColor: "#f4fbf5",
+  },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: vs(8),
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: hs(10),
+    flex: 1,
+  },
+  headerIcon: {
+    fontSize: rf(16),
+  },
+  headerTextBlock: {
+    flex: 1,
+  },
+  typeLabel: {
+    fontSize: rf(12),
+    color: "#2f3a4c",
+    fontWeight: "800",
   },
   date: {
     fontSize: rf(12),
@@ -177,6 +246,12 @@ const styles = StyleSheet.create({
     fontSize: rf(14),
     color: "#2f3a4c",
     fontWeight: "600",
+  },
+  tapHint: {
+    marginTop: vs(8),
+    fontSize: rf(12),
+    color: "#2e7d32",
+    fontWeight: "700",
   },
 });
 

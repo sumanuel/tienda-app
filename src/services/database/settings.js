@@ -157,6 +157,7 @@ const getDefaultSettings = () => ({
     address: "",
     phone: "",
     email: "",
+    isConfigured: false,
   },
   pricing: {
     baseCurrency: "USD",

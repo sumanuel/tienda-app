@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   View,
   Text,
-  Linking,
   TouchableOpacity,
   Modal,
   StyleSheet,
@@ -17,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 
 // Context
 import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
@@ -79,11 +79,15 @@ import OnboardingScreen from "./src/screens/main/OnboardingScreen";
 import MobilePaymentsScreen from "./src/screens/main/MobilePaymentsScreen";
 import RateNotificationsScreen from "./src/screens/main/RateNotificationsScreen";
 import DailyExternalRatePrompt from "./src/components/exchange/DailyExternalRatePrompt";
+import StoreUpdatePrompt from "./src/components/storeUpdate/StoreUpdatePrompt";
 
 // Database initialization
 import { initAllTables } from "./src/services/database/db";
-import { initSettingsTable } from "./src/services/database/settings";
-import { checkForStoreUpdate } from "./src/services/storeUpdate/storeUpdateService";
+import {
+  getSettings,
+  initSettingsTable,
+} from "./src/services/database/settings";
+import { registerDailyRateBackgroundTask } from "./src/services/exchange/dailyRateBackgroundTask";
 // import { initSampleProducts } from "./src/services/database/products";
 
 const Stack = createStackNavigator();
@@ -571,48 +575,11 @@ const tabStyles = StyleSheet.create({
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const hasCheckedStoreUpdateRef = useRef(false);
-  const { showAlert: showAppAlert, CustomAlert: AppCustomAlert } =
-    useCustomAlert();
+  const [onboardingInitialStep, setOnboardingInitialStep] = useState("slides");
 
   useEffect(() => {
     initializeApp();
   }, []);
-
-  useEffect(() => {
-    const maybePromptUpdate = async () => {
-      if (!isReady) return;
-      if (showOnboarding) return;
-      if (hasCheckedStoreUpdateRef.current) return;
-
-      hasCheckedStoreUpdateRef.current = true;
-
-      const updateInfo = await checkForStoreUpdate();
-      if (!updateInfo?.updateAvailable) return;
-
-      showAppAlert({
-        title: "Nueva versión en Play Store",
-        message: `Hay una actualización disponible.\n\nVersión actual: ${updateInfo.installedVersion}\nNueva versión: ${updateInfo.latestVersion}`,
-        type: "info",
-        buttons: [
-          { text: "Más tarde", style: "cancel" },
-          {
-            text: "Actualizar",
-            onPress: async () => {
-              if (!updateInfo.url) return;
-              try {
-                await Linking.openURL(updateInfo.url);
-              } catch (error) {
-                console.error("Error opening update URL:", error);
-              }
-            },
-          },
-        ],
-      });
-    };
-
-    maybePromptUpdate();
-  }, [isReady, showOnboarding, showAppAlert]);
 
   /**
    * Resetea el onboarding para mostrarlo nuevamente
@@ -620,7 +587,9 @@ export default function App() {
   const resetOnboarding = async () => {
     try {
       await AsyncStorage.removeItem("onboardingCompleted");
+      await AsyncStorage.removeItem("onboardingSlidesSeen");
       setShowOnboarding(true);
+      setOnboardingInitialStep("slides");
     } catch (error) {
       console.error("Error resetting onboarding:", error);
     }
@@ -636,17 +605,52 @@ export default function App() {
    */
   const initializeApp = async () => {
     try {
-      // Verificar si el usuario ya completó el onboarding
-      const onboardingCompleted = await AsyncStorage.getItem(
-        "onboardingCompleted",
-      );
-      setShowOnboarding(!onboardingCompleted);
-
       // Inicializar todas las tablas en una sola transacción
       await initAllTables();
 
       // Inicializar settings con valores por defecto
       await initSettingsTable();
+
+      // Verificar si el usuario ya completó el onboarding y si ya vio las slides
+      const [onboardingCompleted, onboardingSlidesSeen] = await Promise.all([
+        AsyncStorage.getItem("onboardingCompleted"),
+        AsyncStorage.getItem("onboardingSlidesSeen"),
+      ]);
+
+      // Si aún no llenó datos del negocio, pedirlos al entrar.
+      let isBusinessConfigured = false;
+      try {
+        const currentSettings = await getSettings();
+        isBusinessConfigured = Boolean(currentSettings?.business?.isConfigured);
+      } catch (error) {
+        console.warn("Error loading settings for onboarding check:", error);
+      }
+
+      const needsBusinessSetup = !isBusinessConfigured;
+      const shouldShowOnboarding = !onboardingCompleted || needsBusinessSetup;
+      const initialStep = needsBusinessSetup
+        ? "business"
+        : !onboardingCompleted && onboardingSlidesSeen
+          ? "business"
+          : "slides";
+
+      setOnboardingInitialStep(initialStep);
+      setShowOnboarding(shouldShowOnboarding);
+
+      // Registrar tarea de consulta diaria en background (best-effort)
+      // Nota: En Expo Go (store client) no corre de forma confiable.
+      const executionEnvironment = String(
+        Constants.executionEnvironment || "",
+      ).toLowerCase();
+      const isExpoGo = executionEnvironment === "storeclient";
+
+      if (!isExpoGo) {
+        await registerDailyRateBackgroundTask();
+      } else {
+        console.log(
+          "Expo Go detectado: se omite BackgroundFetch; la consulta diaria se hará al abrir la app.",
+        );
+      }
 
       // Productos de ejemplo solo en desarrollo (removido para evitar creación en producción)
       // if (__DEV__) {
@@ -671,13 +675,19 @@ export default function App() {
 
   // Mostrar onboarding si no se ha completado
   if (showOnboarding) {
-    return <OnboardingScreen onComplete={() => setShowOnboarding(false)} />;
+    return (
+      <OnboardingScreen
+        initialStep={onboardingInitialStep}
+        onComplete={() => setShowOnboarding(false)}
+      />
+    );
   }
 
   return (
     <ExchangeRateProvider>
       <RateNotificationsProvider>
         <DailyExternalRatePrompt />
+        <StoreUpdatePrompt />
         <NavigationContainer ref={navigationRef}>
           <Stack.Navigator>
             <Stack.Screen
@@ -1242,7 +1252,6 @@ export default function App() {
             />
           </Stack.Navigator>
         </NavigationContainer>
-        <AppCustomAlert />
       </RateNotificationsProvider>
     </ExchangeRateProvider>
   );

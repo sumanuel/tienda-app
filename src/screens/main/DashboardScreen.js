@@ -296,41 +296,9 @@ export const DashboardScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.statsRow}>
-            {/* Entrada Inventario */}
-            <TouchableOpacity
-              style={styles.statCard}
-              onPress={() => {
-                if (!requireExchangeRate("registrar entradas de inventario")) {
-                  return;
-                }
-                navigation.navigate("InventoryEntry");
-              }}
-            >
-              <Text style={styles.statIcon}>📥</Text>
-              <Text style={styles.statLabel}>Entrada Inventario</Text>
-              <Text style={styles.statValue}>Registrar</Text>
-            </TouchableOpacity>
-
-            {/* Salida Inventario */}
-            <TouchableOpacity
-              style={styles.statCard}
-              onPress={() => {
-                if (!requireExchangeRate("registrar salidas de inventario")) {
-                  return;
-                }
-                navigation.navigate("InventoryExit");
-              }}
-            >
-              <Text style={styles.statIcon}>📤</Text>
-              <Text style={styles.statLabel}>Salida Inventario</Text>
-              <Text style={styles.statValue}>Registrar</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.statsRow}>
             {/* Movimientos de inventario */}
             <TouchableOpacity
-              style={styles.statCard}
+              style={[styles.statCard, styles.statCardHalf]}
               onPress={() => {
                 if (
                   !requireExchangeRate("consultar movimientos de inventario")
@@ -559,6 +527,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: s(4),
+  },
+  statCardHalf: {
+    flex: undefined,
+    width: "47%",
   },
   statIcon: {
     fontSize: iconSize.lg,
