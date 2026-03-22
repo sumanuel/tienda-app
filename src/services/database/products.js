@@ -434,6 +434,26 @@ export const getProductExitMovements = async (productId) => {
   }
 };
 
+/**
+ * Obtiene los movimientos de inventario (entradas y salidas) de un producto
+ */
+export const getProductInventoryMovements = async (productId) => {
+  try {
+    const result = await db.getAllAsync(
+      `SELECT id, type, quantity, previousStock, newStock, notes, createdAt
+       FROM inventory_movements
+       WHERE productId = ? AND type IN ('entry', 'exit')
+       ORDER BY createdAt DESC;`,
+      [productId],
+    );
+
+    return result;
+  } catch (error) {
+    console.error("Error obteniendo movimientos de inventario:", error);
+    throw error;
+  }
+};
+
 export default {
   initDatabase,
   checkTableExists,
@@ -451,4 +471,5 @@ export default {
   insertInventoryMovement,
   getProductEntryMovements,
   getProductExitMovements,
+  getProductInventoryMovements,
 };

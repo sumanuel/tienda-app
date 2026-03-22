@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
 import { db, initAllTables } from "../database/db";
+import { ensureSettingsDefaults } from "../database/settings";
 
 const BACKUP_DIR = `${FileSystem.documentDirectory}backups/`;
 
@@ -9,7 +10,7 @@ const nowStamp = () => {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(
-    d.getHours()
+    d.getHours(),
   )}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
 };
 
@@ -22,9 +23,19 @@ const ensureBackupDir = async () => {
 
 const getUserTables = async () => {
   const rows = await db.getAllAsync(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;",
   );
   return rows.map((r) => r.name);
+};
+
+const isSafeIdentifier = (name) => {
+  return /^[A-Za-z0-9_]+$/.test(String(name || ""));
+};
+
+const q = (name) => {
+  const raw = String(name || "");
+  // Nota: igual validamos con isSafeIdentifier; esto es defensa extra.
+  return `"${raw.replace(/"/g, '""')}"`;
 };
 
 const toInsertOrder = (tables) => {
@@ -41,12 +52,49 @@ const toInsertOrder = (tables) => {
     "account_payments",
     "exchange_rates",
     "settings",
+    "mobile_payments",
+    "rate_notifications",
   ];
 
   const set = new Set(tables);
   const ordered = preferred.filter((t) => set.has(t));
   const rest = tables.filter((t) => !ordered.includes(t));
   return [...ordered, ...rest];
+};
+
+const tableExists = async (table) => {
+  if (!table) return false;
+  const found = await db.getFirstAsync(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name = ? LIMIT 1;",
+    [table],
+  );
+  return !!found?.name;
+};
+
+const getTableColumns = async (table) => {
+  if (!isSafeIdentifier(table)) return [];
+  const cols = await db.getAllAsync(`PRAGMA table_info(${q(table)});`);
+  return cols.map((c) => c.name);
+};
+
+const ensureGenericCustomerAfterImport = async () => {
+  try {
+    if (!(await tableExists("customers"))) return;
+
+    const existing = await db.getFirstAsync(
+      "SELECT id FROM customers WHERE documentNumber = ? AND active = 1 LIMIT 1;",
+      ["1"],
+    );
+    if (existing?.id) return;
+
+    await db.runAsync(
+      `INSERT INTO customers (name, documentNumber, documentType)
+       VALUES (?, ?, ?);`,
+      ["Cliente Genérico", "1", "V"],
+    );
+  } catch (error) {
+    console.warn("Warning ensuring generic customer after import:", error);
+  }
 };
 
 const toDeleteOrder = (tables) => {
@@ -61,7 +109,8 @@ export const exportDatabaseBackup = async () => {
   const data = {};
 
   for (const table of tables) {
-    const rows = await db.getAllAsync(`SELECT * FROM ${table};`);
+    if (!isSafeIdentifier(table)) continue;
+    const rows = await db.getAllAsync(`SELECT * FROM ${q(table)};`);
     data[table] = rows;
   }
 
@@ -145,27 +194,47 @@ export const importDatabaseBackupFromUri = async (uri) => {
     // Evitar bloqueos por FKs durante restore
     await db.execAsync("PRAGMA foreign_keys = OFF;");
 
-    for (const table of deleteOrder) {
-      await db.runAsync(`DELETE FROM ${table};`);
-    }
-
-    for (const table of insertOrder) {
-      const rows = parsed.tables[table] || [];
-      if (!Array.isArray(rows) || rows.length === 0) continue;
-
-      for (const row of rows) {
-        const columns = Object.keys(row);
-        const placeholders = columns.map(() => "?").join(", ");
-        const values = columns.map((c) => row[c]);
-        const sql = `INSERT INTO ${table} (${columns.join(
-          ", "
-        )}) VALUES (${placeholders});`;
-        await db.runAsync(sql, values);
+    try {
+      // Limpiar tablas existentes (solo las que existan en esta instalación)
+      for (const table of deleteOrder) {
+        if (!isSafeIdentifier(table)) continue;
+        if (!(await tableExists(table))) continue;
+        await db.runAsync(`DELETE FROM ${q(table)};`);
       }
-    }
 
-    await db.execAsync("PRAGMA foreign_keys = ON;");
+      // Insertar datos respetando el schema actual (compatibilidad entre versiones)
+      for (const table of insertOrder) {
+        if (!isSafeIdentifier(table)) continue;
+        if (!(await tableExists(table))) continue;
+
+        const rows = parsed.tables[table] || [];
+        if (!Array.isArray(rows) || rows.length === 0) continue;
+
+        const tableColumns = new Set(await getTableColumns(table));
+
+        for (const row of rows) {
+          if (!row || typeof row !== "object") continue;
+
+          const columns = Object.keys(row).filter((c) => tableColumns.has(c));
+          if (columns.length === 0) continue;
+
+          const placeholders = columns.map(() => "?").join(", ");
+          const values = columns.map((c) => row[c]);
+
+          const sql = `INSERT INTO ${q(table)} (${columns
+            .map((c) => q(c))
+            .join(", ")}) VALUES (${placeholders});`;
+          await db.runAsync(sql, values);
+        }
+      }
+    } finally {
+      await db.execAsync("PRAGMA foreign_keys = ON;");
+    }
   });
+
+  // Reasegurar datos mínimos y defaults post-restore
+  await ensureGenericCustomerAfterImport();
+  await ensureSettingsDefaults();
 
   return { importedTables: tables.length };
 };

@@ -22,6 +22,7 @@ import {
   borderRadius,
   iconSize,
 } from "../../utils/responsive";
+import PhoneInput from "../../components/common/PhoneInput";
 
 /**
  * Pantalla para agregar nuevo cliente
@@ -149,13 +150,10 @@ export const AddCustomerScreen = ({ navigation }) => {
             <View style={styles.card}>
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Teléfono</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ej: 0412-1234567"
-                  placeholderTextColor="#9aa2b1"
+                <PhoneInput
                   value={formData.phone}
                   onChangeText={(value) => updateFormData("phone", value)}
-                  keyboardType="phone-pad"
+                  placeholder="Ej: 4121234567"
                 />
               </View>
 

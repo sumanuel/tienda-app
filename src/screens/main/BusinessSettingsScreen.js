@@ -12,6 +12,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { getSettings, saveSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import PhoneInput from "../../components/common/PhoneInput";
 import {
   s,
   rf,
@@ -80,7 +81,10 @@ export const BusinessSettingsScreen = () => {
       const settings = await getSettings();
       const updatedSettings = {
         ...settings,
-        business,
+        business: {
+          ...business,
+          isConfigured: true,
+        },
       };
       await saveSettings(updatedSettings);
       showAlert({
@@ -172,12 +176,10 @@ export const BusinessSettingsScreen = () => {
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Teléfono</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ej: +58 412 123 4567"
+            <PhoneInput
               value={business.phone}
               onChangeText={(text) => setBusiness({ ...business, phone: text })}
-              keyboardType="phone-pad"
+              placeholder="Ej: 4121234567"
             />
           </View>
 

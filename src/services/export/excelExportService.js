@@ -27,6 +27,15 @@ const getUserTables = async () => {
   return rows.map((r) => r.name);
 };
 
+const isSafeIdentifier = (name) => {
+  return /^[A-Za-z0-9_]+$/.test(String(name || ""));
+};
+
+const q = (name) => {
+  const raw = String(name || "");
+  return `"${raw.replace(/"/g, '""')}"`;
+};
+
 const toSheetName = (tableName) => {
   const raw = String(tableName || "Hoja");
   // Excel: nombre de hoja <= 31 caracteres y sin caracteres especiales.
@@ -42,7 +51,8 @@ export const exportDataToExcel = async () => {
   const workbook = XLSX.utils.book_new();
 
   for (const table of tables) {
-    const rows = await db.getAllAsync(`SELECT * FROM ${table};`);
+    if (!isSafeIdentifier(table)) continue;
+    const rows = await db.getAllAsync(`SELECT * FROM ${q(table)};`);
     const worksheet = XLSX.utils.json_to_sheet(rows || []);
     XLSX.utils.book_append_sheet(workbook, worksheet, toSheetName(table));
   }

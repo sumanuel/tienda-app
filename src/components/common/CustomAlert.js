@@ -68,6 +68,7 @@ const CustomAlert = ({ visible, onClose, config }) => {
   };
 
   const typeConfig = getTypeConfig();
+  const isStackedButtons = buttons.length > 2;
 
   return (
     <Modal
@@ -101,31 +102,46 @@ const CustomAlert = ({ visible, onClose, config }) => {
           </View>
 
           {/* Buttons */}
-          <View style={styles.footer}>
-            {buttons.map((button, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.button,
-                  button.style === "cancel" && styles.cancelButton,
-                  buttons.length === 1 && styles.singleButton,
-                ]}
-                onPress={() => {
-                  button.onPress && button.onPress();
-                  onClose();
-                }}
-                activeOpacity={0.85}
-              >
-                <Text
-                  style={[
-                    styles.buttonText,
-                    button.style === "cancel" && styles.cancelButtonText,
-                  ]}
-                >
-                  {button.text}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View
+            style={[styles.footer, isStackedButtons && styles.footerStacked]}
+          >
+            {buttons.map((button, index) =>
+              (() => {
+                const isCancel = button.style === "cancel";
+                const isDestructive = button.style === "destructive";
+                const isSuccess = button.style === "success";
+
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.button,
+                      isStackedButtons && styles.buttonStacked,
+                      isCancel && styles.cancelButton,
+                      isDestructive && styles.destructiveButton,
+                      isSuccess && styles.successButton,
+                      buttons.length === 1 && styles.singleButton,
+                    ]}
+                    onPress={() => {
+                      button.onPress && button.onPress();
+                      onClose();
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        isCancel && styles.cancelButtonText,
+                        isDestructive && styles.destructiveButtonText,
+                        isSuccess && styles.successButtonText,
+                      ]}
+                    >
+                      {button.text}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })(),
+            )}
           </View>
         </View>
       </View>
@@ -188,6 +204,10 @@ const styles = StyleSheet.create({
     paddingBottom: vs(24),
     gap: hs(12),
   },
+  footerStacked: {
+    flexDirection: "column",
+    gap: vs(12),
+  },
   button: {
     flex: 1,
     backgroundColor: "#2f5ae0",
@@ -195,6 +215,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     alignItems: "center",
     justifyContent: "center",
+  },
+  buttonStacked: {
+    flex: 0,
+    width: "100%",
   },
   singleButton: {
     marginHorizontal: 0,
@@ -204,6 +228,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#d9e0eb",
   },
+  destructiveButton: {
+    backgroundColor: "#ffebee",
+    borderWidth: 1,
+    borderColor: "#f2b8c1",
+  },
+  successButton: {
+    backgroundColor: "#e8f5e9",
+    borderWidth: 1,
+    borderColor: "#bde5c5",
+  },
   buttonText: {
     fontSize: rf(16),
     fontWeight: "600",
@@ -211,6 +245,12 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: "#2f5ae0",
+  },
+  destructiveButtonText: {
+    color: "#c62828",
+  },
+  successButtonText: {
+    color: "#2e7d32",
   },
 });
 

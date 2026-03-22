@@ -1,5 +1,53 @@
 import { db } from "./db";
 
+const isPlainObject = (value) => {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.prototype.toString.call(value) === "[object Object]"
+  );
+};
+
+const deepMergeDefaults = (defaults, current) => {
+  if (!isPlainObject(defaults)) return current;
+  if (!isPlainObject(current)) return { ...defaults };
+
+  const merged = { ...defaults };
+
+  for (const key of Object.keys(current)) {
+    const currentValue = current[key];
+    const defaultValue = defaults[key];
+
+    if (isPlainObject(defaultValue) && isPlainObject(currentValue)) {
+      merged[key] = deepMergeDefaults(defaultValue, currentValue);
+      continue;
+    }
+
+    // Arrays u otros tipos: respetar lo que ya tenga el usuario
+    merged[key] = currentValue;
+  }
+
+  return merged;
+};
+
+const stableStringify = (value) => {
+  // Para comparar objetos sin depender del orden de claves en JSON.stringify.
+  const seen = new WeakSet();
+  const replacer = (_, v) => {
+    if (!isPlainObject(v)) return v;
+    if (seen.has(v)) return v;
+    seen.add(v);
+    return Object.keys(v)
+      .sort()
+      .reduce((acc, k) => {
+        acc[k] = v[k];
+        return acc;
+      }, {});
+  };
+  return JSON.stringify(value, replacer);
+};
+
 /**
  * Inicializa la tabla de configuraciones con valores por defecto
  */
@@ -7,7 +55,7 @@ export const initSettingsTable = async () => {
   try {
     // Verificar si ya existen configuraciones
     const existing = await db.getFirstAsync(
-      "SELECT value FROM settings WHERE key = 'app_settings';"
+      "SELECT value FROM settings WHERE key = 'app_settings';",
     );
 
     // Solo insertar si no existen
@@ -17,7 +65,7 @@ export const initSettingsTable = async () => {
 
       await db.runAsync(
         `INSERT INTO settings (key, value) VALUES ('app_settings', ?);`,
-        [settingsJson]
+        [settingsJson],
       );
       console.log("Default settings inserted");
     }
@@ -33,11 +81,43 @@ export const initSettingsTable = async () => {
 export const getSettings = async () => {
   try {
     const result = await db.getFirstAsync(
-      "SELECT value FROM settings WHERE key = 'app_settings';"
+      "SELECT value FROM settings WHERE key = 'app_settings';",
     );
 
     if (result && result.value) {
-      return JSON.parse(result.value);
+      const parsed = JSON.parse(result.value);
+      const defaults = getDefaultSettings();
+      const merged = deepMergeDefaults(defaults, parsed);
+
+      // Migración suave: si el usuario ya tenía un nombre distinto al default,
+      // considerar que el negocio ya fue configurado.
+      try {
+        const name = String(merged?.business?.name || "").trim();
+        const isConfigured = Boolean(merged?.business?.isConfigured);
+        const nameIsDefault = name.toLowerCase() === "mi tienda";
+        const hasAnyExtraData = [
+          merged?.business?.rif,
+          merged?.business?.address,
+          merged?.business?.phone,
+          merged?.business?.email,
+        ].some((v) => String(v || "").trim().length > 0);
+
+        if (!isConfigured && ((name && !nameIsDefault) || hasAnyExtraData)) {
+          merged.business = {
+            ...(merged.business || {}),
+            isConfigured: true,
+          };
+        }
+      } catch (_) {
+        // noop
+      }
+
+      // Si agregamos claves nuevas por defaults, persistirlas.
+      if (stableStringify(parsed) !== stableStringify(merged)) {
+        await saveSettings(merged);
+      }
+
+      return merged;
     }
 
     return getDefaultSettings();
@@ -45,6 +125,16 @@ export const getSettings = async () => {
     console.error("Error getting settings:", error);
     return getDefaultSettings();
   }
+};
+
+/**
+ * Asegura que existan los defaults y que el JSON tenga nuevas claves.
+ * Útil después de importar un respaldo.
+ */
+export const ensureSettingsDefaults = async () => {
+  await initSettingsTable();
+  await getSettings();
+  return true;
 };
 
 /**
@@ -56,7 +146,7 @@ export const saveSettings = async (settings) => {
     await db.runAsync(
       `INSERT OR REPLACE INTO settings (key, value, updatedAt) 
        VALUES ('app_settings', ?, datetime('now'));`,
-      [settingsJson]
+      [settingsJson],
     );
     return true;
   } catch (error) {
@@ -90,6 +180,7 @@ const getDefaultSettings = () => ({
     address: "",
     phone: "",
     email: "",
+    isConfigured: false,
   },
   pricing: {
     baseCurrency: "USD",
@@ -112,6 +203,14 @@ const getDefaultSettings = () => ({
     defaultSource: "BCV",
     alertOnRateChange: true,
     rateChangeThreshold: 5,
+    // Consulta diaria (7pm) desde API externa con confirmación del usuario
+    dailyPromptEnabled: true,
+    dailyPromptHour: 19,
+    dailyPromptMinute: 0,
+    externalApiUrl: "https://ve.dolarapi.com/v1/dolares/oficial",
+    // Ruta del valor dentro del JSON, por ejemplo: "rate" o "data.usd".
+    // Para DolarApi oficial: "promedio"
+    externalApiValuePath: "promedio",
   },
   inventory: {
     trackStock: true,
@@ -150,4 +249,5 @@ export default {
   saveSettings,
   updateSetting,
   resetSettings,
+  ensureSettingsDefaults,
 };
