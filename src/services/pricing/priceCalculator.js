@@ -11,7 +11,9 @@ import {
  * @returns {number} Precio de venta
  */
 export const calculateProductPrice = (product, round = true) => {
-  return calculateSalePrice(product.cost, product.margin, round);
+  const baseCost = Number(product?.cost) || 0;
+  const additionalCost = Number(product?.additionalCost) || 0;
+  return calculateSalePrice(baseCost + additionalCost, product.margin, round);
 };
 
 /**
@@ -21,7 +23,9 @@ export const calculateProductPrice = (product, round = true) => {
  */
 export const calculateProductMargin = (product) => {
   const price = product.priceUSD || product.salePrice;
-  return calculateMargin(product.cost, price);
+  const baseCost = Number(product?.cost) || 0;
+  const additionalCost = Number(product?.additionalCost) || 0;
+  return calculateMargin(baseCost + additionalCost, price);
 };
 
 /**
@@ -58,7 +62,9 @@ export const calculateSaleProfit = (items) => {
  */
 export const recalculatePrices = (products, newRate) => {
   return products.map((product) => {
-    const priceUSD = product.cost * (1 + product.margin / 100);
+    const baseCost = Number(product?.cost) || 0;
+    const additionalCost = Number(product?.additionalCost) || 0;
+    const priceUSD = (baseCost + additionalCost) * (1 + product.margin / 100);
     const priceVES = priceUSD * newRate;
 
     return {

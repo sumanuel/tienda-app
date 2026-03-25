@@ -13,7 +13,7 @@ export const updateAllPrices = async (products, newRate) => {
 
     // Actualizar cada producto en la base de datos
     const updatePromises = updatedProducts.map((product) =>
-      updateProduct(product.id, product)
+      updateProduct(product.id, product),
     );
 
     await Promise.all(updatePromises);
@@ -32,7 +32,9 @@ export const updateAllPrices = async (products, newRate) => {
  */
 export const updateProductPrice = async (product, rate) => {
   try {
-    const priceUSD = product.cost * (1 + product.margin / 100);
+    const baseCost = Number(product?.cost) || 0;
+    const additionalCost = Number(product?.additionalCost) || 0;
+    const priceUSD = (baseCost + additionalCost) * (1 + product.margin / 100);
     const priceVES = priceUSD * rate;
 
     const updated = {
@@ -60,7 +62,7 @@ export const updateProductPrice = async (product, rate) => {
 export const getProductsNeedingUpdate = (
   products,
   currentRate,
-  threshold = 2
+  threshold = 2,
 ) => {
   return products.filter((product) => {
     if (!product.priceUSD || !product.priceVES) return true;

@@ -38,6 +38,7 @@ export const initAllTables = async () => {
           category TEXT,
           description TEXT,
           cost REAL DEFAULT 0,
+          additionalCost REAL DEFAULT 0,
           priceUSD REAL DEFAULT 0,
           priceVES REAL DEFAULT 0,
           margin REAL DEFAULT 0,
@@ -284,6 +285,32 @@ const ensureGenericCustomer = async () => {
 const runMigrations = async () => {
   try {
     console.log("Running database migrations...");
+
+    // Asegurar columna additionalCost en products (costo adicional opcional)
+    try {
+      const productsTable = await db.getFirstAsync(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='products';",
+      );
+
+      if (productsTable?.name) {
+        const columns = await db.getAllAsync("PRAGMA table_info(products);");
+        const hasAdditionalCost = (columns || []).some(
+          (c) => c?.name === "additionalCost",
+        );
+
+        if (!hasAdditionalCost) {
+          await db.execAsync(
+            "ALTER TABLE products ADD COLUMN additionalCost REAL DEFAULT 0;",
+          );
+        }
+      }
+    } catch (productsMigrationError) {
+      // No bloquear el arranque completo por fallos de migración heredados
+      console.warn(
+        "Warning running products additionalCost migration:",
+        productsMigrationError,
+      );
+    }
 
     // Asegurar tabla de notificaciones
     await db.execAsync(

@@ -25,7 +25,8 @@ const CapitalScreen = () => {
   const inventoryCostUSD = (inventory || []).reduce((sum, product) => {
     const stock = Number(product.stock) || 0;
     const costUSD = Number(product.cost) || 0;
-    return sum + stock * costUSD;
+    const additionalCostUSD = Number(product.additionalCost) || 0;
+    return sum + stock * (costUSD + additionalCostUSD);
   }, 0);
   const inventoryCostVES = exchangeRate ? inventoryCostUSD * exchangeRate : 0;
 
@@ -62,7 +63,7 @@ const CapitalScreen = () => {
           ]}
         >
           {formatUSD(
-            roundedInventorySellUSD + roundedCapital / roundedExchangeRate
+            roundedInventorySellUSD + roundedCapital / roundedExchangeRate,
           )}
         </Text>
         <Text style={styles.summarySubtitle}>Inventario + Capital actual</Text>

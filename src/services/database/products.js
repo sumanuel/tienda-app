@@ -14,6 +14,7 @@ export const initDatabase = async () => {
         category TEXT,
         description TEXT,
         cost REAL DEFAULT 0,
+        additionalCost REAL DEFAULT 0,
         priceUSD REAL DEFAULT 0,
         priceVES REAL DEFAULT 0,
         margin REAL DEFAULT 0,
@@ -112,15 +113,17 @@ export const insertProduct = async (product) => {
   try {
     console.log("Insertando producto en BD:", product);
     const result = await db.runAsync(
-      `INSERT INTO products (name, barcode, category, description, cost, priceUSD, margin, stock, minStock, image, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO products (name, barcode, category, description, cost, additionalCost, priceUSD, priceVES, margin, stock, minStock, image, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         product.name,
         product.barcode,
         product.category,
         product.description || "",
         product.cost || 0,
+        product.additionalCost || 0,
         product.priceUSD || 0,
+        product.priceVES || 0,
         product.margin || 0,
         product.stock || 0,
         product.minStock || 0,
@@ -144,7 +147,7 @@ export const updateProduct = async (id, product) => {
     const result = await db.runAsync(
       `UPDATE products
        SET name = ?, barcode = ?, category = ?, description = ?,
-           cost = ?, priceUSD = ?, margin = ?,
+           cost = ?, additionalCost = ?, priceUSD = ?, priceVES = ?, margin = ?,
            stock = ?, minStock = ?, image = ?, updatedAt = CURRENT_TIMESTAMP
        WHERE id = ?;`,
       [
@@ -153,7 +156,9 @@ export const updateProduct = async (id, product) => {
         product.category,
         product.description,
         product.cost,
+        product.additionalCost || 0,
         product.priceUSD,
+        product.priceVES || 0,
         product.margin,
         product.stock,
         product.minStock,

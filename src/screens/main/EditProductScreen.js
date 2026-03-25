@@ -35,6 +35,7 @@ export const EditProductScreen = ({ navigation, route }) => {
 
   const [settings, setSettings] = useState({});
   const [cost, setCost] = useState("");
+  const [additionalCost, setAdditionalCost] = useState("");
   const [costCurrency, setCostCurrency] = useState("USD");
   const [margin, setMargin] = useState(30);
   const [calculatedPrices, setCalculatedPrices] = useState({
@@ -57,9 +58,20 @@ export const EditProductScreen = ({ navigation, route }) => {
 
     if (cost && appliedRate) {
       const costValue = parseFloat(cost);
-      if (!Number.isNaN(costValue)) {
+      const additionalCostValue = additionalCost
+        ? parseFloat(additionalCost)
+        : 0;
+      const canUseAdditionalCost =
+        additionalCost === "" || !Number.isNaN(additionalCostValue);
+
+      if (!Number.isNaN(costValue) && canUseAdditionalCost) {
+        const totalCostInCostCurrency =
+          costValue +
+          (Number.isNaN(additionalCostValue) ? 0 : additionalCostValue);
+
         // Calculate selling price in cost currency
-        const sellingPriceInCostCurrency = costValue * (1 + margin / 100);
+        const sellingPriceInCostCurrency =
+          totalCostInCostCurrency * (1 + margin / 100);
 
         // Convert to USD and VES
         let usdPrice, vesPrice;
@@ -80,12 +92,13 @@ export const EditProductScreen = ({ navigation, route }) => {
     } else {
       setCalculatedPrices({ usd: "", ves: "" });
     }
-  }, [cost, costCurrency, margin, settings, exchangeRate]);
+  }, [cost, additionalCost, costCurrency, margin, settings, exchangeRate]);
 
   // Refs para navegación entre campos
   const nameRef = useRef(null);
   const categoryRef = useRef(null);
   const costRef = useRef(null);
+  const additionalCostRef = useRef(null);
   const marginRef = useRef(null);
   const stockRef = useRef(null);
   const descriptionRef = useRef(null);
@@ -133,6 +146,11 @@ export const EditProductScreen = ({ navigation, route }) => {
 
       if (typeof product.cost === "number") {
         setCost(product.cost.toFixed(2));
+        if (typeof product.additionalCost === "number") {
+          setAdditionalCost(product.additionalCost.toFixed(2));
+        } else {
+          setAdditionalCost("");
+        }
         return;
       }
 
@@ -146,6 +164,7 @@ export const EditProductScreen = ({ navigation, route }) => {
 
         const costValue = sellingPrice / (1 + productMargin / 100);
         setCost(costValue.toFixed(2));
+        setAdditionalCost("");
         setMargin(productMargin);
         setCostCurrency("USD");
       }
@@ -180,6 +199,19 @@ export const EditProductScreen = ({ navigation, route }) => {
       return;
     }
 
+    if (
+      additionalCost !== "" &&
+      (Number.isNaN(parseFloat(additionalCost)) ||
+        parseFloat(additionalCost) < 0)
+    ) {
+      showAlert({
+        title: "Error",
+        message: "El costo adicional debe ser un número válido",
+        type: "error",
+      });
+      return;
+    }
+
     if (!formData.stock || isNaN(parseInt(formData.stock))) {
       showAlert({
         title: "Error",
@@ -190,12 +222,36 @@ export const EditProductScreen = ({ navigation, route }) => {
     }
 
     try {
+      const rateFromSettings = Number(settings?.pricing?.currencies?.USD) || 0;
+      const appliedRate = Number(exchangeRate) || rateFromSettings || 0;
+
+      const costInput = parseFloat(cost);
+      const additionalCostInput = additionalCost
+        ? parseFloat(additionalCost)
+        : 0;
+
+      const costUSD =
+        costCurrency === "USD"
+          ? costInput
+          : appliedRate
+            ? costInput / appliedRate
+            : 0;
+
+      const additionalCostUSD =
+        costCurrency === "USD"
+          ? additionalCostInput
+          : appliedRate
+            ? additionalCostInput / appliedRate
+            : 0;
+
       const productData = {
         name: formData.name.trim(),
         category: formData.category.trim() || "General",
-        cost: parseFloat(cost),
+        cost: costUSD,
+        additionalCost: additionalCostUSD,
         costCurrency: costCurrency,
         priceUSD: parseFloat(calculatedPrices.usd),
+        priceVES: parseFloat(calculatedPrices.ves),
         margin: margin,
         stock: parseInt(formData.stock),
         minStock: 0,
@@ -390,6 +446,22 @@ export const EditProductScreen = ({ navigation, route }) => {
                 keyboardType="decimal-pad"
                 returnKeyType="next"
                 onFocus={() => scrollToField(costRef)}
+                onSubmitEditing={() => additionalCostRef.current?.focus()}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Costo adicional (opcional)</Text>
+              <TextInput
+                ref={additionalCostRef}
+                style={styles.input}
+                placeholder="0.00"
+                placeholderTextColor="#9aa2b1"
+                value={additionalCost}
+                onChangeText={setAdditionalCost}
+                keyboardType="decimal-pad"
+                returnKeyType="next"
+                onFocus={() => scrollToField(additionalCostRef)}
                 onSubmitEditing={() => marginRef.current?.focus()}
               />
             </View>
