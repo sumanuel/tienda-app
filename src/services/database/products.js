@@ -1,5 +1,43 @@
 import { db } from "./db";
 
+let productsColumnsChecked = false;
+let productsHasAdditionalCostColumn = false;
+
+const ensureProductsAdditionalCostColumn = async () => {
+  if (productsColumnsChecked && productsHasAdditionalCostColumn) {
+    return;
+  }
+
+  try {
+    const table = await db.getFirstAsync(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='products';",
+    );
+
+    if (!table?.name) {
+      productsColumnsChecked = true;
+      productsHasAdditionalCostColumn = false;
+      return;
+    }
+
+    const columns = await db.getAllAsync("PRAGMA table_info(products);");
+    productsHasAdditionalCostColumn = (columns || []).some(
+      (c) => c?.name === "additionalCost",
+    );
+
+    if (!productsHasAdditionalCostColumn) {
+      await db.execAsync(
+        "ALTER TABLE products ADD COLUMN additionalCost REAL DEFAULT 0;",
+      );
+      productsHasAdditionalCostColumn = true;
+    }
+
+    productsColumnsChecked = true;
+  } catch (error) {
+    // No bloquear: si falla, el caller mostrará el error original.
+    console.warn("Warning ensuring products additionalCost column:", error);
+  }
+};
+
 /**
  * Inicializa la base de datos y crea las tablas necesarias
  */
@@ -31,6 +69,8 @@ export const initDatabase = async () => {
     await db.execAsync(
       "CREATE INDEX IF NOT EXISTS idx_barcode ON products(barcode);",
     );
+
+    await ensureProductsAdditionalCostColumn();
   } catch (error) {
     throw error;
   }
@@ -63,6 +103,8 @@ export const getAllProducts = async () => {
       await initDatabase();
     }
 
+    await ensureProductsAdditionalCostColumn();
+
     const result = await db.getAllAsync(
       "SELECT * FROM products WHERE active = 1 ORDER BY name;",
     );
@@ -79,6 +121,7 @@ export const getAllProducts = async () => {
  */
 export const getProductByBarcode = async (barcode) => {
   try {
+    await ensureProductsAdditionalCostColumn();
     const result = await db.getFirstAsync(
       "SELECT * FROM products WHERE barcode = ? AND active = 1;",
       [barcode],
@@ -94,6 +137,7 @@ export const getProductByBarcode = async (barcode) => {
  */
 export const searchProducts = async (query) => {
   try {
+    await ensureProductsAdditionalCostColumn();
     const result = await db.getAllAsync(
       `SELECT * FROM products
        WHERE (name LIKE ? OR category LIKE ?) AND active = 1
@@ -111,6 +155,7 @@ export const searchProducts = async (query) => {
  */
 export const insertProduct = async (product) => {
   try {
+    await ensureProductsAdditionalCostColumn();
     console.log("Insertando producto en BD:", product);
     const result = await db.runAsync(
       `INSERT INTO products (name, barcode, category, description, cost, additionalCost, priceUSD, priceVES, margin, stock, minStock, image, active)
@@ -144,6 +189,7 @@ export const insertProduct = async (product) => {
  */
 export const updateProduct = async (id, product) => {
   try {
+    await ensureProductsAdditionalCostColumn();
     const result = await db.runAsync(
       `UPDATE products
        SET name = ?, barcode = ?, category = ?, description = ?,
