@@ -439,21 +439,20 @@ export const EditProductScreen = ({ navigation, route }) => {
                       const parsedCost = parseFloat(cost);
                       const parsedAdditional = parseFloat(additionalCost);
 
-                      const canConvert =
-                        appliedRate &&
-                        !Number.isNaN(parsedCost) &&
-                        (!additionalCost || !Number.isNaN(parsedAdditional));
-
-                      if (canConvert) {
+                      if (appliedRate && !Number.isNaN(parsedCost)) {
                         const factor =
                           option.code === "Bs" ? appliedRate : 1 / appliedRate;
                         setCost((parsedCost * factor).toFixed(2));
-                        setAdditionalCost(
-                          (Number.isNaN(parsedAdditional)
-                            ? 0
-                            : parsedAdditional * factor
-                          ).toFixed(2),
-                        );
+
+                        // Mantener opcionalidad: si está vacío, no lo forzamos a 0.00
+                        if (additionalCost !== "") {
+                          setAdditionalCost(
+                            (Number.isNaN(parsedAdditional)
+                              ? 0
+                              : parsedAdditional * factor
+                            ).toFixed(2),
+                          );
+                        }
                       }
 
                       setCostCurrency(option.code);
