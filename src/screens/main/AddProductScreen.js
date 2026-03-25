@@ -402,7 +402,45 @@ export const AddProductScreen = ({ navigation }) => {
                       styles.currencyChip,
                       active ? styles.currencyChipActive : null,
                     ]}
-                    onPress={() => setCostCurrency(option.code)}
+                    onPress={() => {
+                      if (option.code === costCurrency) return;
+
+                      const rateFromSettings =
+                        Number(settings?.pricing?.currencies?.USD) || 0;
+                      const appliedRate =
+                        Number(exchangeRate) || rateFromSettings || 0;
+
+                      if (option.code === "Bs" && !appliedRate) {
+                        showAlert({
+                          title: "Tasa requerida",
+                          message:
+                            "Configura la tasa USD→VES para ingresar costos en VES.",
+                          type: "error",
+                        });
+                        return;
+                      }
+
+                      const parsedCost = parseFloat(cost);
+                      const parsedAdditional = parseFloat(additionalCost);
+
+                      if (appliedRate && !Number.isNaN(parsedCost)) {
+                        const factor =
+                          option.code === "Bs" ? appliedRate : 1 / appliedRate;
+                        setCost((parsedCost * factor).toFixed(2));
+
+                        // Mantener opcionalidad: si está vacío, no lo forzamos a 0.00
+                        if (additionalCost !== "") {
+                          setAdditionalCost(
+                            (Number.isNaN(parsedAdditional)
+                              ? 0
+                              : parsedAdditional * factor
+                            ).toFixed(2),
+                          );
+                        }
+                      }
+
+                      setCostCurrency(option.code);
+                    }}
                     activeOpacity={0.85}
                   >
                     <Text

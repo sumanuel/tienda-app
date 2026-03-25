@@ -418,7 +418,46 @@ export const EditProductScreen = ({ navigation, route }) => {
                       styles.currencyChip,
                       active ? styles.currencyChipActive : null,
                     ]}
-                    onPress={() => setCostCurrency(option.code)}
+                    onPress={() => {
+                      if (option.code === costCurrency) return;
+
+                      const rateFromSettings =
+                        Number(settings?.pricing?.currencies?.USD) || 0;
+                      const appliedRate =
+                        Number(exchangeRate) || rateFromSettings || 0;
+
+                      if (option.code === "Bs" && !appliedRate) {
+                        showAlert({
+                          title: "Tasa requerida",
+                          message:
+                            "Configura la tasa USD→VES para ingresar costos en VES.",
+                          type: "error",
+                        });
+                        return;
+                      }
+
+                      const parsedCost = parseFloat(cost);
+                      const parsedAdditional = parseFloat(additionalCost);
+
+                      const canConvert =
+                        appliedRate &&
+                        !Number.isNaN(parsedCost) &&
+                        (!additionalCost || !Number.isNaN(parsedAdditional));
+
+                      if (canConvert) {
+                        const factor =
+                          option.code === "Bs" ? appliedRate : 1 / appliedRate;
+                        setCost((parsedCost * factor).toFixed(2));
+                        setAdditionalCost(
+                          (Number.isNaN(parsedAdditional)
+                            ? 0
+                            : parsedAdditional * factor
+                          ).toFixed(2),
+                        );
+                      }
+
+                      setCostCurrency(option.code);
+                    }}
                     activeOpacity={0.85}
                   >
                     <Text
