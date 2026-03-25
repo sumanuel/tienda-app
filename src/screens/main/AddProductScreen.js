@@ -35,6 +35,7 @@ export const AddProductScreen = ({ navigation }) => {
 
   const [settings, setSettings] = useState({});
   const [cost, setCost] = useState("");
+  const [additionalCost, setAdditionalCost] = useState("");
   const [costCurrency, setCostCurrency] = useState("USD");
   const [margin, setMargin] = useState(30);
   const [calculatedPrices, setCalculatedPrices] = useState({
@@ -45,6 +46,7 @@ export const AddProductScreen = ({ navigation }) => {
   const nameRef = useRef(null);
   const categoryRef = useRef(null);
   const costRef = useRef(null);
+  const additionalCostRef = useRef(null);
   const marginRef = useRef(null);
   const stockRef = useRef(null);
   const descriptionRef = useRef(null);
@@ -65,8 +67,20 @@ export const AddProductScreen = ({ navigation }) => {
 
     if (cost && appliedRate) {
       const costValue = parseFloat(cost);
-      if (!Number.isNaN(costValue)) {
-        const sellingPriceInCostCurrency = costValue * (1 + margin / 100);
+      const additionalCostValue = additionalCost
+        ? parseFloat(additionalCost)
+        : 0;
+
+      const canUseAdditionalCost =
+        additionalCost === "" || !Number.isNaN(additionalCostValue);
+
+      if (!Number.isNaN(costValue) && canUseAdditionalCost) {
+        const totalCostInCostCurrency =
+          costValue +
+          (Number.isNaN(additionalCostValue) ? 0 : additionalCostValue);
+
+        const sellingPriceInCostCurrency =
+          totalCostInCostCurrency * (1 + margin / 100);
 
         let usdPrice = 0;
         let vesPrice = 0;
@@ -88,7 +102,7 @@ export const AddProductScreen = ({ navigation }) => {
     }
 
     setCalculatedPrices({ usd: "", ves: "" });
-  }, [cost, costCurrency, margin, settings, exchangeRate]);
+  }, [cost, additionalCost, costCurrency, margin, settings, exchangeRate]);
 
   const scrollToField = (ref) => {
     if (ref?.current && scrollViewRef?.current) {
@@ -148,6 +162,19 @@ export const AddProductScreen = ({ navigation }) => {
       return;
     }
 
+    if (
+      additionalCost !== "" &&
+      (Number.isNaN(parseFloat(additionalCost)) ||
+        parseFloat(additionalCost) < 0)
+    ) {
+      showAlert({
+        title: "Error",
+        message: "El costo adicional debe ser un número válido",
+        type: "error",
+      });
+      return;
+    }
+
     if (!calculatedPrices.usd || !calculatedPrices.ves) {
       showAlert({
         title: "Error",
@@ -168,12 +195,36 @@ export const AddProductScreen = ({ navigation }) => {
     }
 
     try {
+      const rateFromSettings = Number(settings?.pricing?.currencies?.USD) || 0;
+      const appliedRate = Number(exchangeRate) || rateFromSettings || 0;
+
+      const costInput = parseFloat(cost);
+      const additionalCostInput = additionalCost
+        ? parseFloat(additionalCost)
+        : 0;
+
+      const costUSD =
+        costCurrency === "USD"
+          ? costInput
+          : appliedRate
+            ? costInput / appliedRate
+            : 0;
+
+      const additionalCostUSD =
+        costCurrency === "USD"
+          ? additionalCostInput
+          : appliedRate
+            ? additionalCostInput / appliedRate
+            : 0;
+
       const productData = {
         name: formData.name.trim(),
         category: formData.category.trim() || "General",
-        cost: parseFloat(cost),
+        cost: costUSD,
+        additionalCost: additionalCostUSD,
         costCurrency,
         priceUSD: parseFloat(calculatedPrices.usd),
+        priceVES: parseFloat(calculatedPrices.ves),
         margin,
         stock: parseInt(formData.stock, 10),
         minStock: 0,
@@ -351,7 +402,45 @@ export const AddProductScreen = ({ navigation }) => {
                       styles.currencyChip,
                       active ? styles.currencyChipActive : null,
                     ]}
-                    onPress={() => setCostCurrency(option.code)}
+                    onPress={() => {
+                      if (option.code === costCurrency) return;
+
+                      const rateFromSettings =
+                        Number(settings?.pricing?.currencies?.USD) || 0;
+                      const appliedRate =
+                        Number(exchangeRate) || rateFromSettings || 0;
+
+                      if (option.code === "Bs" && !appliedRate) {
+                        showAlert({
+                          title: "Tasa requerida",
+                          message:
+                            "Configura la tasa USD→VES para ingresar costos en VES.",
+                          type: "error",
+                        });
+                        return;
+                      }
+
+                      const parsedCost = parseFloat(cost);
+                      const parsedAdditional = parseFloat(additionalCost);
+
+                      if (appliedRate && !Number.isNaN(parsedCost)) {
+                        const factor =
+                          option.code === "Bs" ? appliedRate : 1 / appliedRate;
+                        setCost((parsedCost * factor).toFixed(2));
+
+                        // Mantener opcionalidad: si está vacío, no lo forzamos a 0.00
+                        if (additionalCost !== "") {
+                          setAdditionalCost(
+                            (Number.isNaN(parsedAdditional)
+                              ? 0
+                              : parsedAdditional * factor
+                            ).toFixed(2),
+                          );
+                        }
+                      }
+
+                      setCostCurrency(option.code);
+                    }}
                     activeOpacity={0.85}
                   >
                     <Text
@@ -379,6 +468,22 @@ export const AddProductScreen = ({ navigation }) => {
                 keyboardType="decimal-pad"
                 returnKeyType="next"
                 onFocus={() => scrollToField(costRef)}
+                onSubmitEditing={() => additionalCostRef.current?.focus()}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Costo adicional (opcional)</Text>
+              <TextInput
+                ref={additionalCostRef}
+                style={styles.input}
+                placeholder="0.00"
+                placeholderTextColor="#9aa2b1"
+                value={additionalCost}
+                onChangeText={setAdditionalCost}
+                keyboardType="decimal-pad"
+                returnKeyType="next"
+                onFocus={() => scrollToField(additionalCostRef)}
                 onSubmitEditing={() => marginRef.current?.focus()}
               />
             </View>
