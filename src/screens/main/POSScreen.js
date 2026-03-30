@@ -42,11 +42,14 @@ import {
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
+const TOUR_ZONE_BASE = 0;
+const CART_TOUR_ZONE_BASE = 0;
+
 /**
  * Pantalla de punto de venta (POS)
  */
 export const POSScreen = ({ navigation }) => {
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start } = useTourGuideController("pos_v3");
   const [tourBooted, setTourBooted] = useState(false);
   const {
     products,
@@ -79,7 +82,7 @@ export const POSScreen = ({ navigation }) => {
 
   const CartTourBootstrapper = () => {
     const { canStart: canStartCart, start: startCart } =
-      useTourGuideController();
+      useTourGuideController("pos_cart_v2");
     const [booted, setBooted] = useState(false);
 
     useEffect(() => {
@@ -90,7 +93,7 @@ export const POSScreen = ({ navigation }) => {
         if (!showCart) return;
         if (!canStartCart) return;
 
-        const tourId = "pos_cart_v1";
+        const tourId = "pos_cart_v2";
         const seen = await hasSeenTour(tourId);
         if (!mounted) return;
 
@@ -149,7 +152,7 @@ export const POSScreen = ({ navigation }) => {
       if (!canStart) return;
       if (showCart) return;
 
-      const tourId = "pos_v2";
+      const tourId = "pos_v3";
       const seen = await hasSeenTour(tourId);
       if (!mounted) return;
 
@@ -749,7 +752,8 @@ export const POSScreen = ({ navigation }) => {
 
     return (
       <TourGuideZone
-        zone={2}
+        tourKey="pos_v3"
+        zone={TOUR_ZONE_BASE + 2}
         text={"Presiona un producto para agregarlo al carrito."}
         borderRadius={borderRadius.lg}
       >
@@ -837,7 +841,8 @@ export const POSScreen = ({ navigation }) => {
               </View>
 
               <TourGuideZone
-                zone={1}
+                tourKey="pos_v3"
+                zone={TOUR_ZONE_BASE + 1}
                 text={"Busca productos para vender rápidamente."}
                 borderRadius={borderRadius.lg}
                 style={styles.searchCard}
@@ -874,7 +879,8 @@ export const POSScreen = ({ navigation }) => {
 
         <View style={styles.cartSummary}>
           <TourGuideZone
-            zone={3}
+            tourKey="pos_v3"
+            zone={TOUR_ZONE_BASE + 3}
             text={"Presiona 'Ver carrito' para cobrar y completar la venta."}
             borderRadius={borderRadius.lg}
           >
@@ -925,7 +931,8 @@ export const POSScreen = ({ navigation }) => {
               <ScrollView style={styles.modalContent} ref={scrollViewRef}>
                 {/* Información del cliente */}
                 <TourGuideZone
-                  zone={1}
+                  tourKey="pos_cart_v2"
+                  zone={CART_TOUR_ZONE_BASE + 1}
                   text={
                     "En la sección 'Cliente' puedes usar la cédula 1 para una venta rápida (Cliente genérico). Nota: con ese cliente no se permite pagar 'Por Cobrar'."
                   }
@@ -1067,7 +1074,8 @@ export const POSScreen = ({ navigation }) => {
                         </Text>
                       </TouchableOpacity>
                       <TourGuideZone
-                        zone={2}
+                        tourKey="pos_cart_v2"
+                        zone={CART_TOUR_ZONE_BASE + 2}
                         text={
                           "Si deseas crear una cuenta por cobrar, selecciona el tipo de pago 'Por Cobrar'. La app la genera automáticamente al completar la venta."
                         }
@@ -1137,7 +1145,8 @@ export const POSScreen = ({ navigation }) => {
                   </TouchableOpacity>
 
                   <TourGuideZone
-                    zone={3}
+                    tourKey="pos_cart_v2"
+                    zone={CART_TOUR_ZONE_BASE + 3}
                     text={
                       "Completa la venta. Si elegiste 'Por Cobrar', se creará la cuenta por cobrar automáticamente."
                     }

@@ -12,7 +12,7 @@ import {
   Modal,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
@@ -35,7 +35,8 @@ import {
  */
 export const SalesScreen = () => {
   const navigation = useNavigation();
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } = useTourGuideController("sales");
+  const TOUR_ZONE_BASE = 4000;
   const [tourBooted, setTourBooted] = useState(false);
   const {
     sales,
@@ -430,7 +431,7 @@ export const SalesScreen = () => {
               </View>
 
               <TourGuideZone
-                zone={1}
+                zone={TOUR_ZONE_BASE + 1}
                 text={
                   "Cambia entre ventas de hoy y el histórico por rango de fechas."
                 }
@@ -567,8 +568,8 @@ export const SalesScreen = () => {
         />
 
         <TourGuideZone
-          zone={2}
-          text={"Abre los totales del rango seleccionado."}
+          zone={TOUR_ZONE_BASE + 2}
+          text={"Abre los totales del rango presionando '$' seleccionado."}
           shape="circle"
         >
           <TouchableOpacity

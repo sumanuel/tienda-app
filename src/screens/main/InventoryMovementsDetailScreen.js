@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
   getProductByBarcode,
@@ -28,7 +28,10 @@ import {
 
 export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } = useTourGuideController(
+    "inventoryMovementsDetail",
+  );
+  const TOUR_ZONE_BASE = 5100;
   const [tourBooted, setTourBooted] = useState(false);
   const { showAlert, CustomAlert } = useCustomAlert();
   const [product, setProduct] = useState(route.params?.product || null);
@@ -266,7 +269,7 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
         </View>
 
         <TourGuideZone
-          zone={1}
+          zone={TOUR_ZONE_BASE + 1}
           text={
             "Aquí verás el historial de entradas y salidas, con su fecha y cómo cambió el stock."
           }
@@ -289,7 +292,7 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
 
       {product && (
         <TourGuideZone
-          zone={2}
+          zone={TOUR_ZONE_BASE + 2}
           text={"Registra una nueva entrada o salida de inventario."}
           shape="circle"
         >

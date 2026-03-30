@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import {
   updateProduct,
   updateProductStock,
@@ -32,7 +32,9 @@ import {
 
 export const AddInventoryEntryScreen = ({ navigation, route }) => {
   const { product } = route.params;
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } =
+    useTourGuideController("inventoryEntry");
+  const TOUR_ZONE_BASE = 5200;
   const [tourBooted, setTourBooted] = useState(false);
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
@@ -323,7 +325,7 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
 
           <View style={styles.formCard}>
             <TourGuideZone
-              zone={1}
+              zone={TOUR_ZONE_BASE + 1}
               text={
                 "En 'Cantidad a agregar' indica cuántas unidades vas a sumar al inventario."
               }
@@ -346,7 +348,7 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
             </TourGuideZone>
 
             <TourGuideZone
-              zone={2}
+              zone={TOUR_ZONE_BASE + 2}
               text={
                 "Aquí eliges la moneda del costo y puedes ajustar costo, costo adicional y margen."
               }
@@ -524,7 +526,7 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
               <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
             <TourGuideZone
-              zone={3}
+              zone={TOUR_ZONE_BASE + 3}
               text={"Guarda la entrada de inventario y actualiza el stock."}
               shape="rectangle"
               borderRadius={borderRadius.lg}

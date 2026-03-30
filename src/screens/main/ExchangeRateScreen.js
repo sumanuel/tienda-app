@@ -12,7 +12,7 @@ import {
   Platform,
   Keyboard,
 } from "react-native";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import RateDisplay from "../../components/exchange/RateDisplay";
 import CurrencyConverter from "../../components/exchange/CurrencyConverter";
@@ -32,7 +32,9 @@ export const ExchangeRateScreen = () => {
   const { rate, lastUpdate, setManualRate } = useExchangeRate({
     autoUpdate: false,
   });
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } =
+    useTourGuideController("exchangeRate");
+  const TOUR_ZONE_BASE = 5400;
   const [tourBooted, setTourBooted] = useState(false);
   const { showAlert, CustomAlert } = useCustomAlert();
   const [manualValue, setManualValue] = useState("0");
@@ -163,7 +165,7 @@ export const ExchangeRateScreen = () => {
           </View>
 
           <TourGuideZone
-            zone={1}
+            zone={TOUR_ZONE_BASE + 1}
             text={
               "Esta es la tasa que usará la app para convertir USD↔VES en precios, ventas y reportes."
             }
@@ -180,7 +182,7 @@ export const ExchangeRateScreen = () => {
           </TourGuideZone>
 
           <TourGuideZone
-            zone={2}
+            zone={TOUR_ZONE_BASE + 2}
             text={
               "Si necesitas una tasa distinta (por ejemplo, acordada), puedes guardarla manualmente aquí."
             }
@@ -211,7 +213,7 @@ export const ExchangeRateScreen = () => {
               </View>
 
               <TourGuideZone
-                zone={3}
+                zone={TOUR_ZONE_BASE + 3}
                 text={"Presiona 'Guardar tasa manual' para guardar la tasa."}
                 borderRadius={borderRadius.lg}
               >
@@ -240,7 +242,7 @@ export const ExchangeRateScreen = () => {
           </TourGuideZone>
 
           <TourGuideZone
-            zone={4}
+            zone={TOUR_ZONE_BASE + 4}
             text={
               "Usa el conversor para comprobar equivalencias rápidas entre USD y VES."
             }

@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -10,7 +16,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -27,7 +33,9 @@ import {
 
 export const AccountsPayableScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } =
+    useTourGuideController("accountsPayable");
+  const TOUR_ZONE_BASE = 6200;
   const [tourBooted, setTourBooted] = useState(false);
   const {
     accountsPayable,
@@ -49,22 +57,25 @@ export const AccountsPayableScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
 
+  const previousQueryRef = useRef("");
+
   useEffect(() => {
-    let cancelled = false;
     const query = (searchQuery || "").trim();
+    const previousQuery = previousQueryRef.current;
+    previousQueryRef.current = query;
 
     const timeoutId = setTimeout(() => {
-      if (cancelled) return;
-
       if (!query) {
-        refresh();
-      } else {
-        searchPayable(query);
+        if (previousQuery) {
+          refresh();
+        }
+        return;
       }
+
+      searchPayable(query);
     }, 250);
 
     return () => {
-      cancelled = true;
       clearTimeout(timeoutId);
     };
   }, [searchQuery, refresh, searchPayable]);
@@ -76,7 +87,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
       if (tourBooted) return;
       if (!canStart) return;
 
-      const tourId = "accountsPayable";
+      const tourId = "accountsPayable_v2";
       const seen = await hasSeenTour(tourId);
       if (!mounted) return;
 
@@ -406,7 +417,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
   const header = (
     <View>
       <TourGuideZone
-        zone={1}
+        zone={TOUR_ZONE_BASE + 1}
         text={
           "Aquí ves el total. Usa 'Buscar cuentas…' para filtrar por proveedor, factura o concepto."
         }
@@ -443,7 +454,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
       </View>
 
       <TourGuideZone
-        zone={2}
+        zone={TOUR_ZONE_BASE + 2}
         text={"Filtra entre cuentas pendientes y pagadas."}
         borderRadius={borderRadius.md}
         style={styles.tabGroup}
@@ -535,7 +546,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
       />
 
       <TourGuideZone
-        zone={3}
+        zone={TOUR_ZONE_BASE + 3}
         text={"Presiona '+' para crear una nueva cuenta por pagar."}
         shape="circle"
       >

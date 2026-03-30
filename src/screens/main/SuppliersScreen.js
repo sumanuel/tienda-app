@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import { getAllAccountsPayable } from "../../services/database/accounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -27,7 +27,9 @@ import {
 export const SuppliersScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } =
+    useTourGuideController("suppliers");
+  const TOUR_ZONE_BASE = 3000;
   const { suppliers, loading, error, search, removeSupplier, refresh } =
     useSuppliers();
   const { showAlert, CustomAlert } = useCustomAlert();
@@ -217,7 +219,7 @@ export const SuppliersScreen = () => {
       </View>
 
       <TourGuideZone
-        zone={1}
+        zone={TOUR_ZONE_BASE + 1}
         text={
           "Usa 'Buscar proveedor' (Nombre, RIF o contacto) para encontrarlo rápidamente."
         }
@@ -288,7 +290,7 @@ export const SuppliersScreen = () => {
       />
 
       <TourGuideZone
-        zone={2}
+        zone={TOUR_ZONE_BASE + 2}
         text={"Presiona '+' para registrar un nuevo proveedor."}
         shape="circle"
       >
