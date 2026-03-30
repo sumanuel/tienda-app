@@ -898,8 +898,10 @@ export const POSScreen = ({ navigation }) => {
           onRequestClose={() => setShowCart(false)}
         >
           <TourGuideProvider
-            backdropColor="rgba(0,0,0,0)"
+            backdropColor="rgba(0,0,0,0.001)"
             tooltipComponent={TourTooltip}
+            preventOutsideInteraction={false}
+            dismissOnPress
           >
             <CartTourBootstrapper />
             <View style={styles.modalContainer}>

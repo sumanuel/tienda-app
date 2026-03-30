@@ -25,8 +25,9 @@ export const searchAccountsReceivable = async (query) => {
        WHERE customerName LIKE ? 
        OR documentNumber LIKE ? 
        OR description LIKE ?
+       OR invoiceNumber LIKE ?
        ORDER BY ar.createdAt DESC;`,
-      [searchTerm, searchTerm, searchTerm],
+      [searchTerm, searchTerm, searchTerm, searchTerm],
     );
     return result;
   } catch (error) {

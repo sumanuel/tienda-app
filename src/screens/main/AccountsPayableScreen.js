@@ -50,6 +50,26 @@ export const AccountsPayableScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState("pending");
 
   useEffect(() => {
+    let cancelled = false;
+    const query = (searchQuery || "").trim();
+
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return;
+
+      if (!query) {
+        refresh();
+      } else {
+        searchPayable(query);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [searchQuery, refresh, searchPayable]);
+
+  useEffect(() => {
     let mounted = true;
 
     const maybeStartTour = async () => {
@@ -76,18 +96,6 @@ export const AccountsPayableScreen = ({ navigation }) => {
       mounted = false;
     };
   }, [canStart, start, tourBooted]);
-
-  const handleSearch = useCallback(
-    async (query) => {
-      setSearchQuery(query);
-      if (!query.trim()) {
-        await refresh();
-      } else {
-        await searchPayable(query);
-      }
-    },
-    [refresh, searchPayable],
-  );
 
   const openAddScreen = useCallback(() => {
     navigation.navigate("AddAccountPayable");
@@ -397,40 +405,42 @@ export const AccountsPayableScreen = ({ navigation }) => {
 
   const header = (
     <View>
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryHeader}>
-          <View style={styles.summaryIcon}>
-            <Text style={styles.summaryIconText}>📤</Text>
-          </View>
-          <View>
-            <Text style={styles.summaryTitle}>
-              Cuentas por Pagar ({totalCount})
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.summaryAmount}>
-          {formatCurrency(totalAmount, "VES")}
-        </Text>
-      </View>
-
       <TourGuideZone
         zone={1}
         text={
-          "Usa 'Buscar cuentas…' para filtrar por proveedor, factura o concepto."
+          "Aquí ves el total. Usa 'Buscar cuentas…' para filtrar por proveedor, factura o concepto."
         }
         borderRadius={borderRadius.lg}
-        style={styles.controlsCard}
+        style={styles.summaryCard}
       >
+        <View>
+          <View style={styles.summaryHeader}>
+            <View style={styles.summaryIcon}>
+              <Text style={styles.summaryIconText}>📤</Text>
+            </View>
+            <View>
+              <Text style={styles.summaryTitle}>
+                Cuentas por Pagar ({totalCount})
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.summaryAmount}>
+            {formatCurrency(totalAmount, "VES")}
+          </Text>
+        </View>
+      </TourGuideZone>
+
+      <View style={styles.controlsCard}>
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar cuentas..."
           placeholderTextColor="#9aa6b5"
           value={searchQuery}
-          onChangeText={handleSearch}
+          onChangeText={setSearchQuery}
           returnKeyType="search"
         />
-      </TourGuideZone>
+      </View>
 
       <TourGuideZone
         zone={2}
