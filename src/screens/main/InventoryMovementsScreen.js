@@ -115,7 +115,7 @@ export const InventoryMovementsScreen = ({ navigation }) => {
     return (
       <TourGuideZone
         zone={2}
-        text={"Toca un producto para ver su historial de movimientos."}
+        text={"Presiona un producto para ver su historial de movimientos."}
         borderRadius={borderRadius.lg}
       >
         {card}
@@ -166,29 +166,31 @@ export const InventoryMovementsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <View style={styles.searchCard}>
-          <TourGuideZone
-            zone={1}
-            text={
-              "Busca el producto para ver sus entradas y salidas de inventario."
-            }
-            borderRadius={borderRadius.lg}
-            style={styles.inputContainer}
-          >
-            <TextInput
-              style={styles.textInput}
-              placeholder="Buscar por nombre, categoría o código"
-              placeholderTextColor="#9aa6b5"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="done"
-              autoCapitalize="none"
-            />
-          </TourGuideZone>
-          {!!productsError && (
-            <Text style={styles.errorText}>{productsError}</Text>
-          )}
-        </View>
+        <TourGuideZone
+          zone={1}
+          text={
+            "En 'Buscar por nombre, categoría o código' filtra el producto para revisar sus entradas y salidas."
+          }
+          borderRadius={borderRadius.lg}
+          style={styles.searchCard}
+        >
+          <View>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Buscar por nombre, categoría o código"
+                placeholderTextColor="#9aa6b5"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="done"
+                autoCapitalize="none"
+              />
+            </View>
+            {!!productsError && (
+              <Text style={styles.errorText}>{productsError}</Text>
+            )}
+          </View>
+        </TourGuideZone>
 
         {productsLoading && (
           <View style={styles.loadingContainer}>

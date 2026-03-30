@@ -301,22 +301,23 @@ export const ProductsScreen = ({ navigation }) => {
         </View>
       </View>
 
-      <View style={styles.searchCard}>
-        <View style={styles.searchHeader}>
-          <Text style={styles.searchTitle}>Buscar producto</Text>
-          {metrics.rateUsed ? (
-            <Text style={styles.rateBadge}>
-              Tasa {metrics.rateUsed.toFixed(2)}
-            </Text>
-          ) : null}
-        </View>
-        <TourGuideZone
-          zone={1}
-          text={
-            "Aquí puedes buscar por nombre, categoría o referencia del producto."
-          }
-          borderRadius={borderRadius.lg}
-        >
+      <TourGuideZone
+        zone={1}
+        text={
+          "Usa 'Buscar producto' (Nombre, categoría o referencia) para encontrar un producto rápidamente."
+        }
+        borderRadius={borderRadius.lg}
+        style={styles.searchCard}
+      >
+        <View>
+          <View style={styles.searchHeader}>
+            <Text style={styles.searchTitle}>Buscar producto</Text>
+            {metrics.rateUsed ? (
+              <Text style={styles.rateBadge}>
+                Tasa {metrics.rateUsed.toFixed(2)}
+              </Text>
+            ) : null}
+          </View>
           <View style={styles.tourFlex}>
             <TextInput
               style={styles.searchInput}
@@ -326,8 +327,8 @@ export const ProductsScreen = ({ navigation }) => {
               placeholderTextColor="#9aa2b1"
             />
           </View>
-        </TourGuideZone>
-      </View>
+        </View>
+      </TourGuideZone>
     </View>
   );
 
@@ -358,7 +359,7 @@ export const ProductsScreen = ({ navigation }) => {
 
         <TourGuideZone
           zone={2}
-          text={"Toca aquí para registrar un nuevo producto."}
+          text={"Presiona '+' para registrar un nuevo producto."}
           shape="circle"
         >
           <TouchableOpacity

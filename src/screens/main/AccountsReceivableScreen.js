@@ -477,7 +477,9 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 
       <TourGuideZone
         zone={1}
-        text={"Busca cuentas por cliente, factura o concepto."}
+        text={
+          "Usa 'Buscar cuentas…' para filtrar por cliente, factura o concepto."
+        }
         borderRadius={borderRadius.lg}
         style={styles.controlsCard}
       >
@@ -585,7 +587,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 
       <TourGuideZone
         zone={3}
-        text={"Crea una nueva cuenta por cobrar."}
+        text={"Presiona '+' para crear una nueva cuenta por cobrar."}
         shape="circle"
       >
         <TouchableOpacity

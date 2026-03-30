@@ -212,7 +212,7 @@ export const ExchangeRateScreen = () => {
 
               <TourGuideZone
                 zone={3}
-                text={"Toca aquí para guardar la tasa manual."}
+                text={"Presiona 'Guardar tasa manual' para guardar la tasa."}
                 borderRadius={borderRadius.lg}
               >
                 <TouchableOpacity

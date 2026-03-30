@@ -750,7 +750,7 @@ export const POSScreen = ({ navigation }) => {
     return (
       <TourGuideZone
         zone={2}
-        text={"Toca un producto para agregarlo al carrito."}
+        text={"Presiona un producto para agregarlo al carrito."}
         borderRadius={borderRadius.lg}
       >
         {card}
@@ -875,7 +875,7 @@ export const POSScreen = ({ navigation }) => {
         <View style={styles.cartSummary}>
           <TourGuideZone
             zone={3}
-            text={"Abre el carrito para cobrar y completar la venta."}
+            text={"Presiona 'Ver carrito' para cobrar y completar la venta."}
             borderRadius={borderRadius.lg}
           >
             <TouchableOpacity
@@ -898,7 +898,7 @@ export const POSScreen = ({ navigation }) => {
           onRequestClose={() => setShowCart(false)}
         >
           <TourGuideProvider
-            backdropColor="rgba(0,0,0,0.65)"
+            backdropColor="rgba(0,0,0,0)"
             tooltipComponent={TourTooltip}
           >
             <CartTourBootstrapper />
@@ -922,37 +922,36 @@ export const POSScreen = ({ navigation }) => {
 
               <ScrollView style={styles.modalContent} ref={scrollViewRef}>
                 {/* Información del cliente */}
-                <View style={styles.customerSection}>
-                  <Text style={styles.sectionTitle}>👤 Cliente</Text>
-                  <TourGuideZone
-                    zone={1}
-                    text={
-                      "Para una venta rápida puedes usar la cédula 1 (Cliente genérico). Nota: con ese cliente no se permite pagar 'Por Cobrar'."
-                    }
-                    borderRadius={borderRadius.lg}
-                  >
-                    <View>
-                      <TextInput
-                        style={styles.customerInput}
-                        placeholder="Cédula del cliente (obligatorio)*"
-                        value={customerDocument}
-                        onChangeText={(text) => {
-                          // Solo permitir números
-                          const numericText = text.replace(/[^0-9]/g, "");
-                          setCustomerDocument(numericText);
-                        }}
-                        keyboardType="numeric"
-                        maxLength={10}
-                        placeholderTextColor="#999"
-                      />
-                    </View>
-                  </TourGuideZone>
-                  {customerDocument === "1" && (
-                    <Text style={styles.genericCustomerText}>
-                      Cliente genérico para operaciones rápidas
-                    </Text>
-                  )}
-                </View>
+                <TourGuideZone
+                  zone={1}
+                  text={
+                    "En la sección 'Cliente' puedes usar la cédula 1 para una venta rápida (Cliente genérico). Nota: con ese cliente no se permite pagar 'Por Cobrar'."
+                  }
+                  borderRadius={borderRadius.lg}
+                  style={styles.customerSection}
+                >
+                  <View>
+                    <Text style={styles.sectionTitle}>👤 Cliente</Text>
+                    <TextInput
+                      style={styles.customerInput}
+                      placeholder="Cédula del cliente (obligatorio)*"
+                      value={customerDocument}
+                      onChangeText={(text) => {
+                        // Solo permitir números
+                        const numericText = text.replace(/[^0-9]/g, "");
+                        setCustomerDocument(numericText);
+                      }}
+                      keyboardType="numeric"
+                      maxLength={10}
+                      placeholderTextColor="#999"
+                    />
+                    {customerDocument === "1" && (
+                      <Text style={styles.genericCustomerText}>
+                        Cliente genérico para operaciones rápidas
+                      </Text>
+                    )}
+                  </View>
+                </TourGuideZone>
 
                 {/* Items del carrito */}
                 <View style={styles.cartItemsSection}>

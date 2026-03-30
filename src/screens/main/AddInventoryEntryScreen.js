@@ -322,15 +322,15 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.formCard}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Cantidad a agregar</Text>
-              <TourGuideZone
-                zone={1}
-                text={
-                  "Indica cuántas unidades vas a agregar al inventario del producto."
-                }
-                borderRadius={borderRadius.lg}
-              >
+            <TourGuideZone
+              zone={1}
+              text={
+                "En 'Cantidad a agregar' indica cuántas unidades vas a sumar al inventario."
+              }
+              borderRadius={borderRadius.lg}
+            >
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Cantidad a agregar</Text>
                 <TextInput
                   style={styles.textInput}
                   placeholder="Ej: 10"
@@ -342,8 +342,8 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
                   keyboardType="numeric"
                   returnKeyType="next"
                 />
-              </TourGuideZone>
-            </View>
+              </View>
+            </TourGuideZone>
 
             <TourGuideZone
               zone={2}

@@ -128,15 +128,15 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
         </View>
 
         <View style={styles.formCard}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Cantidad a sacar</Text>
-            <TourGuideZone
-              zone={1}
-              text={
-                "Indica cuántas unidades vas a sacar del inventario del producto."
-              }
-              borderRadius={borderRadius.lg}
-            >
+          <TourGuideZone
+            zone={1}
+            text={
+              "En 'Cantidad a sacar' indica cuántas unidades vas a descontar del inventario."
+            }
+            borderRadius={borderRadius.lg}
+          >
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Cantidad a sacar</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="Ej: 1"
@@ -146,8 +146,8 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
                 keyboardType="numeric"
                 returnKeyType="next"
               />
-            </TourGuideZone>
-          </View>
+            </View>
+          </TourGuideZone>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Notas (opcional)</Text>

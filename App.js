@@ -814,7 +814,7 @@ export default function App() {
     <>
       <StatusBar hidden translucent />
       <TourGuideProvider
-        backdropColor="rgba(0,0,0,0.65)"
+        backdropColor="rgba(0,0,0,0)"
         tooltipComponent={TourTooltip}
       >
         <ExchangeRateProvider>

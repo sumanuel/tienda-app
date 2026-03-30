@@ -416,7 +416,9 @@ export const AccountsPayableScreen = ({ navigation }) => {
 
       <TourGuideZone
         zone={1}
-        text={"Busca cuentas por proveedor, factura o concepto."}
+        text={
+          "Usa 'Buscar cuentas…' para filtrar por proveedor, factura o concepto."
+        }
         borderRadius={borderRadius.lg}
         style={styles.controlsCard}
       >
@@ -524,7 +526,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
 
       <TourGuideZone
         zone={3}
-        text={"Crea una nueva cuenta por pagar."}
+        text={"Presiona '+' para crear una nueva cuenta por pagar."}
         shape="circle"
       >
         <TouchableOpacity

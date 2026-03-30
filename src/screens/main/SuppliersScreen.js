@@ -216,15 +216,16 @@ export const SuppliersScreen = () => {
         </View>
       </View>
 
-      <View style={styles.searchCard}>
-        <Text style={styles.searchTitle}>Buscar proveedor</Text>
-        <TourGuideZone
-          zone={1}
-          text={
-            "Busca proveedores por nombre, RIF o contacto para encontrarlos rápido."
-          }
-          borderRadius={borderRadius.lg}
-        >
+      <TourGuideZone
+        zone={1}
+        text={
+          "Usa 'Buscar proveedor' (Nombre, RIF o contacto) para encontrarlo rápidamente."
+        }
+        borderRadius={borderRadius.lg}
+        style={styles.searchCard}
+      >
+        <View>
+          <Text style={styles.searchTitle}>Buscar proveedor</Text>
           <TextInput
             style={styles.searchInput}
             placeholder="Nombre, RIF o contacto"
@@ -232,8 +233,8 @@ export const SuppliersScreen = () => {
             onChangeText={handleSearch}
             placeholderTextColor="#9aa2b1"
           />
-        </TourGuideZone>
-      </View>
+        </View>
+      </TourGuideZone>
     </View>
   );
 
@@ -288,7 +289,7 @@ export const SuppliersScreen = () => {
 
       <TourGuideZone
         zone={2}
-        text={"Toca aquí para registrar un nuevo proveedor."}
+        text={"Presiona '+' para registrar un nuevo proveedor."}
         shape="circle"
       >
         <TouchableOpacity

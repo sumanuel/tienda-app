@@ -333,15 +333,16 @@ export const CustomersScreen = () => {
         </View>
       </View>
 
-      <View style={styles.searchCard}>
-        <Text style={styles.searchTitle}>Buscar cliente</Text>
-        <TourGuideZone
-          zone={1}
-          text={
-            "Busca clientes por nombre, cédula o contacto para encontrarlos rápido."
-          }
-          borderRadius={borderRadius.lg}
-        >
+      <TourGuideZone
+        zone={1}
+        text={
+          "Usa 'Buscar cliente' (Nombre, cédula o contacto) para encontrarlo rápidamente."
+        }
+        borderRadius={borderRadius.lg}
+        style={styles.searchCard}
+      >
+        <View>
+          <Text style={styles.searchTitle}>Buscar cliente</Text>
           <TextInput
             style={styles.searchInput}
             placeholder="Nombre, cédula o contacto"
@@ -349,8 +350,8 @@ export const CustomersScreen = () => {
             onChangeText={handleSearch}
             placeholderTextColor="#9aa2b1"
           />
-        </TourGuideZone>
-      </View>
+        </View>
+      </TourGuideZone>
 
       {/* <View style={styles.actionsCard}>
         <View style={styles.actionsRow}>
@@ -427,7 +428,7 @@ export const CustomersScreen = () => {
 
       <TourGuideZone
         zone={2}
-        text={"Toca aquí para registrar un nuevo cliente."}
+        text={"Presiona '+' para registrar un nuevo cliente."}
         shape="circle"
       >
         <TouchableOpacity
