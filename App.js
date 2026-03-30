@@ -4,6 +4,7 @@ import {
   createNavigationContainerRef,
 } from "@react-navigation/native";
 import { TourGuideProvider } from "rn-tourguide";
+import TourTooltip from "./src/components/tour/TourTooltip";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import {
@@ -102,61 +103,6 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const navigationRef = createNavigationContainerRef();
-
-const TourTooltip = ({
-  isFirstStep,
-  isLastStep,
-  handleNext,
-  handlePrev,
-  handleStop,
-  currentStep,
-}) => {
-  return (
-    <View style={tourTooltipStyles.card}>
-      <Text style={tourTooltipStyles.text}>{currentStep?.text || ""}</Text>
-
-      <View style={tourTooltipStyles.actions}>
-        <TouchableOpacity
-          onPress={handleStop}
-          activeOpacity={0.85}
-          style={tourTooltipStyles.actionBtn}
-        >
-          <Text style={tourTooltipStyles.actionText}>Skip</Text>
-        </TouchableOpacity>
-
-        <View style={tourTooltipStyles.actionsRight}>
-          {!isFirstStep ? (
-            <TouchableOpacity
-              onPress={handlePrev}
-              activeOpacity={0.85}
-              style={tourTooltipStyles.actionBtn}
-            >
-              <Text style={tourTooltipStyles.actionText}>Previous</Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {!isLastStep ? (
-            <TouchableOpacity
-              onPress={handleNext}
-              activeOpacity={0.85}
-              style={tourTooltipStyles.actionBtn}
-            >
-              <Text style={tourTooltipStyles.actionText}>Next</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={handleStop}
-              activeOpacity={0.85}
-              style={tourTooltipStyles.actionBtn}
-            >
-              <Text style={tourTooltipStyles.actionText}>Done</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </View>
-  );
-};
 
 /**
  * Tabs de navegación principal
@@ -1449,48 +1395,3 @@ export default function App() {
     </>
   );
 }
-
-const tourTooltipStyles = StyleSheet.create({
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    minWidth: 260,
-    maxWidth: 320,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.08)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 10,
-  },
-  text: {
-    color: "#1f2633",
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  actions: {
-    marginTop: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  actionsRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  actionBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-  },
-  actionText: {
-    color: "#2f5ae0",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-});

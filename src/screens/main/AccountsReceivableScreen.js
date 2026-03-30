@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,10 +10,12 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -26,6 +28,8 @@ import {
 
 export const AccountsReceivableScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
   const {
     accountsReceivable,
     loading,
@@ -46,6 +50,34 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "accountsReceivable";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
 
   const buildReceivableWhatsAppText = useCallback((account) => {
     const customerName = account?.customerName || "Cliente";
@@ -443,7 +475,12 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         </Text>
       </View>
 
-      <View style={styles.controlsCard}>
+      <TourGuideZone
+        zone={1}
+        text={"Busca cuentas por cliente, factura o concepto."}
+        borderRadius={borderRadius.lg}
+        style={styles.controlsCard}
+      >
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar cuentas..."
@@ -452,9 +489,14 @@ export const AccountsReceivableScreen = ({ navigation }) => {
           onChangeText={handleSearch}
           returnKeyType="search"
         />
-      </View>
+      </TourGuideZone>
 
-      <View style={styles.tabGroup}>
+      <TourGuideZone
+        zone={2}
+        text={"Filtra entre cuentas pendientes y pagadas."}
+        borderRadius={borderRadius.md}
+        style={styles.tabGroup}
+      >
         {[
           { key: "pending", label: "Pendientes" },
           { key: "paid", label: "Pagadas" },
@@ -475,7 +517,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </TourGuideZone>
     </View>
   );
 
@@ -541,13 +583,19 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         onRefresh={refresh}
       />
 
-      <TouchableOpacity
-        style={[styles.fab, { bottom: fabBottom }]}
-        onPress={openAddScreen}
-        activeOpacity={0.85}
+      <TourGuideZone
+        zone={3}
+        text={"Crea una nueva cuenta por cobrar."}
+        shape="circle"
       >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fab, { bottom: fabBottom }]}
+          onPress={openAddScreen}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      </TourGuideZone>
       <CustomAlert />
     </View>
   );

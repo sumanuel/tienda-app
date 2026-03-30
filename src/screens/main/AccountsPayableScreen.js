@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -25,6 +27,8 @@ import {
 
 export const AccountsPayableScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
   const {
     accountsPayable,
     loading,
@@ -45,6 +49,34 @@ export const AccountsPayableScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
 
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "accountsPayable";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
+
   const handleSearch = useCallback(
     async (query) => {
       setSearchQuery(query);
@@ -54,7 +86,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
         await searchPayable(query);
       }
     },
-    [refresh, searchPayable]
+    [refresh, searchPayable],
   );
 
   const openAddScreen = useCallback(() => {
@@ -65,7 +97,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
     (account) => {
       navigation.navigate("EditAccountPayable", { account });
     },
-    [navigation]
+    [navigation],
   );
 
   const handleMarkAsPaid = useCallback(
@@ -101,7 +133,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
         ],
       });
     },
-    [markPayableAsPaid, showAlert]
+    [markPayableAsPaid, showAlert],
   );
 
   const handleDelete = useCallback(
@@ -136,7 +168,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
         ],
       });
     },
-    [removeAccountPayable, showAlert]
+    [removeAccountPayable, showAlert],
   );
 
   const totalAmount = payableStats?.totalAmount || 0;
@@ -184,7 +216,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
         color: "#ef6c00",
       };
     },
-    []
+    [],
   );
 
   // Filtrar cuentas basado en el tab activo
@@ -207,14 +239,14 @@ export const AccountsPayableScreen = ({ navigation }) => {
     (account) => {
       navigation.navigate("RecordPaymentPayable", { account });
     },
-    [navigation]
+    [navigation],
   );
 
   const openPaymentHistoryScreen = useCallback(
     (account) => {
       navigation.navigate("PaymentHistoryPayable", { account });
     },
-    [navigation]
+    [navigation],
   );
 
   const renderAccount = useCallback(
@@ -223,7 +255,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
         item.status,
         item.dueDate,
         item.paidAmount || 0,
-        item.amount
+        item.amount,
       );
 
       return (
@@ -257,14 +289,14 @@ export const AccountsPayableScreen = ({ navigation }) => {
                     Pagado:{" "}
                     {formatCurrency(
                       item.paidAmount || 0,
-                      item.baseCurrency || "VES"
+                      item.baseCurrency || "VES",
                     )}
                   </Text>
                   <Text style={styles.pendingText}>
                     Pendiente:{" "}
                     {formatCurrency(
                       Math.max(0, (item.amount || 0) - (item.paidAmount || 0)),
-                      item.baseCurrency || "VES"
+                      item.baseCurrency || "VES",
                     )}
                   </Text>
                 </View>
@@ -360,7 +392,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
       openRecordPaymentScreen,
       openPaymentHistoryScreen,
       openEditScreen,
-    ]
+    ],
   );
 
   const header = (
@@ -382,7 +414,12 @@ export const AccountsPayableScreen = ({ navigation }) => {
         </Text>
       </View>
 
-      <View style={styles.controlsCard}>
+      <TourGuideZone
+        zone={1}
+        text={"Busca cuentas por proveedor, factura o concepto."}
+        borderRadius={borderRadius.lg}
+        style={styles.controlsCard}
+      >
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar cuentas..."
@@ -391,9 +428,14 @@ export const AccountsPayableScreen = ({ navigation }) => {
           onChangeText={handleSearch}
           returnKeyType="search"
         />
-      </View>
+      </TourGuideZone>
 
-      <View style={styles.tabGroup}>
+      <TourGuideZone
+        zone={2}
+        text={"Filtra entre cuentas pendientes y pagadas."}
+        borderRadius={borderRadius.md}
+        style={styles.tabGroup}
+      >
         {[
           { key: "pending", label: "Pendientes" },
           { key: "paid", label: "Pagadas" },
@@ -414,7 +456,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </TourGuideZone>
     </View>
   );
 
@@ -437,7 +479,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       refresh();
-    }, [refresh])
+    }, [refresh]),
   );
 
   if (loading) {
@@ -480,13 +522,19 @@ export const AccountsPayableScreen = ({ navigation }) => {
         onRefresh={refresh}
       />
 
-      <TouchableOpacity
-        style={[styles.fab, { bottom: fabBottom }]}
-        onPress={openAddScreen}
-        activeOpacity={0.85}
+      <TourGuideZone
+        zone={3}
+        text={"Crea una nueva cuenta por pagar."}
+        shape="circle"
       >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fab, { bottom: fabBottom }]}
+          onPress={openAddScreen}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      </TourGuideZone>
       <CustomAlert />
     </View>
   );

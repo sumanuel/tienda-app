@@ -12,12 +12,19 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from "react-native";
+import {
+  TourGuideProvider,
+  TourGuideZone,
+  useTourGuideController,
+} from "rn-tourguide";
+import TourTooltip from "../../components/tour/TourTooltip";
 import { useProducts } from "../../hooks/useProducts";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   updateProductStock,
   insertInventoryMovement,
@@ -39,6 +46,8 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
  * Pantalla de punto de venta (POS)
  */
 export const POSScreen = ({ navigation }) => {
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
   const {
     products,
     loading: productsLoading,
@@ -68,6 +77,44 @@ export const POSScreen = ({ navigation }) => {
 
   const scrollViewRef = useRef(null);
 
+  const CartTourBootstrapper = () => {
+    const { canStart: canStartCart, start: startCart } =
+      useTourGuideController();
+    const [booted, setBooted] = useState(false);
+
+    useEffect(() => {
+      let mounted = true;
+
+      const maybeStart = async () => {
+        if (booted) return;
+        if (!showCart) return;
+        if (!canStartCart) return;
+
+        const tourId = "pos_cart_v1";
+        const seen = await hasSeenTour(tourId);
+        if (!mounted) return;
+
+        if (!seen) {
+          // Dar tiempo a que el Modal y sus layouts midan posiciones.
+          setTimeout(() => {
+            startCart();
+            markTourSeen(tourId);
+          }, 650);
+        }
+
+        if (mounted) setBooted(true);
+      };
+
+      maybeStart();
+
+      return () => {
+        mounted = false;
+      };
+    }, [booted, showCart, canStartCart, startCart]);
+
+    return null;
+  };
+
   // Calcular total cuando cambie el carrito
   useEffect(() => {
     const newTotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
@@ -93,6 +140,35 @@ export const POSScreen = ({ navigation }) => {
       return unsubscribe;
     }
   }, [navigation, refreshProducts]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+      if (showCart) return;
+
+      const tourId = "pos_v2";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted, showCart]);
 
   // Auto-scroll cuando se muestra u oculta el campo de referencia
   useEffect(() => {
@@ -627,10 +703,10 @@ export const POSScreen = ({ navigation }) => {
   /**
    * Renderiza un producto
    */
-  const renderProduct = ({ item }) => {
+  const renderProduct = ({ item, index }) => {
     const stockValue = Number(item.stock) || 0;
     const isOutOfStock = stockValue === 0;
-    return (
+    const card = (
       <TouchableOpacity
         style={[styles.productCard, isOutOfStock && styles.productCardDisabled]}
         onPress={() => addToCart(item)}
@@ -667,6 +743,18 @@ export const POSScreen = ({ navigation }) => {
           </Text>
         </View>
       </TouchableOpacity>
+    );
+
+    if (index !== 0) return card;
+
+    return (
+      <TourGuideZone
+        zone={2}
+        text={"Toca un producto para agregarlo al carrito."}
+        borderRadius={borderRadius.lg}
+      >
+        {card}
+      </TourGuideZone>
     );
   };
 
@@ -748,16 +836,23 @@ export const POSScreen = ({ navigation }) => {
                 </View>
               </View>
 
-              <View style={styles.searchCard}>
-                <Text style={styles.searchLabel}>Buscar productos</Text>
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Escribe para filtrar por nombre"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholderTextColor="#8692a6"
-                />
-              </View>
+              <TourGuideZone
+                zone={1}
+                text={"Busca productos para vender rápidamente."}
+                borderRadius={borderRadius.lg}
+                style={styles.searchCard}
+              >
+                <View>
+                  <Text style={styles.searchLabel}>Buscar productos</Text>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Escribe para filtrar por nombre"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholderTextColor="#8692a6"
+                  />
+                </View>
+              </TourGuideZone>
             </View>
           }
           contentContainerStyle={[
@@ -778,15 +873,21 @@ export const POSScreen = ({ navigation }) => {
         />
 
         <View style={styles.cartSummary}>
-          <TouchableOpacity
-            style={styles.cartSummaryButton}
-            onPress={() => setShowCart(true)}
-            activeOpacity={0.85}
+          <TourGuideZone
+            zone={3}
+            text={"Abre el carrito para cobrar y completar la venta."}
+            borderRadius={borderRadius.lg}
           >
-            <Text style={styles.cartSummaryButtonText}>
-              Ver carrito ({cart.length})
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cartSummaryButton}
+              onPress={() => setShowCart(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.cartSummaryButtonText}>
+                Ver carrito ({cart.length})
+              </Text>
+            </TouchableOpacity>
+          </TourGuideZone>
         </View>
 
         {/* Modal del carrito */}
@@ -796,232 +897,266 @@ export const POSScreen = ({ navigation }) => {
           transparent={false}
           onRequestClose={() => setShowCart(false)}
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => setShowCart(false)}
-              >
-                <Text style={styles.backButtonText}>← Volver</Text>
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>Carrito de Compras</Text>
-              <TouchableOpacity
-                style={styles.qrButton}
-                onPress={openQRScanner}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.qrButtonText}>QR</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalContent} ref={scrollViewRef}>
-              {/* Información del cliente */}
-              <View style={styles.customerSection}>
-                <Text style={styles.sectionTitle}>👤 Cliente</Text>
-                <TextInput
-                  style={styles.customerInput}
-                  placeholder="Cédula del cliente (obligatorio)*"
-                  value={customerDocument}
-                  onChangeText={(text) => {
-                    // Solo permitir números
-                    const numericText = text.replace(/[^0-9]/g, "");
-                    setCustomerDocument(numericText);
-                  }}
-                  keyboardType="numeric"
-                  maxLength={10}
-                  placeholderTextColor="#999"
-                />
-                {customerDocument === "1" && (
-                  <Text style={styles.genericCustomerText}>
-                    Cliente genérico para operaciones rápidas
-                  </Text>
-                )}
+          <TourGuideProvider
+            backdropColor="rgba(0,0,0,0.65)"
+            tooltipComponent={TourTooltip}
+          >
+            <CartTourBootstrapper />
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => setShowCart(false)}
+                >
+                  <Text style={styles.backButtonText}>← Volver</Text>
+                </TouchableOpacity>
+                <Text style={styles.modalTitle}>Carrito de Compras</Text>
+                <TouchableOpacity
+                  style={styles.qrButton}
+                  onPress={openQRScanner}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.qrButtonText}>QR</Text>
+                </TouchableOpacity>
               </View>
 
-              {/* Items del carrito */}
-              <View style={styles.cartItemsSection}>
-                <Text style={styles.sectionTitle}>
-                  📦 Productos ({cart.length})
-                </Text>
-                {cart.length === 0 ? (
-                  <View style={styles.emptyCartContainer}>
-                    <Text style={styles.emptyCartEmoji}>🛒</Text>
-                    <Text style={styles.emptyCartText}>
-                      El carrito está vacío
-                    </Text>
-                    <Text style={styles.emptyCartSubtext}>
-                      Agrega productos para comenzar
-                    </Text>
-                  </View>
-                ) : (
-                  <FlatList
-                    data={cart}
-                    renderItem={renderCartItem}
-                    keyExtractor={(item) => item.id.toString()}
-                    scrollEnabled={false}
-                  />
-                )}
-              </View>
-
-              {/* Método de pago */}
-              {cart.length > 0 && (
-                <View style={styles.paymentSection}>
-                  <Text style={styles.sectionTitle}>💳 Método de Pago</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.paymentButtonsScroll}
-                    contentContainerStyle={styles.paymentButtons}
+              <ScrollView style={styles.modalContent} ref={scrollViewRef}>
+                {/* Información del cliente */}
+                <View style={styles.customerSection}>
+                  <Text style={styles.sectionTitle}>👤 Cliente</Text>
+                  <TourGuideZone
+                    zone={1}
+                    text={
+                      "Para una venta rápida puedes usar la cédula 1 (Cliente genérico). Nota: con ese cliente no se permite pagar 'Por Cobrar'."
+                    }
+                    borderRadius={borderRadius.lg}
                   >
-                    <TouchableOpacity
-                      style={[
-                        styles.paymentButton,
-                        paymentMethod === "cash" && styles.paymentButtonActive,
-                      ]}
-                      onPress={() => setPaymentMethod("cash")}
-                    >
-                      <Text style={styles.paymentButtonIcon}>💵</Text>
-                      <Text
-                        style={[
-                          styles.paymentButtonText,
-                          paymentMethod === "cash" &&
-                            styles.paymentButtonTextActive,
-                        ]}
-                      >
-                        Efectivo
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.paymentButton,
-                        paymentMethod === "card" && styles.paymentButtonActive,
-                      ]}
-                      onPress={() => setPaymentMethod("card")}
-                    >
-                      <Text style={styles.paymentButtonIcon}>💳</Text>
-                      <Text
-                        style={[
-                          styles.paymentButtonText,
-                          paymentMethod === "card" &&
-                            styles.paymentButtonTextActive,
-                        ]}
-                      >
-                        Tarjeta
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.paymentButton,
-                        paymentMethod === "transfer" &&
-                          styles.paymentButtonActive,
-                      ]}
-                      onPress={() => setPaymentMethod("transfer")}
-                    >
-                      <Text style={styles.paymentButtonIcon}>🏦</Text>
-                      <Text
-                        style={[
-                          styles.paymentButtonText,
-                          paymentMethod === "transfer" &&
-                            styles.paymentButtonTextActive,
-                        ]}
-                      >
-                        Transferencia
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.paymentButton,
-                        paymentMethod === "pago_movil" &&
-                          styles.paymentButtonActive,
-                      ]}
-                      onPress={() => setPaymentMethod("pago_movil")}
-                    >
-                      <Text style={styles.paymentButtonIcon}>📱</Text>
-                      <Text
-                        style={[
-                          styles.paymentButtonText,
-                          paymentMethod === "pago_movil" &&
-                            styles.paymentButtonTextActive,
-                        ]}
-                      >
-                        Pago Móvil
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.paymentButton,
-                        paymentMethod === "por_cobrar" &&
-                          styles.paymentButtonActive,
-                      ]}
-                      onPress={() => setPaymentMethod("por_cobrar")}
-                    >
-                      <Text style={styles.paymentButtonIcon}>⏳</Text>
-                      <Text
-                        style={[
-                          styles.paymentButtonText,
-                          paymentMethod === "por_cobrar" &&
-                            styles.paymentButtonTextActive,
-                        ]}
-                      >
-                        Por Cobrar
-                      </Text>
-                    </TouchableOpacity>
-                  </ScrollView>
+                    <View>
+                      <TextInput
+                        style={styles.customerInput}
+                        placeholder="Cédula del cliente (obligatorio)*"
+                        value={customerDocument}
+                        onChangeText={(text) => {
+                          // Solo permitir números
+                          const numericText = text.replace(/[^0-9]/g, "");
+                          setCustomerDocument(numericText);
+                        }}
+                        keyboardType="numeric"
+                        maxLength={10}
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+                  </TourGuideZone>
+                  {customerDocument === "1" && (
+                    <Text style={styles.genericCustomerText}>
+                      Cliente genérico para operaciones rápidas
+                    </Text>
+                  )}
+                </View>
 
-                  {(paymentMethod === "transfer" ||
-                    paymentMethod === "pago_movil") && (
-                    <TextInput
-                      style={styles.simpleReferenceInput}
-                      value={referenceNumber}
-                      onChangeText={setReferenceNumber}
-                      placeholder="Número de referencia"
-                      keyboardType="default"
-                      autoCapitalize="none"
+                {/* Items del carrito */}
+                <View style={styles.cartItemsSection}>
+                  <Text style={styles.sectionTitle}>
+                    📦 Productos ({cart.length})
+                  </Text>
+                  {cart.length === 0 ? (
+                    <View style={styles.emptyCartContainer}>
+                      <Text style={styles.emptyCartEmoji}>🛒</Text>
+                      <Text style={styles.emptyCartText}>
+                        El carrito está vacío
+                      </Text>
+                      <Text style={styles.emptyCartSubtext}>
+                        Agrega productos para comenzar
+                      </Text>
+                    </View>
+                  ) : (
+                    <FlatList
+                      data={cart}
+                      renderItem={renderCartItem}
+                      keyExtractor={(item) => item.id.toString()}
+                      scrollEnabled={false}
                     />
                   )}
                 </View>
-              )}
-            </ScrollView>
 
-            <View style={styles.modalFooter}>
-              <View style={styles.totalSection}>
-                <View style={styles.totalVES}>
-                  <Text style={styles.totalLabel}>PAGAR VES</Text>
-                  <Text style={styles.totalAmount}>{total.toFixed(2)}</Text>
+                {/* Método de pago */}
+                {cart.length > 0 && (
+                  <View style={styles.paymentSection}>
+                    <Text style={styles.sectionTitle}>💳 Método de Pago</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.paymentButtonsScroll}
+                      contentContainerStyle={styles.paymentButtons}
+                    >
+                      <TouchableOpacity
+                        style={[
+                          styles.paymentButton,
+                          paymentMethod === "cash" &&
+                            styles.paymentButtonActive,
+                        ]}
+                        onPress={() => setPaymentMethod("cash")}
+                      >
+                        <Text style={styles.paymentButtonIcon}>💵</Text>
+                        <Text
+                          style={[
+                            styles.paymentButtonText,
+                            paymentMethod === "cash" &&
+                              styles.paymentButtonTextActive,
+                          ]}
+                        >
+                          Efectivo
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.paymentButton,
+                          paymentMethod === "card" &&
+                            styles.paymentButtonActive,
+                        ]}
+                        onPress={() => setPaymentMethod("card")}
+                      >
+                        <Text style={styles.paymentButtonIcon}>💳</Text>
+                        <Text
+                          style={[
+                            styles.paymentButtonText,
+                            paymentMethod === "card" &&
+                              styles.paymentButtonTextActive,
+                          ]}
+                        >
+                          Tarjeta
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.paymentButton,
+                          paymentMethod === "transfer" &&
+                            styles.paymentButtonActive,
+                        ]}
+                        onPress={() => setPaymentMethod("transfer")}
+                      >
+                        <Text style={styles.paymentButtonIcon}>🏦</Text>
+                        <Text
+                          style={[
+                            styles.paymentButtonText,
+                            paymentMethod === "transfer" &&
+                              styles.paymentButtonTextActive,
+                          ]}
+                        >
+                          Transferencia
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.paymentButton,
+                          paymentMethod === "pago_movil" &&
+                            styles.paymentButtonActive,
+                        ]}
+                        onPress={() => setPaymentMethod("pago_movil")}
+                      >
+                        <Text style={styles.paymentButtonIcon}>📱</Text>
+                        <Text
+                          style={[
+                            styles.paymentButtonText,
+                            paymentMethod === "pago_movil" &&
+                              styles.paymentButtonTextActive,
+                          ]}
+                        >
+                          Pago Móvil
+                        </Text>
+                      </TouchableOpacity>
+                      <TourGuideZone
+                        zone={2}
+                        text={
+                          "Si deseas crear una cuenta por cobrar, selecciona el tipo de pago 'Por Cobrar'. La app la genera automáticamente al completar la venta."
+                        }
+                        borderRadius={borderRadius.lg}
+                      >
+                        <TouchableOpacity
+                          style={[
+                            styles.paymentButton,
+                            paymentMethod === "por_cobrar" &&
+                              styles.paymentButtonActive,
+                          ]}
+                          onPress={() => setPaymentMethod("por_cobrar")}
+                        >
+                          <Text style={styles.paymentButtonIcon}>⏳</Text>
+                          <Text
+                            style={[
+                              styles.paymentButtonText,
+                              paymentMethod === "por_cobrar" &&
+                                styles.paymentButtonTextActive,
+                            ]}
+                          >
+                            Por Cobrar
+                          </Text>
+                        </TouchableOpacity>
+                      </TourGuideZone>
+                    </ScrollView>
+
+                    {(paymentMethod === "transfer" ||
+                      paymentMethod === "pago_movil") && (
+                      <TextInput
+                        style={styles.simpleReferenceInput}
+                        value={referenceNumber}
+                        onChangeText={setReferenceNumber}
+                        placeholder="Número de referencia"
+                        keyboardType="default"
+                        autoCapitalize="none"
+                      />
+                    )}
+                  </View>
+                )}
+              </ScrollView>
+
+              <View style={styles.modalFooter}>
+                <View style={styles.totalSection}>
+                  <View style={styles.totalVES}>
+                    <Text style={styles.totalLabel}>PAGAR VES</Text>
+                    <Text style={styles.totalAmount}>{total.toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.totalUSD}>
+                    <Text style={styles.totalLabel}>PAGAR USD</Text>
+                    <Text style={styles.totalAmount}>
+                      {(total / exchangeRate).toFixed(2)}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.totalUSD}>
-                  <Text style={styles.totalLabel}>PAGAR USD</Text>
-                  <Text style={styles.totalAmount}>
-                    {(total / exchangeRate).toFixed(2)}
-                  </Text>
+
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.clearButton,
+                      cart.length === 0 && styles.buttonDisabled,
+                    ]}
+                    onPress={clearCart}
+                    disabled={cart.length === 0}
+                  >
+                    <Text style={styles.clearButtonText}>🗑️ Limpiar</Text>
+                  </TouchableOpacity>
+
+                  <TourGuideZone
+                    zone={3}
+                    text={
+                      "Completa la venta. Si elegiste 'Por Cobrar', se creará la cuenta por cobrar automáticamente."
+                    }
+                    borderRadius={borderRadius.lg}
+                  >
+                    <TouchableOpacity
+                      style={[
+                        styles.checkoutButton,
+                        cart.length === 0 && styles.buttonDisabled,
+                      ]}
+                      onPress={completeSale}
+                      disabled={cart.length === 0}
+                    >
+                      <Text style={styles.checkoutText}>✓ Completar Venta</Text>
+                    </TouchableOpacity>
+                  </TourGuideZone>
                 </View>
-              </View>
-
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.clearButton,
-                    cart.length === 0 && styles.buttonDisabled,
-                  ]}
-                  onPress={clearCart}
-                  disabled={cart.length === 0}
-                >
-                  <Text style={styles.clearButtonText}>🗑️ Limpiar</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.checkoutButton,
-                    cart.length === 0 && styles.buttonDisabled,
-                  ]}
-                  onPress={completeSale}
-                  disabled={cart.length === 0}
-                >
-                  <Text style={styles.checkoutText}>✓ Completar Venta</Text>
-                </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </TourGuideProvider>
         </Modal>
 
         {/* Modal del escáner QR */}
