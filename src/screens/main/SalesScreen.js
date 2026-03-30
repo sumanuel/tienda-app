@@ -569,7 +569,7 @@ export const SalesScreen = () => {
 
         <TourGuideZone
           zone={TOUR_ZONE_BASE + 2}
-          text={"Abre los totales del rango presionando '$' seleccionado."}
+          text={"Abre los totales del rango seleccionado presionando '$'."}
           shape="circle"
         >
           <TouchableOpacity
