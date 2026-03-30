@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import { useProducts } from "../../hooks/useProducts";
 import { getAllSales } from "../../services/database/sales";
 import { getSettings } from "../../services/database/settings";
@@ -39,7 +39,8 @@ export const ProductsScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [settings, setSettings] = useState({});
   const { rate: exchangeRate } = useExchangeRate();
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } = useTourGuideController("products");
+  const TOUR_ZONE_BASE = 1000;
   const [tourBooted, setTourBooted] = useState(false);
 
   const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
@@ -302,7 +303,7 @@ export const ProductsScreen = ({ navigation }) => {
       </View>
 
       <TourGuideZone
-        zone={1}
+        zone={TOUR_ZONE_BASE + 1}
         text={
           "Usa 'Buscar producto' (Nombre, categoría o referencia) para encontrar un producto rápidamente."
         }
@@ -358,7 +359,7 @@ export const ProductsScreen = ({ navigation }) => {
         />
 
         <TourGuideZone
-          zone={2}
+          zone={TOUR_ZONE_BASE + 2}
           text={"Presiona '+' para registrar un nuevo producto."}
           shape="circle"
         >

@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import {
   updateProductStock,
   insertInventoryMovement,
@@ -26,7 +26,9 @@ import {
 
 export const AddInventoryExitScreen = ({ navigation, route }) => {
   const { product } = route.params;
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } =
+    useTourGuideController("inventoryExit");
+  const TOUR_ZONE_BASE = 5300;
   const [tourBooted, setTourBooted] = useState(false);
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
@@ -129,7 +131,7 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
 
         <View style={styles.formCard}>
           <TourGuideZone
-            zone={1}
+            zone={TOUR_ZONE_BASE + 1}
             text={
               "En 'Cantidad a sacar' indica cuántas unidades vas a descontar del inventario."
             }
@@ -186,7 +188,7 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
             </TouchableOpacity>
 
             <TourGuideZone
-              zone={2}
+              zone={TOUR_ZONE_BASE + 2}
               text={"Guarda la salida de inventario y actualiza el stock."}
               shape="rectangle"
               borderRadius={borderRadius.lg}

@@ -46,7 +46,7 @@ export const initSalesTable = async () => {
         saleId INTEGER NOT NULL,
         productId INTEGER NOT NULL,
         productName TEXT NOT NULL,
-        quantity INTEGER NOT NULL,
+        quantity REAL NOT NULL,
         price REAL NOT NULL,
         priceUSD REAL DEFAULT 0,
         subtotal REAL NOT NULL,

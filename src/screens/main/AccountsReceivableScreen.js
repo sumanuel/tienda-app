@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -10,7 +16,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -28,7 +34,8 @@ import {
 
 export const AccountsReceivableScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } =
+    useTourGuideController("accountsReceivable");
   const TOUR_ZONE_BASE = 6100;
   const [tourBooted, setTourBooted] = useState(false);
   const {
@@ -52,22 +59,25 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
 
+  const previousQueryRef = useRef("");
+
   useEffect(() => {
-    let cancelled = false;
     const query = (searchQuery || "").trim();
+    const previousQuery = previousQueryRef.current;
+    previousQueryRef.current = query;
 
     const timeoutId = setTimeout(() => {
-      if (cancelled) return;
-
       if (!query) {
-        refresh();
-      } else {
-        searchReceivable(query);
+        if (previousQuery) {
+          refresh();
+        }
+        return;
       }
+
+      searchReceivable(query);
     }, 250);
 
     return () => {
-      cancelled = true;
       clearTimeout(timeoutId);
     };
   }, [searchQuery, refresh, searchReceivable]);
@@ -79,13 +89,13 @@ export const AccountsReceivableScreen = ({ navigation }) => {
       if (tourBooted) return;
       if (!canStart) return;
 
-      const tourId = "accountsReceivable";
+      const tourId = "accountsReceivable_v2";
       const seen = await hasSeenTour(tourId);
       if (!mounted) return;
 
       if (!seen) {
         setTimeout(() => {
-          start(TOUR_ZONE_BASE + 1);
+          start();
           markTourSeen(tourId);
         }, 450);
       }

@@ -11,6 +11,7 @@ import {
   Dimensions,
   SafeAreaView,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import {
   TourGuideProvider,
@@ -42,11 +43,14 @@ import {
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
+const TOUR_ZONE_BASE = 0;
+const CART_TOUR_ZONE_BASE = 0;
+
 /**
  * Pantalla de punto de venta (POS)
  */
 export const POSScreen = ({ navigation }) => {
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start } = useTourGuideController("pos_v3");
   const [tourBooted, setTourBooted] = useState(false);
   const {
     products,
@@ -61,6 +65,7 @@ export const POSScreen = ({ navigation }) => {
   const { showAlert, CustomAlert } = useCustomAlert();
 
   const [cart, setCart] = useState([]);
+  const [quantityDrafts, setQuantityDrafts] = useState({});
   const [total, setTotal] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [customerDocument, setCustomerDocument] = useState("");
@@ -77,9 +82,65 @@ export const POSScreen = ({ navigation }) => {
 
   const scrollViewRef = useRef(null);
 
+  const formatQuantity = (quantity) => {
+    const value = Number(quantity);
+    if (!Number.isFinite(value)) return "";
+    if (Number.isInteger(value)) return String(value);
+
+    const fixed = value.toFixed(3);
+    return fixed.replace(/\.0+$/, "").replace(/(\.[0-9]*?)0+$/, "$1");
+  };
+
+  const parseQuantityInput = (rawInput) => {
+    const raw = String(rawInput ?? "").trim();
+    if (!raw) return null;
+
+    // Normalizar: coma -> punto, remover caracteres no numéricos.
+    const normalized = raw.replace(/,/g, ".").replace(/[^0-9.]/g, "");
+    if (!normalized) return null;
+
+    // Permitir solo 1 punto decimal.
+    const [intPart, ...rest] = normalized.split(".");
+    const decimalPart = rest.join("");
+    const rebuilt =
+      decimalPart.length > 0 ? `${intPart}.${decimalPart}` : intPart;
+
+    const parsed = Number.parseFloat(rebuilt);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+
+    // Redondear a 3 decimales para evitar ruido de floats.
+    return Math.round(parsed * 1000) / 1000;
+  };
+
+  const setQuantityDraft = (itemId, value) => {
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      if (value == null) {
+        delete next[itemId];
+        return next;
+      }
+      next[itemId] = value;
+      return next;
+    });
+  };
+
+  const commitQuantityDraft = (item) => {
+    const itemId = item?.id;
+    if (itemId == null) return;
+
+    const parsed = parseQuantityInput(quantityDrafts[itemId]);
+    if (parsed == null) {
+      setQuantityDraft(itemId, null);
+      return;
+    }
+
+    updateQuantity(itemId, parsed);
+    setQuantityDraft(itemId, null);
+  };
+
   const CartTourBootstrapper = () => {
     const { canStart: canStartCart, start: startCart } =
-      useTourGuideController();
+      useTourGuideController("pos_cart_v2");
     const [booted, setBooted] = useState(false);
 
     useEffect(() => {
@@ -90,7 +151,7 @@ export const POSScreen = ({ navigation }) => {
         if (!showCart) return;
         if (!canStartCart) return;
 
-        const tourId = "pos_cart_v1";
+        const tourId = "pos_cart_v2";
         const seen = await hasSeenTour(tourId);
         if (!mounted) return;
 
@@ -149,7 +210,7 @@ export const POSScreen = ({ navigation }) => {
       if (!canStart) return;
       if (showCart) return;
 
-      const tourId = "pos_v2";
+      const tourId = "pos_v3";
       const seen = await hasSeenTour(tourId);
       if (!mounted) return;
 
@@ -297,7 +358,8 @@ export const POSScreen = ({ navigation }) => {
    * Actualiza la cantidad de un item en el carrito
    */
   const updateQuantity = (productId, newQuantity) => {
-    if (newQuantity <= 0) {
+    const normalizedQuantity = Number(newQuantity) || 0;
+    if (normalizedQuantity <= 0) {
       removeFromCart(productId);
       return;
     }
@@ -306,8 +368,8 @@ export const POSScreen = ({ navigation }) => {
       item.id === productId
         ? {
             ...item,
-            quantity: newQuantity,
-            subtotal: newQuantity * item.price,
+            quantity: normalizedQuantity,
+            subtotal: normalizedQuantity * item.price,
           }
         : item,
     );
@@ -456,7 +518,8 @@ export const POSScreen = ({ navigation }) => {
 
       // Actualizar stock de productos vendidos
       for (const item of cart) {
-        const newStock = item.product.stock - item.quantity;
+        const newStock =
+          (Number(item.product.stock) || 0) - (Number(item.quantity) || 0);
         await updateProductStock(item.product.id, newStock);
         await insertInventoryMovement(
           item.product.id,
@@ -602,7 +665,8 @@ export const POSScreen = ({ navigation }) => {
 
       // Actualizar stock de productos vendidos
       for (const item of cart) {
-        const newStock = item.product.stock - item.quantity;
+        const newStock =
+          (Number(item.product.stock) || 0) - (Number(item.quantity) || 0);
         await updateProductStock(item.product.id, newStock);
         await insertInventoryMovement(
           item.product.id,
@@ -749,7 +813,8 @@ export const POSScreen = ({ navigation }) => {
 
     return (
       <TourGuideZone
-        zone={2}
+        tourKey="pos_v3"
+        zone={TOUR_ZONE_BASE + 2}
         text={"Presiona un producto para agregarlo al carrito."}
         borderRadius={borderRadius.lg}
       >
@@ -779,14 +844,26 @@ export const POSScreen = ({ navigation }) => {
         <View style={styles.quantityControls}>
           <TouchableOpacity
             style={styles.quantityButton}
-            onPress={() => updateQuantity(item.id, item.quantity - 1)}
+            onPress={() =>
+              updateQuantity(item.id, (Number(item.quantity) || 0) - 1)
+            }
           >
             <Text style={styles.quantityButtonText}>-</Text>
           </TouchableOpacity>
-          <Text style={styles.quantityText}>{item.quantity}</Text>
+          <TextInput
+            style={styles.quantityInput}
+            value={quantityDrafts[item.id] ?? formatQuantity(item.quantity)}
+            onChangeText={(text) => setQuantityDraft(item.id, text)}
+            onEndEditing={() => commitQuantityDraft(item)}
+            keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
+            returnKeyType="done"
+            maxLength={8}
+          />
           <TouchableOpacity
             style={styles.quantityButton}
-            onPress={() => updateQuantity(item.id, item.quantity + 1)}
+            onPress={() =>
+              updateQuantity(item.id, (Number(item.quantity) || 0) + 1)
+            }
           >
             <Text style={styles.quantityButtonText}>+</Text>
           </TouchableOpacity>
@@ -837,7 +914,8 @@ export const POSScreen = ({ navigation }) => {
               </View>
 
               <TourGuideZone
-                zone={1}
+                tourKey="pos_v3"
+                zone={TOUR_ZONE_BASE + 1}
                 text={"Busca productos para vender rápidamente."}
                 borderRadius={borderRadius.lg}
                 style={styles.searchCard}
@@ -874,7 +952,8 @@ export const POSScreen = ({ navigation }) => {
 
         <View style={styles.cartSummary}>
           <TourGuideZone
-            zone={3}
+            tourKey="pos_v3"
+            zone={TOUR_ZONE_BASE + 3}
             text={"Presiona 'Ver carrito' para cobrar y completar la venta."}
             borderRadius={borderRadius.lg}
           >
@@ -925,7 +1004,8 @@ export const POSScreen = ({ navigation }) => {
               <ScrollView style={styles.modalContent} ref={scrollViewRef}>
                 {/* Información del cliente */}
                 <TourGuideZone
-                  zone={1}
+                  tourKey="pos_cart_v2"
+                  zone={CART_TOUR_ZONE_BASE + 1}
                   text={
                     "En la sección 'Cliente' puedes usar la cédula 1 para una venta rápida (Cliente genérico). Nota: con ese cliente no se permite pagar 'Por Cobrar'."
                   }
@@ -1067,7 +1147,8 @@ export const POSScreen = ({ navigation }) => {
                         </Text>
                       </TouchableOpacity>
                       <TourGuideZone
-                        zone={2}
+                        tourKey="pos_cart_v2"
+                        zone={CART_TOUR_ZONE_BASE + 2}
                         text={
                           "Si deseas crear una cuenta por cobrar, selecciona el tipo de pago 'Por Cobrar'. La app la genera automáticamente al completar la venta."
                         }
@@ -1137,7 +1218,8 @@ export const POSScreen = ({ navigation }) => {
                   </TouchableOpacity>
 
                   <TourGuideZone
-                    zone={3}
+                    tourKey="pos_cart_v2"
+                    zone={CART_TOUR_ZONE_BASE + 3}
                     text={
                       "Completa la venta. Si elegiste 'Por Cobrar', se creará la cuenta por cobrar automáticamente."
                     }
@@ -1670,6 +1752,19 @@ const styles = StyleSheet.create({
     color: "#1f2633",
     minWidth: s(36),
     textAlign: "center",
+  },
+  quantityInput: {
+    fontSize: rf(16),
+    fontWeight: "700",
+    color: "#1f2633",
+    minWidth: s(52),
+    textAlign: "center",
+    paddingVertical: vs(6),
+    paddingHorizontal: hs(10),
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: "#d5dbe7",
+    backgroundColor: "#fff",
   },
   removeButton: {
     paddingVertical: vs(6),

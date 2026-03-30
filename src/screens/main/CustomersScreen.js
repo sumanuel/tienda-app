@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import { useCustomers } from "../../hooks/useCustomers";
 import { getAllSales } from "../../services/database/sales";
 import { getAllAccountsReceivable } from "../../services/database/accounts";
@@ -39,7 +39,9 @@ export const CustomersScreen = () => {
     recoverDeleted,
   } = useCustomers();
   const { showAlert, CustomAlert } = useCustomAlert();
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } =
+    useTourGuideController("customers");
+  const TOUR_ZONE_BASE = 2000;
   const [tourBooted, setTourBooted] = useState(false);
 
   const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
@@ -334,7 +336,7 @@ export const CustomersScreen = () => {
       </View>
 
       <TourGuideZone
-        zone={1}
+        zone={TOUR_ZONE_BASE + 1}
         text={
           "Usa 'Buscar cliente' (Nombre, cédula o contacto) para encontrarlo rápidamente."
         }
@@ -427,7 +429,7 @@ export const CustomersScreen = () => {
       />
 
       <TourGuideZone
-        zone={2}
+        zone={TOUR_ZONE_BASE + 2}
         text={"Presiona '+' para registrar un nuevo cliente."}
         shape="circle"
       >

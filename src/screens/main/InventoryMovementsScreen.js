@@ -9,7 +9,7 @@ import {
   FlatList,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { TourGuideZone, useTourGuideController } from "rn-tourguide";
+import { useTourGuideController } from "rn-tourguide";
 import { useProducts } from "../../hooks/useProducts";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
@@ -23,7 +23,9 @@ import {
 } from "../../utils/responsive";
 
 export const InventoryMovementsScreen = ({ navigation }) => {
-  const { canStart, start } = useTourGuideController();
+  const { canStart, start, TourGuideZone } =
+    useTourGuideController("inventoryMovements");
+  const TOUR_ZONE_BASE = 5000;
   const [tourBooted, setTourBooted] = useState(false);
   const {
     products,
@@ -114,7 +116,7 @@ export const InventoryMovementsScreen = ({ navigation }) => {
 
     return (
       <TourGuideZone
-        zone={2}
+        zone={TOUR_ZONE_BASE + 2}
         text={"Presiona un producto para ver su historial de movimientos."}
         borderRadius={borderRadius.lg}
       >
@@ -167,7 +169,7 @@ export const InventoryMovementsScreen = ({ navigation }) => {
         </View>
 
         <TourGuideZone
-          zone={1}
+          zone={TOUR_ZONE_BASE + 1}
           text={
             "En 'Buscar por nombre, categoría o código' filtra el producto para revisar sus entradas y salidas."
           }
