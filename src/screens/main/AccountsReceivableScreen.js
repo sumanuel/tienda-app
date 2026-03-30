@@ -29,6 +29,7 @@ import {
 export const AccountsReceivableScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { canStart, start } = useTourGuideController();
+  const TOUR_ZONE_BASE = 6100;
   const [tourBooted, setTourBooted] = useState(false);
   const {
     accountsReceivable,
@@ -84,7 +85,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 
       if (!seen) {
         setTimeout(() => {
-          start();
+          start(TOUR_ZONE_BASE + 1);
           markTourSeen(tourId);
         }, 450);
       }
@@ -467,7 +468,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   const header = (
     <View>
       <TourGuideZone
-        zone={1}
+        zone={TOUR_ZONE_BASE + 1}
         text={
           "Aquí ves el total. Usa 'Buscar cuentas…' para filtrar por cliente, factura o concepto."
         }
@@ -504,7 +505,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
       </View>
 
       <TourGuideZone
-        zone={2}
+        zone={TOUR_ZONE_BASE + 2}
         text={"Filtra entre cuentas pendientes y pagadas."}
         borderRadius={borderRadius.md}
         style={styles.tabGroup}
@@ -596,7 +597,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
       />
 
       <TourGuideZone
-        zone={3}
+        zone={TOUR_ZONE_BASE + 3}
         text={"Presiona '+' para crear una nueva cuenta por cobrar."}
         shape="circle"
       >
