@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,9 +9,11 @@ import {
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import { getAllAccountsPayable } from "../../services/database/accounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -25,6 +27,7 @@ import {
 export const SuppliersScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { canStart, start } = useTourGuideController();
   const { suppliers, loading, error, search, removeSupplier, refresh } =
     useSuppliers();
   const { showAlert, CustomAlert } = useCustomAlert();
@@ -33,21 +36,50 @@ export const SuppliersScreen = () => {
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [tourBooted, setTourBooted] = useState(false);
 
   const handleSearch = useCallback(
     (query) => {
       setSearchQuery(query);
       search(query);
     },
-    [search]
+    [search],
   );
 
   // Recargar proveedores cuando la pantalla se enfoque
   useFocusEffect(
     useCallback(() => {
       refresh();
-    }, [refresh])
+    }, [refresh]),
   );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "suppliers";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
 
   const confirmDeleteSupplier = useCallback(
     async (supplier) => {
@@ -55,7 +87,7 @@ export const SuppliersScreen = () => {
         // Verificar si el proveedor tiene movimientos asociados
         const allPayables = await getAllAccountsPayable();
         const supplierPayables = allPayables.filter(
-          (account) => account.supplierId === supplier.id
+          (account) => account.supplierId === supplier.id,
         );
 
         if (supplierPayables.length > 0) {
@@ -106,7 +138,7 @@ export const SuppliersScreen = () => {
         });
       }
     },
-    [removeSupplier, showAlert]
+    [removeSupplier, showAlert],
   );
 
   const sortedSuppliers = useMemo(() => {
@@ -166,7 +198,7 @@ export const SuppliersScreen = () => {
         </View>
       );
     },
-    [navigation, confirmDeleteSupplier]
+    [navigation, confirmDeleteSupplier],
   );
 
   const header = (
@@ -186,13 +218,21 @@ export const SuppliersScreen = () => {
 
       <View style={styles.searchCard}>
         <Text style={styles.searchTitle}>Buscar proveedor</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Nombre, RIF o contacto"
-          value={searchQuery}
-          onChangeText={handleSearch}
-          placeholderTextColor="#9aa2b1"
-        />
+        <TourGuideZone
+          zone={1}
+          text={
+            "Busca proveedores por nombre, RIF o contacto para encontrarlos rápido."
+          }
+          borderRadius={borderRadius.lg}
+        >
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Nombre, RIF o contacto"
+            value={searchQuery}
+            onChangeText={handleSearch}
+            placeholderTextColor="#9aa2b1"
+          />
+        </TourGuideZone>
       </View>
     </View>
   );
@@ -246,13 +286,19 @@ export const SuppliersScreen = () => {
         keyboardShouldPersistTaps="handled"
       />
 
-      <TouchableOpacity
-        style={[styles.fab, { bottom: fabBottom }]}
-        onPress={() => navigation.navigate("AddSupplier")}
-        activeOpacity={0.85}
+      <TourGuideZone
+        zone={2}
+        text={"Toca aquí para registrar un nuevo proveedor."}
+        shape="circle"
       >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fab, { bottom: fabBottom }]}
+          onPress={() => navigation.navigate("AddSupplier")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      </TourGuideZone>
       <CustomAlert />
     </View>
   );

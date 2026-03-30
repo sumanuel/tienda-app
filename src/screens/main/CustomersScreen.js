@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,12 @@ import {
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import { useCustomers } from "../../hooks/useCustomers";
 import { getAllSales } from "../../services/database/sales";
 import { getAllAccountsReceivable } from "../../services/database/accounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -37,6 +39,8 @@ export const CustomersScreen = () => {
     recoverDeleted,
   } = useCustomers();
   const { showAlert, CustomAlert } = useCustomAlert();
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
 
   const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
@@ -49,6 +53,34 @@ export const CustomersScreen = () => {
       refresh();
     }, [refresh]),
   );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "customers";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
 
   const handleSearch = useCallback(
     (query) => {
@@ -303,13 +335,21 @@ export const CustomersScreen = () => {
 
       <View style={styles.searchCard}>
         <Text style={styles.searchTitle}>Buscar cliente</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Nombre, cédula o contacto"
-          value={searchQuery}
-          onChangeText={handleSearch}
-          placeholderTextColor="#9aa2b1"
-        />
+        <TourGuideZone
+          zone={1}
+          text={
+            "Busca clientes por nombre, cédula o contacto para encontrarlos rápido."
+          }
+          borderRadius={borderRadius.lg}
+        >
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Nombre, cédula o contacto"
+            value={searchQuery}
+            onChangeText={handleSearch}
+            placeholderTextColor="#9aa2b1"
+          />
+        </TourGuideZone>
       </View>
 
       {/* <View style={styles.actionsCard}>
@@ -385,13 +425,19 @@ export const CustomersScreen = () => {
         keyboardShouldPersistTaps="handled"
       />
 
-      <TouchableOpacity
-        style={[styles.fab, { bottom: fabBottom }]}
-        onPress={() => navigation.navigate("AddCustomer")}
-        activeOpacity={0.85}
+      <TourGuideZone
+        zone={2}
+        text={"Toca aquí para registrar un nuevo cliente."}
+        shape="circle"
       >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fab, { bottom: fabBottom }]}
+          onPress={() => navigation.navigate("AddCustomer")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      </TourGuideZone>
       <CustomAlert />
     </View>
   );

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import {
   updateProduct,
   updateProductStock,
@@ -18,6 +19,7 @@ import {
 import { useExchangeRate } from "../../hooks/useExchangeRate";
 import { getSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -30,6 +32,8 @@ import {
 
 export const AddInventoryEntryScreen = ({ navigation, route }) => {
   const { product } = route.params;
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,6 +65,34 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
     };
     loadSettings();
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "inventoryEntry";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
 
   const appliedRate = useMemo(() => {
     const rateFromSettings = Number(settings?.pricing?.currencies?.USD) || 0;
@@ -292,80 +324,100 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
           <View style={styles.formCard}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Cantidad a agregar</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Ej: 10"
-                placeholderTextColor="#9aa6b5"
-                value={quantity}
-                onChangeText={setQuantity}
-                keyboardType="numeric"
-                returnKeyType="next"
-              />
+              <TourGuideZone
+                zone={1}
+                text={
+                  "Indica cuántas unidades vas a agregar al inventario del producto."
+                }
+                borderRadius={borderRadius.lg}
+              >
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Ej: 10"
+                  placeholderTextColor="#9aa6b5"
+                  value={quantity}
+                  onChangeText={(v) => {
+                    setQuantity(v);
+                  }}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                />
+              </TourGuideZone>
             </View>
 
-            <View style={styles.currencySwitch}>
-              {[
-                { code: "USD", label: "Costo en USD" },
-                { code: "Bs", label: "Costo en VES" },
-              ].map((option) => {
-                const active = costCurrency === option.code;
-                return (
-                  <TouchableOpacity
-                    key={option.code}
-                    style={[
-                      styles.currencyChip,
-                      active ? styles.currencyChipActive : null,
-                    ]}
-                    onPress={() => {
-                      if (option.code === costCurrency) return;
-
-                      if (option.code === "Bs" && !appliedRate) {
-                        showAlert({
-                          title: "Tasa requerida",
-                          message:
-                            "Configura la tasa USD→VES para ingresar costos en VES.",
-                          type: "error",
-                        });
-                        return;
-                      }
-
-                      const parsedCost = parseFloat(cost);
-                      const parsedAdditional = parseFloat(additionalCost);
-
-                      const canConvert =
-                        appliedRate &&
-                        !Number.isNaN(parsedCost) &&
-                        (!additionalCost || !Number.isNaN(parsedAdditional));
-
-                      if (canConvert) {
-                        const factor =
-                          option.code === "Bs" ? appliedRate : 1 / appliedRate;
-                        setCost((parsedCost * factor).toFixed(2));
-                        setAdditionalCost(
-                          (Number.isNaN(parsedAdditional)
-                            ? 0
-                            : parsedAdditional * factor
-                          ).toFixed(2),
-                        );
-                      }
-
-                      setCostCurrency(option.code);
-                      setPricingDirty(true);
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Text
+            <TourGuideZone
+              zone={2}
+              text={
+                "Aquí eliges la moneda del costo y puedes ajustar costo, costo adicional y margen."
+              }
+              borderRadius={borderRadius.lg}
+            >
+              <View style={styles.currencySwitch}>
+                {[
+                  { code: "USD", label: "Costo en USD" },
+                  { code: "Bs", label: "Costo en VES" },
+                ].map((option) => {
+                  const active = costCurrency === option.code;
+                  return (
+                    <TouchableOpacity
+                      key={option.code}
                       style={[
-                        styles.currencyChipText,
-                        active ? styles.currencyChipTextActive : null,
+                        styles.currencyChip,
+                        active ? styles.currencyChipActive : null,
                       ]}
+                      onPress={() => {
+                        if (option.code === costCurrency) return;
+
+                        if (option.code === "Bs" && !appliedRate) {
+                          showAlert({
+                            title: "Tasa requerida",
+                            message:
+                              "Configura la tasa USD→VES para ingresar costos en VES.",
+                            type: "error",
+                          });
+                          return;
+                        }
+
+                        const parsedCost = parseFloat(cost);
+                        const parsedAdditional = parseFloat(additionalCost);
+
+                        const canConvert =
+                          appliedRate &&
+                          !Number.isNaN(parsedCost) &&
+                          (!additionalCost || !Number.isNaN(parsedAdditional));
+
+                        if (canConvert) {
+                          const factor =
+                            option.code === "Bs"
+                              ? appliedRate
+                              : 1 / appliedRate;
+                          setCost((parsedCost * factor).toFixed(2));
+                          setAdditionalCost(
+                            (Number.isNaN(parsedAdditional)
+                              ? 0
+                              : parsedAdditional * factor
+                            ).toFixed(2),
+                          );
+                        }
+
+                        setCostCurrency(option.code);
+                        setPricingDirty(true);
+                      }}
+                      activeOpacity={0.85}
                     >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      <Text
+                        style={[
+                          styles.currencyChipText,
+                          active ? styles.currencyChipTextActive : null,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </TourGuideZone>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Costo</Text>
@@ -471,15 +523,22 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
             >
               <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={handleSave}
-              disabled={loading || !quantity.trim()}
+            <TourGuideZone
+              zone={3}
+              text={"Guarda la entrada de inventario y actualiza el stock."}
+              shape="rectangle"
+              borderRadius={borderRadius.lg}
             >
-              <Text style={styles.saveButtonText}>
-                {loading ? "Guardando..." : "Agregar Entrada"}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.saveButton]}
+                onPress={handleSave}
+                disabled={loading || !quantity.trim()}
+              >
+                <Text style={styles.saveButtonText}>
+                  {loading ? "Guardando..." : "Agregar Entrada"}
+                </Text>
+              </TouchableOpacity>
+            </TourGuideZone>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -12,12 +12,14 @@ import {
   Modal,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { getSaleItemsCostUSDBySaleIds } from "../../services/database/sales";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -33,6 +35,8 @@ import {
  */
 export const SalesScreen = () => {
   const navigation = useNavigation();
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
   const {
     sales,
     todayStats,
@@ -88,6 +92,34 @@ export const SalesScreen = () => {
     });
     return unsubscribe;
   }, [navigation, loadSales, loadTodayStats]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "sales";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
 
   const filteredSales = useMemo(() => {
     if (activeTab === "today") {
@@ -397,31 +429,44 @@ export const SalesScreen = () => {
                 </View>
               </View>
 
-              <View style={styles.tabGroup}>
-                {[
-                  { key: "today", label: "Hoy" },
-                  { key: "all", label: "Histórico" },
-                ].map((tab) => {
-                  const active = activeTab === tab.key;
-                  return (
-                    <TouchableOpacity
-                      key={tab.key}
-                      style={[styles.tabChip, active && styles.tabChipActive]}
-                      onPress={() => setActiveTab(tab.key)}
-                      activeOpacity={0.85}
-                    >
-                      <Text
-                        style={[
-                          styles.tabChipText,
-                          active && styles.tabChipTextActive,
-                        ]}
-                      >
-                        {tab.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              <TourGuideZone
+                zone={1}
+                text={
+                  "Cambia entre ventas de hoy y el histórico por rango de fechas."
+                }
+                borderRadius={borderRadius.lg}
+              >
+                <View>
+                  <View style={styles.tabGroup}>
+                    {[
+                      { key: "today", label: "Hoy" },
+                      { key: "all", label: "Histórico" },
+                    ].map((tab) => {
+                      const active = activeTab === tab.key;
+                      return (
+                        <TouchableOpacity
+                          key={tab.key}
+                          style={[
+                            styles.tabChip,
+                            active && styles.tabChipActive,
+                          ]}
+                          onPress={() => setActiveTab(tab.key)}
+                          activeOpacity={0.85}
+                        >
+                          <Text
+                            style={[
+                              styles.tabChipText,
+                              active && styles.tabChipTextActive,
+                            ]}
+                          >
+                            {tab.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </TourGuideZone>
 
               {activeTab === "all" && (
                 <View style={styles.dateCard}>
@@ -521,13 +566,19 @@ export const SalesScreen = () => {
           }
         />
 
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setShowTotalsModal(true)}
-          activeOpacity={0.9}
+        <TourGuideZone
+          zone={2}
+          text={"Abre los totales del rango seleccionado."}
+          shape="circle"
         >
-          <Text style={styles.fabIcon}>$</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => setShowTotalsModal(true)}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.fabIcon}>$</Text>
+          </TouchableOpacity>
+        </TourGuideZone>
       </SafeAreaView>
 
       <Modal

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,13 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
   getProductByBarcode,
   getProductInventoryMovements,
 } from "../../services/database/products";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -26,6 +28,8 @@ import {
 
 export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
   const { showAlert, CustomAlert } = useCustomAlert();
   const [product, setProduct] = useState(route.params?.product || null);
   const [movements, setMovements] = useState([]);
@@ -97,6 +101,34 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
       loadData(product?.barcode);
     }, [product?.barcode]),
   );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "inventoryDetail";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
 
   const handleFabPress = () => {
     if (!product) return;
@@ -233,28 +265,42 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
           )}
         </View>
 
-        <FlatList
-          data={movements}
-          renderItem={renderMovement}
-          keyExtractor={(item) => item.id.toString()}
-          ListEmptyComponent={renderEmpty}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: listPaddingBottom },
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        />
+        <TourGuideZone
+          zone={1}
+          text={
+            "Aquí verás el historial de entradas y salidas, con su fecha y cómo cambió el stock."
+          }
+          borderRadius={borderRadius.lg}
+        >
+          <FlatList
+            data={movements}
+            renderItem={renderMovement}
+            keyExtractor={(item) => item.id.toString()}
+            ListEmptyComponent={renderEmpty}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingBottom: listPaddingBottom },
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          />
+        </TourGuideZone>
       </View>
 
       {product && (
-        <TouchableOpacity
-          style={[styles.fab, { bottom: fabBottom }]}
-          onPress={handleFabPress}
-          activeOpacity={0.85}
+        <TourGuideZone
+          zone={2}
+          text={"Registra una nueva entrada o salida de inventario."}
+          shape="circle"
         >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.fab, { bottom: fabBottom }]}
+            onPress={handleFabPress}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.fabIcon}>+</Text>
+          </TouchableOpacity>
+        </TourGuideZone>
       )}
 
       <CustomAlert />
