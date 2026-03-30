@@ -12,10 +12,12 @@ import {
   Platform,
   Keyboard,
 } from "react-native";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import RateDisplay from "../../components/exchange/RateDisplay";
 import CurrencyConverter from "../../components/exchange/CurrencyConverter";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -30,6 +32,8 @@ export const ExchangeRateScreen = () => {
   const { rate, lastUpdate, setManualRate } = useExchangeRate({
     autoUpdate: false,
   });
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
   const { showAlert, CustomAlert } = useCustomAlert();
   const [manualValue, setManualValue] = useState("0");
   const [saving, setSaving] = useState(false);
@@ -42,6 +46,34 @@ export const ExchangeRateScreen = () => {
       setManualValue(rate.toString());
     }
   }, [rate]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "exchangeRate";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
 
   const formattedLastUpdate = useMemo(() => {
     if (!lastUpdate) {
@@ -130,55 +162,94 @@ export const ExchangeRateScreen = () => {
             </View>
           </View>
 
-          <RateDisplay
-            rate={rate}
-            source="BCV"
-            lastUpdate={lastUpdate}
-            style={styles.rateDisplay}
-          />
-
-          <View style={styles.manualCard}>
-            <Text style={styles.manualTitle}>Actualizar manualmente</Text>
-            <Text style={styles.manualSubtitle}>
-              Ingresa la tasa acordada para aplicar inmediatamente en la app.
-            </Text>
-            <View style={styles.manualInputRow}>
-              <View style={styles.manualBadge}>
-                <Text style={styles.manualBadgeText}>USD → VES</Text>
-              </View>
-              <TextInput
-                ref={manualInputRef}
-                value={manualValue}
-                onChangeText={setManualValue}
-                keyboardType="decimal-pad"
-                placeholder="0.00"
-                style={styles.manualInput}
-                returnKeyType="done"
-                blurOnSubmit
-                onSubmitEditing={() => Keyboard.dismiss()}
-                onFocus={() => scrollToField(manualInputRef)}
+          <TourGuideZone
+            zone={1}
+            text={
+              "Esta es la tasa que usará la app para convertir USD↔VES en precios, ventas y reportes."
+            }
+            borderRadius={borderRadius.lg}
+          >
+            <View>
+              <RateDisplay
+                rate={rate}
+                source="BCV"
+                lastUpdate={lastUpdate}
+                style={styles.rateDisplay}
               />
             </View>
-            <TouchableOpacity
-              style={[styles.secondaryButton, saving && styles.buttonDisabled]}
-              onPress={() => {
-                Keyboard.dismiss();
-                handleManualSave();
-              }}
-              disabled={saving}
-              activeOpacity={0.85}
-            >
-              {saving ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.secondaryButtonText}>
-                  Guardar tasa manual
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
+          </TourGuideZone>
 
-          <CurrencyConverter exchangeRate={rate} style={styles.converter} />
+          <TourGuideZone
+            zone={2}
+            text={
+              "Si necesitas una tasa distinta (por ejemplo, acordada), puedes guardarla manualmente aquí."
+            }
+            borderRadius={borderRadius.lg}
+          >
+            <View style={styles.manualCard}>
+              <Text style={styles.manualTitle}>Actualizar manualmente</Text>
+              <Text style={styles.manualSubtitle}>
+                Ingresa la tasa acordada para aplicar inmediatamente en la app.
+              </Text>
+
+              <View style={styles.manualInputRow}>
+                <View style={styles.manualBadge}>
+                  <Text style={styles.manualBadgeText}>USD → VES</Text>
+                </View>
+                <TextInput
+                  ref={manualInputRef}
+                  value={manualValue}
+                  onChangeText={setManualValue}
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                  style={styles.manualInput}
+                  returnKeyType="done"
+                  blurOnSubmit
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                  onFocus={() => scrollToField(manualInputRef)}
+                />
+              </View>
+
+              <TourGuideZone
+                zone={3}
+                text={"Presiona 'Guardar tasa manual' para guardar la tasa."}
+                borderRadius={borderRadius.lg}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.secondaryButton,
+                    saving && styles.buttonDisabled,
+                  ]}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    handleManualSave();
+                  }}
+                  disabled={saving}
+                  activeOpacity={0.85}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.secondaryButtonText}>
+                      Guardar tasa manual
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </TourGuideZone>
+            </View>
+          </TourGuideZone>
+
+          <TourGuideZone
+            zone={4}
+            text={
+              "Usa el conversor para comprobar equivalencias rápidas entre USD y VES."
+            }
+            borderRadius={borderRadius.lg}
+          >
+            <View>
+              <CurrencyConverter exchangeRate={rate} style={styles.converter} />
+            </View>
+          </TourGuideZone>
         </ScrollView>
       </KeyboardAvoidingView>
       <CustomAlert />

@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import { useProducts } from "../../hooks/useProducts";
 import { getAllSales } from "../../services/database/sales";
 import { getSettings } from "../../services/database/settings";
@@ -16,6 +17,7 @@ import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { db } from "../../services/database/db";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -37,6 +39,8 @@ export const ProductsScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [settings, setSettings] = useState({});
   const { rate: exchangeRate } = useExchangeRate();
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
 
   const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
@@ -60,8 +64,37 @@ export const ProductsScreen = ({ navigation }) => {
         setSettings(s);
       };
       loadSettings();
-    }, [loadProducts])
+    }, [loadProducts]),
   );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "products";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        // Pequeño delay para asegurar layout/render
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
 
   const handleSearch = (text) => {
     setSearchQuery(text);
@@ -81,7 +114,7 @@ export const ProductsScreen = ({ navigation }) => {
       // Verificar si el producto tiene movimientos asociados
       const saleItemsResult = await db.getAllAsync(
         `SELECT COUNT(*) as count FROM sale_items WHERE productId = ?`,
-        [product.id]
+        [product.id],
       );
       const salesCount = saleItemsResult[0]?.count || 0;
 
@@ -90,13 +123,13 @@ export const ProductsScreen = ({ navigation }) => {
       try {
         const inventoryResult = await db.getAllAsync(
           `SELECT COUNT(*) as count FROM inventory_movements WHERE productId = ?`,
-          [product.id]
+          [product.id],
         );
         inventoryCount = inventoryResult[0]?.count || 0;
       } catch (error) {
         // Si no existe la tabla inventory_movements, continuar
         console.log(
-          "Tabla inventory_movements no existe, omitiendo verificación"
+          "Tabla inventory_movements no existe, omitiendo verificación",
         );
       }
 
@@ -160,11 +193,11 @@ export const ProductsScreen = ({ navigation }) => {
   const metrics = useMemo(() => {
     const totalProducts = products.length;
     const totalCategories = new Set(
-      products.map((product) => product.category || "General")
+      products.map((product) => product.category || "General"),
     ).size;
     const lowStockThreshold = 5;
     const lowStock = products.filter(
-      (product) => (product.stock || 0) <= lowStockThreshold
+      (product) => (product.stock || 0) <= lowStockThreshold,
     ).length;
     const totalInventoryUSD = products.reduce((sum, product) => {
       const price = product.priceUSD || 0;
@@ -268,23 +301,34 @@ export const ProductsScreen = ({ navigation }) => {
         </View>
       </View>
 
-      <View style={styles.searchCard}>
-        <View style={styles.searchHeader}>
-          <Text style={styles.searchTitle}>Buscar producto</Text>
-          {metrics.rateUsed ? (
-            <Text style={styles.rateBadge}>
-              Tasa {metrics.rateUsed.toFixed(2)}
-            </Text>
-          ) : null}
+      <TourGuideZone
+        zone={1}
+        text={
+          "Usa 'Buscar producto' (Nombre, categoría o referencia) para encontrar un producto rápidamente."
+        }
+        borderRadius={borderRadius.lg}
+        style={styles.searchCard}
+      >
+        <View>
+          <View style={styles.searchHeader}>
+            <Text style={styles.searchTitle}>Buscar producto</Text>
+            {metrics.rateUsed ? (
+              <Text style={styles.rateBadge}>
+                Tasa {metrics.rateUsed.toFixed(2)}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.tourFlex}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Nombre, categoría o referencia"
+              value={searchQuery}
+              onChangeText={handleSearch}
+              placeholderTextColor="#9aa2b1"
+            />
+          </View>
         </View>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Nombre, categoría o referencia"
-          value={searchQuery}
-          onChangeText={handleSearch}
-          placeholderTextColor="#9aa2b1"
-        />
-      </View>
+      </TourGuideZone>
     </View>
   );
 
@@ -313,13 +357,19 @@ export const ProductsScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         />
 
-        <TouchableOpacity
-          style={[styles.fab, { bottom: fabBottom }]}
-          onPress={() => navigation.navigate("AddProduct")}
-          activeOpacity={0.85}
+        <TourGuideZone
+          zone={2}
+          text={"Presiona '+' para registrar un nuevo producto."}
+          shape="circle"
         >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.fab, { bottom: fabBottom }]}
+            onPress={() => navigation.navigate("AddProduct")}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.fabIcon}>+</Text>
+          </TouchableOpacity>
+        </TourGuideZone>
       </View>
       <CustomAlert />
     </>
@@ -366,6 +416,9 @@ const styles = StyleSheet.create({
   },
   heroTextContainer: {
     flex: 1,
+    tourFlex: {
+      flex: 1,
+    },
     gap: vs(6),
   },
   heroTitle: {

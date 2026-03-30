@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,10 +10,12 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -26,6 +28,9 @@ import {
 
 export const AccountsReceivableScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { canStart, start } = useTourGuideController();
+  const TOUR_ZONE_BASE = 6100;
+  const [tourBooted, setTourBooted] = useState(false);
   const {
     accountsReceivable,
     loading,
@@ -46,6 +51,54 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
+
+  useEffect(() => {
+    let cancelled = false;
+    const query = (searchQuery || "").trim();
+
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return;
+
+      if (!query) {
+        refresh();
+      } else {
+        searchReceivable(query);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [searchQuery, refresh, searchReceivable]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "accountsReceivable";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start(TOUR_ZONE_BASE + 1);
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
 
   const buildReceivableWhatsAppText = useCallback((account) => {
     const customerName = account?.customerName || "Cliente";
@@ -95,18 +148,6 @@ export const AccountsReceivableScreen = ({ navigation }) => {
       }
     },
     [buildReceivableWhatsAppText, showAlert],
-  );
-
-  const handleSearch = useCallback(
-    async (query) => {
-      setSearchQuery(query);
-      if (!query.trim()) {
-        await refresh();
-      } else {
-        await searchReceivable(query);
-      }
-    },
-    [refresh, searchReceivable],
   );
 
   // Filtrar cuentas basado en el tab activo
@@ -426,22 +467,31 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 
   const header = (
     <View>
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryHeader}>
-          <View style={styles.summaryIcon}>
-            <Text style={styles.summaryIconText}>📥</Text>
+      <TourGuideZone
+        zone={TOUR_ZONE_BASE + 1}
+        text={
+          "Aquí ves el total. Usa 'Buscar cuentas…' para filtrar por cliente, factura o concepto."
+        }
+        borderRadius={borderRadius.lg}
+        style={styles.summaryCard}
+      >
+        <View>
+          <View style={styles.summaryHeader}>
+            <View style={styles.summaryIcon}>
+              <Text style={styles.summaryIconText}>📥</Text>
+            </View>
+            <View>
+              <Text style={styles.summaryTitle}>
+                Cuentas por Cobrar ({totalCount})
+              </Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.summaryTitle}>
-              Cuentas por Cobrar ({totalCount})
-            </Text>
-          </View>
-        </View>
 
-        <Text style={styles.summaryAmount}>
-          {formatCurrency(totalAmount, "VES")}
-        </Text>
-      </View>
+          <Text style={styles.summaryAmount}>
+            {formatCurrency(totalAmount, "VES")}
+          </Text>
+        </View>
+      </TourGuideZone>
 
       <View style={styles.controlsCard}>
         <TextInput
@@ -449,12 +499,17 @@ export const AccountsReceivableScreen = ({ navigation }) => {
           placeholder="Buscar cuentas..."
           placeholderTextColor="#9aa6b5"
           value={searchQuery}
-          onChangeText={handleSearch}
+          onChangeText={setSearchQuery}
           returnKeyType="search"
         />
       </View>
 
-      <View style={styles.tabGroup}>
+      <TourGuideZone
+        zone={TOUR_ZONE_BASE + 2}
+        text={"Filtra entre cuentas pendientes y pagadas."}
+        borderRadius={borderRadius.md}
+        style={styles.tabGroup}
+      >
         {[
           { key: "pending", label: "Pendientes" },
           { key: "paid", label: "Pagadas" },
@@ -475,7 +530,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </TourGuideZone>
     </View>
   );
 
@@ -541,13 +596,19 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         onRefresh={refresh}
       />
 
-      <TouchableOpacity
-        style={[styles.fab, { bottom: fabBottom }]}
-        onPress={openAddScreen}
-        activeOpacity={0.85}
+      <TourGuideZone
+        zone={TOUR_ZONE_BASE + 3}
+        text={"Presiona '+' para crear una nueva cuenta por cobrar."}
+        shape="circle"
       >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fab, { bottom: fabBottom }]}
+          onPress={openAddScreen}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      </TourGuideZone>
       <CustomAlert />
     </View>
   );

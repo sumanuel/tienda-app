@@ -22,11 +22,12 @@ export const searchAccountsReceivable = async (query) => {
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
       `SELECT ar.id, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId
-       WHERE customerName LIKE ? 
-       OR documentNumber LIKE ? 
-       OR description LIKE ?
+       WHERE ar.customerName LIKE ? 
+       OR ar.documentNumber LIKE ? 
+       OR ar.description LIKE ?
+       OR ar.invoiceNumber LIKE ?
        ORDER BY ar.createdAt DESC;`,
-      [searchTerm, searchTerm, searchTerm],
+      [searchTerm, searchTerm, searchTerm, searchTerm],
     );
     return result;
   } catch (error) {

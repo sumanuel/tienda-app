@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import {
   updateProductStock,
   insertInventoryMovement,
 } from "../../services/database/products";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -24,10 +26,40 @@ import {
 
 export const AddInventoryExitScreen = ({ navigation, route }) => {
   const { product } = route.params;
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const { showAlert, CustomAlert } = useCustomAlert();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "inventoryExit";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
 
   const handleSave = async () => {
     const qty = parseInt(quantity, 10);
@@ -60,7 +92,7 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
         "exit",
         qty,
         product.stock,
-        notes.trim() || null
+        notes.trim() || null,
       );
 
       navigation.goBack();
@@ -96,18 +128,26 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
         </View>
 
         <View style={styles.formCard}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Cantidad a sacar</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Ej: 1"
-              placeholderTextColor="#9aa6b5"
-              value={quantity}
-              onChangeText={setQuantity}
-              keyboardType="numeric"
-              returnKeyType="next"
-            />
-          </View>
+          <TourGuideZone
+            zone={1}
+            text={
+              "En 'Cantidad a sacar' indica cuántas unidades vas a descontar del inventario."
+            }
+            borderRadius={borderRadius.lg}
+          >
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Cantidad a sacar</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Ej: 1"
+                placeholderTextColor="#9aa6b5"
+                value={quantity}
+                onChangeText={setQuantity}
+                keyboardType="numeric"
+                returnKeyType="next"
+              />
+            </View>
+          </TourGuideZone>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Notas (opcional)</Text>
@@ -145,15 +185,22 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
               <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={handleSave}
-              disabled={loading || !quantity.trim()}
+            <TourGuideZone
+              zone={2}
+              text={"Guarda la salida de inventario y actualiza el stock."}
+              shape="rectangle"
+              borderRadius={borderRadius.lg}
             >
-              <Text style={styles.saveButtonText}>
-                {loading ? "Guardando..." : "Agregar Salida"}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.saveButton]}
+                onPress={handleSave}
+                disabled={loading || !quantity.trim()}
+              >
+                <Text style={styles.saveButtonText}>
+                  {loading ? "Guardando..." : "Agregar Salida"}
+                </Text>
+              </TouchableOpacity>
+            </TourGuideZone>
           </View>
         </View>
       </ScrollView>

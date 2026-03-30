@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
   FlatList,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { TourGuideZone, useTourGuideController } from "rn-tourguide";
 import { useProducts } from "../../hooks/useProducts";
+import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
   rf,
@@ -21,6 +23,8 @@ import {
 } from "../../utils/responsive";
 
 export const InventoryMovementsScreen = ({ navigation }) => {
+  const { canStart, start } = useTourGuideController();
+  const [tourBooted, setTourBooted] = useState(false);
   const {
     products,
     loading: productsLoading,
@@ -42,6 +46,34 @@ export const InventoryMovementsScreen = ({ navigation }) => {
     }, [loadProducts]),
   );
 
+  useEffect(() => {
+    let mounted = true;
+
+    const maybeStartTour = async () => {
+      if (tourBooted) return;
+      if (!canStart) return;
+
+      const tourId = "inventory";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        setTimeout(() => {
+          start();
+          markTourSeen(tourId);
+        }, 450);
+      }
+
+      if (mounted) setTourBooted(true);
+    };
+
+    maybeStartTour();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canStart, start, tourBooted]);
+
   const filteredProducts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return products;
@@ -54,28 +86,42 @@ export const InventoryMovementsScreen = ({ navigation }) => {
     });
   }, [products, searchQuery]);
 
-  const renderProductOption = ({ item }) => (
-    <TouchableOpacity
-      style={styles.productOptionCard}
-      activeOpacity={0.85}
-      onPress={() => handleSelectProduct(item)}
-    >
-      <View style={styles.productOptionRow}>
-        <Text style={styles.productOptionName} numberOfLines={1}>
-          {item.name}
+  const renderProductOption = ({ item, index }) => {
+    const card = (
+      <TouchableOpacity
+        style={styles.productOptionCard}
+        activeOpacity={0.85}
+        onPress={() => handleSelectProduct(item)}
+      >
+        <View style={styles.productOptionRow}>
+          <Text style={styles.productOptionName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.productOptionStock}>{item.stock} u.</Text>
+        </View>
+        <Text style={styles.productOptionCode} numberOfLines={1}>
+          Código: {item.barcode || "—"}
         </Text>
-        <Text style={styles.productOptionStock}>{item.stock} u.</Text>
-      </View>
-      <Text style={styles.productOptionCode} numberOfLines={1}>
-        Código: {item.barcode || "—"}
-      </Text>
-      {!!item.category && (
-        <Text style={styles.productOptionCategory} numberOfLines={1}>
-          {item.category}
-        </Text>
-      )}
-    </TouchableOpacity>
-  );
+        {!!item.category && (
+          <Text style={styles.productOptionCategory} numberOfLines={1}>
+            {item.category}
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
+
+    if (index !== 0) return card;
+
+    return (
+      <TourGuideZone
+        zone={2}
+        text={"Presiona un producto para ver su historial de movimientos."}
+        borderRadius={borderRadius.lg}
+      >
+        {card}
+      </TourGuideZone>
+    );
+  };
 
   const renderEmptyProducts = () => {
     if (productsLoading) return null;
@@ -120,22 +166,31 @@ export const InventoryMovementsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <View style={styles.searchCard}>
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Buscar por nombre, categoría o código"
-              placeholderTextColor="#9aa6b5"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="done"
-              autoCapitalize="none"
-            />
+        <TourGuideZone
+          zone={1}
+          text={
+            "En 'Buscar por nombre, categoría o código' filtra el producto para revisar sus entradas y salidas."
+          }
+          borderRadius={borderRadius.lg}
+          style={styles.searchCard}
+        >
+          <View>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Buscar por nombre, categoría o código"
+                placeholderTextColor="#9aa6b5"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="done"
+                autoCapitalize="none"
+              />
+            </View>
+            {!!productsError && (
+              <Text style={styles.errorText}>{productsError}</Text>
+            )}
           </View>
-          {!!productsError && (
-            <Text style={styles.errorText}>{productsError}</Text>
-          )}
-        </View>
+        </TourGuideZone>
 
         {productsLoading && (
           <View style={styles.loadingContainer}>
