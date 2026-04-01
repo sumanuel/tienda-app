@@ -89,7 +89,7 @@ export const SuppliersScreen = () => {
         // Verificar si el proveedor tiene movimientos asociados
         const allPayables = await getAllAccountsPayable();
         const supplierPayables = allPayables.filter(
-          (account) => account.supplierId === supplier.id,
+          (account) => Number(account.supplierId) === Number(supplier.id),
         );
 
         if (supplierPayables.length > 0) {

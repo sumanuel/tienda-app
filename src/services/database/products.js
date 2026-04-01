@@ -1,7 +1,92 @@
 import { db } from "./db";
+import {
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  writeBatch,
+} from "firebase/firestore";
+import { auth, firestore } from "../firebase/firebase";
 
 let productsColumnsChecked = false;
 let productsHasAdditionalCostColumn = false;
+const cloudProductsSeeded = new Set();
+
+const isCloudProductsEnabled = () => Boolean(auth.currentUser?.uid);
+
+const createCloudNumericId = () =>
+  Number(
+    `${Date.now()}${Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0")}`,
+  );
+
+const getProductsCollectionRef = () =>
+  collection(firestore, "users", auth.currentUser.uid, "products");
+
+const normalizeProductRecord = (product = {}) => ({
+  id: Number(product.id) || createCloudNumericId(),
+  name: String(product.name || "").trim(),
+  barcode: String(product.barcode || "").trim(),
+  category: String(product.category || "").trim(),
+  description: String(product.description || "").trim(),
+  cost: Number(product.cost) || 0,
+  additionalCost: Number(product.additionalCost) || 0,
+  priceUSD: Number(product.priceUSD) || 0,
+  priceVES: Number(product.priceVES) || 0,
+  margin: Number(product.margin) || 0,
+  stock: Number(product.stock) || 0,
+  minStock: Number(product.minStock) || 0,
+  image: String(product.image || "").trim(),
+  active: Number(product.active ?? 1),
+  createdAt: product.createdAt || new Date().toISOString(),
+  updatedAt: product.updatedAt || new Date().toISOString(),
+});
+
+const sortProductsByName = (products = []) =>
+  [...products].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || ""), "es", {
+      sensitivity: "base",
+    }),
+  );
+
+const getCloudProducts = async () => {
+  const snapshot = await getDocs(getProductsCollectionRef());
+  return snapshot.docs.map((item) => normalizeProductRecord(item.data()));
+};
+
+const ensureCloudProductsSeeded = async () => {
+  if (!isCloudProductsEnabled()) return;
+
+  const uid = auth.currentUser.uid;
+  if (cloudProductsSeeded.has(uid)) return;
+
+  const collectionRef = getProductsCollectionRef();
+  const existingSnapshot = await getDocs(collectionRef);
+  if (!existingSnapshot.empty) {
+    cloudProductsSeeded.add(uid);
+    return;
+  }
+
+  await ensureProductsAdditionalCostColumn();
+  const rows = await db.getAllAsync(
+    "SELECT * FROM products WHERE active = 1 ORDER BY name;",
+  );
+
+  if (rows.length > 0) {
+    const batch = writeBatch(firestore);
+    rows.forEach((row) => {
+      const normalized = normalizeProductRecord(row);
+      batch.set(doc(collectionRef, String(normalized.id)), normalized, {
+        merge: true,
+      });
+    });
+    await batch.commit();
+  }
+
+  cloudProductsSeeded.add(uid);
+};
 
 const ensureProductsAdditionalCostColumn = async () => {
   if (productsColumnsChecked && productsHasAdditionalCostColumn) {
@@ -96,6 +181,12 @@ export const checkTableExists = async () => {
  */
 export const getAllProducts = async () => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudProductsSeeded();
+      const products = await getCloudProducts();
+      return sortProductsByName(products.filter((item) => item.active === 1));
+    }
+
     // Verificar si la tabla existe
     const tableExists = await checkTableExists();
     if (!tableExists) {
@@ -121,6 +212,16 @@ export const getAllProducts = async () => {
  */
 export const getProductByBarcode = async (barcode) => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudProductsSeeded();
+      const products = await getCloudProducts();
+      return (
+        products.find(
+          (item) => item.active === 1 && String(item.barcode || "") === barcode,
+        ) || null
+      );
+    }
+
     await ensureProductsAdditionalCostColumn();
     const result = await db.getFirstAsync(
       "SELECT * FROM products WHERE barcode = ? AND active = 1;",
@@ -137,6 +238,24 @@ export const getProductByBarcode = async (barcode) => {
  */
 export const searchProducts = async (query) => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudProductsSeeded();
+      const searchTerm = String(query || "")
+        .trim()
+        .toLowerCase();
+      const products = await getCloudProducts();
+      return sortProductsByName(
+        products.filter((item) => {
+          if (item.active !== 1) return false;
+          if (!searchTerm) return true;
+          return [item.name, item.category, item.barcode, item.description]
+            .join(" ")
+            .toLowerCase()
+            .includes(searchTerm);
+        }),
+      );
+    }
+
     await ensureProductsAdditionalCostColumn();
     const result = await db.getAllAsync(
       `SELECT * FROM products
@@ -155,6 +274,21 @@ export const searchProducts = async (query) => {
  */
 export const insertProduct = async (product) => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudProductsSeeded();
+      const id = createCloudNumericId();
+      const now = new Date().toISOString();
+      const payload = normalizeProductRecord({
+        ...product,
+        id,
+        active: 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await setDoc(doc(getProductsCollectionRef(), String(id)), payload);
+      return id;
+    }
+
     await ensureProductsAdditionalCostColumn();
     console.log("Insertando producto en BD:", product);
     const result = await db.runAsync(
@@ -189,6 +323,19 @@ export const insertProduct = async (product) => {
  */
 export const updateProduct = async (id, product) => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudProductsSeeded();
+      const payload = normalizeProductRecord({
+        ...product,
+        id: Number(id),
+        updatedAt: new Date().toISOString(),
+      });
+      await setDoc(doc(getProductsCollectionRef(), String(id)), payload, {
+        merge: true,
+      });
+      return 1;
+    }
+
     await ensureProductsAdditionalCostColumn();
     const result = await db.runAsync(
       `UPDATE products
@@ -223,6 +370,15 @@ export const updateProduct = async (id, product) => {
  */
 export const updateProductStock = async (id, newStock) => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudProductsSeeded();
+      await updateDoc(doc(getProductsCollectionRef(), String(id)), {
+        stock: Number(newStock) || 0,
+        updatedAt: new Date().toISOString(),
+      });
+      return 1;
+    }
+
     const result = await db.runAsync(
       "UPDATE products SET stock = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
       [newStock, id],
@@ -238,6 +394,15 @@ export const updateProductStock = async (id, newStock) => {
  */
 export const deleteProduct = async (id) => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudProductsSeeded();
+      await updateDoc(doc(getProductsCollectionRef(), String(id)), {
+        active: 0,
+        updatedAt: new Date().toISOString(),
+      });
+      return 1;
+    }
+
     const result = await db.runAsync(
       "UPDATE products SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
       [id],
@@ -253,6 +418,18 @@ export const deleteProduct = async (id) => {
  */
 export const getLowStockProducts = async () => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudProductsSeeded();
+      const products = await getCloudProducts();
+      return sortProductsByName(
+        products.filter(
+          (item) =>
+            item.active === 1 &&
+            Number(item.stock) <= Number(item.minStock || 0),
+        ),
+      );
+    }
+
     const result = await db.getAllAsync(
       "SELECT * FROM products WHERE stock <= minStock AND active = 1 ORDER BY stock;",
     );
@@ -373,6 +550,33 @@ export const initSampleProducts = async () => {
  */
 export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudProductsSeeded();
+      const products = await getCloudProducts();
+      const batch = writeBatch(firestore);
+      const activeProducts = products.filter((item) => item.active === 1);
+
+      activeProducts.forEach((item) => {
+        batch.set(
+          doc(getProductsCollectionRef(), String(item.id)),
+          {
+            priceVES:
+              Math.round(
+                (Number(item.priceUSD) || 0) * Number(exchangeRate) * 100,
+              ) / 100,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+      });
+
+      if (activeProducts.length > 0) {
+        await batch.commit();
+      }
+
+      return activeProducts.length;
+    }
+
     console.log(
       `Actualizando precios con nueva tasa: 1 USD = ${exchangeRate} VES`,
     );
@@ -399,6 +603,19 @@ export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
  */
 export const getAllProductsWithQRCodes = async () => {
   try {
+    if (isCloudProductsEnabled()) {
+      const products = await getAllProducts();
+      return products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        barcode: product.barcode,
+        category: product.category,
+        priceUSD: product.priceUSD,
+        stock: product.stock,
+        qrCode: product.barcode || `PROD-${product.id}`,
+      }));
+    }
+
     const result = await db.getAllAsync(
       `SELECT id, name, barcode, category, priceUSD, stock
        FROM products

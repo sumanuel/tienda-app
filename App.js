@@ -28,6 +28,7 @@ import * as NavigationBar from "expo-navigation-bar";
 // Context
 import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
 import { RateNotificationsProvider } from "./src/contexts/RateNotificationsContext";
+import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
 
 // Hooks and Utils
 import { useExchangeRate } from "./src/contexts/ExchangeRateContext";
@@ -83,6 +84,8 @@ import InventoryMovementsScreen from "./src/screens/main/InventoryMovementsScree
 import InventoryMovementsDetailScreen from "./src/screens/main/InventoryMovementsDetailScreen";
 import AboutScreen from "./src/screens/main/AboutScreen";
 import OnboardingScreen from "./src/screens/main/OnboardingScreen";
+import AuthScreen from "./src/screens/auth/AuthScreen";
+import VerifyEmailScreen from "./src/screens/auth/VerifyEmailScreen";
 import MobilePaymentsScreen from "./src/screens/main/MobilePaymentsScreen";
 import RateNotificationsScreen from "./src/screens/main/RateNotificationsScreen";
 import DailyExternalRatePrompt from "./src/components/exchange/DailyExternalRatePrompt";
@@ -609,10 +612,11 @@ const tabStyles = StyleSheet.create({
 /**
  * Componente principal de la aplicación
  */
-export default function App() {
+function AppContent() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingInitialStep, setOnboardingInitialStep] = useState("slides");
+  const { user, authLoading, emailVerified } = useAuth();
 
   const applyImmersiveMode = useCallback(async () => {
     try {
@@ -788,12 +792,30 @@ export default function App() {
     }
   };
 
-  if (!isReady) {
+  if (!isReady || authLoading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <StatusBar hidden translucent />
         <ActivityIndicator size="large" color="#4CAF50" />
       </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <StatusBar hidden translucent />
+        <AuthScreen />
+      </>
+    );
+  }
+
+  if (!emailVerified) {
+    return (
+      <>
+        <StatusBar hidden translucent />
+        <VerifyEmailScreen />
+      </>
     );
   }
 
@@ -1395,5 +1417,13 @@ export default function App() {
         </ExchangeRateProvider>
       </TourGuideProvider>
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

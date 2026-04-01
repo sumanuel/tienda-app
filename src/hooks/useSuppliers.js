@@ -7,6 +7,7 @@ import {
   updateSupplier,
   deleteSupplier,
 } from "../services/database/suppliers";
+import { requestCloudSync } from "../services/firebase/firestoreSync";
 
 /**
  * Hook para gestionar proveedores
@@ -94,6 +95,7 @@ export const useSuppliers = () => {
 
         await insertSupplier(payload);
         await loadSuppliers();
+        requestCloudSync("suppliers:add");
       } catch (err) {
         setError(err.message);
         console.error("Error adding supplier:", err);
@@ -128,6 +130,7 @@ export const useSuppliers = () => {
 
         await updateSupplier(id, payload);
         await loadSuppliers();
+        requestCloudSync("suppliers:edit");
       } catch (err) {
         setError(err.message);
         console.error("Error editing supplier:", err);
@@ -143,6 +146,7 @@ export const useSuppliers = () => {
         setError(null);
         await deleteSupplier(id);
         await loadSuppliers();
+        requestCloudSync("suppliers:remove");
       } catch (err) {
         setError(err.message);
         console.error("Error removing supplier:", err);

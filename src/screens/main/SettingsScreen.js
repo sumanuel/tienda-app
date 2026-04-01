@@ -23,6 +23,8 @@ import {
   exportDataToExcel,
   shareExcelFile,
 } from "../../services/export/excelExportService";
+import { useAuth } from "../../contexts/AuthContext";
+import { requestCloudSync } from "../../services/firebase/firestoreSync";
 import {
   s,
   rf,
@@ -36,6 +38,7 @@ import {
 export const SettingsScreen = () => {
   const navigation = useNavigation();
   const { showAlert, CustomAlert } = useCustomAlert();
+  const { user, syncing, signOut, syncNow } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [backupBusy, setBackupBusy] = useState(false);
   const [excelBusy, setExcelBusy] = useState(false);
@@ -110,6 +113,7 @@ export const SettingsScreen = () => {
       await saveSettings(updatedSettings);
       setLowStockThreshold(numericLowStock);
       setEditingSection(null);
+      requestCloudSync("settings:inventory");
       showAlert({
         title: "Éxito",
         message: "Umbral de stock bajo actualizado",
@@ -156,6 +160,7 @@ export const SettingsScreen = () => {
       if (!file) return;
 
       await importDatabaseBackupFromUri(file.uri);
+      await syncNow("settings:import-backup");
 
       showAlert({
         title: "Respaldo importado",
@@ -219,6 +224,37 @@ export const SettingsScreen = () => {
     });
   };
 
+  const handleManualCloudSync = async () => {
+    try {
+      await syncNow("settings:manual-sync");
+      showAlert({
+        title: "Sincronización completa",
+        message: "Los datos locales fueron enviados a Firestore.",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error syncing to Firestore:", error);
+      showAlert({
+        title: "Error",
+        message: "No se pudo sincronizar con Firestore.",
+        type: "error",
+      });
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+      showAlert({
+        title: "Error",
+        message: "No se pudo cerrar la sesión.",
+        type: "error",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -243,6 +279,9 @@ export const SettingsScreen = () => {
               <Text style={styles.heroTitle}>Configuración</Text>
               <Text style={styles.heroSubtitle}>
                 Gestiona los parámetros y datos de tu negocio.
+              </Text>
+              <Text style={styles.accountPill}>
+                {user?.email || "Sin cuenta"}
               </Text>
             </View>
           </View>
@@ -341,6 +380,14 @@ export const SettingsScreen = () => {
                 </Text>
               </View>
             </View>
+
+            <View style={styles.cloudStatusBox}>
+              <Text style={styles.cloudStatusTitle}>Firestore conectado</Text>
+              <Text style={styles.cloudStatusSubtitle}>
+                Sesión activa: {user?.email || "sin correo"}
+              </Text>
+            </View>
+
             <View style={styles.quickActions}>
               <TouchableOpacity
                 style={[
@@ -369,6 +416,38 @@ export const SettingsScreen = () => {
                 ) : (
                   <Text style={styles.secondaryButtonText}>Importar datos</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.quickActions}>
+              <TouchableOpacity
+                style={[
+                  styles.secondaryButton,
+                  (syncing || backupBusy || excelBusy) && styles.buttonDisabled,
+                ]}
+                onPress={handleManualCloudSync}
+                disabled={syncing || backupBusy || excelBusy}
+              >
+                {syncing ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Text style={styles.secondaryButtonText}>
+                    Sincronizar Firestore
+                  </Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.secondaryButtonOutline,
+                  syncing && styles.buttonDisabled,
+                ]}
+                onPress={handleSignOut}
+                disabled={syncing}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.secondaryButtonOutlineText}>
+                  Cerrar sesión
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -533,6 +612,17 @@ const styles = StyleSheet.create({
     color: "#5b6472",
     lineHeight: rf(20),
   },
+  accountPill: {
+    alignSelf: "flex-start",
+    marginTop: vs(4),
+    backgroundColor: "#edf3ff",
+    color: "#2f5ae0",
+    fontSize: rf(12),
+    fontWeight: "700",
+    paddingHorizontal: hs(10),
+    paddingVertical: vs(6),
+    borderRadius: s(999),
+  },
   formArea: {
     gap: spacing.lg,
   },
@@ -587,6 +677,23 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: "row",
     gap: spacing.lg,
+  },
+  cloudStatusBox: {
+    backgroundColor: "#f7fbff",
+    borderWidth: 1,
+    borderColor: "#d9e8ff",
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  cloudStatusTitle: {
+    fontSize: rf(14),
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  cloudStatusSubtitle: {
+    fontSize: rf(13),
+    color: "#5b6472",
   },
   secondaryButtonOutline: {
     flex: 1,

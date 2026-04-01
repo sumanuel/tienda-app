@@ -21,6 +21,7 @@ import {
   updateReceivableAmountsOnRateChange,
   updatePayableAmountsOnRateChange,
 } from "../services/database/accounts";
+import { requestCloudSync } from "../services/firebase/firestoreSync";
 
 /**
  * Hook para gestionar cuentas por cobrar y pagar
@@ -96,11 +97,12 @@ export const useAccounts = () => {
       try {
         await createAccountReceivable(accountData);
         await refresh();
+        requestCloudSync("accounts:receivable:add");
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const editAccountReceivable = useCallback(
@@ -108,11 +110,12 @@ export const useAccounts = () => {
       try {
         await updateAccountReceivable(id, accountData);
         await refresh();
+        requestCloudSync("accounts:receivable:edit");
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const removeAccountReceivable = useCallback(
@@ -120,11 +123,12 @@ export const useAccounts = () => {
       try {
         await deleteAccountReceivable(id);
         await refresh();
+        requestCloudSync("accounts:receivable:remove");
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const markReceivableAsPaid = useCallback(
@@ -132,11 +136,12 @@ export const useAccounts = () => {
       try {
         await markAccountReceivableAsPaid(id);
         await refresh();
+        requestCloudSync("accounts:receivable:paid");
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const searchReceivable = useCallback(
@@ -154,7 +159,7 @@ export const useAccounts = () => {
         console.error("Error searching accounts receivable:", err);
       }
     },
-    [loadAccounts]
+    [loadAccounts],
   );
 
   const searchPayable = useCallback(
@@ -172,7 +177,7 @@ export const useAccounts = () => {
         console.error("Error searching accounts payable:", err);
       }
     },
-    [loadAccounts]
+    [loadAccounts],
   );
 
   const updateReceivableAmounts = useCallback(
@@ -180,11 +185,12 @@ export const useAccounts = () => {
       try {
         await updateReceivableAmountsOnRateChange(newRate);
         await refresh();
+        requestCloudSync("accounts:receivable:rate-change");
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const updatePayableAmounts = useCallback(
@@ -192,11 +198,12 @@ export const useAccounts = () => {
       try {
         await updatePayableAmountsOnRateChange(newRate);
         await refresh();
+        requestCloudSync("accounts:payable:rate-change");
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   // CRUD functions for accounts payable
@@ -205,11 +212,12 @@ export const useAccounts = () => {
       try {
         await createAccountPayable(accountData);
         await refresh();
+        requestCloudSync("accounts:payable:add");
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const editAccountPayable = useCallback(
@@ -217,11 +225,12 @@ export const useAccounts = () => {
       try {
         await updateAccountPayable(id, accountData);
         await refresh();
+        requestCloudSync("accounts:payable:edit");
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const removeAccountPayable = useCallback(
@@ -229,11 +238,12 @@ export const useAccounts = () => {
       try {
         await deleteAccountPayable(id);
         await refresh();
+        requestCloudSync("accounts:payable:remove");
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const markPayableAsPaid = useCallback(
@@ -241,11 +251,12 @@ export const useAccounts = () => {
       try {
         await markAccountPayableAsPaid(id);
         await refresh();
+        requestCloudSync("accounts:payable:paid");
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const recordPayment = useCallback(
@@ -253,11 +264,12 @@ export const useAccounts = () => {
       try {
         await recordAccountPayment(accountId, paymentData, accountType);
         await refresh();
+        requestCloudSync(`accounts:payment:${accountType}`);
       } catch (error) {
         throw error;
       }
     },
-    [refresh]
+    [refresh],
   );
 
   const getPayments = useCallback(
@@ -268,7 +280,7 @@ export const useAccounts = () => {
         throw error;
       }
     },
-    []
+    [],
   );
 
   const getBalance = useCallback(
@@ -279,7 +291,7 @@ export const useAccounts = () => {
         throw error;
       }
     },
-    []
+    [],
   );
 
   return {

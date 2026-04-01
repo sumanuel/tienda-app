@@ -171,15 +171,15 @@ export const CustomersScreen = () => {
 
         // Verificar si el cliente tiene movimientos asociados
         const [allSales, allReceivables] = await Promise.all([
-          getAllSales(),
+          getAllSales(100000),
           getAllAccountsReceivable(),
         ]);
 
         const customerSales = allSales.filter(
-          (sale) => sale.customerId === customer.id,
+          (sale) => Number(sale.customerId) === Number(customer.id),
         );
         const customerReceivables = allReceivables.filter(
-          (account) => account.customerId === customer.id,
+          (account) => Number(account.customerId) === Number(customer.id),
         );
 
         if (customerSales.length > 0 || customerReceivables.length > 0) {

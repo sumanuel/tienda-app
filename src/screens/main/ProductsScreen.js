@@ -112,12 +112,14 @@ export const ProductsScreen = ({ navigation }) => {
 
   const handleDeleteProduct = async (product) => {
     try {
-      // Verificar si el producto tiene movimientos asociados
-      const saleItemsResult = await db.getAllAsync(
-        `SELECT COUNT(*) as count FROM sale_items WHERE productId = ?`,
-        [product.id],
-      );
-      const salesCount = saleItemsResult[0]?.count || 0;
+      const allSales = await getAllSales(100000);
+      const salesCount = allSales.filter((sale) =>
+        Array.isArray(sale.items)
+          ? sale.items.some(
+              (item) => Number(item.productId) === Number(product.id),
+            )
+          : false,
+      ).length;
 
       // Verificar movimientos de inventario (si existe la tabla)
       let inventoryCount = 0;

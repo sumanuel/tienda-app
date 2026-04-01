@@ -1,10 +1,224 @@
 import { db } from "./db";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  writeBatch,
+} from "firebase/firestore";
+import { auth, firestore } from "../firebase/firebase";
+
+const cloudAccountsSeeded = new Set();
+
+const isCloudAccountsEnabled = () => Boolean(auth.currentUser?.uid);
+
+const createCloudNumericId = () =>
+  Number(
+    `${Date.now()}${Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0")}`,
+  );
+
+const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+const sortByCreatedAtDesc = (items = []) =>
+  [...items].sort(
+    (a, b) =>
+      new Date(b.createdAt || 0).getTime() -
+      new Date(a.createdAt || 0).getTime(),
+  );
+
+const getReceivableCollectionRef = () =>
+  collection(firestore, "users", auth.currentUser.uid, "accounts_receivable");
+
+const getPayableCollectionRef = () =>
+  collection(firestore, "users", auth.currentUser.uid, "accounts_payable");
+
+const getPaymentsCollectionRef = () =>
+  collection(firestore, "users", auth.currentUser.uid, "account_payments");
+
+const getCustomersCollectionRef = () =>
+  collection(firestore, "users", auth.currentUser.uid, "customers");
+
+const normalizeAccountRecord = (account = {}, accountType = "receivable") => ({
+  id: Number(account.id) || createCloudNumericId(),
+  customerId:
+    accountType === "receivable" && account.customerId != null
+      ? Number(account.customerId) || account.customerId
+      : null,
+  customerName:
+    accountType === "receivable"
+      ? String(account.customerName || "").trim()
+      : "",
+  customerPhone:
+    accountType === "receivable"
+      ? String(account.customerPhone || "").trim()
+      : "",
+  supplierId:
+    accountType === "payable" && account.supplierId != null
+      ? Number(account.supplierId) || account.supplierId
+      : null,
+  supplierName:
+    accountType === "payable" ? String(account.supplierName || "").trim() : "",
+  documentNumber: String(account.documentNumber || "").trim(),
+  description: String(account.description || "").trim(),
+  amount: roundMoney(account.amount),
+  paidAmount: Math.max(0, roundMoney(account.paidAmount)),
+  status: String(account.status || "pending"),
+  invoiceNumber: String(account.invoiceNumber || "").trim(),
+  dueDate: account.dueDate || null,
+  baseCurrency: String(account.baseCurrency || "VES"),
+  baseAmountUSD:
+    account.baseAmountUSD == null || account.baseAmountUSD === ""
+      ? null
+      : roundMoney(account.baseAmountUSD),
+  exchangeRateAtCreation:
+    account.exchangeRateAtCreation == null ||
+    account.exchangeRateAtCreation === ""
+      ? null
+      : Number(account.exchangeRateAtCreation) || null,
+  paidAt: account.paidAt || null,
+  createdAt: account.createdAt || new Date().toISOString(),
+  updatedAt: account.updatedAt || new Date().toISOString(),
+});
+
+const normalizePaymentRecord = (payment = {}) => ({
+  id: Number(payment.id) || createCloudNumericId(),
+  accountId: Number(payment.accountId) || 0,
+  accountType: payment.accountType === "payable" ? "payable" : "receivable",
+  amount: roundMoney(payment.amount),
+  paymentMethod: String(payment.paymentMethod || "").trim(),
+  paymentDate: payment.paymentDate || new Date().toISOString(),
+  reference: String(payment.reference || "").trim(),
+  notes: String(payment.notes || "").trim(),
+  createdAt: payment.createdAt || new Date().toISOString(),
+});
+
+const getCloudAccounts = async (accountType = "receivable") => {
+  const snapshot = await getDocs(
+    accountType === "payable"
+      ? getPayableCollectionRef()
+      : getReceivableCollectionRef(),
+  );
+
+  return snapshot.docs.map((item) =>
+    normalizeAccountRecord(item.data(), accountType),
+  );
+};
+
+const getCloudPayments = async () => {
+  const snapshot = await getDocs(getPaymentsCollectionRef());
+  return snapshot.docs.map((item) => normalizePaymentRecord(item.data()));
+};
+
+const buildCustomerPhoneMap = async () => {
+  const snapshot = await getDocs(getCustomersCollectionRef());
+  return snapshot.docs.reduce((acc, item) => {
+    const customer = item.data() || {};
+    if (customer.id != null) {
+      acc[Number(customer.id)] = String(customer.phone || "").trim();
+    }
+    return acc;
+  }, {});
+};
+
+const attachCustomerPhones = async (accounts = []) => {
+  const phoneMap = await buildCustomerPhoneMap();
+  return accounts.map((account) => ({
+    ...account,
+    customerPhone:
+      account.customerPhone || phoneMap[Number(account.customerId)] || "",
+  }));
+};
+
+const ensureCloudAccountsSeeded = async () => {
+  if (!isCloudAccountsEnabled()) return;
+
+  const uid = auth.currentUser.uid;
+  if (cloudAccountsSeeded.has(uid)) return;
+
+  const [receivableSnapshot, payableSnapshot, paymentsSnapshot] =
+    await Promise.all([
+      getDocs(getReceivableCollectionRef()),
+      getDocs(getPayableCollectionRef()),
+      getDocs(getPaymentsCollectionRef()),
+    ]);
+
+  const batch = writeBatch(firestore);
+  let hasChanges = false;
+
+  if (receivableSnapshot.empty) {
+    const rows = await db.getAllAsync(
+      "SELECT * FROM accounts_receivable ORDER BY createdAt DESC;",
+    );
+    rows.forEach((row) => {
+      const normalized = normalizeAccountRecord(row, "receivable");
+      batch.set(
+        doc(getReceivableCollectionRef(), String(normalized.id)),
+        normalized,
+        {
+          merge: true,
+        },
+      );
+      hasChanges = true;
+    });
+  }
+
+  if (payableSnapshot.empty) {
+    const rows = await db.getAllAsync(
+      "SELECT * FROM accounts_payable ORDER BY createdAt DESC;",
+    );
+    rows.forEach((row) => {
+      const normalized = normalizeAccountRecord(row, "payable");
+      batch.set(
+        doc(getPayableCollectionRef(), String(normalized.id)),
+        normalized,
+        {
+          merge: true,
+        },
+      );
+      hasChanges = true;
+    });
+  }
+
+  if (paymentsSnapshot.empty) {
+    const rows = await db.getAllAsync(
+      "SELECT * FROM account_payments ORDER BY paymentDate DESC;",
+    );
+    rows.forEach((row) => {
+      const normalized = normalizePaymentRecord(row);
+      batch.set(
+        doc(getPaymentsCollectionRef(), String(normalized.id)),
+        normalized,
+        {
+          merge: true,
+        },
+      );
+      hasChanges = true;
+    });
+  }
+
+  if (hasChanges) {
+    await batch.commit();
+  }
+
+  cloudAccountsSeeded.add(uid);
+};
 
 /**
  * Obtiene todas las cuentas por cobrar
  */
 export const getAllAccountsReceivable = async () => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const accounts = await getCloudAccounts("receivable");
+      return sortByCreatedAtDesc(await attachCustomerPhones(accounts));
+    }
+
     const result = await db.getAllAsync(
       "SELECT ar.id, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId ORDER BY ar.createdAt DESC;",
     );
@@ -19,6 +233,26 @@ export const getAllAccountsReceivable = async () => {
  */
 export const searchAccountsReceivable = async (query) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const searchTerm = String(query || "")
+        .trim()
+        .toLowerCase();
+      const accounts = await getAllAccountsReceivable();
+      if (!searchTerm) return accounts;
+      return accounts.filter((account) =>
+        [
+          account.customerName,
+          account.documentNumber,
+          account.description,
+          account.invoiceNumber,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(searchTerm),
+      );
+    }
+
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
       `SELECT ar.id, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId
@@ -40,6 +274,12 @@ export const searchAccountsReceivable = async (query) => {
  */
 export const getAllAccountsPayable = async () => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const accounts = await getCloudAccounts("payable");
+      return sortByCreatedAtDesc(accounts);
+    }
+
     const result = await db.getAllAsync(
       "SELECT id, supplierId, supplierName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;",
     );
@@ -54,6 +294,26 @@ export const getAllAccountsPayable = async () => {
  */
 export const searchAccountsPayable = async (query) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const searchTerm = String(query || "")
+        .trim()
+        .toLowerCase();
+      const accounts = await getAllAccountsPayable();
+      if (!searchTerm) return accounts;
+      return accounts.filter((account) =>
+        [
+          account.supplierName,
+          account.documentNumber,
+          account.description,
+          account.invoiceNumber,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(searchTerm),
+      );
+    }
+
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
       `SELECT id, supplierName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable 
@@ -74,6 +334,28 @@ export const searchAccountsPayable = async (query) => {
  */
 export const getAccountsReceivableStats = async () => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const accounts = await getCloudAccounts("receivable");
+      return accounts.reduce(
+        (acc, account) => {
+          const pendingAmount = Math.max(
+            0,
+            roundMoney(account.amount) - roundMoney(account.paidAmount),
+          );
+          const isPending = account.status === "pending" && pendingAmount > 0;
+          const isOverdue = account.status === "overdue" && pendingAmount > 0;
+          return {
+            total: acc.total + 1,
+            pending: acc.pending + (isPending ? pendingAmount : 0),
+            overdue: acc.overdue + (isOverdue ? pendingAmount : 0),
+            totalAmount: acc.totalAmount + pendingAmount,
+          };
+        },
+        { total: 0, pending: 0, overdue: 0, totalAmount: 0 },
+      );
+    }
+
     const result = await db.getAllAsync(`
       SELECT
         COUNT(*) as total,
@@ -93,6 +375,28 @@ export const getAccountsReceivableStats = async () => {
  */
 export const getAccountsPayableStats = async () => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const accounts = await getCloudAccounts("payable");
+      return accounts.reduce(
+        (acc, account) => {
+          const pendingAmount = Math.max(
+            0,
+            roundMoney(account.amount) - roundMoney(account.paidAmount),
+          );
+          const isPending = account.status === "pending" && pendingAmount > 0;
+          const isOverdue = account.status === "overdue" && pendingAmount > 0;
+          return {
+            total: acc.total + 1,
+            pending: acc.pending + (isPending ? pendingAmount : 0),
+            overdue: acc.overdue + (isOverdue ? pendingAmount : 0),
+            totalAmount: acc.totalAmount + pendingAmount,
+          };
+        },
+        { total: 0, pending: 0, overdue: 0, totalAmount: 0 },
+      );
+    }
+
     const result = await db.getAllAsync(`
       SELECT
         COUNT(*) as total,
@@ -112,6 +416,23 @@ export const getAccountsPayableStats = async () => {
  */
 export const createAccountReceivable = async (accountData) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const id = createCloudNumericId();
+      const payload = normalizeAccountRecord(
+        {
+          ...accountData,
+          id,
+          status: "pending",
+          createdAt: accountData.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        "receivable",
+      );
+      await setDoc(doc(getReceivableCollectionRef(), String(id)), payload);
+      return id;
+    }
+
     const {
       customerId,
       customerName,
@@ -154,6 +475,23 @@ export const createAccountReceivable = async (accountData) => {
  */
 export const createAccountPayable = async (accountData) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const id = createCloudNumericId();
+      const payload = normalizeAccountRecord(
+        {
+          ...accountData,
+          id,
+          status: "pending",
+          createdAt: accountData.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        "payable",
+      );
+      await setDoc(doc(getPayableCollectionRef(), String(id)), payload);
+      return id;
+    }
+
     const {
       supplierId,
       supplierName,
@@ -196,6 +534,23 @@ export const createAccountPayable = async (accountData) => {
  */
 export const updateAccountReceivable = async (id, accountData) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      await setDoc(
+        doc(getReceivableCollectionRef(), String(id)),
+        normalizeAccountRecord(
+          {
+            ...accountData,
+            id: Number(id),
+            updatedAt: new Date().toISOString(),
+          },
+          "receivable",
+        ),
+        { merge: true },
+      );
+      return;
+    }
+
     const {
       customerName,
       amount,
@@ -234,6 +589,23 @@ export const updateAccountReceivable = async (id, accountData) => {
  */
 export const updateAccountPayable = async (id, accountData) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      await setDoc(
+        doc(getPayableCollectionRef(), String(id)),
+        normalizeAccountRecord(
+          {
+            ...accountData,
+            id: Number(id),
+            updatedAt: new Date().toISOString(),
+          },
+          "payable",
+        ),
+        { merge: true },
+      );
+      return;
+    }
+
     const {
       supplierName,
       amount,
@@ -268,6 +640,23 @@ export const updateAccountPayable = async (id, accountData) => {
  */
 export const markAccountReceivableAsPaid = async (id) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const ref = doc(getReceivableCollectionRef(), String(id));
+      const snapshot = await getDoc(ref);
+      if (!snapshot.exists()) {
+        throw new Error("Cuenta no encontrada");
+      }
+      const account = normalizeAccountRecord(snapshot.data(), "receivable");
+      await updateDoc(ref, {
+        status: "paid",
+        paidAmount: roundMoney(account.amount),
+        paidAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      return;
+    }
+
     await db.runAsync(
       `UPDATE accounts_receivable
        SET status = 'paid', paidAt = datetime('now'), updatedAt = datetime('now')
@@ -284,6 +673,23 @@ export const markAccountReceivableAsPaid = async (id) => {
  */
 export const markAccountPayableAsPaid = async (id) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const ref = doc(getPayableCollectionRef(), String(id));
+      const snapshot = await getDoc(ref);
+      if (!snapshot.exists()) {
+        throw new Error("Cuenta no encontrada");
+      }
+      const account = normalizeAccountRecord(snapshot.data(), "payable");
+      await updateDoc(ref, {
+        status: "paid",
+        paidAmount: roundMoney(account.amount),
+        paidAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      return;
+    }
+
     await db.runAsync(
       `UPDATE accounts_payable
        SET status = 'paid', paidAt = datetime('now'), updatedAt = datetime('now')
@@ -300,6 +706,24 @@ export const markAccountPayableAsPaid = async (id) => {
  */
 export const deleteAccountReceivable = async (id) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const payments = await getCloudPayments();
+      const matchingPayments = payments.filter(
+        (payment) =>
+          payment.accountType === "receivable" &&
+          Number(payment.accountId) === Number(id),
+      );
+
+      const batch = writeBatch(firestore);
+      matchingPayments.forEach((payment) => {
+        batch.delete(doc(getPaymentsCollectionRef(), String(payment.id)));
+      });
+      batch.delete(doc(getReceivableCollectionRef(), String(id)));
+      await batch.commit();
+      return;
+    }
+
     // Primero eliminar los pagos asociados
     await db.runAsync(
       "DELETE FROM account_payments WHERE accountId = ? AND accountType = 'receivable'",
@@ -317,6 +741,24 @@ export const deleteAccountReceivable = async (id) => {
  */
 export const deleteAccountPayable = async (id) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const payments = await getCloudPayments();
+      const matchingPayments = payments.filter(
+        (payment) =>
+          payment.accountType === "payable" &&
+          Number(payment.accountId) === Number(id),
+      );
+
+      const batch = writeBatch(firestore);
+      matchingPayments.forEach((payment) => {
+        batch.delete(doc(getPaymentsCollectionRef(), String(payment.id)));
+      });
+      batch.delete(doc(getPayableCollectionRef(), String(id)));
+      await batch.commit();
+      return;
+    }
+
     // Primero eliminar los pagos asociados
     await db.runAsync(
       "DELETE FROM account_payments WHERE accountId = ? AND accountType = 'payable'",
@@ -338,6 +780,74 @@ export const recordAccountPayment = async (
   accountType = "receivable",
 ) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+
+      const collectionRef =
+        accountType === "payable"
+          ? getPayableCollectionRef()
+          : getReceivableCollectionRef();
+      const accountRef = doc(collectionRef, String(accountId));
+      const accountSnapshot = await getDoc(accountRef);
+
+      if (!accountSnapshot.exists()) {
+        throw new Error("Cuenta no encontrada");
+      }
+
+      const account = normalizeAccountRecord(
+        accountSnapshot.data(),
+        accountType,
+      );
+      const { amount, paymentMethod, paymentDate, reference, notes } =
+        paymentData;
+      const numericAmount = Number(amount);
+
+      if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+        throw new Error("Monto de pago inválido");
+      }
+
+      const roundedAmount = roundMoney(numericAmount);
+      const remaining = Math.max(
+        0,
+        roundMoney(account.amount) - roundMoney(account.paidAmount),
+      );
+
+      if (remaining <= 0) {
+        throw new Error("La cuenta ya está pagada");
+      }
+
+      if (roundedAmount > remaining + 0.01) {
+        throw new Error("El monto no puede ser mayor al saldo pendiente");
+      }
+
+      const paymentId = createCloudNumericId();
+      await setDoc(
+        doc(getPaymentsCollectionRef(), String(paymentId)),
+        normalizePaymentRecord({
+          id: paymentId,
+          accountId,
+          accountType,
+          amount: roundedAmount,
+          paymentMethod,
+          paymentDate: paymentDate || new Date().toISOString(),
+          reference,
+          notes,
+          createdAt: new Date().toISOString(),
+        }),
+      );
+
+      const nextPaidAmount = roundMoney(account.paidAmount + roundedAmount);
+      const isPaid = nextPaidAmount + 0.01 >= roundMoney(account.amount);
+
+      await updateDoc(accountRef, {
+        paidAmount: isPaid ? roundMoney(account.amount) : nextPaidAmount,
+        status: isPaid ? "paid" : account.status,
+        paidAt: isPaid ? new Date().toISOString() : account.paidAt || null,
+        updatedAt: new Date().toISOString(),
+      });
+      return;
+    }
+
     const { amount, paymentMethod, paymentDate, reference, notes } =
       paymentData;
 
@@ -424,6 +934,18 @@ export const getAccountPayments = async (
   accountType = "receivable",
 ) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const payments = await getCloudPayments();
+      return sortByCreatedAtDesc(
+        payments.filter(
+          (payment) =>
+            Number(payment.accountId) === Number(accountId) &&
+            payment.accountType === accountType,
+        ),
+      );
+    }
+
     const result = await db.getAllAsync(
       `SELECT id, accountId, accountType, ROUND(amount, 2) as amount, paymentMethod, paymentDate, reference, notes FROM account_payments
        WHERE accountId = ? AND accountType = ?
@@ -444,6 +966,31 @@ export const getAccountBalance = async (
   accountType = "receivable",
 ) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const ref = doc(
+        accountType === "payable"
+          ? getPayableCollectionRef()
+          : getReceivableCollectionRef(),
+        String(accountId),
+      );
+      const snapshot = await getDoc(ref);
+
+      if (!snapshot.exists()) {
+        throw new Error("Cuenta no encontrada");
+      }
+
+      const account = normalizeAccountRecord(snapshot.data(), accountType);
+      const balance =
+        roundMoney(account.amount) - roundMoney(account.paidAmount);
+      return {
+        totalAmount: roundMoney(account.amount),
+        paidAmount: roundMoney(account.paidAmount),
+        balance: Math.max(0, roundMoney(balance)),
+        isPaid: balance <= 0,
+      };
+    }
+
     const tableName =
       accountType === "payable" ? "accounts_payable" : "accounts_receivable";
 
@@ -473,6 +1020,92 @@ export const getAccountBalance = async (
  */
 export const fixCorruptedAccountData = async () => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+
+      const [receivableAccounts, payableAccounts, payments] = await Promise.all(
+        [
+          getCloudAccounts("receivable"),
+          getCloudAccounts("payable"),
+          getCloudPayments(),
+        ],
+      );
+
+      const receivableIds = new Set(
+        receivableAccounts.map((item) => Number(item.id)),
+      );
+      const payableIds = new Set(
+        payableAccounts.map((item) => Number(item.id)),
+      );
+      const batch = writeBatch(firestore);
+      let hasChanges = false;
+
+      payments.forEach((payment) => {
+        const isValid =
+          payment.accountType === "payable"
+            ? payableIds.has(Number(payment.accountId))
+            : receivableIds.has(Number(payment.accountId));
+
+        if (!isValid) {
+          batch.delete(doc(getPaymentsCollectionRef(), String(payment.id)));
+          hasChanges = true;
+        }
+      });
+
+      const reconcileAccounts = (accounts, accountType) => {
+        accounts.forEach((account) => {
+          const totalPaid = payments
+            .filter(
+              (payment) =>
+                payment.accountType === accountType &&
+                Number(payment.accountId) === Number(account.id),
+            )
+            .reduce((sum, payment) => sum + roundMoney(payment.amount), 0);
+
+          const paidAmount = Math.max(0, roundMoney(totalPaid));
+          const amount = roundMoney(account.amount);
+          const isPaid = paidAmount + 0.01 >= amount;
+          const nextStatus = isPaid
+            ? "paid"
+            : account.status === "paid"
+              ? "pending"
+              : account.status;
+
+          if (
+            roundMoney(account.paidAmount) !== paidAmount ||
+            String(account.status || "") !== nextStatus
+          ) {
+            batch.set(
+              doc(
+                accountType === "payable"
+                  ? getPayableCollectionRef()
+                  : getReceivableCollectionRef(),
+                String(account.id),
+              ),
+              {
+                paidAmount: isPaid ? amount : paidAmount,
+                status: nextStatus,
+                paidAt: isPaid
+                  ? account.paidAt || new Date().toISOString()
+                  : null,
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true },
+            );
+            hasChanges = true;
+          }
+        });
+      };
+
+      reconcileAccounts(receivableAccounts, "receivable");
+      reconcileAccounts(payableAccounts, "payable");
+
+      if (hasChanges) {
+        await batch.commit();
+      }
+      return;
+    }
+
     // Verificar si hay datos corruptos antes de proceder
     const orphanedPaymentsReceivable = await db.getFirstAsync(`
       SELECT COUNT(*) as count FROM account_payments 
@@ -570,6 +1203,54 @@ export const fixCorruptedAccountData = async () => {
 
 export const updateReceivableAmountsOnRateChange = async (newRate) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const accounts = await getCloudAccounts("receivable");
+      const batch = writeBatch(firestore);
+      let hasChanges = false;
+
+      accounts.forEach((account) => {
+        const amount = roundMoney(account.amount);
+        const paidAmount = roundMoney(account.paidAmount);
+
+        if (paidAmount + 0.01 >= amount) {
+          batch.set(
+            doc(getReceivableCollectionRef(), String(account.id)),
+            {
+              status: "paid",
+              paidAt: account.paidAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true },
+          );
+          hasChanges = true;
+          return;
+        }
+
+        if (
+          account.baseCurrency === "USD" &&
+          Number(account.baseAmountUSD) > 0
+        ) {
+          batch.set(
+            doc(getReceivableCollectionRef(), String(account.id)),
+            {
+              amount: roundMoney(
+                Number(account.baseAmountUSD) * Number(newRate || 0),
+              ),
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true },
+          );
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        await batch.commit();
+      }
+      return;
+    }
+
     // 1) Congelar las que ya están efectivamente pagadas (tolerancia 0.01) antes de tocar montos.
     // Esto evita que por redondeos queden como "pendientes" y luego cambien/disappezcan al recalcular.
     await db.runAsync(
@@ -604,6 +1285,54 @@ export const updateReceivableAmountsOnRateChange = async (newRate) => {
  */
 export const updatePayableAmountsOnRateChange = async (newRate) => {
   try {
+    if (isCloudAccountsEnabled()) {
+      await ensureCloudAccountsSeeded();
+      const accounts = await getCloudAccounts("payable");
+      const batch = writeBatch(firestore);
+      let hasChanges = false;
+
+      accounts.forEach((account) => {
+        const amount = roundMoney(account.amount);
+        const paidAmount = roundMoney(account.paidAmount);
+
+        if (paidAmount + 0.01 >= amount) {
+          batch.set(
+            doc(getPayableCollectionRef(), String(account.id)),
+            {
+              status: "paid",
+              paidAt: account.paidAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true },
+          );
+          hasChanges = true;
+          return;
+        }
+
+        if (
+          account.baseCurrency === "USD" &&
+          Number(account.baseAmountUSD) > 0
+        ) {
+          batch.set(
+            doc(getPayableCollectionRef(), String(account.id)),
+            {
+              amount: roundMoney(
+                Number(account.baseAmountUSD) * Number(newRate || 0),
+              ),
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true },
+          );
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        await batch.commit();
+      }
+      return;
+    }
+
     // 1) Congelar las que ya están efectivamente pagadas (tolerancia 0.01) antes de tocar montos.
     // Esto evita que por redondeos queden como "pendientes" y luego cambien/disappezcan al recalcular.
     await db.runAsync(

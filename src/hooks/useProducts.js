@@ -7,6 +7,7 @@ import {
   deleteProduct,
 } from "../services/database/products";
 import { useExchangeRate } from "./useExchangeRate";
+import { requestCloudSync } from "../services/firebase/firestoreSync";
 
 /**
  * Hook para gestionar productos
@@ -71,9 +72,8 @@ export const useProducts = () => {
         setTimeout(async () => {
           try {
             // Intentar reinicializar la base de datos
-            const { initDatabase } = await import(
-              "../services/database/products"
-            );
+            const { initDatabase } =
+              await import("../services/database/products");
             await initDatabase();
             loadProducts(); // Reintentar cargar
           } catch (initError) {
@@ -113,6 +113,7 @@ export const useProducts = () => {
       const id = await insertProduct(product);
       console.log("Producto agregado con ID:", id);
       await loadProducts(); // Recargar lista
+      requestCloudSync("products:add");
       return id;
     } catch (err) {
       setError(err.message);
@@ -129,6 +130,7 @@ export const useProducts = () => {
       setError(null);
       await updateProduct(id, product);
       await loadProducts(); // Recargar lista
+      requestCloudSync("products:edit");
     } catch (err) {
       setError(err.message);
       console.error("Error updating product:", err);
@@ -144,6 +146,7 @@ export const useProducts = () => {
       setError(null);
       await deleteProduct(id);
       await loadProducts(); // Recargar lista
+      requestCloudSync("products:remove");
     } catch (err) {
       setError(err.message);
       console.error("Error deleting product:", err);
@@ -158,7 +161,7 @@ export const useProducts = () => {
     (category) => {
       return products.filter((p) => p.category === category);
     },
-    [products]
+    [products],
   );
 
   /**
@@ -168,7 +171,7 @@ export const useProducts = () => {
     (id) => {
       return products.find((p) => p.id === id);
     },
-    [products]
+    [products],
   );
 
   return {

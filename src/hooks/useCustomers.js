@@ -10,6 +10,7 @@ import {
   cleanDuplicateCustomers,
   recoverDeletedCustomers,
 } from "../services/database/customers";
+import { requestCloudSync } from "../services/firebase/firestoreSync";
 
 /**
  * Hook para gestionar clientes
@@ -56,7 +57,7 @@ export const useCustomers = () => {
         console.error("Error searching customers:", err);
       }
     },
-    [loadCustomers]
+    [loadCustomers],
   );
 
   const getCustomerByDocument = useCallback(async (documentNumber) => {
@@ -91,17 +92,18 @@ export const useCustomers = () => {
         // Verificar si ya existe un cliente con la misma cédula
         if (customerData.documentNumber && customerData.documentNumber.trim()) {
           const existingCustomer = await getCustomerByDocumentNumber(
-            customerData.documentNumber.trim()
+            customerData.documentNumber.trim(),
           );
           if (existingCustomer) {
             throw new Error(
-              `Ya existe un cliente con la cédula ${customerData.documentNumber}`
+              `Ya existe un cliente con la cédula ${customerData.documentNumber}`,
             );
           }
         }
 
         const customerId = await insertCustomer(customerData);
         await loadCustomers();
+        requestCloudSync("customers:add");
         return customerId;
       } catch (err) {
         setError(err.message);
@@ -109,7 +111,7 @@ export const useCustomers = () => {
         throw err;
       }
     },
-    [loadCustomers]
+    [loadCustomers],
   );
 
   const editCustomer = useCallback(
@@ -118,13 +120,14 @@ export const useCustomers = () => {
         setError(null);
         await updateCustomer(id, customerData);
         await loadCustomers();
+        requestCloudSync("customers:edit");
       } catch (err) {
         setError(err.message);
         console.error("Error editing customer:", err);
         throw err;
       }
     },
-    [loadCustomers]
+    [loadCustomers],
   );
 
   const removeCustomer = useCallback(
@@ -133,13 +136,14 @@ export const useCustomers = () => {
         setError(null);
         await deleteCustomer(id);
         await loadCustomers();
+        requestCloudSync("customers:remove");
       } catch (err) {
         setError(err.message);
         console.error("Error removing customer:", err);
         throw err;
       }
     },
-    [loadCustomers]
+    [loadCustomers],
   );
 
   const getCustomerStats = useCallback(() => {
@@ -153,6 +157,7 @@ export const useCustomers = () => {
       setError(null);
       const result = await cleanDuplicateCustomers();
       await loadCustomers();
+      requestCloudSync("customers:clean-duplicates");
       return result;
     } catch (err) {
       setError(err.message);
@@ -166,6 +171,7 @@ export const useCustomers = () => {
       setError(null);
       const recoveredCount = await recoverDeletedCustomers();
       await loadCustomers();
+      requestCloudSync("customers:recover");
       return recoveredCount;
     } catch (err) {
       setError(err.message);
