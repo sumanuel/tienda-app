@@ -284,7 +284,13 @@ export const AccountsPayableScreen = ({ navigation }) => {
           onPress={() => openEditScreen(item)}
         >
           <View style={styles.cardHeader}>
-            <Text style={styles.supplierName}>{item.supplierName}</Text>
+            <View>
+              <Text style={styles.supplierName}>{item.supplierName}</Text>
+              <Text style={styles.metaText}>
+                {item.payableNumber ||
+                  `CXP-${String(item.id).padStart(6, "0")}`}
+              </Text>
+            </View>
             <View
               style={[
                 styles.statusBadge,

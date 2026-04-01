@@ -1,4 +1,11 @@
 import { db } from "./db";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { auth, firestore } from "../firebase/firebase";
+
+const isCloudSettingsEnabled = () => Boolean(auth.currentUser?.uid);
+
+const getSettingsDocRef = () =>
+  doc(firestore, "users", auth.currentUser.uid, "settings", "app_settings");
 
 const isPlainObject = (value) => {
   return (
@@ -53,6 +60,16 @@ const stableStringify = (value) => {
  */
 export const initSettingsTable = async () => {
   try {
+    if (isCloudSettingsEnabled()) {
+      const existing = await getDoc(getSettingsDocRef());
+      if (!existing.exists()) {
+        await setDoc(getSettingsDocRef(), getDefaultSettings(), {
+          merge: true,
+        });
+      }
+      return;
+    }
+
     // Verificar si ya existen configuraciones
     const existing = await db.getFirstAsync(
       "SELECT value FROM settings WHERE key = 'app_settings';",
@@ -80,6 +97,40 @@ export const initSettingsTable = async () => {
  */
 export const getSettings = async () => {
   try {
+    if (isCloudSettingsEnabled()) {
+      const snapshot = await getDoc(getSettingsDocRef());
+      const parsed = snapshot.exists() ? snapshot.data() || {} : {};
+      const defaults = getDefaultSettings();
+      const merged = deepMergeDefaults(defaults, parsed);
+
+      try {
+        const name = String(merged?.business?.name || "").trim();
+        const isConfigured = Boolean(merged?.business?.isConfigured);
+        const nameIsDefault = name.toLowerCase() === "mi tienda";
+        const hasAnyExtraData = [
+          merged?.business?.rif,
+          merged?.business?.address,
+          merged?.business?.phone,
+          merged?.business?.email,
+        ].some((v) => String(v || "").trim().length > 0);
+
+        if (!isConfigured && ((name && !nameIsDefault) || hasAnyExtraData)) {
+          merged.business = {
+            ...(merged.business || {}),
+            isConfigured: true,
+          };
+        }
+      } catch (_) {
+        // noop
+      }
+
+      if (stableStringify(parsed) !== stableStringify(merged)) {
+        await saveSettings(merged);
+      }
+
+      return merged;
+    }
+
     const result = await db.getFirstAsync(
       "SELECT value FROM settings WHERE key = 'app_settings';",
     );
@@ -142,6 +193,11 @@ export const ensureSettingsDefaults = async () => {
  */
 export const saveSettings = async (settings) => {
   try {
+    if (isCloudSettingsEnabled()) {
+      await setDoc(getSettingsDocRef(), settings, { merge: true });
+      return true;
+    }
+
     const settingsJson = JSON.stringify(settings);
     await db.runAsync(
       `INSERT OR REPLACE INTO settings (key, value, updatedAt) 

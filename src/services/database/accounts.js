@@ -10,6 +10,11 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import {
+  formatConsecutiveNumber,
+  getNextCloudConsecutive,
+  parseConsecutiveSequence,
+} from "./consecutives";
 
 const cloudAccountsSeeded = new Set();
 
@@ -43,8 +48,28 @@ const getPaymentsCollectionRef = () =>
 const getCustomersCollectionRef = () =>
   collection(firestore, "users", auth.currentUser.uid, "customers");
 
+const getSuppliersCollectionRef = () =>
+  collection(firestore, "users", auth.currentUser.uid, "suppliers");
+
 const normalizeAccountRecord = (account = {}, accountType = "receivable") => ({
-  id: Number(account.id) || createCloudNumericId(),
+  id:
+    Number(account.id) ||
+    parseConsecutiveSequence(
+      accountType === "payable"
+        ? account.payableNumber
+        : account.receivableNumber,
+    ) ||
+    createCloudNumericId(),
+  receivableNumber:
+    accountType === "receivable"
+      ? String(account.receivableNumber || "").trim() ||
+        formatConsecutiveNumber("receivable", account.id)
+      : "",
+  payableNumber:
+    accountType === "payable"
+      ? String(account.payableNumber || "").trim() ||
+        formatConsecutiveNumber("payable", account.id)
+      : "",
   customerId:
     accountType === "receivable" && account.customerId != null
       ? Number(account.customerId) || account.customerId
@@ -134,6 +159,157 @@ const attachCustomerPhones = async (accounts = []) => {
   }));
 };
 
+const normalizeExistingCloudAccounts = async ({
+  receivableSnapshot,
+  payableSnapshot,
+  paymentsSnapshot,
+}) => {
+  const uid = auth.currentUser.uid;
+  const receivableCollectionRef = getReceivableCollectionRef();
+  const payableCollectionRef = getPayableCollectionRef();
+
+  const receivables = receivableSnapshot.docs
+    .map((item) => normalizeAccountRecord(item.data(), "receivable"))
+    .sort((a, b) => {
+      const createdDiff =
+        new Date(a.createdAt || 0).getTime() -
+        new Date(b.createdAt || 0).getTime();
+      if (createdDiff !== 0) return createdDiff;
+      return Number(a.id) - Number(b.id);
+    });
+
+  const payables = payableSnapshot.docs
+    .map((item) => normalizeAccountRecord(item.data(), "payable"))
+    .sort((a, b) => {
+      const createdDiff =
+        new Date(a.createdAt || 0).getTime() -
+        new Date(b.createdAt || 0).getTime();
+      if (createdDiff !== 0) return createdDiff;
+      return Number(a.id) - Number(b.id);
+    });
+
+  const receivableRequiresNormalization = receivableSnapshot.docs.some(
+    (item, index) => {
+      const targetId = index + 1;
+      const data = normalizeAccountRecord(item.data(), "receivable");
+      return Number(data.id) !== targetId || item.id !== String(targetId);
+    },
+  );
+
+  const payableRequiresNormalization = payableSnapshot.docs.some(
+    (item, index) => {
+      const targetId = index + 1;
+      const data = normalizeAccountRecord(item.data(), "payable");
+      return Number(data.id) !== targetId || item.id !== String(targetId);
+    },
+  );
+
+  const receivableIdMap = new Map();
+  receivables.forEach((item, index) => {
+    receivableIdMap.set(Number(item.id), index + 1);
+  });
+
+  const payableIdMap = new Map();
+  payables.forEach((item, index) => {
+    payableIdMap.set(Number(item.id), index + 1);
+  });
+
+  if (receivableRequiresNormalization) {
+    for (let index = 0; index < receivableSnapshot.docs.length; index += 300) {
+      const batch = writeBatch(firestore);
+      receivableSnapshot.docs.slice(index, index + 300).forEach((item) => {
+        batch.delete(item.ref);
+      });
+      await batch.commit();
+    }
+
+    for (let index = 0; index < receivables.length; index += 300) {
+      const batch = writeBatch(firestore);
+      receivables.slice(index, index + 300).forEach((item, offset) => {
+        const sequence = index + offset + 1;
+        batch.set(
+          doc(receivableCollectionRef, String(sequence)),
+          {
+            ...item,
+            id: sequence,
+            receivableNumber: formatConsecutiveNumber("receivable", sequence),
+          },
+          { merge: false },
+        );
+      });
+      await batch.commit();
+    }
+  }
+
+  if (payableRequiresNormalization) {
+    for (let index = 0; index < payableSnapshot.docs.length; index += 300) {
+      const batch = writeBatch(firestore);
+      payableSnapshot.docs.slice(index, index + 300).forEach((item) => {
+        batch.delete(item.ref);
+      });
+      await batch.commit();
+    }
+
+    for (let index = 0; index < payables.length; index += 300) {
+      const batch = writeBatch(firestore);
+      payables.slice(index, index + 300).forEach((item, offset) => {
+        const sequence = index + offset + 1;
+        batch.set(
+          doc(payableCollectionRef, String(sequence)),
+          {
+            ...item,
+            id: sequence,
+            payableNumber: formatConsecutiveNumber("payable", sequence),
+          },
+          { merge: false },
+        );
+      });
+      await batch.commit();
+    }
+  }
+
+  if (receivableRequiresNormalization || payableRequiresNormalization) {
+    const normalizedPayments = paymentsSnapshot.docs.map((item) => {
+      const payment = normalizePaymentRecord(item.data());
+      return {
+        ref: item.ref,
+        payment: {
+          ...payment,
+          accountId:
+            payment.accountType === "payable"
+              ? (payableIdMap.get(Number(payment.accountId)) ??
+                Number(payment.accountId) ??
+                0)
+              : (receivableIdMap.get(Number(payment.accountId)) ??
+                Number(payment.accountId) ??
+                0),
+        },
+      };
+    });
+
+    for (let index = 0; index < normalizedPayments.length; index += 300) {
+      const batch = writeBatch(firestore);
+      normalizedPayments
+        .slice(index, index + 300)
+        .forEach(({ ref, payment }) => {
+          batch.set(ref, payment, { merge: true });
+        });
+      await batch.commit();
+    }
+  }
+
+  await setDoc(
+    doc(firestore, "users", uid),
+    {
+      counters: {
+        receivable: receivables.length,
+        payable: payables.length,
+      },
+    },
+    { merge: true },
+  );
+};
+
 const ensureCloudAccountsSeeded = async () => {
   if (!isCloudAccountsEnabled()) return;
 
@@ -146,6 +322,18 @@ const ensureCloudAccountsSeeded = async () => {
       getDocs(getPayableCollectionRef()),
       getDocs(getPaymentsCollectionRef()),
     ]);
+
+  if (
+    !receivableSnapshot.empty ||
+    !payableSnapshot.empty ||
+    !paymentsSnapshot.empty
+  ) {
+    await normalizeExistingCloudAccounts({
+      receivableSnapshot,
+      payableSnapshot,
+      paymentsSnapshot,
+    });
+  }
 
   const batch = writeBatch(firestore);
   let hasChanges = false;
@@ -205,6 +393,27 @@ const ensureCloudAccountsSeeded = async () => {
     await batch.commit();
   }
 
+  await setDoc(
+    doc(firestore, "users", uid),
+    {
+      counters: {
+        receivable: receivableSnapshot.empty
+          ? await db
+              .getFirstAsync(
+                "SELECT COUNT(*) as total FROM accounts_receivable;",
+              )
+              .then((row) => Number(row?.total) || 0)
+          : receivableSnapshot.size,
+        payable: payableSnapshot.empty
+          ? await db
+              .getFirstAsync("SELECT COUNT(*) as total FROM accounts_payable;")
+              .then((row) => Number(row?.total) || 0)
+          : payableSnapshot.size,
+      },
+    },
+    { merge: true },
+  );
+
   cloudAccountsSeeded.add(uid);
 };
 
@@ -220,7 +429,7 @@ export const getAllAccountsReceivable = async () => {
     }
 
     const result = await db.getAllAsync(
-      "SELECT ar.id, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId ORDER BY ar.createdAt DESC;",
+      "SELECT ar.id, ar.receivableNumber, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId ORDER BY ar.createdAt DESC;",
     );
     return result;
   } catch (error) {
@@ -246,6 +455,7 @@ export const searchAccountsReceivable = async (query) => {
           account.documentNumber,
           account.description,
           account.invoiceNumber,
+          account.receivableNumber,
         ]
           .join(" ")
           .toLowerCase()
@@ -255,13 +465,14 @@ export const searchAccountsReceivable = async (query) => {
 
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
-      `SELECT ar.id, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId
+      `SELECT ar.id, ar.receivableNumber, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId
        WHERE ar.customerName LIKE ? 
        OR ar.documentNumber LIKE ? 
        OR ar.description LIKE ?
+       OR ar.receivableNumber LIKE ?
        OR ar.invoiceNumber LIKE ?
        ORDER BY ar.createdAt DESC;`,
-      [searchTerm, searchTerm, searchTerm, searchTerm],
+      [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm],
     );
     return result;
   } catch (error) {
@@ -281,7 +492,7 @@ export const getAllAccountsPayable = async () => {
     }
 
     const result = await db.getAllAsync(
-      "SELECT id, supplierId, supplierName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;",
+      "SELECT id, payableNumber, supplierId, supplierName, documentNumber, description, invoiceNumber, dueDate, baseCurrency, baseAmountUSD, exchangeRateAtCreation, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;",
     );
     return result;
   } catch (error) {
@@ -307,6 +518,7 @@ export const searchAccountsPayable = async (query) => {
           account.documentNumber,
           account.description,
           account.invoiceNumber,
+          account.payableNumber,
         ]
           .join(" ")
           .toLowerCase()
@@ -316,12 +528,14 @@ export const searchAccountsPayable = async (query) => {
 
     const searchTerm = `%${query}%`;
     const result = await db.getAllAsync(
-      `SELECT id, supplierName, documentNumber, description, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable 
+      `SELECT id, payableNumber, supplierId, supplierName, documentNumber, description, invoiceNumber, dueDate, baseCurrency, baseAmountUSD, exchangeRateAtCreation, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable 
        WHERE supplierName LIKE ? 
        OR documentNumber LIKE ? 
        OR description LIKE ?
+       OR payableNumber LIKE ?
+       OR invoiceNumber LIKE ?
        ORDER BY createdAt DESC;`,
-      [searchTerm, searchTerm, searchTerm],
+      [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm],
     );
     return result;
   } catch (error) {
@@ -418,11 +632,23 @@ export const createAccountReceivable = async (accountData) => {
   try {
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
-      const id = createCloudNumericId();
+      const existingAccounts = await getCloudAccounts("receivable");
+      const maxSequence = existingAccounts.reduce((maxValue, item) => {
+        return Math.max(
+          maxValue,
+          Number(item.id) || 0,
+          parseConsecutiveSequence(item.receivableNumber),
+        );
+      }, 0);
+      const consecutive = await getNextCloudConsecutive("receivable", {
+        minimum: maxSequence,
+      });
+      const id = consecutive.sequence;
       const payload = normalizeAccountRecord(
         {
           ...accountData,
           id,
+          receivableNumber: consecutive.value,
           status: "pending",
           createdAt: accountData.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -464,6 +690,13 @@ export const createAccountReceivable = async (accountData) => {
         createdAt || new Date().toISOString(),
       ],
     );
+    await db.runAsync(
+      "UPDATE accounts_receivable SET receivableNumber = ? WHERE id = ?;",
+      [
+        formatConsecutiveNumber("receivable", result.lastInsertRowId),
+        result.lastInsertRowId,
+      ],
+    );
     return result.lastInsertRowId;
   } catch (error) {
     throw error;
@@ -477,11 +710,23 @@ export const createAccountPayable = async (accountData) => {
   try {
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
-      const id = createCloudNumericId();
+      const existingAccounts = await getCloudAccounts("payable");
+      const maxSequence = existingAccounts.reduce((maxValue, item) => {
+        return Math.max(
+          maxValue,
+          Number(item.id) || 0,
+          parseConsecutiveSequence(item.payableNumber),
+        );
+      }, 0);
+      const consecutive = await getNextCloudConsecutive("payable", {
+        minimum: maxSequence,
+      });
+      const id = consecutive.sequence;
       const payload = normalizeAccountRecord(
         {
           ...accountData,
           id,
+          payableNumber: consecutive.value,
           status: "pending",
           createdAt: accountData.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -521,6 +766,13 @@ export const createAccountPayable = async (accountData) => {
         documentNumber || null,
         invoiceNumber || null,
         createdAt || new Date().toISOString(),
+      ],
+    );
+    await db.runAsync(
+      "UPDATE accounts_payable SET payableNumber = ? WHERE id = ?;",
+      [
+        formatConsecutiveNumber("payable", result.lastInsertRowId),
+        result.lastInsertRowId,
       ],
     );
     return result.lastInsertRowId;

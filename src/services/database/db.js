@@ -10,6 +10,88 @@ export const db = SQLite.openDatabaseSync("tienda.db");
 // Flag para saber si las tablas ya fueron inicializadas
 let tablesInitialized = false;
 
+const LOCAL_CONSECUTIVE_COLUMNS = [
+  {
+    tableName: "products",
+    columnName: "productNumber",
+    prefix: "PRD",
+    digits: 6,
+  },
+  {
+    tableName: "inventory_movements",
+    columnName: "movementNumber",
+    prefix: "MOV",
+    digits: 6,
+  },
+  {
+    tableName: "sales",
+    columnName: "saleNumber",
+    prefix: "VTA",
+    digits: 6,
+  },
+  {
+    tableName: "customers",
+    columnName: "customerNumber",
+    prefix: "CLI",
+    digits: 6,
+  },
+  {
+    tableName: "suppliers",
+    columnName: "supplierNumber",
+    prefix: "PRV",
+    digits: 6,
+  },
+  {
+    tableName: "accounts_receivable",
+    columnName: "receivableNumber",
+    prefix: "CXC",
+    digits: 6,
+  },
+  {
+    tableName: "accounts_payable",
+    columnName: "payableNumber",
+    prefix: "CXP",
+    digits: 6,
+  },
+];
+
+const buildLocalConsecutiveValue = (prefix, digits) => {
+  return `'${prefix}-' || printf('%0${digits}d', id)`;
+};
+
+const ensureLocalConsecutiveColumn = async ({
+  tableName,
+  columnName,
+  prefix,
+  digits,
+}) => {
+  const table = await db.getFirstAsync(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name = ?;",
+    [tableName],
+  );
+
+  if (!table?.name) {
+    return;
+  }
+
+  const columns = await db.getAllAsync(`PRAGMA table_info(${tableName});`);
+  const hasColumn = (columns || []).some(
+    (column) => column?.name === columnName,
+  );
+
+  if (!hasColumn) {
+    await db.execAsync(
+      `ALTER TABLE ${tableName} ADD COLUMN ${columnName} TEXT;`,
+    );
+  }
+
+  await db.runAsync(
+    `UPDATE ${tableName}
+     SET ${columnName} = ${buildLocalConsecutiveValue(prefix, digits)}
+     WHERE ${columnName} IS NULL OR TRIM(${columnName}) = '';`,
+  );
+};
+
 /**
  * Inicializa todas las tablas de la base de datos
  * Ejecuta todas las creaciones de tablas en una sola transacción
@@ -33,6 +115,7 @@ export const initAllTables = async () => {
         -- Tabla de productos
         CREATE TABLE IF NOT EXISTS products (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          productNumber TEXT,
           name TEXT NOT NULL,
           barcode TEXT UNIQUE,
           category TEXT,
@@ -53,6 +136,7 @@ export const initAllTables = async () => {
         -- Tabla de movimientos de inventario
         CREATE TABLE IF NOT EXISTS inventory_movements (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          movementNumber TEXT,
           productId INTEGER NOT NULL,
           type TEXT NOT NULL,
           quantity REAL NOT NULL,
@@ -66,6 +150,7 @@ export const initAllTables = async () => {
         -- Tabla de ventas (schema actual)
         CREATE TABLE IF NOT EXISTS sales (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          saleNumber TEXT,
           customerId INTEGER,
           subtotal REAL DEFAULT 0,
           tax REAL DEFAULT 0,
@@ -97,6 +182,7 @@ export const initAllTables = async () => {
         -- Tabla de clientes
         CREATE TABLE IF NOT EXISTS customers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customerNumber TEXT,
           name TEXT NOT NULL,
           email TEXT,
           phone TEXT,
@@ -112,6 +198,7 @@ export const initAllTables = async () => {
         -- Tabla de proveedores
         CREATE TABLE IF NOT EXISTS suppliers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          supplierNumber TEXT,
           documentNumber TEXT NOT NULL,
           name TEXT NOT NULL,
           email TEXT,
@@ -127,6 +214,7 @@ export const initAllTables = async () => {
         -- Tabla de cuentas por cobrar
         CREATE TABLE IF NOT EXISTS accounts_receivable (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          receivableNumber TEXT,
           customerId INTEGER,
           customerName TEXT NOT NULL,
           documentNumber TEXT,
@@ -148,6 +236,7 @@ export const initAllTables = async () => {
         -- Tabla de cuentas por pagar
         CREATE TABLE IF NOT EXISTS accounts_payable (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          payableNumber TEXT,
           supplierId INTEGER,
           supplierName TEXT NOT NULL,
           amount REAL NOT NULL,
@@ -310,6 +399,17 @@ const runMigrations = async () => {
         "Warning running products additionalCost migration:",
         productsMigrationError,
       );
+    }
+
+    for (const definition of LOCAL_CONSECUTIVE_COLUMNS) {
+      try {
+        await ensureLocalConsecutiveColumn(definition);
+      } catch (consecutiveMigrationError) {
+        console.warn(
+          `Warning running consecutive migration for ${definition.tableName}.${definition.columnName}:`,
+          consecutiveMigrationError,
+        );
+      }
     }
 
     // Asegurar tabla de notificaciones
@@ -762,6 +862,7 @@ const runMigrations = async () => {
       await db.execAsync(`
         CREATE TABLE inventory_movements (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          movementNumber TEXT,
           productId INTEGER NOT NULL,
           type TEXT NOT NULL CHECK(type IN ('entry', 'exit')),
           quantity INTEGER NOT NULL,

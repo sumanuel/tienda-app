@@ -105,10 +105,15 @@ export const InventoryExitDetailScreen = ({ navigation, route }) => {
   const renderMovement = ({ item }) => (
     <View style={styles.movementCard}>
       <View style={styles.movementHeader}>
-        <Text style={styles.movementDate}>
-          {parseMovementDate(item.createdAt).toLocaleDateString()}{" "}
-          {parseMovementDate(item.createdAt).toLocaleTimeString()}
-        </Text>
+        <View>
+          <Text style={styles.movementDate}>
+            {item.movementNumber || `MOV-${String(item.id).padStart(6, "0")}`}
+          </Text>
+          <Text style={styles.movementDate}>
+            {parseMovementDate(item.createdAt).toLocaleDateString()}{" "}
+            {parseMovementDate(item.createdAt).toLocaleTimeString()}
+          </Text>
+        </View>
         <View style={styles.movementBadge}>
           <Text
             style={[styles.movementBadgeText, styles.movementBadgeTextExit]}
@@ -180,8 +185,15 @@ export const InventoryExitDetailScreen = ({ navigation, route }) => {
                   </Text>
                 </View>
                 <Text style={styles.productCode}>
-                  Código: {product.barcode}
+                  Código:{" "}
+                  {product.productNumber ||
+                    `PRD-${String(product.id).padStart(6, "0")}`}
                 </Text>
+                {!!product.barcode && (
+                  <Text style={styles.productCode}>
+                    Barcode: {product.barcode}
+                  </Text>
+                )}
               </View>
             </View>
           )}

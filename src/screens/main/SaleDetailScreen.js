@@ -38,6 +38,10 @@ export const SaleDetailScreen = () => {
 
   const exchangeRate = Number(rate) || 0;
 
+  const getSaleDisplayNumber = (saleData) =>
+    saleData?.saleNumber ||
+    `VTA-${String(saleData?.id || saleId || 0).padStart(6, "0")}`;
+
   const calculateTotal = (saleData) => {
     if (saleData?.paymentMethod === "por_cobrar" && exchangeRate > 0) {
       const items = saleData?.items || [];
@@ -129,7 +133,7 @@ export const SaleDetailScreen = () => {
       totalUSDNumber > 0 ? formatCurrency(totalUSDNumber, "USD") : null;
 
     const parts = [
-      `Factura - Venta #${sale?.id}`,
+      `Factura - ${getSaleDisplayNumber(sale)}`,
       `Fecha: ${created.toLocaleDateString("es-VE")} ${created.toLocaleTimeString(
         [],
         {
@@ -250,7 +254,7 @@ export const SaleDetailScreen = () => {
               </View>
               <View style={styles.heroCopy}>
                 <Text style={styles.heroTitle}>
-                  Detalle de venta #{sale.id}
+                  Detalle de venta {getSaleDisplayNumber(sale)}
                 </Text>
                 <Text style={styles.heroSubtitle}>
                   Revisa los productos, cliente y método de pago de esta venta.
@@ -264,7 +268,9 @@ export const SaleDetailScreen = () => {
                   <Text style={styles.saleIconText}>🧾</Text>
                 </View>
                 <View style={styles.saleInfo}>
-                  <Text style={styles.saleNumber}>Venta #{sale.id}</Text>
+                  <Text style={styles.saleNumber}>
+                    {getSaleDisplayNumber(sale)}
+                  </Text>
                   <Text style={styles.saleDate}>
                     {new Date(sale.createdAt).toLocaleDateString("es-VE")} ·{" "}
                     {new Date(sale.createdAt).toLocaleTimeString([], {

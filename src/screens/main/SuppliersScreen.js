@@ -164,8 +164,18 @@ export const SuppliersScreen = () => {
             <View style={styles.cardHeader}>
               <Text style={styles.supplierName}>{item.name}</Text>
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.documentNumber}</Text>
+                <Text style={styles.badgeText}>
+                  {item.supplierNumber ||
+                    `PRV-${String(item.id).padStart(6, "0")}`}
+                </Text>
               </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Documento</Text>
+              <Text style={styles.infoValue}>
+                {item.documentNumber || "Sin documento"}
+              </Text>
             </View>
 
             <View style={styles.infoRow}>

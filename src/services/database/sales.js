@@ -9,6 +9,11 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import {
+  formatConsecutiveNumber,
+  getNextCloudConsecutive,
+  parseConsecutiveSequence,
+} from "./consecutives";
 
 const cloudSalesSeeded = new Set();
 
@@ -49,7 +54,13 @@ const normalizeSaleRecord = (sale = {}) => {
   );
 
   return {
-    id: Number(sale.id) || createCloudNumericId(),
+    id:
+      Number(sale.id) ||
+      parseConsecutiveSequence(sale.saleNumber) ||
+      createCloudNumericId(),
+    saleNumber:
+      String(sale.saleNumber || "").trim() ||
+      formatConsecutiveNumber("sale", sale.id),
     customerId:
       sale.customerId != null
         ? Number(sale.customerId) || sale.customerId
@@ -82,6 +93,75 @@ const getCloudSales = async () => {
   return snapshot.docs.map((item) => normalizeSaleRecord(item.data()));
 };
 
+const normalizeExistingCloudSales = async (existingSnapshot) => {
+  const uid = auth.currentUser.uid;
+  const collectionRef = getSalesCollectionRef();
+
+  const existingRows = existingSnapshot.docs
+    .map((item) => normalizeSaleRecord(item.data()))
+    .sort((a, b) => {
+      const createdDiff =
+        new Date(a.createdAt || 0).getTime() -
+        new Date(b.createdAt || 0).getTime();
+      if (createdDiff !== 0) return createdDiff;
+      return Number(a.id) - Number(b.id);
+    });
+
+  const requiresNormalization = existingSnapshot.docs.some((item, index) => {
+    const targetId = index + 1;
+    const data = normalizeSaleRecord(item.data());
+    return Number(data.id) !== targetId || item.id !== String(targetId);
+  });
+
+  if (!requiresNormalization) {
+    await setDoc(
+      doc(firestore, "users", uid),
+      {
+        counters: {
+          sale: existingRows.length,
+        },
+      },
+      { merge: true },
+    );
+    return;
+  }
+
+  for (let index = 0; index < existingSnapshot.docs.length; index += 300) {
+    const batch = writeBatch(firestore);
+    existingSnapshot.docs.slice(index, index + 300).forEach((item) => {
+      batch.delete(item.ref);
+    });
+    await batch.commit();
+  }
+
+  for (let index = 0; index < existingRows.length; index += 300) {
+    const batch = writeBatch(firestore);
+    existingRows.slice(index, index + 300).forEach((item, offset) => {
+      const sequence = index + offset + 1;
+      batch.set(
+        doc(collectionRef, String(sequence)),
+        {
+          ...item,
+          id: sequence,
+          saleNumber: formatConsecutiveNumber("sale", sequence),
+        },
+        { merge: false },
+      );
+    });
+    await batch.commit();
+  }
+
+  await setDoc(
+    doc(firestore, "users", uid),
+    {
+      counters: {
+        sale: existingRows.length,
+      },
+    },
+    { merge: true },
+  );
+};
+
 const ensureCloudSalesSeeded = async () => {
   if (!isCloudSalesEnabled()) return;
 
@@ -91,6 +171,7 @@ const ensureCloudSalesSeeded = async () => {
   const collectionRef = getSalesCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
+    await normalizeExistingCloudSales(existingSnapshot);
     cloudSalesSeeded.add(uid);
     return;
   }
@@ -114,6 +195,16 @@ const ensureCloudSalesSeeded = async () => {
       });
     }
     await batch.commit();
+
+    await setDoc(
+      doc(firestore, "users", uid),
+      {
+        counters: {
+          sale: salesRows.length,
+        },
+      },
+      { merge: true },
+    );
   }
 
   cloudSalesSeeded.add(uid);
@@ -184,15 +275,27 @@ export const insertSale = async (sale, items) => {
   try {
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
-      const id = createCloudNumericId();
+      const existingSales = await getCloudSales();
+      const maxSequence = existingSales.reduce((maxValue, item) => {
+        return Math.max(
+          maxValue,
+          Number(item.id) || 0,
+          parseConsecutiveSequence(item.saleNumber),
+        );
+      }, 0);
+      const consecutive = await getNextCloudConsecutive("sale", {
+        minimum: maxSequence,
+      });
+      const id = consecutive.sequence;
       const payload = normalizeSaleRecord({
         ...sale,
         id,
+        saleNumber: consecutive.value,
         createdAt: new Date().toISOString(),
         items,
       });
       await setDoc(doc(getSalesCollectionRef(), String(id)), payload);
-      return id;
+      return { id, saleNumber: payload.saleNumber };
     }
 
     // Insertar venta
@@ -217,6 +320,12 @@ export const insertSale = async (sale, items) => {
     );
 
     const saleId = saleResult.lastInsertRowId;
+    const saleNumber = formatConsecutiveNumber("sale", saleId);
+
+    await db.runAsync("UPDATE sales SET saleNumber = ? WHERE id = ?;", [
+      saleNumber,
+      saleId,
+    ]);
 
     // Insertar items de la venta
     for (const item of items) {
@@ -235,7 +344,7 @@ export const insertSale = async (sale, items) => {
       );
     }
 
-    return saleId;
+    return { id: saleId, saleNumber };
   } catch (error) {
     throw error;
   }

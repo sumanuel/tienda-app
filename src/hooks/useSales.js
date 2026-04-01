@@ -59,11 +59,11 @@ export const useSales = () => {
   const registerSale = useCallback(async (sale, items) => {
     try {
       setError(null);
-      const id = await insertSale(sale, items);
+      const result = await insertSale(sale, items);
       await loadSales(); // Recargar lista
       await loadTodayStats(); // Actualizar estadísticas
       requestCloudSync("sales:add");
-      return id;
+      return result;
     } catch (err) {
       setError(err.message);
       console.error("Error registering sale:", err);

@@ -507,14 +507,17 @@ export const POSScreen = ({ navigation }) => {
         subtotal: item.subtotal,
       }));
 
-      // Registrar la venta y obtener el ID
-      const saleId = await addSale(saleData, saleItems);
+      // Registrar la venta y obtener el ID/consecutivo visible
+      const saleResult = await addSale(saleData, saleItems);
+      const saleId = saleResult?.id ?? saleResult;
+      const saleNumber =
+        saleResult?.saleNumber || `VTA-${String(saleId).padStart(6, "0")}`;
 
       const customerLabel = (customerName || "Cliente").trim() || "Cliente";
       const paymentLabel = (paymentMethod || "").toString();
       const saleMovementNote = paymentLabel
-        ? `Venta #${saleId} - ${customerLabel} - ${paymentLabel}`
-        : `Venta #${saleId} - ${customerLabel}`;
+        ? `${saleNumber} - ${customerLabel} - ${paymentLabel}`
+        : `${saleNumber} - ${customerLabel}`;
 
       // Actualizar stock de productos vendidos
       for (const item of cart) {
@@ -560,7 +563,7 @@ export const POSScreen = ({ navigation }) => {
               .map((item) => item.name.toUpperCase())
               .join(", ")}`,
             dueDate: null, // Sin fecha de vencimiento por defecto
-            invoiceNumber: saleId, // Número de la venta
+            invoiceNumber: saleNumber,
           };
           await addAccountReceivable(accountData);
           console.log("Cuenta por cobrar creada automáticamente");
@@ -651,7 +654,10 @@ export const POSScreen = ({ navigation }) => {
           : "Cliente genérico",
       };
 
-      const saleId = await addSale(saleData, pendingSaleData.saleItems);
+      const saleResult = await addSale(saleData, pendingSaleData.saleItems);
+      const saleId = saleResult?.id ?? saleResult;
+      const saleNumber =
+        saleResult?.saleNumber || `VTA-${String(saleId).padStart(6, "0")}`;
 
       const pendingCustomerLabel = customerDocument.trim()
         ? newCustomerName.trim() || "Cliente"
@@ -660,8 +666,8 @@ export const POSScreen = ({ navigation }) => {
         pendingSaleData.paymentMethod || ""
       ).toString();
       const pendingSaleMovementNote = pendingPaymentLabel
-        ? `Venta #${saleId} - ${pendingCustomerLabel} - ${pendingPaymentLabel}`
-        : `Venta #${saleId} - ${pendingCustomerLabel}`;
+        ? `${saleNumber} - ${pendingCustomerLabel} - ${pendingPaymentLabel}`
+        : `${saleNumber} - ${pendingCustomerLabel}`;
 
       // Actualizar stock de productos vendidos
       for (const item of cart) {
@@ -709,7 +715,7 @@ export const POSScreen = ({ navigation }) => {
               .map((item) => item.name.toUpperCase())
               .join(", ")}`,
             dueDate: null,
-            invoiceNumber: saleId, // Número de la venta
+            invoiceNumber: saleNumber,
           };
           await addAccountReceivable(accountData);
           console.log("Cuenta por cobrar creada automáticamente");

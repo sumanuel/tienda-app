@@ -13,10 +13,10 @@ import { useTourGuideController } from "rn-tourguide";
 import { useProducts } from "../../hooks/useProducts";
 import { getAllSales } from "../../services/database/sales";
 import { getSettings } from "../../services/database/settings";
+import { countProductInventoryMovements } from "../../services/database/products";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
-import { db } from "../../services/database/db";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
@@ -121,20 +121,7 @@ export const ProductsScreen = ({ navigation }) => {
           : false,
       ).length;
 
-      // Verificar movimientos de inventario (si existe la tabla)
-      let inventoryCount = 0;
-      try {
-        const inventoryResult = await db.getAllAsync(
-          `SELECT COUNT(*) as count FROM inventory_movements WHERE productId = ?`,
-          [product.id],
-        );
-        inventoryCount = inventoryResult[0]?.count || 0;
-      } catch (error) {
-        // Si no existe la tabla inventory_movements, continuar
-        console.log(
-          "Tabla inventory_movements no existe, omitiendo verificación",
-        );
-      }
+      const inventoryCount = await countProductInventoryMovements(product.id);
 
       if (salesCount > 0 || inventoryCount > 0) {
         showAlert({
@@ -242,8 +229,12 @@ export const ProductsScreen = ({ navigation }) => {
               {item.name.toUpperCase()}
             </Text>
             <Text style={styles.productCode}>
-              Código: {item.barcode || `PROD-${item.id}`}
+              Código:{" "}
+              {item.productNumber || `PRD-${String(item.id).padStart(6, "0")}`}
             </Text>
+            {!!item.barcode && (
+              <Text style={styles.productCode}>Barcode: {item.barcode}</Text>
+            )}
           </View>
           <View style={styles.productRight}>
             <Text style={styles.productCategory}>

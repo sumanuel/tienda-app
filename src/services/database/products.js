@@ -3,11 +3,18 @@ import {
   collection,
   doc,
   getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import {
+  formatConsecutiveNumber,
+  getNextCloudConsecutive,
+  parseConsecutiveSequence,
+} from "./consecutives";
 
 let productsColumnsChecked = false;
 let productsHasAdditionalCostColumn = false;
@@ -25,8 +32,20 @@ const createCloudNumericId = () =>
 const getProductsCollectionRef = () =>
   collection(firestore, "users", auth.currentUser.uid, "products");
 
+const getSalesCollectionRef = () =>
+  collection(firestore, "users", auth.currentUser.uid, "sales");
+
+const getInventoryMovementsCollectionRef = () =>
+  collection(firestore, "users", auth.currentUser.uid, "inventory_movements");
+
 const normalizeProductRecord = (product = {}) => ({
-  id: Number(product.id) || createCloudNumericId(),
+  id:
+    Number(product.id) ||
+    parseConsecutiveSequence(product.productNumber) ||
+    createCloudNumericId(),
+  productNumber:
+    String(product.productNumber || "").trim() ||
+    formatConsecutiveNumber("product", product.id),
   name: String(product.name || "").trim(),
   barcode: String(product.barcode || "").trim(),
   category: String(product.category || "").trim(),
@@ -44,6 +63,23 @@ const normalizeProductRecord = (product = {}) => ({
   updatedAt: product.updatedAt || new Date().toISOString(),
 });
 
+const normalizeInventoryMovementRecord = (movement = {}) => ({
+  id:
+    Number(movement.id) ||
+    parseConsecutiveSequence(movement.movementNumber) ||
+    createCloudNumericId(),
+  movementNumber:
+    String(movement.movementNumber || "").trim() ||
+    formatConsecutiveNumber("movement", movement.id),
+  productId: Number(movement.productId) || 0,
+  type: movement.type === "exit" ? "exit" : "entry",
+  quantity: Number(movement.quantity) || 0,
+  previousStock: Number(movement.previousStock) || 0,
+  newStock: Number(movement.newStock) || 0,
+  notes: String(movement.notes || "").trim(),
+  createdAt: movement.createdAt || new Date().toISOString(),
+});
+
 const sortProductsByName = (products = []) =>
   [...products].sort((a, b) =>
     String(a.name || "").localeCompare(String(b.name || ""), "es", {
@@ -56,6 +92,155 @@ const getCloudProducts = async () => {
   return snapshot.docs.map((item) => normalizeProductRecord(item.data()));
 };
 
+const getCloudInventoryMovements = async (filters = {}) => {
+  const constraints = [];
+
+  if (filters.productId != null) {
+    constraints.push(where("productId", "==", Number(filters.productId)));
+  }
+
+  if (filters.type) {
+    constraints.push(where("type", "==", filters.type));
+  }
+
+  const snapshot = constraints.length
+    ? await getDocs(query(getInventoryMovementsCollectionRef(), ...constraints))
+    : await getDocs(getInventoryMovementsCollectionRef());
+
+  return snapshot.docs
+    .map((item) => normalizeInventoryMovementRecord(item.data()))
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt || 0).getTime() -
+        new Date(a.createdAt || 0).getTime(),
+    );
+};
+
+const normalizeExistingCloudProducts = async (existingSnapshot) => {
+  const uid = auth.currentUser.uid;
+  const collectionRef = getProductsCollectionRef();
+  const salesCollectionRef = getSalesCollectionRef();
+  const movementsCollectionRef = getInventoryMovementsCollectionRef();
+
+  const existingRows = existingSnapshot.docs
+    .map((item) => normalizeProductRecord(item.data()))
+    .sort((a, b) => {
+      const createdDiff =
+        new Date(a.createdAt || 0).getTime() -
+        new Date(b.createdAt || 0).getTime();
+      if (createdDiff !== 0) return createdDiff;
+      return Number(a.id) - Number(b.id);
+    });
+
+  const requiresNormalization = existingSnapshot.docs.some((item, index) => {
+    const targetId = index + 1;
+    const data = normalizeProductRecord(item.data());
+    return Number(data.id) !== targetId || item.id !== String(targetId);
+  });
+
+  if (!requiresNormalization) {
+    await setDoc(
+      doc(firestore, "users", uid),
+      {
+        counters: {
+          product: existingRows.length,
+        },
+      },
+      { merge: true },
+    );
+    return;
+  }
+
+  const productIdMap = new Map();
+  existingRows.forEach((item, index) => {
+    productIdMap.set(Number(item.id), index + 1);
+  });
+
+  const salesSnapshot = await getDocs(salesCollectionRef);
+  const movementsSnapshot = await getDocs(movementsCollectionRef);
+
+  for (let index = 0; index < existingSnapshot.docs.length; index += 300) {
+    const deleteBatch = writeBatch(firestore);
+    existingSnapshot.docs.slice(index, index + 300).forEach((item) => {
+      deleteBatch.delete(item.ref);
+    });
+    await deleteBatch.commit();
+  }
+
+  for (let index = 0; index < existingRows.length; index += 300) {
+    const insertBatch = writeBatch(firestore);
+    existingRows.slice(index, index + 300).forEach((item, offset) => {
+      const sequence = index + offset + 1;
+      insertBatch.set(
+        doc(collectionRef, String(sequence)),
+        {
+          ...item,
+          id: sequence,
+          productNumber: formatConsecutiveNumber("product", sequence),
+        },
+        { merge: false },
+      );
+    });
+    await insertBatch.commit();
+  }
+
+  const normalizedSales = salesSnapshot.docs.map((item) => {
+    const sale = item.data() || {};
+    const items = Array.isArray(sale.items)
+      ? sale.items.map((saleItem) => ({
+          ...saleItem,
+          productId:
+            productIdMap.get(Number(saleItem.productId)) ??
+            Number(saleItem.productId) ??
+            0,
+        }))
+      : [];
+    return { ref: item.ref, sale: { ...sale, items } };
+  });
+
+  for (let index = 0; index < normalizedSales.length; index += 300) {
+    const batch = writeBatch(firestore);
+    normalizedSales.slice(index, index + 300).forEach(({ ref, sale }) => {
+      batch.set(ref, sale, { merge: true });
+    });
+    await batch.commit();
+  }
+
+  const normalizedMovements = movementsSnapshot.docs.map((item) => {
+    const movement = item.data() || {};
+    return {
+      ref: item.ref,
+      movement: {
+        ...movement,
+        productId:
+          productIdMap.get(Number(movement.productId)) ??
+          Number(movement.productId) ??
+          0,
+      },
+    };
+  });
+
+  for (let index = 0; index < normalizedMovements.length; index += 300) {
+    const batch = writeBatch(firestore);
+    normalizedMovements
+      .slice(index, index + 300)
+      .forEach(({ ref, movement }) => {
+        batch.set(ref, movement, { merge: true });
+      });
+    await batch.commit();
+  }
+
+  await setDoc(
+    doc(firestore, "users", uid),
+    {
+      counters: {
+        product: existingRows.length,
+      },
+    },
+    { merge: true },
+  );
+};
+
 const ensureCloudProductsSeeded = async () => {
   if (!isCloudProductsEnabled()) return;
 
@@ -65,6 +250,7 @@ const ensureCloudProductsSeeded = async () => {
   const collectionRef = getProductsCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
+    await normalizeExistingCloudProducts(existingSnapshot);
     cloudProductsSeeded.add(uid);
     return;
   }
@@ -83,9 +269,114 @@ const ensureCloudProductsSeeded = async () => {
       });
     });
     await batch.commit();
+
+    await setDoc(
+      doc(firestore, "users", uid),
+      {
+        counters: {
+          product: rows.length,
+        },
+      },
+      { merge: true },
+    );
   }
 
   cloudProductsSeeded.add(uid);
+};
+
+const ensureCloudInventoryMovementsSeeded = async () => {
+  if (!isCloudProductsEnabled()) return;
+
+  const uid = auth.currentUser.uid;
+  const seedKey = `${uid}:inventory_movements`;
+  if (cloudProductsSeeded.has(seedKey)) return;
+
+  const collectionRef = getInventoryMovementsCollectionRef();
+  const existingSnapshot = await getDocs(collectionRef);
+  if (!existingSnapshot.empty) {
+    const existingRows = existingSnapshot.docs
+      .map((item) => normalizeInventoryMovementRecord(item.data()))
+      .sort((a, b) => {
+        const createdDiff =
+          new Date(a.createdAt || 0).getTime() -
+          new Date(b.createdAt || 0).getTime();
+        if (createdDiff !== 0) return createdDiff;
+        return Number(a.id) - Number(b.id);
+      });
+
+    const requiresNormalization = existingSnapshot.docs.some((item, index) => {
+      const targetId = index + 1;
+      const data = normalizeInventoryMovementRecord(item.data());
+      return Number(data.id) !== targetId || item.id !== String(targetId);
+    });
+
+    if (requiresNormalization) {
+      for (let index = 0; index < existingSnapshot.docs.length; index += 300) {
+        const deleteBatch = writeBatch(firestore);
+        existingSnapshot.docs.slice(index, index + 300).forEach((item) => {
+          deleteBatch.delete(item.ref);
+        });
+        await deleteBatch.commit();
+      }
+
+      for (let index = 0; index < existingRows.length; index += 300) {
+        const insertBatch = writeBatch(firestore);
+        existingRows.slice(index, index + 300).forEach((item, offset) => {
+          const sequence = index + offset + 1;
+          insertBatch.set(
+            doc(collectionRef, String(sequence)),
+            {
+              ...item,
+              id: sequence,
+              movementNumber: formatConsecutiveNumber("movement", sequence),
+            },
+            { merge: false },
+          );
+        });
+        await insertBatch.commit();
+      }
+
+      await setDoc(
+        doc(firestore, "users", uid),
+        {
+          counters: {
+            movement: existingRows.length,
+          },
+        },
+        { merge: true },
+      );
+    }
+
+    cloudProductsSeeded.add(seedKey);
+    return;
+  }
+
+  const rows = await db.getAllAsync(
+    "SELECT * FROM inventory_movements ORDER BY createdAt DESC;",
+  );
+
+  if (rows.length > 0) {
+    const batch = writeBatch(firestore);
+    rows.forEach((row) => {
+      const normalized = normalizeInventoryMovementRecord(row);
+      batch.set(doc(collectionRef, String(normalized.id)), normalized, {
+        merge: true,
+      });
+    });
+    await batch.commit();
+
+    await setDoc(
+      doc(firestore, "users", uid),
+      {
+        counters: {
+          movement: rows.length,
+        },
+      },
+      { merge: true },
+    );
+  }
+
+  cloudProductsSeeded.add(seedKey);
 };
 
 const ensureProductsAdditionalCostColumn = async () => {
@@ -276,11 +567,23 @@ export const insertProduct = async (product) => {
   try {
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
-      const id = createCloudNumericId();
       const now = new Date().toISOString();
+      const existingProducts = await getCloudProducts();
+      const maxSequence = existingProducts.reduce((maxValue, item) => {
+        return Math.max(
+          maxValue,
+          Number(item.id) || 0,
+          parseConsecutiveSequence(item.productNumber),
+        );
+      }, 0);
+      const consecutive = await getNextCloudConsecutive("product", {
+        minimum: maxSequence,
+      });
+      const id = consecutive.sequence;
       const payload = normalizeProductRecord({
         ...product,
         id,
+        productNumber: consecutive.value,
         active: 1,
         createdAt: now,
         updatedAt: now,
@@ -310,6 +613,10 @@ export const insertProduct = async (product) => {
         1, // active
       ],
     );
+    await db.runAsync("UPDATE products SET productNumber = ? WHERE id = ?;", [
+      formatConsecutiveNumber("product", result.lastInsertRowId),
+      result.lastInsertRowId,
+    ]);
     console.log("Producto insertado, lastInsertRowId:", result.lastInsertRowId);
     return result.lastInsertRowId;
   } catch (error) {
@@ -608,11 +915,15 @@ export const getAllProductsWithQRCodes = async () => {
       return products.map((product) => ({
         id: product.id,
         name: product.name,
+        productNumber: product.productNumber,
         barcode: product.barcode,
         category: product.category,
         priceUSD: product.priceUSD,
         stock: product.stock,
-        qrCode: product.barcode || `PROD-${product.id}`,
+        qrCode:
+          product.barcode ||
+          product.productNumber ||
+          formatConsecutiveNumber("product", product.id),
       }));
     }
 
@@ -626,7 +937,10 @@ export const getAllProductsWithQRCodes = async () => {
     // Agregar código QR generado para cada producto
     return result.map((product) => ({
       ...product,
-      qrCode: product.barcode || `PROD-${product.id}`,
+      qrCode:
+        product.barcode ||
+        product.productNumber ||
+        formatConsecutiveNumber("product", product.id),
     }));
   } catch (error) {
     throw error;
@@ -649,10 +963,50 @@ export const insertInventoryMovement = async (
 
     const createdAt = new Date().toISOString();
 
+    if (isCloudProductsEnabled()) {
+      await ensureCloudInventoryMovementsSeeded();
+      const existingMovements = await getCloudInventoryMovements();
+      const maxSequence = existingMovements.reduce((maxValue, item) => {
+        return Math.max(
+          maxValue,
+          Number(item.id) || 0,
+          parseConsecutiveSequence(item.movementNumber),
+        );
+      }, 0);
+      const consecutive = await getNextCloudConsecutive("movement", {
+        minimum: maxSequence,
+      });
+      const id = consecutive.sequence;
+      const payload = normalizeInventoryMovementRecord({
+        id,
+        movementNumber: consecutive.value,
+        productId,
+        type,
+        quantity,
+        previousStock,
+        newStock,
+        notes,
+        createdAt,
+      });
+      await setDoc(
+        doc(getInventoryMovementsCollectionRef(), String(id)),
+        payload,
+      );
+      return id;
+    }
+
     const result = await db.runAsync(
       `INSERT INTO inventory_movements (productId, type, quantity, previousStock, newStock, notes, createdAt)
        VALUES (?, ?, ?, ?, ?, ?, ?);`,
       [productId, type, quantity, previousStock, newStock, notes, createdAt],
+    );
+
+    await db.runAsync(
+      "UPDATE inventory_movements SET movementNumber = ? WHERE id = ?;",
+      [
+        formatConsecutiveNumber("movement", result.lastInsertRowId),
+        result.lastInsertRowId,
+      ],
     );
 
     return result.lastInsertRowId;
@@ -667,8 +1021,13 @@ export const insertInventoryMovement = async (
  */
 export const getProductEntryMovements = async (productId) => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudInventoryMovementsSeeded();
+      return getCloudInventoryMovements({ productId, type: "entry" });
+    }
+
     const result = await db.getAllAsync(
-      `SELECT id, type, quantity, previousStock, newStock, notes, createdAt
+      `SELECT id, movementNumber, type, quantity, previousStock, newStock, notes, createdAt
        FROM inventory_movements
        WHERE productId = ? AND type = 'entry'
        ORDER BY createdAt DESC;`,
@@ -687,8 +1046,13 @@ export const getProductEntryMovements = async (productId) => {
  */
 export const getProductExitMovements = async (productId) => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudInventoryMovementsSeeded();
+      return getCloudInventoryMovements({ productId, type: "exit" });
+    }
+
     const result = await db.getAllAsync(
-      `SELECT id, type, quantity, previousStock, newStock, notes, createdAt
+      `SELECT id, movementNumber, type, quantity, previousStock, newStock, notes, createdAt
        FROM inventory_movements
        WHERE productId = ? AND type = 'exit'
        ORDER BY createdAt DESC;`,
@@ -707,8 +1071,13 @@ export const getProductExitMovements = async (productId) => {
  */
 export const getProductInventoryMovements = async (productId) => {
   try {
+    if (isCloudProductsEnabled()) {
+      await ensureCloudInventoryMovementsSeeded();
+      return getCloudInventoryMovements({ productId });
+    }
+
     const result = await db.getAllAsync(
-      `SELECT id, type, quantity, previousStock, newStock, notes, createdAt
+      `SELECT id, movementNumber, type, quantity, previousStock, newStock, notes, createdAt
        FROM inventory_movements
        WHERE productId = ? AND type IN ('entry', 'exit')
        ORDER BY createdAt DESC;`,
@@ -720,6 +1089,11 @@ export const getProductInventoryMovements = async (productId) => {
     console.error("Error obteniendo movimientos de inventario:", error);
     throw error;
   }
+};
+
+export const countProductInventoryMovements = async (productId) => {
+  const movements = await getProductInventoryMovements(productId);
+  return Array.isArray(movements) ? movements.length : 0;
 };
 
 export default {
@@ -740,4 +1114,5 @@ export default {
   getProductEntryMovements,
   getProductExitMovements,
   getProductInventoryMovements,
+  countProductInventoryMovements,
 };

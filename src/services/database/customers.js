@@ -8,6 +8,11 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import {
+  formatConsecutiveNumber,
+  getNextCloudConsecutive,
+  parseConsecutiveSequence,
+} from "./consecutives";
 
 const cloudCustomersSeeded = new Set();
 
@@ -26,8 +31,17 @@ const getCustomersCollectionRef = () =>
 const getSalesCollectionRef = () =>
   collection(firestore, "users", auth.currentUser.uid, "sales");
 
+const getReceivableCollectionRef = () =>
+  collection(firestore, "users", auth.currentUser.uid, "accounts_receivable");
+
 const normalizeCustomerRecord = (customer = {}) => ({
-  id: Number(customer.id) || createCloudNumericId(),
+  id:
+    Number(customer.id) ||
+    parseConsecutiveSequence(customer.customerNumber) ||
+    createCloudNumericId(),
+  customerNumber:
+    String(customer.customerNumber || "").trim() ||
+    formatConsecutiveNumber("customer", customer.id),
   name: String(customer.name || "").trim(),
   email: String(customer.email || "").trim(),
   phone: String(customer.phone || "").trim(),
@@ -52,6 +66,135 @@ const getCloudCustomers = async () => {
   return snapshot.docs.map((item) => normalizeCustomerRecord(item.data()));
 };
 
+const normalizeExistingCloudCustomers = async (existingSnapshot) => {
+  const uid = auth.currentUser.uid;
+  const collectionRef = getCustomersCollectionRef();
+  const salesCollectionRef = getSalesCollectionRef();
+  const receivableCollectionRef = getReceivableCollectionRef();
+
+  const existingRows = existingSnapshot.docs
+    .map((item) => normalizeCustomerRecord(item.data()))
+    .sort((a, b) => {
+      const createdDiff =
+        new Date(a.createdAt || 0).getTime() -
+        new Date(b.createdAt || 0).getTime();
+      if (createdDiff !== 0) return createdDiff;
+      return Number(a.id) - Number(b.id);
+    });
+
+  const requiresNormalization = existingSnapshot.docs.some((item, index) => {
+    const targetId = index + 1;
+    const data = normalizeCustomerRecord(item.data());
+    return Number(data.id) !== targetId || item.id !== String(targetId);
+  });
+
+  if (!requiresNormalization) {
+    await setDoc(
+      doc(firestore, "users", uid),
+      {
+        counters: {
+          customer: existingRows.length,
+        },
+      },
+      { merge: true },
+    );
+    return;
+  }
+
+  const customerIdMap = new Map();
+  existingRows.forEach((item, index) => {
+    customerIdMap.set(Number(item.id), index + 1);
+  });
+
+  const [salesSnapshot, receivableSnapshot] = await Promise.all([
+    getDocs(salesCollectionRef),
+    getDocs(receivableCollectionRef),
+  ]);
+
+  for (let index = 0; index < existingSnapshot.docs.length; index += 300) {
+    const batch = writeBatch(firestore);
+    existingSnapshot.docs.slice(index, index + 300).forEach((item) => {
+      batch.delete(item.ref);
+    });
+    await batch.commit();
+  }
+
+  for (let index = 0; index < existingRows.length; index += 300) {
+    const batch = writeBatch(firestore);
+    existingRows.slice(index, index + 300).forEach((item, offset) => {
+      const sequence = index + offset + 1;
+      batch.set(
+        doc(collectionRef, String(sequence)),
+        {
+          ...item,
+          id: sequence,
+          customerNumber: formatConsecutiveNumber("customer", sequence),
+        },
+        { merge: false },
+      );
+    });
+    await batch.commit();
+  }
+
+  const normalizedSales = salesSnapshot.docs.map((item) => {
+    const sale = item.data() || {};
+    return {
+      ref: item.ref,
+      sale: {
+        ...sale,
+        customerId:
+          customerIdMap.get(Number(sale.customerId)) ??
+          Number(sale.customerId) ??
+          sale.customerId ??
+          null,
+      },
+    };
+  });
+
+  for (let index = 0; index < normalizedSales.length; index += 300) {
+    const batch = writeBatch(firestore);
+    normalizedSales.slice(index, index + 300).forEach(({ ref, sale }) => {
+      batch.set(ref, sale, { merge: true });
+    });
+    await batch.commit();
+  }
+
+  const normalizedReceivables = receivableSnapshot.docs.map((item) => {
+    const account = item.data() || {};
+    return {
+      ref: item.ref,
+      account: {
+        ...account,
+        customerId:
+          customerIdMap.get(Number(account.customerId)) ??
+          Number(account.customerId) ??
+          account.customerId ??
+          null,
+      },
+    };
+  });
+
+  for (let index = 0; index < normalizedReceivables.length; index += 300) {
+    const batch = writeBatch(firestore);
+    normalizedReceivables
+      .slice(index, index + 300)
+      .forEach(({ ref, account }) => {
+        batch.set(ref, account, { merge: true });
+      });
+    await batch.commit();
+  }
+
+  await setDoc(
+    doc(firestore, "users", uid),
+    {
+      counters: {
+        customer: existingRows.length,
+      },
+    },
+    { merge: true },
+  );
+};
+
 const ensureCloudCustomersSeeded = async () => {
   if (!isCloudCustomersEnabled()) return;
 
@@ -61,6 +204,7 @@ const ensureCloudCustomersSeeded = async () => {
   const collectionRef = getCustomersCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
+    await normalizeExistingCloudCustomers(existingSnapshot);
     cloudCustomersSeeded.add(uid);
     return;
   }
@@ -77,6 +221,16 @@ const ensureCloudCustomersSeeded = async () => {
       });
     });
     await batch.commit();
+
+    await setDoc(
+      doc(firestore, "users", uid),
+      {
+        counters: {
+          customer: rows.length,
+        },
+      },
+      { merge: true },
+    );
   }
 
   cloudCustomersSeeded.add(uid);
@@ -229,11 +383,23 @@ export const createGenericCustomer = async () => {
 
     if (isCloudCustomersEnabled()) {
       await ensureCloudCustomersSeeded();
-      const id = createCloudNumericId();
+      const existingCustomers = await getCloudCustomers();
+      const maxSequence = existingCustomers.reduce((maxValue, item) => {
+        return Math.max(
+          maxValue,
+          Number(item.id) || 0,
+          parseConsecutiveSequence(item.customerNumber),
+        );
+      }, 0);
+      const consecutive = await getNextCloudConsecutive("customer", {
+        minimum: maxSequence,
+      });
+      const id = consecutive.sequence;
       await setDoc(
         doc(getCustomersCollectionRef(), String(id)),
         normalizeCustomerRecord({
           id,
+          customerNumber: consecutive.value,
           name: "Cliente Genérico",
           documentNumber: "1",
           documentType: "V",
@@ -248,6 +414,10 @@ export const createGenericCustomer = async () => {
        VALUES (?, ?, ?);`,
       ["Cliente Genérico", "1", "V"],
     );
+    await db.runAsync("UPDATE customers SET customerNumber = ? WHERE id = ?;", [
+      formatConsecutiveNumber("customer", result.lastInsertRowId),
+      result.lastInsertRowId,
+    ]);
     return result.lastInsertRowId;
   } catch (error) {
     throw error;
@@ -261,13 +431,25 @@ export const insertCustomer = async (customer) => {
   try {
     if (isCloudCustomersEnabled()) {
       await ensureCloudCustomersSeeded();
-      const id = createCloudNumericId();
       const now = new Date().toISOString();
+      const existingCustomers = await getCloudCustomers();
+      const maxSequence = existingCustomers.reduce((maxValue, item) => {
+        return Math.max(
+          maxValue,
+          Number(item.id) || 0,
+          parseConsecutiveSequence(item.customerNumber),
+        );
+      }, 0);
+      const consecutive = await getNextCloudConsecutive("customer", {
+        minimum: maxSequence,
+      });
+      const id = consecutive.sequence;
       await setDoc(
         doc(getCustomersCollectionRef(), String(id)),
         normalizeCustomerRecord({
           ...customer,
           id,
+          customerNumber: consecutive.value,
           active: 1,
           createdAt: now,
           updatedAt: now,
@@ -288,6 +470,10 @@ export const insertCustomer = async (customer) => {
         customer.documentNumber || "",
       ],
     );
+    await db.runAsync("UPDATE customers SET customerNumber = ? WHERE id = ?;", [
+      formatConsecutiveNumber("customer", result.lastInsertRowId),
+      result.lastInsertRowId,
+    ]);
     return result.lastInsertRowId;
   } catch (error) {
     throw error;

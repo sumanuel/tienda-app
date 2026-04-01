@@ -44,6 +44,9 @@ export const CancelledSalesScreen = () => {
     return sale?.total || 0;
   };
 
+  const getSaleDisplayNumber = (sale) =>
+    sale?.saleNumber || `VTA-${String(sale?.id || 0).padStart(6, "0")}`;
+
   const loadCancelledSales = async () => {
     try {
       setLoading(true);
@@ -53,7 +56,7 @@ export const CancelledSalesScreen = () => {
                 (SELECT ROUND(SUM(si.quantity * COALESCE(si.priceUSD, 0)), 6) FROM sale_items si WHERE si.saleId = s.id) as totalUSD
          FROM sales s
          WHERE s.status = 'cancelled'
-         ORDER BY s.createdAt DESC;`
+         ORDER BY s.createdAt DESC;`,
       );
       setCancelledSales(result);
     } catch (error) {
@@ -95,7 +98,9 @@ export const CancelledSalesScreen = () => {
           <Text style={styles.saleIconText}>🚫</Text>
         </View>
         <View style={styles.saleInfo}>
-          <Text style={styles.saleNumber}>Venta #{item.id} (Anulada)</Text>
+          <Text style={styles.saleNumber}>
+            {getSaleDisplayNumber(item)} (Anulada)
+          </Text>
           <Text style={styles.saleDate}>
             {new Date(item.createdAt).toLocaleDateString()} ·{" "}
             {new Date(item.createdAt).toLocaleTimeString([], {

@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   serverTimestamp,
   setDoc,
@@ -10,6 +11,11 @@ import { auth, firestore } from "./firebase";
 import { db } from "../database/db";
 
 const SYNC_CHUNK_SIZE = 300;
+const CLOUD_SNAPSHOT_DATASETS = [
+  "exchange_rates",
+  "rate_notifications",
+  "mobile_payments",
+];
 let syncTimer = null;
 let inFlightSync = null;
 
@@ -54,6 +60,106 @@ const getUserTables = async () => {
   return rows.map((row) => row.name).filter(Boolean);
 };
 
+const syncRowsToSnapshot = async ({
+  userId,
+  bucket,
+  datasetName,
+  rows,
+  syncRunId,
+}) => {
+  const datasetRef = doc(firestore, "users", userId, bucket, datasetName);
+  const rowsCollectionRef = collection(
+    firestore,
+    "users",
+    userId,
+    bucket,
+    datasetName,
+    "rows",
+  );
+
+  await setDoc(
+    datasetRef,
+    {
+      name: datasetName,
+      rowCount: rows.length,
+      syncRunId,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  const currentRowIds = new Set(
+    rows.map((row, index) => makeRowDocId(datasetName, row, index)),
+  );
+  const existingSnapshot = await getDocs(rowsCollectionRef);
+  const staleDocs = existingSnapshot.docs.filter(
+    (existingDoc) => !currentRowIds.has(existingDoc.id),
+  );
+
+  const staleChunks = chunkItems(staleDocs, SYNC_CHUNK_SIZE);
+  for (const staleChunk of staleChunks) {
+    const deleteBatch = writeBatch(firestore);
+    staleChunk.forEach((staleDoc) => {
+      deleteBatch.delete(staleDoc.ref);
+    });
+    await deleteBatch.commit();
+  }
+
+  const chunks = chunkItems(rows, SYNC_CHUNK_SIZE);
+  for (const chunk of chunks) {
+    const batch = writeBatch(firestore);
+    chunk.forEach((row, index) => {
+      const rowId = makeRowDocId(datasetName, row, index);
+      const rowRef = doc(rowsCollectionRef, rowId);
+
+      batch.set(
+        rowRef,
+        {
+          ...sanitizeValue(row),
+          _rowId: rowId,
+          _table: datasetName,
+          _syncRunId: syncRunId,
+          _updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    });
+    await batch.commit();
+  }
+};
+
+const syncAuxiliaryCloudDatasets = async (userId, syncRunId) => {
+  const settingsSnapshot = await getDoc(
+    doc(firestore, "users", userId, "settings", "app_settings"),
+  );
+
+  const settingsRows = settingsSnapshot.exists()
+    ? [{ id: "app_settings", ...(settingsSnapshot.data() || {}) }]
+    : [];
+
+  await syncRowsToSnapshot({
+    userId,
+    bucket: "cloud_snapshots",
+    datasetName: "settings",
+    rows: settingsRows,
+    syncRunId,
+  });
+
+  for (const datasetName of CLOUD_SNAPSHOT_DATASETS) {
+    const snapshot = await getDocs(
+      collection(firestore, "users", userId, datasetName),
+    );
+    const rows = snapshot.docs.map((item) => item.data() || {});
+    await syncRowsToSnapshot({
+      userId,
+      bucket: "cloud_snapshots",
+      datasetName,
+      rows,
+      syncRunId,
+    });
+  }
+};
+
 export const syncCurrentUserSQLiteToFirestore = async (options = {}) => {
   const user = auth.currentUser;
   if (!user) {
@@ -86,71 +192,22 @@ export const syncCurrentUserSQLiteToFirestore = async (options = {}) => {
 
     for (const tableName of tables) {
       const rows = await db.getAllAsync(`SELECT * FROM ${tableName};`);
-      const tableRef = doc(firestore, "users", user.uid, "tables", tableName);
-      const rowsCollectionRef = collection(
-        firestore,
-        "users",
-        user.uid,
-        "tables",
-        tableName,
-        "rows",
-      );
-
-      await setDoc(
-        tableRef,
-        {
-          name: tableName,
-          rowCount: rows.length,
-          syncRunId,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true },
-      );
-
-      const currentRowIds = new Set(
-        rows.map((row, index) => makeRowDocId(tableName, row, index)),
-      );
-      const existingSnapshot = await getDocs(rowsCollectionRef);
-      const staleDocs = existingSnapshot.docs.filter(
-        (existingDoc) => !currentRowIds.has(existingDoc.id),
-      );
-
-      const staleChunks = chunkItems(staleDocs, SYNC_CHUNK_SIZE);
-      for (const staleChunk of staleChunks) {
-        const deleteBatch = writeBatch(firestore);
-        staleChunk.forEach((staleDoc) => {
-          deleteBatch.delete(staleDoc.ref);
-        });
-        await deleteBatch.commit();
-      }
-
-      const chunks = chunkItems(rows, SYNC_CHUNK_SIZE);
-      for (const chunk of chunks) {
-        const batch = writeBatch(firestore);
-        chunk.forEach((row, index) => {
-          const rowId = makeRowDocId(tableName, row, index);
-          const rowRef = doc(rowsCollectionRef, rowId);
-
-          batch.set(
-            rowRef,
-            {
-              ...sanitizeValue(row),
-              _rowId: rowId,
-              _table: tableName,
-              _syncRunId: syncRunId,
-              _updatedAt: serverTimestamp(),
-            },
-            { merge: true },
-          );
-        });
-        await batch.commit();
-      }
+      await syncRowsToSnapshot({
+        userId: user.uid,
+        bucket: "tables",
+        datasetName: tableName,
+        rows,
+        syncRunId,
+      });
     }
+
+    await syncAuxiliaryCloudDatasets(user.uid, syncRunId);
 
     return {
       skipped: false,
       syncRunId,
       tablesSynced: tables.length,
+      cloudDatasetsSynced: CLOUD_SNAPSHOT_DATASETS.length + 1,
     };
   })();
 

@@ -286,8 +286,18 @@ export const CustomersScreen = () => {
                 {isGeneric && " (ventas rápidas)"}
               </Text>
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>#{item.documentNumber}</Text>
+                <Text style={styles.badgeText}>
+                  {item.customerNumber ||
+                    `CLI-${String(item.id).padStart(6, "0")}`}
+                </Text>
               </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Documento</Text>
+              <Text style={styles.infoValue}>
+                {item.documentNumber || "Sin documento"}
+              </Text>
             </View>
 
             <View style={styles.infoRow}>

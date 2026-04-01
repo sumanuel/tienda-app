@@ -63,6 +63,9 @@ export const SalesScreen = () => {
     return sale?.total || 0;
   };
 
+  const getSaleDisplayNumber = (sale) =>
+    sale?.saleNumber || `VTA-${String(sale?.id || 0).padStart(6, "0")}`;
+
   const [activeTab, setActiveTab] = useState("today");
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
@@ -228,7 +231,7 @@ export const SalesScreen = () => {
   const handleCancelSale = (sale) => {
     showAlert({
       title: "Anular venta",
-      message: `¿Anular la venta #${sale.id}? Esta acción no se puede deshacer.`,
+      message: `¿Anular la venta ${getSaleDisplayNumber(sale)}? Esta acción no se puede deshacer.`,
       type: "warning",
       buttons: [
         { text: "Cancelar", style: "cancel" },
@@ -355,7 +358,7 @@ export const SalesScreen = () => {
           <Text style={styles.saleIconText}>🧾</Text>
         </View>
         <View style={styles.saleInfo}>
-          <Text style={styles.saleNumber}>Venta #{item.id}</Text>
+          <Text style={styles.saleNumber}>{getSaleDisplayNumber(item)}</Text>
           <Text style={styles.saleDate}>
             {new Date(item.createdAt).toLocaleDateString()} ·{" "}
             {new Date(item.createdAt).toLocaleTimeString([], {
