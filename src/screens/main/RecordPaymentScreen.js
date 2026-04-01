@@ -74,7 +74,7 @@ export const RecordPaymentScreen = () => {
   const formatLocalDate = (date) => {
     const pad = (value) => String(value).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-      date.getDate()
+      date.getDate(),
     )}`;
   };
 
@@ -89,6 +89,8 @@ export const RecordPaymentScreen = () => {
   };
 
   const handleRecordPayment = async () => {
+    if (loading) return;
+
     if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
       Alert.alert("Error", "Ingrese un monto válido");
       return;

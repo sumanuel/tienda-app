@@ -186,6 +186,8 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
   }, [cost, additionalCost, costCurrency, margin, appliedRate]);
 
   const handleSave = async () => {
+    if (loading) return;
+
     const qty = parseInt(quantity);
     if (!qty || qty <= 0) {
       Alert.alert("Error", "Ingresa una cantidad válida mayor a 0");
@@ -419,6 +421,7 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
                   );
                 })}
               </View>
+              (loading || !quantity.trim()) && styles.buttonDisabled,
             </TourGuideZone>
 
             <View style={styles.inputGroup}>
@@ -532,7 +535,11 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
               borderRadius={borderRadius.lg}
             >
               <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
+                style={[
+                  styles.button,
+                  styles.saveButton,
+                  (loading || !quantity.trim()) && styles.buttonDisabled,
+                ]}
                 onPress={handleSave}
                 disabled={loading || !quantity.trim()}
               >
@@ -648,6 +655,9 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: "#4CAF50",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   saveButtonText: {
     color: "#fff",

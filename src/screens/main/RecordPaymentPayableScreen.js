@@ -81,13 +81,15 @@ export const RecordPaymentPayableScreen = () => {
   const formatLocalDate = (date) => {
     const pad = (value) => String(value).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-      date.getDate()
+      date.getDate(),
     )}`;
   };
 
   const paymentDateLabel = formatLocalDate(paymentDate);
 
   const handleRecordPayment = async () => {
+    if (loading) return;
+
     if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
       Alert.alert("Error", "Ingrese un monto válido");
       return;
@@ -110,7 +112,7 @@ export const RecordPaymentPayableScreen = () => {
           reference: reference.trim() || null,
           notes: notes.trim() || null,
         },
-        "payable"
+        "payable",
       );
 
       Alert.alert("Éxito", "Pago registrado correctamente");

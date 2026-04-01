@@ -6,7 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -32,6 +32,7 @@ export const AddProductScreen = ({ navigation }) => {
   const { addProduct } = useProducts();
   const { rate: exchangeRate } = useExchangeRate();
   const { showAlert, CustomAlert } = useCustomAlert();
+  const [loading, setLoading] = useState(false);
 
   const [settings, setSettings] = useState({});
   const [cost, setCost] = useState("");
@@ -144,6 +145,8 @@ export const AddProductScreen = ({ navigation }) => {
   };
 
   const handleSubmit = async () => {
+    if (loading) return;
+
     if (!formData.name.trim()) {
       showAlert({
         title: "Error",
@@ -195,6 +198,7 @@ export const AddProductScreen = ({ navigation }) => {
     }
 
     try {
+      setLoading(true);
       const rateFromSettings = Number(settings?.pricing?.currencies?.USD) || 0;
       const appliedRate = Number(exchangeRate) || rateFromSettings || 0;
 
@@ -257,6 +261,8 @@ export const AddProductScreen = ({ navigation }) => {
         message: "No se pudo agregar el producto",
         type: "error",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -557,19 +563,33 @@ export const AddProductScreen = ({ navigation }) => {
 
           <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.secondaryButton]}
+              style={[
+                styles.actionButton,
+                styles.secondaryButton,
+                loading && styles.buttonDisabled,
+              ]}
               onPress={() => navigation.goBack()}
               activeOpacity={0.85}
+              disabled={loading}
             >
               <Text style={styles.secondaryButtonText}>Cancelar</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionButton, styles.primaryButton]}
+              style={[
+                styles.actionButton,
+                styles.primaryButton,
+                loading && styles.buttonDisabled,
+              ]}
               onPress={handleSubmit}
               activeOpacity={0.85}
+              disabled={loading}
             >
-              <Text style={styles.primaryButtonText}>Guardar producto</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Guardar producto</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -794,6 +814,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#c3cad5",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   secondaryButtonText: {
     color: "#4c5767",

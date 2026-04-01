@@ -395,6 +395,8 @@ export const POSScreen = ({ navigation }) => {
    * Completa la venta
    */
   const completeSale = async () => {
+    if (processingSale) return;
+
     if (cart.length === 0) {
       showAlert({
         title: "Error",
@@ -426,6 +428,7 @@ export const POSScreen = ({ navigation }) => {
     }
 
     try {
+      setProcessingSale(true);
       let customerId = null;
       let customerName = "Cliente";
 
@@ -471,6 +474,7 @@ export const POSScreen = ({ navigation }) => {
               })),
             });
             setShowNewCustomerModal(true);
+            setProcessingSale(false);
             return;
           }
         }
@@ -600,6 +604,8 @@ export const POSScreen = ({ navigation }) => {
         message: "No se pudo completar la venta",
         type: "error",
       });
+    } finally {
+      setProcessingSale(false);
     }
   };
 
@@ -1234,12 +1240,19 @@ export const POSScreen = ({ navigation }) => {
                     <TouchableOpacity
                       style={[
                         styles.checkoutButton,
-                        cart.length === 0 && styles.buttonDisabled,
+                        (cart.length === 0 || processingSale) &&
+                          styles.buttonDisabled,
                       ]}
                       onPress={completeSale}
-                      disabled={cart.length === 0}
+                      disabled={cart.length === 0 || processingSale}
                     >
-                      <Text style={styles.checkoutText}>✓ Completar Venta</Text>
+                      {processingSale ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.checkoutText}>
+                          ✓ Completar Venta
+                        </Text>
+                      )}
                     </TouchableOpacity>
                   </TourGuideZone>
                 </View>

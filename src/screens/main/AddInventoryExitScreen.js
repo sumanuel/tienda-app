@@ -64,6 +64,8 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
   }, [canStart, start, tourBooted]);
 
   const handleSave = async () => {
+    if (loading) return;
+
     const qty = parseInt(quantity, 10);
     if (!qty || qty <= 0) {
       showAlert({
@@ -194,7 +196,11 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
               borderRadius={borderRadius.lg}
             >
               <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
+                style={[
+                  styles.button,
+                  styles.saveButton,
+                  (loading || !quantity.trim()) && styles.buttonDisabled,
+                ]}
                 onPress={handleSave}
                 disabled={loading || !quantity.trim()}
               >
@@ -332,6 +338,9 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: "#c62828",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   saveButtonText: {
     color: "#fff",

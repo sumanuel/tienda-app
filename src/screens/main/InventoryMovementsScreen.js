@@ -22,6 +22,22 @@ import {
   iconSize,
 } from "../../utils/responsive";
 
+const parseProductOrderValue = (product) => {
+  const productNumber = String(product?.productNumber || "").trim();
+  const productNumberMatch = productNumber.match(/(\d+)$/);
+  if (productNumberMatch) {
+    return Number(productNumberMatch[1]) || 0;
+  }
+
+  const barcode = String(product?.barcode || "").trim();
+  const barcodeMatch = barcode.match(/(\d+)$/);
+  if (barcodeMatch) {
+    return Number(barcodeMatch[1]) || 0;
+  }
+
+  return Number(product?.id) || 0;
+};
+
 export const InventoryMovementsScreen = ({ navigation }) => {
   const { canStart, start, TourGuideZone } =
     useTourGuideController("inventoryMovements");
@@ -78,13 +94,28 @@ export const InventoryMovementsScreen = ({ navigation }) => {
 
   const filteredProducts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return products;
+    const filtered = !query
+      ? products
+      : products.filter((p) => {
+          const nameMatch = (p.name || "").toLowerCase().includes(query);
+          const barcodeMatch = (p.barcode || "").toLowerCase().includes(query);
+          const productNumberMatch = (p.productNumber || "")
+            .toLowerCase()
+            .includes(query);
+          const categoryMatch = (p.category || "")
+            .toLowerCase()
+            .includes(query);
+          return (
+            nameMatch || barcodeMatch || productNumberMatch || categoryMatch
+          );
+        });
 
-    return products.filter((p) => {
-      const nameMatch = (p.name || "").toLowerCase().includes(query);
-      const barcodeMatch = (p.barcode || "").toLowerCase().includes(query);
-      const categoryMatch = (p.category || "").toLowerCase().includes(query);
-      return nameMatch || barcodeMatch || categoryMatch;
+    return [...filtered].sort((a, b) => {
+      const codeDiff = parseProductOrderValue(a) - parseProductOrderValue(b);
+      if (codeDiff !== 0) return codeDiff;
+      return String(a.name || "").localeCompare(String(b.name || ""), "es", {
+        sensitivity: "base",
+      });
     });
   }, [products, searchQuery]);
 
@@ -97,13 +128,19 @@ export const InventoryMovementsScreen = ({ navigation }) => {
       >
         <View style={styles.productOptionRow}>
           <Text style={styles.productOptionName} numberOfLines={1}>
-            {item.name}
+            {String(item.name || "").toUpperCase()}
           </Text>
           <Text style={styles.productOptionStock}>{item.stock} u.</Text>
         </View>
         <Text style={styles.productOptionCode} numberOfLines={1}>
-          Código: {item.barcode || "—"}
+          Código:{" "}
+          {item.productNumber || `PRD-${String(item.id).padStart(6, "0")}`}
         </Text>
+        {!!item.barcode && (
+          <Text style={styles.productOptionCategory} numberOfLines={1}>
+            Barcode: {item.barcode}
+          </Text>
+        )}
         {!!item.category && (
           <Text style={styles.productOptionCategory} numberOfLines={1}>
             {item.category}

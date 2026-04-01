@@ -134,6 +134,8 @@ export const MobilePaymentsScreen = () => {
   }, [saving]);
 
   const handleSave = useCallback(async () => {
+    if (saving) return;
+
     const reference = formReference.trim();
     const customerName = formCustomer.trim();
     const amount = parseCurrency(formAmount);
