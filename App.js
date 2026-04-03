@@ -10,6 +10,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import {
   ActivityIndicator,
   AppState,
+  Image,
   Platform,
   StatusBar as RNStatusBar,
   View,
@@ -276,16 +277,13 @@ function MainTabs() {
                   width: tabIconContainerWidth,
                 }}
               >
-                <Text
+                <Image
+                  source={require("./assets/img/home.png")}
                   style={{
-                    fontSize: tabIconFontSize,
-                    lineHeight: tabIconLineHeight,
-                    includeFontPadding: false,
-                    color,
+                    width: tabIconFontSize,
+                    height: tabIconFontSize,
                   }}
-                >
-                  🏠
-                </Text>
+                />
               </View>
             ),
             headerShown: false,
@@ -305,16 +303,13 @@ function MainTabs() {
                   width: tabIconContainerWidth,
                 }}
               >
-                <Text
+                <Image
+                  source={require("./assets/img/maletin.png")}
                   style={{
-                    fontSize: tabIconFontSize,
-                    lineHeight: tabIconLineHeight,
-                    includeFontPadding: false,
-                    color,
+                    width: tabIconFontSize,
+                    height: tabIconFontSize,
                   }}
-                >
-                  💼
-                </Text>
+                />
               </View>
             ),
             title: "Punto de venta",
@@ -351,16 +346,13 @@ function MainTabs() {
                   width: tabIconContainerWidth,
                 }}
               >
-                <Text
+                <Image
+                  source={require("./assets/img/ficha.png")}
                   style={{
-                    fontSize: tabIconFontSize,
-                    lineHeight: tabIconLineHeight,
-                    includeFontPadding: false,
-                    color,
+                    width: tabIconFontSize,
+                    height: tabIconFontSize,
                   }}
-                >
-                  📂
-                </Text>
+                />
               </View>
             ),
             title: "Historial de ventas",
@@ -401,16 +393,13 @@ function MainTabs() {
                   width: tabIconContainerWidth,
                 }}
               >
-                <Text
+                <Image
+                  source={require("./assets/img/ajustes.png")}
                   style={{
-                    fontSize: tabIconFontSize,
-                    lineHeight: tabIconLineHeight,
-                    includeFontPadding: false,
-                    color,
+                    width: tabIconFontSize,
+                    height: tabIconFontSize,
                   }}
-                >
-                  ⚙️
-                </Text>
+                />
               </View>
             ),
             title: "Configuraciones",
@@ -426,19 +415,19 @@ function MainTabs() {
         items={[
           {
             key: "accountsReceivable",
-            icon: "📈",
+            icon: require("./assets/img/cxc.png"),
             label: "Cuentas por Cobrar",
             onPress: () => handleNavigate("AccountsReceivable"),
           },
           {
             key: "accountsPayable",
-            icon: "📉",
+            icon: require("./assets/img/cxp.png"),
             label: "Cuentas por Pagar",
             onPress: () => handleNavigate("AccountsPayable"),
           },
           {
             key: "capital",
-            icon: "🏦",
+            icon: require("./assets/img/saco_dinero.png"),
             label: "Capital",
             onPress: () => handleNavigate("Capital"),
           },
@@ -454,37 +443,37 @@ function MainTabs() {
         items={[
           {
             key: "products",
-            icon: "📦",
+            icon: require("./assets/img/productos.png"),
             label: "Productos",
             onPress: handleProductsPress,
           },
           {
             key: "qr",
-            icon: "📱",
+            icon: require("./assets/img/qr.png"),
             label: "QR",
             onPress: handleQRPress,
           },
           {
             key: "mobilePayments",
-            icon: "📲",
+            icon: require("./assets/img/pago_movil.png"),
             label: "Pago movil",
             onPress: () => handleNavigate("MobilePayments"),
           },
           {
             key: "suppliers",
-            icon: "🏢",
+            icon: require("./assets/img/proveedores.png"),
             label: "Proveedores",
             onPress: () => handleNavigate("Suppliers"),
           },
           {
             key: "customers",
-            icon: "👥",
+            icon: require("./assets/img/cliente.png"),
             label: "Clientes",
             onPress: () => handleNavigate("Customers"),
           },
           {
             key: "cancelledSales",
-            icon: "🚫",
+            icon: require("./assets/img/factura_anulada.png"),
             label: "Anuladas",
             onPress: () => handleNavigate("CancelledSales"),
           },
@@ -539,7 +528,17 @@ const QuickActionMenu = ({
               onPress={item.onPress}
             >
               <View style={tabStyles.menuIcon}>
-                <Text style={tabStyles.menuIconText}>{item.icon}</Text>
+                {typeof item.icon === "string" ? (
+                  <Text style={tabStyles.menuIconText}>{item.icon}</Text>
+                ) : (
+                  <Image
+                    source={item.icon}
+                    style={{
+                      width: iconSize.md,
+                      height: iconSize.md,
+                    }}
+                  />
+                )}
               </View>
               <Text style={tabStyles.menuLabel}>{item.label}</Text>
             </TouchableOpacity>

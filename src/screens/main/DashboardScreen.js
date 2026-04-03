@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from "react-native";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -231,7 +232,10 @@ export const DashboardScreen = ({ navigation }) => {
               style={styles.statCard}
               onPress={() => navigation.navigate("ExchangeRate")}
             >
-              <Text style={styles.statIcon}>💱</Text>
+              <Image
+                source={require("../../../assets/img/grafica_verde.png")}
+                style={styles.statIcon}
+              />
               <Text style={styles.statLabel}>Tasa de Cambio</Text>
               <Text style={styles.statValue}>
                 {rate ? `${rate.toFixed(2)} VES.` : "Cargando..."}
@@ -246,7 +250,10 @@ export const DashboardScreen = ({ navigation }) => {
                 navigation.navigate("POS");
               }}
             >
-              <Text style={styles.statIcon}>🛒</Text>
+              <Image
+                source={require("../../../assets/img/saco_dinero.png")}
+                style={styles.statIcon}
+              />
               <Text style={styles.statLabel}>Nueva Venta</Text>
               <Text style={styles.statValue}>Iniciar</Text>
             </TouchableOpacity>
@@ -262,7 +269,10 @@ export const DashboardScreen = ({ navigation }) => {
                 navigation.navigate("AccountsReceivable");
               }}
             >
-              <Text style={styles.statIcon}>📈</Text>
+              <Image
+                source={require("../../../assets/img/cxc.png")}
+                style={styles.statIcon}
+              />
               <Text style={styles.statLabel}>Por Cobrar</Text>
               <Text style={styles.statValue}>
                 {formatCurrency(receivableStats?.pending || 0, "VES")}
@@ -282,7 +292,10 @@ export const DashboardScreen = ({ navigation }) => {
                 navigation.navigate("AccountsPayable");
               }}
             >
-              <Text style={styles.statIcon}>📉</Text>
+              <Image
+                source={require("../../../assets/img/cxp.png")}
+                style={styles.statIcon}
+              />
               <Text style={styles.statLabel}>Por Pagar</Text>
               <Text style={styles.statValue}>
                 {formatCurrency(payableStats?.pending || 0, "VES")}
@@ -308,7 +321,10 @@ export const DashboardScreen = ({ navigation }) => {
                 navigation.navigate("InventoryMovements");
               }}
             >
-              <Text style={styles.statIcon}>📋</Text>
+              <Image
+                source={require("../../../assets/img/productos.png")}
+                style={styles.statIcon}
+              />
               <Text style={styles.statLabel}>Movimientos de inventario</Text>
               <Text style={styles.statValue}>Ver</Text>
             </TouchableOpacity>
@@ -533,7 +549,8 @@ const styles = StyleSheet.create({
     width: "47%",
   },
   statIcon: {
-    fontSize: iconSize.lg,
+    width: iconSize.lg,
+    height: iconSize.lg,
     marginBottom: vs(8),
   },
   statLabel: {
