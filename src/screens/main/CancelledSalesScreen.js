@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -151,6 +152,13 @@ export const CancelledSalesScreen = () => {
         ListHeaderComponent={
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
+              <View style={styles.heroIcon}>
+                <Ionicons
+                  name="ban-outline"
+                  size={iconSize.xl}
+                  color="#d64545"
+                />
+              </View>
               <View style={styles.heroCopy}>
                 <Text style={styles.heroTitle}>
                   Ventas Anuladas ({cancelledSales.length})
