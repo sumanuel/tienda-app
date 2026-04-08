@@ -507,11 +507,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         <View>
           <View style={styles.summaryHeader}>
             <View style={styles.summaryIcon}>
-              <Ionicons
-                name="arrow-down-circle-outline"
-                size={rf(22)}
-                color="#2f5ae0"
-              />
+              <Ionicons name="cash-outline" size={rf(22)} color="#169c5a" />
             </View>
             <View>
               <Text style={styles.summaryTitle}>

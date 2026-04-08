@@ -442,11 +442,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
         <View>
           <View style={styles.summaryHeader}>
             <View style={styles.summaryIcon}>
-              <Ionicons
-                name="arrow-up-circle-outline"
-                size={rf(22)}
-                color="#d64545"
-              />
+              <Ionicons name="card-outline" size={rf(22)} color="#d64545" />
             </View>
             <View>
               <Text style={styles.summaryTitle}>
