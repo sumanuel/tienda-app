@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -34,6 +35,11 @@ const mapAuthError = (error) => {
 
 const AuthScreen = () => {
   const { signIn, signUp, syncing, sendPasswordReset } = useAuth();
+  const scrollRef = useRef(null);
+  const nameInputRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+  const confirmPasswordInputRef = useRef(null);
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -51,6 +57,12 @@ const AuthScreen = () => {
       ? "Crea tu cuenta para vincular tus datos locales con Firestore."
       : "Inicia sesión para cargar tu espacio de trabajo y sincronizar tus datos.";
   }, [isRegister]);
+
+  const scrollToFocusedInput = (y) => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y, animated: true });
+    });
+  };
 
   const submit = async () => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -122,131 +134,170 @@ const AuthScreen = () => {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? vs(24) : 0}
       >
-        <View style={styles.heroCard}>
-          <Text style={styles.heroTitle}>T-Suma Cloud</Text>
-          <Text style={styles.heroSubtitle}>{helperText}</Text>
-        </View>
-
-        <View style={styles.formCard}>
-          <View style={styles.modeSwitch}>
-            <TouchableOpacity
-              style={[
-                styles.modeButton,
-                !isRegister && styles.modeButtonActive,
-              ]}
-              onPress={() => {
-                setMode("login");
-                setError("");
-                setInfoMessage("");
-              }}
-            >
-              <Text
-                style={[
-                  styles.modeButtonText,
-                  !isRegister && styles.modeButtonTextActive,
-                ]}
-              >
-                Iniciar sesión
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeButton, isRegister && styles.modeButtonActive]}
-              onPress={() => {
-                setMode("register");
-                setError("");
-                setInfoMessage("");
-              }}
-            >
-              <Text
-                style={[
-                  styles.modeButtonText,
-                  isRegister && styles.modeButtonTextActive,
-                ]}
-              >
-                Registrarme
-              </Text>
-            </TouchableOpacity>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.heroCard}>
+            <Text style={styles.heroTitle}>T-Suma Cloud</Text>
+            <Text style={styles.heroSubtitle}>{helperText}</Text>
           </View>
 
-          {isRegister && (
-            <>
-              <Text style={styles.label}>Nombre</Text>
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Nombre del usuario"
-                placeholderTextColor="#8a94a6"
-              />
-            </>
-          )}
+          <View style={styles.formCard}>
+            <View style={styles.modeSwitch}>
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  !isRegister && styles.modeButtonActive,
+                ]}
+                onPress={() => {
+                  setMode("login");
+                  setError("");
+                  setInfoMessage("");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.modeButtonText,
+                    !isRegister && styles.modeButtonTextActive,
+                  ]}
+                >
+                  Iniciar sesión
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  isRegister && styles.modeButtonActive,
+                ]}
+                onPress={() => {
+                  setMode("register");
+                  setError("");
+                  setInfoMessage("");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.modeButtonText,
+                    isRegister && styles.modeButtonTextActive,
+                  ]}
+                >
+                  Registrarme
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-          <Text style={styles.label}>Correo</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="correo@dominio.com"
-            placeholderTextColor="#8a94a6"
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-
-          <Text style={styles.label}>Contraseña</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Mínimo 6 caracteres"
-            placeholderTextColor="#8a94a6"
-            secureTextEntry
-          />
-
-          {isRegister && (
-            <>
-              <Text style={styles.label}>Confirmar contraseña</Text>
-              <TextInput
-                style={styles.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Repite la contraseña"
-                placeholderTextColor="#8a94a6"
-                secureTextEntry
-              />
-            </>
-          )}
-
-          {!!infoMessage && <Text style={styles.infoText}>{infoMessage}</Text>}
-          {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              loading && styles.submitButtonDisabled,
-            ]}
-            onPress={submit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>
-                {isRegister ? "Crear cuenta" : "Entrar"}
-              </Text>
+            {isRegister && (
+              <>
+                <Text style={styles.label}>Nombre</Text>
+                <TextInput
+                  ref={nameInputRef}
+                  style={styles.input}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Nombre del usuario"
+                  placeholderTextColor="#8a94a6"
+                  returnKeyType="next"
+                  onFocus={() => scrollToFocusedInput(vs(120))}
+                  onSubmitEditing={() => emailInputRef.current?.focus()}
+                />
+              </>
             )}
-          </TouchableOpacity>
 
-          {!isRegister && (
+            <Text style={styles.label}>Correo</Text>
+            <TextInput
+              ref={emailInputRef}
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="correo@dominio.com"
+              placeholderTextColor="#8a94a6"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoCorrect={false}
+              returnKeyType="next"
+              onFocus={() => scrollToFocusedInput(vs(180))}
+              onSubmitEditing={() => passwordInputRef.current?.focus()}
+            />
+
+            <Text style={styles.label}>Contraseña</Text>
+            <TextInput
+              ref={passwordInputRef}
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Mínimo 6 caracteres"
+              placeholderTextColor="#8a94a6"
+              secureTextEntry
+              returnKeyType={isRegister ? "next" : "done"}
+              onFocus={() =>
+                scrollToFocusedInput(isRegister ? vs(240) : vs(210))
+              }
+              onSubmitEditing={() => {
+                if (isRegister) {
+                  confirmPasswordInputRef.current?.focus();
+                  return;
+                }
+
+                submit();
+              }}
+            />
+
+            {isRegister && (
+              <>
+                <Text style={styles.label}>Confirmar contraseña</Text>
+                <TextInput
+                  ref={confirmPasswordInputRef}
+                  style={styles.input}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Repite la contraseña"
+                  placeholderTextColor="#8a94a6"
+                  secureTextEntry
+                  returnKeyType="done"
+                  onFocus={() => scrollToFocusedInput(vs(300))}
+                  onSubmitEditing={submit}
+                />
+              </>
+            )}
+
+            {!!infoMessage && (
+              <Text style={styles.infoText}>{infoMessage}</Text>
+            )}
+            {!!error && <Text style={styles.errorText}>{error}</Text>}
+
             <TouchableOpacity
-              style={styles.linkButton}
-              onPress={handlePasswordReset}
+              style={[
+                styles.submitButton,
+                loading && styles.submitButtonDisabled,
+              ]}
+              onPress={submit}
+              disabled={loading}
             >
-              <Text style={styles.linkButtonText}>Recuperar contraseña</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>
+                  {isRegister ? "Crear cuenta" : "Entrar"}
+                </Text>
+              )}
             </TouchableOpacity>
-          )}
-        </View>
+
+            {!isRegister && (
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={handlePasswordReset}
+              >
+                <Text style={styles.linkButtonText}>Recuperar contraseña</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -259,8 +310,12 @@ const styles = StyleSheet.create({
   },
   keyboardContainer: {
     flex: 1,
-    justifyContent: "center",
     padding: spacing.lg,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingBottom: vs(48),
     gap: vs(18),
   },
   heroCard: {

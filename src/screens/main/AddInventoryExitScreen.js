@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -121,7 +122,11 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
         <View style={styles.headerContent}>
           <View style={styles.heroCard}>
             <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>📤</Text>
+              <Ionicons
+                name="arrow-up-circle-outline"
+                size={iconSize.xl}
+                color="#c62828"
+              />
             </View>
             <View style={styles.heroTextContainer}>
               <Text style={styles.heroTitle}>Agregar Salida de Inventario</Text>
@@ -194,6 +199,7 @@ export const AddInventoryExitScreen = ({ navigation, route }) => {
               text={"Guarda la salida de inventario y actualiza el stock."}
               shape="rectangle"
               borderRadius={borderRadius.lg}
+              style={styles.actionWrapper}
             >
               <TouchableOpacity
                 style={[
@@ -251,9 +257,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: spacing.lg,
-  },
-  heroIconText: {
-    fontSize: rf(30),
   },
   heroTextContainer: {
     flex: 1,
@@ -321,6 +324,9 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: "row",
     gap: spacing.md,
+  },
+  actionWrapper: {
+    flex: 1,
   },
   button: {
     flex: 1,

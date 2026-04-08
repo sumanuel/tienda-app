@@ -313,9 +313,9 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
                 <Ionicons
-                  name="cube-outline"
+                  name="arrow-down-circle-outline"
                   size={iconSize.xl}
-                  color="#c9861a"
+                  color="#2e7d32"
                 />
               </View>
               <View style={styles.heroTextContainer}>
@@ -426,7 +426,6 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
                   );
                 })}
               </View>
-              (loading || !quantity.trim()) && styles.buttonDisabled,
             </TourGuideZone>
 
             <View style={styles.inputGroup}>
@@ -538,6 +537,7 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
               text={"Guarda la entrada de inventario y actualiza el stock."}
               shape="rectangle"
               borderRadius={borderRadius.lg}
+              style={styles.actionWrapper}
             >
               <TouchableOpacity
                 style={[
@@ -643,6 +643,9 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: "row",
     gap: spacing.md,
+  },
+  actionWrapper: {
+    flex: 1,
   },
   button: {
     flex: 1,
