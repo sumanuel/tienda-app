@@ -154,7 +154,7 @@ export const CancelledSalesScreen = () => {
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
                 <Ionicons
-                  name="ban-outline"
+                  name="receipt-outline"
                   size={iconSize.xl}
                   color="#d64545"
                 />

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -158,7 +159,11 @@ export const InventoryEntryDetailScreen = ({ navigation, route }) => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>📥</Text>
+                <Ionicons
+                  name="arrow-down-circle-outline"
+                  size={iconSize.xl}
+                  color="#169c5a"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Entrada de Inventario</Text>

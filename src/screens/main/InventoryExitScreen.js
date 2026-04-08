@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -10,7 +11,15 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useProducts } from "../../hooks/useProducts";
-import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 export const InventoryExitScreen = ({ navigation }) => {
   const {
@@ -98,7 +107,11 @@ export const InventoryExitScreen = ({ navigation }) => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>📤</Text>
+                <Ionicons
+                  name="arrow-up-circle-outline"
+                  size={iconSize.xl}
+                  color="#d64545"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Salida de Inventario</Text>

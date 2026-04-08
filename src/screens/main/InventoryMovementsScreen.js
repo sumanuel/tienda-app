@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -387,16 +388,13 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   heroIcon: {
-    width: s(50),
-    height: s(50),
-    borderRadius: borderRadius.md,
+    width: s(60),
+    height: s(60),
+    borderRadius: borderRadius.lg,
     backgroundColor: "#f3f8ff",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: hs(spacing.md),
-  },
-  heroIconText: {
-    fontSize: rf(24),
+    marginRight: hs(18),
   },
   heroTextContainer: {
     flex: 1,

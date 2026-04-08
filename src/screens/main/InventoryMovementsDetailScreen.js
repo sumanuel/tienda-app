@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -294,11 +295,13 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
             "Aquí verás el historial de entradas y salidas, con su fecha y cómo cambió el stock."
           }
           borderRadius={borderRadius.lg}
+          style={styles.listWrapper}
         >
           <FlatList
             data={movements}
             renderItem={renderMovement}
             keyExtractor={(item) => item.id.toString()}
+            style={styles.list}
             ListEmptyComponent={renderEmpty}
             contentContainerStyle={[
               styles.listContent,
@@ -339,6 +342,12 @@ const styles = StyleSheet.create({
   topContent: {
     paddingHorizontal: hs(spacing.md),
     paddingTop: vs(spacing.md),
+  },
+  listWrapper: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
   },
   listContent: {
     paddingHorizontal: hs(spacing.md),
