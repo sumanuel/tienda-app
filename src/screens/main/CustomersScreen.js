@@ -333,9 +333,6 @@ export const CustomersScreen = () => {
   const header = (
     <View style={styles.headerContent}>
       <View style={styles.heroCard}>
-        <View style={styles.heroIcon}>
-          <Text style={styles.heroIconText}>🤝</Text>
-        </View>
         <View style={styles.heroTextContainer}>
           <Text style={styles.heroTitle}>Directorio de clientes</Text>
           <Text style={styles.heroSubtitle}>

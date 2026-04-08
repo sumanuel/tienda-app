@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTourGuideController } from "rn-tourguide";
 import {
   updateProduct,
@@ -311,7 +312,11 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>📦</Text>
+                <Ionicons
+                  name="cube-outline"
+                  size={iconSize.xl}
+                  color="#c9861a"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>

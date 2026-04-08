@@ -11,6 +11,7 @@ import {
   Platform,
   SafeAreaView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -245,7 +246,11 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
           >
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>💳</Text>
+                <Ionicons
+                  name="card-outline"
+                  size={iconSize.lg}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Nueva cuenta por cobrar</Text>

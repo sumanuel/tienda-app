@@ -6,8 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Image,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { useSales } from "../../hooks/useSales";
@@ -32,6 +32,12 @@ import { useRateNotifications } from "../../contexts/RateNotificationsContext";
 /**
  * Pantalla principal del Dashboard
  */
+const DashboardStatIcon = ({ name, backgroundColor, color }) => (
+  <View style={[styles.statIconContainer, { backgroundColor }]}>
+    <Ionicons name={name} size={rf(26)} color={color} />
+  </View>
+);
+
 export const DashboardScreen = ({ navigation }) => {
   const { showAlert, CustomAlert } = useCustomAlert();
   const {
@@ -158,7 +164,11 @@ export const DashboardScreen = ({ navigation }) => {
               style={styles.notificationButton}
               onPress={() => navigation.navigate("RateNotifications")}
             >
-              <Text style={styles.notificationButtonText}>🔔</Text>
+              <Ionicons
+                name="notifications-outline"
+                size={rf(18)}
+                color="#ffffff"
+              />
               {(notificationCount || 0) > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>
@@ -175,7 +185,11 @@ export const DashboardScreen = ({ navigation }) => {
                 }
               }}
             >
-              <Text style={styles.helpButtonText}>📖</Text>
+              <Ionicons
+                name="help-circle-outline"
+                size={rf(18)}
+                color="#ffffff"
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -195,7 +209,11 @@ export const DashboardScreen = ({ navigation }) => {
               </Text>
             </View>
             <TouchableOpacity onPress={() => navigation.navigate("Sales")}>
-              <Text style={styles.shareIcon}>📊</Text>
+              <Ionicons
+                name="bar-chart-outline"
+                size={iconSize.lg}
+                color="#2f5ae0"
+              />
             </TouchableOpacity>
           </View>
 
@@ -232,9 +250,10 @@ export const DashboardScreen = ({ navigation }) => {
               style={styles.statCard}
               onPress={() => navigation.navigate("ExchangeRate")}
             >
-              <Image
-                source={require("../../../assets/img/grafica_verde.png")}
-                style={styles.statIcon}
+              <DashboardStatIcon
+                name="swap-horizontal-outline"
+                backgroundColor="#eef6ff"
+                color="#2f80ed"
               />
               <Text style={styles.statLabel}>Tasa de Cambio</Text>
               <Text style={styles.statValue}>
@@ -250,9 +269,10 @@ export const DashboardScreen = ({ navigation }) => {
                 navigation.navigate("POS");
               }}
             >
-              <Image
-                source={require("../../../assets/img/saco_dinero.png")}
-                style={styles.statIcon}
+              <DashboardStatIcon
+                name="cart-outline"
+                backgroundColor="#edf9ee"
+                color="#34a853"
               />
               <Text style={styles.statLabel}>Nueva Venta</Text>
               <Text style={styles.statValue}>Iniciar</Text>
@@ -269,9 +289,10 @@ export const DashboardScreen = ({ navigation }) => {
                 navigation.navigate("AccountsReceivable");
               }}
             >
-              <Image
-                source={require("../../../assets/img/cxc.png")}
-                style={styles.statIcon}
+              <DashboardStatIcon
+                name="cash-outline"
+                backgroundColor="#eaf7f0"
+                color="#169c5a"
               />
               <Text style={styles.statLabel}>Por Cobrar</Text>
               <Text style={styles.statValue}>
@@ -292,9 +313,10 @@ export const DashboardScreen = ({ navigation }) => {
                 navigation.navigate("AccountsPayable");
               }}
             >
-              <Image
-                source={require("../../../assets/img/cxp.png")}
-                style={styles.statIcon}
+              <DashboardStatIcon
+                name="card-outline"
+                backgroundColor="#fff1f1"
+                color="#d64545"
               />
               <Text style={styles.statLabel}>Por Pagar</Text>
               <Text style={styles.statValue}>
@@ -321,9 +343,10 @@ export const DashboardScreen = ({ navigation }) => {
                 navigation.navigate("InventoryMovements");
               }}
             >
-              <Image
-                source={require("../../../assets/img/productos.png")}
-                style={styles.statIcon}
+              <DashboardStatIcon
+                name="cube-outline"
+                backgroundColor="#fff6e8"
+                color="#c9861a"
               />
               <Text style={styles.statLabel}>Movimientos de inventario</Text>
               <Text style={styles.statValue}>Ver</Text>
@@ -548,9 +571,12 @@ const styles = StyleSheet.create({
     flex: undefined,
     width: "47%",
   },
-  statIcon: {
-    width: iconSize.lg,
-    height: iconSize.lg,
+  statIconContainer: {
+    width: s(54),
+    height: s(54),
+    borderRadius: borderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: vs(8),
   },
   statLabel: {

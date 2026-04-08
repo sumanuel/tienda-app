@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSales } from "../../hooks/useSales";
@@ -250,7 +251,11 @@ export const SaleDetailScreen = () => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>🧾</Text>
+                <Ionicons
+                  name="receipt-outline"
+                  size={rf(30)}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.heroCopy}>
                 <Text style={styles.heroTitle}>
@@ -265,7 +270,11 @@ export const SaleDetailScreen = () => {
             <View style={styles.saleCard}>
               <View style={styles.saleHeader}>
                 <View style={styles.saleIcon}>
-                  <Text style={styles.saleIconText}>🧾</Text>
+                  <Ionicons
+                    name="receipt-outline"
+                    size={rf(24)}
+                    color="#2f5ae0"
+                  />
                 </View>
                 <View style={styles.saleInfo}>
                   <Text style={styles.saleNumber}>
@@ -338,7 +347,7 @@ export const SaleDetailScreen = () => {
           onPress={handleSendWhatsAppInvoice}
           activeOpacity={0.85}
         >
-          <Text style={styles.whatsappFabText}>✉️</Text>
+          <Ionicons name="logo-whatsapp" size={rf(22)} color="#ffffff" />
         </TouchableOpacity>
       ) : null}
     </SafeAreaView>

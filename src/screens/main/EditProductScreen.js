@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useProducts } from "../../hooks/useProducts";
 import { useExchangeRate } from "../../hooks/useExchangeRate";
 import { getSettings } from "../../services/database/settings";
@@ -304,7 +305,11 @@ export const EditProductScreen = ({ navigation, route }) => {
         >
           <View style={styles.heroCard}>
             <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>🛒</Text>
+              <Ionicons
+                name="cart-outline"
+                size={iconSize.xl}
+                color="#2f5ae0"
+              />
             </View>
             <View style={styles.heroTextContainer}>
               <Text style={styles.heroTitle}>Editar producto</Text>

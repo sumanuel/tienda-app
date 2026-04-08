@@ -137,7 +137,11 @@ export const InventoryEntryDetailScreen = ({ navigation, route }) => {
 
     return (
       <View style={styles.emptyMovements}>
-        <Text style={styles.emptyEmoji}>📋</Text>
+        <Ionicons
+          name="document-text-outline"
+          size={iconSize.xxl}
+          color="#8ca0b8"
+        />
         <Text style={styles.emptyTitle}>Sin movimientos registrados</Text>
         <Text style={styles.emptySubtitle}>
           El inventario actual ({product.stock} unidades) se considera como

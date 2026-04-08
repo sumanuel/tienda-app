@@ -94,9 +94,6 @@ export const CancelledSalesScreen = () => {
       activeOpacity={0.85}
     >
       <View style={styles.saleHeader}>
-        <View style={styles.saleIcon}>
-          <Text style={styles.saleIconText}>🚫</Text>
-        </View>
         <View style={styles.saleInfo}>
           <Text style={styles.saleNumber}>
             {getSaleDisplayNumber(item)} (Anulada)
@@ -154,9 +151,6 @@ export const CancelledSalesScreen = () => {
         ListHeaderComponent={
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>🚫</Text>
-              </View>
               <View style={styles.heroCopy}>
                 <Text style={styles.heroTitle}>
                   Ventas Anuladas ({cancelledSales.length})
@@ -171,7 +165,6 @@ export const CancelledSalesScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyIcon}>✅</Text>
               <Text style={styles.emptyTitle}>No hay ventas anuladas</Text>
               <Text style={styles.emptySubtitle}>
                 Las ventas anuladas aparecerán aquí.

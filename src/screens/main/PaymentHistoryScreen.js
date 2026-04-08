@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
@@ -81,7 +82,7 @@ export const PaymentHistoryScreen = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyIcon}>💳</Text>
+      <Ionicons name="card-outline" size={iconSize.xxl} color="#8ca0b8" />
       <Text style={styles.emptyTitle}>Sin pagos registrados</Text>
       <Text style={styles.emptyText}>
         No se han registrado pagos para esta cuenta aún.

@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { getSettings, saveSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -104,7 +105,7 @@ export const PricingSettingsScreen = () => {
         });
         setFormIva(ivaValue.toString());
         setManualRateInput(
-          rate?.toString() || (syncedCurrencies.USD ?? 0).toString()
+          rate?.toString() || (syncedCurrencies.USD ?? 0).toString(),
         );
       } catch (error) {
         console.error("Error loading settings:", error);
@@ -182,7 +183,7 @@ export const PricingSettingsScreen = () => {
 
     if (
       [numericUsd, numericEuro, numericUsd2].some(
-        (value) => Number.isNaN(value) || value <= 0
+        (value) => Number.isNaN(value) || value <= 0,
       )
     ) {
       showAlert({
@@ -317,7 +318,7 @@ export const PricingSettingsScreen = () => {
       >
         <View style={styles.heroCard}>
           <View style={styles.heroIcon}>
-            <Text style={styles.heroIconText}>💰</Text>
+            <Ionicons name="cash-outline" size={iconSize.lg} color="#169c5a" />
           </View>
           <View style={styles.heroInfo}>
             <Text style={styles.heroTitle}>Margen de ganancias</Text>
@@ -330,7 +331,11 @@ export const PricingSettingsScreen = () => {
         <View style={styles.formCard}>
           <View style={styles.cardHeader}>
             <View style={styles.cardIcon}>
-              <Text style={styles.cardIconText}>📈</Text>
+              <Ionicons
+                name="trending-up-outline"
+                size={iconSize.md}
+                color="#2f5ae0"
+              />
             </View>
             <View style={styles.cardInfo}>
               <Text style={styles.cardTitle}>Márgenes de ganancia</Text>
@@ -361,7 +366,11 @@ export const PricingSettingsScreen = () => {
         <View style={styles.formCard}>
           <View style={styles.cardHeader}>
             <View style={styles.cardIcon}>
-              <Text style={styles.cardIconText}>📦</Text>
+              <Ionicons
+                name="cube-outline"
+                size={iconSize.md}
+                color="#c9861a"
+              />
             </View>
             <View style={styles.cardInfo}>
               <Text style={styles.cardTitle}>Control de stocks</Text>

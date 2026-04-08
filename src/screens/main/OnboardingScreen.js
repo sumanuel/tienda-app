@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -37,28 +38,28 @@ const slides = [
     title: "¡Bienvenido a T-Suma!",
     description:
       "Tu sistema completo de punto de venta para gestionar tu negocio de manera eficiente.",
-    icon: "🏪",
+    iconName: "storefront-outline",
   },
   {
     id: 2,
     title: "Gestión de Productos",
     description:
       "Administra tu inventario, precios y stock. Escanea códigos QR para ventas rápidas.",
-    icon: "📦",
+    iconName: "cube-outline",
   },
   {
     id: 3,
     title: "Ventas y Clientes",
     description:
       "Registra ventas, administra clientes y controla cuentas por cobrar y pagar.",
-    icon: "💰",
+    iconName: "cash-outline",
   },
   {
     id: 4,
     title: "Reportes y Respaldos",
     description:
       "Visualiza estadísticas de ventas, genera respaldos automáticos y mantén tus datos seguros.",
-    icon: "📊",
+    iconName: "bar-chart-outline",
   },
 ];
 
@@ -242,7 +243,11 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
             {slides.map((slide) => (
               <View key={slide.id} style={styles.slide}>
                 <View style={styles.iconContainer}>
-                  <Text style={styles.icon}>{slide.icon}</Text>
+                  <Ionicons
+                    name={slide.iconName}
+                    size={iconSize.xxl}
+                    color="#ffffff"
+                  />
                 </View>
 
                 <View style={styles.textContainer}>

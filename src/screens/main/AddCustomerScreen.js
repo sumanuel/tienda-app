@@ -99,9 +99,6 @@ export const AddCustomerScreen = ({ navigation }) => {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>🧑‍💼</Text>
-              </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Nuevo cliente</Text>
                 <Text style={styles.heroSubtitle}>

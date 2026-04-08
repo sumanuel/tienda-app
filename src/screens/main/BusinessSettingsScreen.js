@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { getSettings, saveSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -127,7 +128,11 @@ export const BusinessSettingsScreen = () => {
       >
         <View style={styles.heroCard}>
           <View style={styles.heroIcon}>
-            <Text style={styles.heroIconText}>🏢</Text>
+            <Ionicons
+              name="business-outline"
+              size={iconSize.lg}
+              color="#2f5ae0"
+            />
           </View>
           <View style={styles.heroInfo}>
             <Text style={styles.heroTitle}>Datos del Negocio</Text>

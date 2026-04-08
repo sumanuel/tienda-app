@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { getSettings, saveSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -273,7 +274,11 @@ export const SettingsScreen = () => {
         >
           <View style={styles.heroCard}>
             <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>⚙️</Text>
+              <Ionicons
+                name="settings-outline"
+                size={iconSize.lg}
+                color="#2f5ae0"
+              />
             </View>
             <View style={styles.heroInfo}>
               <Text style={styles.heroTitle}>Configuración</Text>
@@ -293,7 +298,11 @@ export const SettingsScreen = () => {
           >
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
-                <Text style={styles.cardIconText}>🏢</Text>
+                <Ionicons
+                  name="business-outline"
+                  size={iconSize.md}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle}>Datos del Negocio</Text>
@@ -315,7 +324,11 @@ export const SettingsScreen = () => {
           >
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
-                <Text style={styles.cardIconText}>💰</Text>
+                <Ionicons
+                  name="cash-outline"
+                  size={iconSize.md}
+                  color="#169c5a"
+                />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle}>Margen de ganancias</Text>
@@ -333,7 +346,11 @@ export const SettingsScreen = () => {
           <View style={styles.formCard}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
-                <Text style={styles.cardIconText}>📦</Text>
+                <Ionicons
+                  name="cube-outline"
+                  size={iconSize.md}
+                  color="#c9861a"
+                />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle}>Inventario</Text>
@@ -362,7 +379,11 @@ export const SettingsScreen = () => {
           <View style={styles.formCard}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
-                <Text style={styles.cardIconText}>💾</Text>
+                <Ionicons
+                  name="cloud-upload-outline"
+                  size={iconSize.md}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.cardInfo}>
                 <View style={styles.cardTitleRow}>
@@ -477,7 +498,11 @@ export const SettingsScreen = () => {
           >
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
-                <Text style={styles.cardIconText}>ℹ️</Text>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={iconSize.md}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle}>Acerca de</Text>

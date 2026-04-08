@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -266,7 +267,7 @@ export const ProductsScreen = ({ navigation }) => {
     <View style={styles.headerContent}>
       <View style={styles.heroCard}>
         <View style={styles.heroIcon}>
-          <Text style={styles.heroIconText}>📦</Text>
+          <Ionicons name="cube-outline" size={iconSize.xl} color="#c9861a" />
         </View>
         <View style={styles.heroTextContainer}>
           <Text style={styles.heroTitle}>Catálogo de productos</Text>

@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Linking,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import {
   s,
@@ -124,7 +125,7 @@ export const AboutScreen = () => {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Gracias por usar T-Suma</Text>
-          <Text style={styles.footerEmoji}>🚀</Text>
+          <Ionicons name="rocket-outline" size={rf(22)} color="#2f5ae0" />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -240,9 +241,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1f2633",
     marginBottom: s(8),
-  },
-  footerEmoji: {
-    fontSize: rf(24),
   },
 });
 

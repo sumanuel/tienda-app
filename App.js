@@ -10,7 +10,6 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import {
   ActivityIndicator,
   AppState,
-  Image,
   Platform,
   StatusBar as RNStatusBar,
   View,
@@ -24,6 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
 import * as NavigationBar from "expo-navigation-bar";
 
 // Context
@@ -107,6 +107,21 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const navigationRef = createNavigationContainerRef();
+
+function TabBarIcon({ name, color, size, containerWidth, containerHeight }) {
+  return (
+    <View
+      style={{
+        height: containerHeight,
+        justifyContent: "center",
+        alignItems: "center",
+        width: containerWidth,
+      }}
+    >
+      <Ionicons name={name} size={size} color={color} />
+    </View>
+  );
+}
 
 /**
  * Tabs de navegación principal
@@ -269,22 +284,13 @@ function MainTabs() {
           options={{
             tabBarLabel: "Inicio",
             tabBarIcon: ({ color }) => (
-              <View
-                style={{
-                  height: tabIconContainerHeight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: tabIconContainerWidth,
-                }}
-              >
-                <Image
-                  source={require("./assets/img/home.png")}
-                  style={{
-                    width: tabIconFontSize,
-                    height: tabIconFontSize,
-                  }}
-                />
-              </View>
+              <TabBarIcon
+                name="home-outline"
+                color={color}
+                size={tabIconFontSize}
+                containerWidth={tabIconContainerWidth}
+                containerHeight={tabIconContainerHeight}
+              />
             ),
             headerShown: false,
           }}
@@ -295,22 +301,13 @@ function MainTabs() {
           options={({ navigation }) => ({
             tabBarLabel: "Cuentas",
             tabBarIcon: ({ color }) => (
-              <View
-                style={{
-                  height: tabIconContainerHeight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: tabIconContainerWidth,
-                }}
-              >
-                <Image
-                  source={require("./assets/img/maletin.png")}
-                  style={{
-                    width: tabIconFontSize,
-                    height: tabIconFontSize,
-                  }}
-                />
-              </View>
+              <TabBarIcon
+                name="wallet-outline"
+                color={color}
+                size={tabIconFontSize}
+                containerWidth={tabIconContainerWidth}
+                containerHeight={tabIconContainerHeight}
+              />
             ),
             title: "Punto de venta",
             headerLeft: () => (
@@ -338,22 +335,13 @@ function MainTabs() {
           options={({ navigation }) => ({
             tabBarLabel: "Ficha",
             tabBarIcon: ({ color }) => (
-              <View
-                style={{
-                  height: tabIconContainerHeight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: tabIconContainerWidth,
-                }}
-              >
-                <Image
-                  source={require("./assets/img/ficha.png")}
-                  style={{
-                    width: tabIconFontSize,
-                    height: tabIconFontSize,
-                  }}
-                />
-              </View>
+              <TabBarIcon
+                name="folder-open-outline"
+                color={color}
+                size={tabIconFontSize}
+                containerWidth={tabIconContainerWidth}
+                containerHeight={tabIconContainerHeight}
+              />
             ),
             title: "Historial de ventas",
             headerLeft: () => (
@@ -385,22 +373,13 @@ function MainTabs() {
           options={{
             tabBarLabel: "Ajustes",
             tabBarIcon: ({ color }) => (
-              <View
-                style={{
-                  height: tabIconContainerHeight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: tabIconContainerWidth,
-                }}
-              >
-                <Image
-                  source={require("./assets/img/ajustes.png")}
-                  style={{
-                    width: tabIconFontSize,
-                    height: tabIconFontSize,
-                  }}
-                />
-              </View>
+              <TabBarIcon
+                name="settings-outline"
+                color={color}
+                size={tabIconFontSize}
+                containerWidth={tabIconContainerWidth}
+                containerHeight={tabIconContainerHeight}
+              />
             ),
             title: "Configuraciones",
           }}
@@ -415,19 +394,19 @@ function MainTabs() {
         items={[
           {
             key: "accountsReceivable",
-            icon: require("./assets/img/cxc.png"),
+            iconName: "cash-outline",
             label: "Cuentas por Cobrar",
             onPress: () => handleNavigate("AccountsReceivable"),
           },
           {
             key: "accountsPayable",
-            icon: require("./assets/img/cxp.png"),
+            iconName: "card-outline",
             label: "Cuentas por Pagar",
             onPress: () => handleNavigate("AccountsPayable"),
           },
           {
             key: "capital",
-            icon: require("./assets/img/saco_dinero.png"),
+            iconName: "cash-outline",
             label: "Capital",
             onPress: () => handleNavigate("Capital"),
           },
@@ -443,37 +422,37 @@ function MainTabs() {
         items={[
           {
             key: "products",
-            icon: require("./assets/img/productos.png"),
+            iconName: "cube-outline",
             label: "Productos",
             onPress: handleProductsPress,
           },
           {
             key: "qr",
-            icon: require("./assets/img/qr.png"),
+            iconName: "qr-code-outline",
             label: "QR",
             onPress: handleQRPress,
           },
           {
             key: "mobilePayments",
-            icon: require("./assets/img/pago_movil.png"),
+            iconName: "phone-portrait-outline",
             label: "Pago movil",
             onPress: () => handleNavigate("MobilePayments"),
           },
           {
             key: "suppliers",
-            icon: require("./assets/img/proveedores.png"),
+            iconName: "people-outline",
             label: "Proveedores",
             onPress: () => handleNavigate("Suppliers"),
           },
           {
             key: "customers",
-            icon: require("./assets/img/cliente.png"),
+            iconName: "person-outline",
             label: "Clientes",
             onPress: () => handleNavigate("Customers"),
           },
           {
             key: "cancelledSales",
-            icon: require("./assets/img/factura_anulada.png"),
+            iconName: "document-text-outline",
             label: "Anuladas",
             onPress: () => handleNavigate("CancelledSales"),
           },
@@ -528,17 +507,15 @@ const QuickActionMenu = ({
               onPress={item.onPress}
             >
               <View style={tabStyles.menuIcon}>
-                {typeof item.icon === "string" ? (
-                  <Text style={tabStyles.menuIconText}>{item.icon}</Text>
-                ) : (
-                  <Image
-                    source={item.icon}
-                    style={{
-                      width: iconSize.md,
-                      height: iconSize.md,
-                    }}
+                {item.iconName ? (
+                  <Ionicons
+                    name={item.iconName}
+                    size={rf(18)}
+                    color="#2f6f48"
                   />
-                )}
+                ) : typeof item.icon === "string" ? (
+                  <Text style={tabStyles.menuIconText}>{item.icon}</Text>
+                ) : null}
               </View>
               <Text style={tabStyles.menuLabel}>{item.label}</Text>
             </TouchableOpacity>

@@ -81,14 +81,14 @@ export const QRProductsScreen = ({ navigation }) => {
                   console.error(
                     "Error generating QR for",
                     product.barcode,
-                    error
+                    error,
                   );
                   return {
                     ...product,
                     qrSVG: `<svg width="200" height="200"><text x="50%" y="50%" text-anchor="middle">Error</text></svg>`,
                   };
                 }
-              })
+              }),
             );
 
             const html = `
@@ -112,7 +112,7 @@ export const QRProductsScreen = ({ navigation }) => {
             <div class="qr">${product.qrSVG}</div>
             <div class="name">${product.name}</div>
           </div>
-        `
+        `,
           )
           .join("")}
       </div>
@@ -125,7 +125,7 @@ export const QRProductsScreen = ({ navigation }) => {
               showAlert({
                 title: "¡Generación exitosa!",
                 message:
-                  "Los códigos QR han sido enviados a impresión. ¡Que tengas un día productivo! 📱✨",
+                  "Los códigos QR han sido enviados a impresión. Que tengas un día productivo.",
                 type: "success",
               });
             } catch (error) {
@@ -200,7 +200,7 @@ export const QRProductsScreen = ({ navigation }) => {
         <View style={styles.instructionsContainer}>
           <Text style={styles.instructionsText}>
             Filtra los productos por rango y presiona "Generar QR" para generar
-            códigos QR de todos los productos visibles. ¡Fácil y rápido! 📱
+            códigos QR de todos los productos visibles. Fácil y rápido.
           </Text>
         </View>
         <View style={styles.printContainer}>

@@ -168,7 +168,7 @@ export const InventoryMovementsScreen = ({ navigation }) => {
     if (!searchQuery.trim()) {
       return (
         <View style={styles.emptyMovements}>
-          <Text style={styles.emptyEmoji}>🔎</Text>
+          <Ionicons name="search-outline" size={iconSize.xxl} color="#8ca0b8" />
           <Text style={styles.emptyTitle}>Busca un producto</Text>
           <Text style={styles.emptySubtitle}>
             Escribe el nombre, categoría o código para mostrar resultados.
@@ -179,7 +179,7 @@ export const InventoryMovementsScreen = ({ navigation }) => {
 
     return (
       <View style={styles.emptyMovements}>
-        <Text style={styles.emptyEmoji}>📦</Text>
+        <Ionicons name="cube-outline" size={iconSize.xxl} color="#8ca0b8" />
         <Text style={styles.emptyTitle}>Sin resultados</Text>
         <Text style={styles.emptySubtitle}>
           Intenta con otra búsqueda o limpia el filtro.
@@ -194,7 +194,11 @@ export const InventoryMovementsScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <View style={styles.heroCard}>
             <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>📦</Text>
+              <Ionicons
+                name="cube-outline"
+                size={iconSize.xl}
+                color="#c9861a"
+              />
             </View>
             <View style={styles.heroTextContainer}>
               <Text style={styles.heroTitle}>Movimientos de inventario</Text>

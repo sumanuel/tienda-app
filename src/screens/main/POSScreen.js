@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import {
   TourGuideProvider,
   TourGuideZone,
@@ -589,11 +590,11 @@ export const POSScreen = ({ navigation }) => {
         paymentMethod === "por_cobrar"
           ? `Total: VES. ${total.toFixed(
               2,
-            )}\nCliente: ${customerName}\n\n✅ Cuenta por cobrar creada automáticamente`
+            )}\nCliente: ${customerName}\n\nCuenta por cobrar creada automáticamente`
           : `Total: VES. ${total.toFixed(2)}\nCliente: ${customerName}`;
 
       showAlert({
-        title: "✓ Venta completada",
+        title: "Venta completada",
         message: confirmationMessage,
         type: "success",
       });
@@ -745,13 +746,13 @@ export const POSScreen = ({ navigation }) => {
         pendingSaleData.paymentMethod === "por_cobrar"
           ? `Total: VES. ${pendingSaleData.total.toFixed(
               2,
-            )}\nCliente: ${newCustomerName.trim()}\n\n✅ Cliente creado y cuenta por cobrar generada`
+            )}\nCliente: ${newCustomerName.trim()}\n\nCliente creado y cuenta por cobrar generada`
           : `Total: VES. ${pendingSaleData.total.toFixed(
               2,
-            )}\nCliente: ${newCustomerName.trim()}\n\n✅ Cliente creado exitosamente`;
+            )}\nCliente: ${newCustomerName.trim()}\n\nCliente creado exitosamente`;
 
       showAlert({
-        title: "✓ Venta completada",
+        title: "Venta completada",
         message: confirmationMessage,
         type: "success",
       });
@@ -884,7 +885,7 @@ export const POSScreen = ({ navigation }) => {
           style={styles.removeButton}
           onPress={() => removeFromCart(item.id)}
         >
-          <Text style={styles.removeButtonText}>🗑️ Eliminar</Text>
+          <Text style={styles.removeButtonText}>Eliminar</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -913,9 +914,6 @@ export const POSScreen = ({ navigation }) => {
             <View style={styles.listHeader}>
               <View style={styles.heroCard}>
                 <View style={styles.heroHeader}>
-                  <View style={styles.heroIcon}>
-                    <Text style={styles.heroIconText}>🛒</Text>
-                  </View>
                   <View style={styles.heroCopy}>
                     <Text style={styles.heroTitle}>Punto de venta</Text>
                     <Text style={styles.heroSubtitle}>
@@ -951,7 +949,6 @@ export const POSScreen = ({ navigation }) => {
           ]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>📦</Text>
               <Text style={styles.emptyText}>No hay productos disponibles</Text>
               <Text style={styles.emptySubtext}>
                 {searchQuery
@@ -1025,7 +1022,7 @@ export const POSScreen = ({ navigation }) => {
                   style={styles.customerSection}
                 >
                   <View>
-                    <Text style={styles.sectionTitle}>👤 Cliente</Text>
+                    <Text style={styles.sectionTitle}>Cliente</Text>
                     <TextInput
                       style={styles.customerInput}
                       placeholder="Cédula del cliente (obligatorio)*"
@@ -1050,11 +1047,10 @@ export const POSScreen = ({ navigation }) => {
                 {/* Items del carrito */}
                 <View style={styles.cartItemsSection}>
                   <Text style={styles.sectionTitle}>
-                    📦 Productos ({cart.length})
+                    Productos ({cart.length})
                   </Text>
                   {cart.length === 0 ? (
                     <View style={styles.emptyCartContainer}>
-                      <Text style={styles.emptyCartEmoji}>🛒</Text>
                       <Text style={styles.emptyCartText}>
                         El carrito está vacío
                       </Text>
@@ -1075,7 +1071,7 @@ export const POSScreen = ({ navigation }) => {
                 {/* Método de pago */}
                 {cart.length > 0 && (
                   <View style={styles.paymentSection}>
-                    <Text style={styles.sectionTitle}>💳 Método de Pago</Text>
+                    <Text style={styles.sectionTitle}>Método de Pago</Text>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -1090,7 +1086,14 @@ export const POSScreen = ({ navigation }) => {
                         ]}
                         onPress={() => setPaymentMethod("cash")}
                       >
-                        <Text style={styles.paymentButtonIcon}>💵</Text>
+                        <Ionicons
+                          name="cash-outline"
+                          size={rf(20)}
+                          color={
+                            paymentMethod === "cash" ? "#ffffff" : "#1f2633"
+                          }
+                          style={styles.paymentButtonIcon}
+                        />
                         <Text
                           style={[
                             styles.paymentButtonText,
@@ -1109,7 +1112,14 @@ export const POSScreen = ({ navigation }) => {
                         ]}
                         onPress={() => setPaymentMethod("card")}
                       >
-                        <Text style={styles.paymentButtonIcon}>💳</Text>
+                        <Ionicons
+                          name="card-outline"
+                          size={rf(20)}
+                          color={
+                            paymentMethod === "card" ? "#ffffff" : "#1f2633"
+                          }
+                          style={styles.paymentButtonIcon}
+                        />
                         <Text
                           style={[
                             styles.paymentButtonText,
@@ -1128,7 +1138,14 @@ export const POSScreen = ({ navigation }) => {
                         ]}
                         onPress={() => setPaymentMethod("transfer")}
                       >
-                        <Text style={styles.paymentButtonIcon}>🏦</Text>
+                        <Ionicons
+                          name="business-outline"
+                          size={rf(20)}
+                          color={
+                            paymentMethod === "transfer" ? "#ffffff" : "#1f2633"
+                          }
+                          style={styles.paymentButtonIcon}
+                        />
                         <Text
                           style={[
                             styles.paymentButtonText,
@@ -1147,7 +1164,16 @@ export const POSScreen = ({ navigation }) => {
                         ]}
                         onPress={() => setPaymentMethod("pago_movil")}
                       >
-                        <Text style={styles.paymentButtonIcon}>📱</Text>
+                        <Ionicons
+                          name="phone-portrait-outline"
+                          size={rf(20)}
+                          color={
+                            paymentMethod === "pago_movil"
+                              ? "#ffffff"
+                              : "#1f2633"
+                          }
+                          style={styles.paymentButtonIcon}
+                        />
                         <Text
                           style={[
                             styles.paymentButtonText,
@@ -1174,7 +1200,16 @@ export const POSScreen = ({ navigation }) => {
                           ]}
                           onPress={() => setPaymentMethod("por_cobrar")}
                         >
-                          <Text style={styles.paymentButtonIcon}>⏳</Text>
+                          <Ionicons
+                            name="time-outline"
+                            size={rf(20)}
+                            color={
+                              paymentMethod === "por_cobrar"
+                                ? "#ffffff"
+                                : "#1f2633"
+                            }
+                            style={styles.paymentButtonIcon}
+                          />
                           <Text
                             style={[
                               styles.paymentButtonText,
@@ -1226,7 +1261,7 @@ export const POSScreen = ({ navigation }) => {
                     onPress={clearCart}
                     disabled={cart.length === 0}
                   >
-                    <Text style={styles.clearButtonText}>🗑️ Limpiar</Text>
+                    <Text style={styles.clearButtonText}>Limpiar</Text>
                   </TouchableOpacity>
 
                   <TourGuideZone
@@ -1249,9 +1284,7 @@ export const POSScreen = ({ navigation }) => {
                       {processingSale ? (
                         <ActivityIndicator size="small" color="#fff" />
                       ) : (
-                        <Text style={styles.checkoutText}>
-                          ✓ Completar Venta
-                        </Text>
+                        <Text style={styles.checkoutText}>Completar Venta</Text>
                       )}
                     </TouchableOpacity>
                   </TourGuideZone>
@@ -1305,7 +1338,7 @@ export const POSScreen = ({ navigation }) => {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.newCustomerModalContent}>
-              <Text style={styles.modalTitle}>👤 Nuevo Cliente</Text>
+              <Text style={styles.modalTitle}>Nuevo Cliente</Text>
               <Text style={styles.newCustomerInfo}>
                 La cédula {customerDocument} no está registrada.{"\n"}
                 Ingresa el nombre para crear el cliente:
