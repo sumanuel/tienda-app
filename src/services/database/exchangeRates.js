@@ -1,6 +1,5 @@
 import { db } from "./db";
 import {
-  collection,
   doc,
   getDocs,
   setDoc,
@@ -8,10 +7,17 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import { handleCloudAccessError } from "../firebase/cloudAccess";
+import {
+  getActiveStoreSeedKey,
+  getStoreCollectionRef,
+  hasActiveStoreContext,
+} from "../store/storeRefs";
 
 const cloudExchangeRatesSeeded = new Set();
 
-const isCloudExchangeRatesEnabled = () => Boolean(auth.currentUser?.uid);
+const isCloudExchangeRatesEnabled = () =>
+  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
 
 const createCloudNumericId = () =>
   Number(
@@ -21,7 +27,7 @@ const createCloudNumericId = () =>
   );
 
 const getExchangeRatesCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "exchange_rates");
+  getStoreCollectionRef("exchange_rates");
 
 const normalizeExchangeRateRecord = (rate = {}) => ({
   id: Number(rate.id) || createCloudNumericId(),
@@ -50,13 +56,13 @@ const getCloudExchangeRates = async () => {
 const ensureCloudExchangeRatesSeeded = async () => {
   if (!isCloudExchangeRatesEnabled()) return;
 
-  const uid = auth.currentUser.uid;
-  if (cloudExchangeRatesSeeded.has(uid)) return;
+  const seedKey = getActiveStoreSeedKey();
+  if (cloudExchangeRatesSeeded.has(seedKey)) return;
 
   const collectionRef = getExchangeRatesCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
-    cloudExchangeRatesSeeded.add(uid);
+    cloudExchangeRatesSeeded.add(seedKey);
     return;
   }
 
@@ -75,7 +81,7 @@ const ensureCloudExchangeRatesSeeded = async () => {
     await batch.commit();
   }
 
-  cloudExchangeRatesSeeded.add(uid);
+  cloudExchangeRatesSeeded.add(seedKey);
 };
 
 /**
@@ -100,6 +106,9 @@ export const initExchangeRatesTable = async () => {
       "CREATE INDEX IF NOT EXISTS idx_active_rate ON exchange_rates(isActive, createdAt);",
     );
   } catch (error) {
+    if (handleCloudAccessError(error, "exchangeRates:getActive")) {
+      return await getActiveExchangeRate();
+    }
     throw error;
   }
 };

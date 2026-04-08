@@ -1,6 +1,3 @@
-Reglas sugeridas para Firestore con multi-tenant por tienda
-
-```txt
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -196,13 +193,3 @@ service cloud.firestore {
     }
   }
 }
-```
-
-Notas
-
-- Estas reglas ya no asumen un modelo por users/{uid} para la data del negocio; ahora todo vive bajo stores/{storeId}.
-- El usuario sigue conservando su documento users/{uid} y su subcolección users/{uid}/memberships para perfil y pertenencias.
-- Las invitaciones se guardan en stores/{storeId}/invites usando emailNormalized como id del documento; eso permite validar por reglas cuándo el invitado puede unirse a la tienda.
-- La causa del permission-denied al crear tienda es que la versión anterior de las reglas permitía crear stores/{storeId}, pero no crear el primer documento stores/{storeId}/members/{uid} con role owner.
-- Ajusta los permisos por rol si quieres que seller o inventory tengan más o menos alcance.
-- Para usar estas reglas, debes publicarlas manualmente en tu proyecto Firebase, porque este repositorio no tiene un archivo firestore.rules ni un firebase.json enlazado a despliegue.

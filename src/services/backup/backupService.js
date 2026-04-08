@@ -3,7 +3,6 @@ import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
 import {
   collection,
-  doc,
   getDoc,
   getDocs,
   setDoc,
@@ -12,6 +11,10 @@ import {
 import { db, initAllTables } from "../database/db";
 import { auth, firestore } from "../firebase/firebase";
 import { ensureSettingsDefaults } from "../database/settings";
+import {
+  getStoreCollectionRef,
+  getStoreNestedDocRef,
+} from "../store/storeRefs";
 
 const BACKUP_DIR = `${FileSystem.documentDirectory}backups/`;
 const CLOUD_BACKUP_COLLECTIONS = [
@@ -128,14 +131,12 @@ const getCloudBackupPayload = async () => {
   if (!user) return null;
 
   const settingsSnapshot = await getDoc(
-    doc(firestore, "users", user.uid, "settings", "app_settings"),
+    getStoreNestedDocRef(["settings", "app_settings"]),
   );
 
   const collections = {};
   for (const collectionName of CLOUD_BACKUP_COLLECTIONS) {
-    const snapshot = await getDocs(
-      collection(firestore, "users", user.uid, collectionName),
-    );
+    const snapshot = await getDocs(getStoreCollectionRef(collectionName));
     collections[collectionName] = snapshot.docs.map((item) => item.data());
   }
 
@@ -155,7 +156,7 @@ const restoreCloudBackupPayload = async (cloudPayload) => {
 
   if (cloudPayload.settings && typeof cloudPayload.settings === "object") {
     await setDoc(
-      doc(firestore, "users", user.uid, "settings", "app_settings"),
+      getStoreNestedDocRef(["settings", "app_settings"]),
       cloudPayload.settings,
       { merge: false },
     );
@@ -166,12 +167,7 @@ const restoreCloudBackupPayload = async (cloudPayload) => {
     const rows = Array.isArray(collections[collectionName])
       ? collections[collectionName]
       : [];
-    const collectionRef = collection(
-      firestore,
-      "users",
-      user.uid,
-      collectionName,
-    );
+    const collectionRef = getStoreCollectionRef(collectionName);
     const existingSnapshot = await getDocs(collectionRef);
 
     const deleteChunks = [];

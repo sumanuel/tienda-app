@@ -1,6 +1,5 @@
 import { db } from "./db";
 import {
-  collection,
   deleteDoc,
   doc,
   getDoc,
@@ -10,15 +9,23 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import { handleCloudAccessError } from "../firebase/cloudAccess";
 import {
   formatConsecutiveNumber,
   getNextCloudConsecutive,
   parseConsecutiveSequence,
 } from "./consecutives";
+import {
+  getActiveStoreSeedKey,
+  getStoreCollectionRef,
+  getStoreDocRef,
+  hasActiveStoreContext,
+} from "../store/storeRefs";
 
 const cloudAccountsSeeded = new Set();
 
-const isCloudAccountsEnabled = () => Boolean(auth.currentUser?.uid);
+const isCloudAccountsEnabled = () =>
+  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
 
 const createCloudNumericId = () =>
   Number(
@@ -37,19 +44,16 @@ const sortByCreatedAtDesc = (items = []) =>
   );
 
 const getReceivableCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "accounts_receivable");
+  getStoreCollectionRef("accounts_receivable");
 
-const getPayableCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "accounts_payable");
+const getPayableCollectionRef = () => getStoreCollectionRef("accounts_payable");
 
 const getPaymentsCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "account_payments");
+  getStoreCollectionRef("account_payments");
 
-const getCustomersCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "customers");
+const getCustomersCollectionRef = () => getStoreCollectionRef("customers");
 
-const getSuppliersCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "suppliers");
+const getSuppliersCollectionRef = () => getStoreCollectionRef("suppliers");
 
 const normalizeAccountRecord = (account = {}, accountType = "receivable") => ({
   id:
@@ -164,7 +168,6 @@ const normalizeExistingCloudAccounts = async ({
   payableSnapshot,
   paymentsSnapshot,
 }) => {
-  const uid = auth.currentUser.uid;
   const receivableCollectionRef = getReceivableCollectionRef();
   const payableCollectionRef = getPayableCollectionRef();
 
@@ -299,7 +302,7 @@ const normalizeExistingCloudAccounts = async ({
   }
 
   await setDoc(
-    doc(firestore, "users", uid),
+    getStoreDocRef(),
     {
       counters: {
         receivable: receivables.length,
@@ -313,8 +316,8 @@ const normalizeExistingCloudAccounts = async ({
 const ensureCloudAccountsSeeded = async () => {
   if (!isCloudAccountsEnabled()) return;
 
-  const uid = auth.currentUser.uid;
-  if (cloudAccountsSeeded.has(uid)) return;
+  const seedKey = getActiveStoreSeedKey();
+  if (cloudAccountsSeeded.has(seedKey)) return;
 
   const [receivableSnapshot, payableSnapshot, paymentsSnapshot] =
     await Promise.all([
@@ -394,7 +397,7 @@ const ensureCloudAccountsSeeded = async () => {
   }
 
   await setDoc(
-    doc(firestore, "users", uid),
+    getStoreDocRef(),
     {
       counters: {
         receivable: receivableSnapshot.empty
@@ -414,7 +417,7 @@ const ensureCloudAccountsSeeded = async () => {
     { merge: true },
   );
 
-  cloudAccountsSeeded.add(uid);
+  cloudAccountsSeeded.add(seedKey);
 };
 
 /**
@@ -433,6 +436,9 @@ export const getAllAccountsReceivable = async () => {
     );
     return result;
   } catch (error) {
+    if (handleCloudAccessError(error, "accounts:getReceivable")) {
+      return await getAllAccountsReceivable();
+    }
     throw error;
   }
 };
@@ -476,6 +482,9 @@ export const searchAccountsReceivable = async (query) => {
     );
     return result;
   } catch (error) {
+    if (handleCloudAccessError(error, "accounts:getPayable")) {
+      return await getAllAccountsPayable();
+    }
     throw error;
   }
 };
@@ -496,6 +505,9 @@ export const getAllAccountsPayable = async () => {
     );
     return result;
   } catch (error) {
+    if (handleCloudAccessError(error, "accounts:fixCorruptedData")) {
+      return await fixCorruptedAccountData();
+    }
     throw error;
   }
 };

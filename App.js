@@ -84,6 +84,7 @@ import AddInventoryExitScreen from "./src/screens/main/AddInventoryExitScreen";
 import InventoryMovementsScreen from "./src/screens/main/InventoryMovementsScreen";
 import InventoryMovementsDetailScreen from "./src/screens/main/InventoryMovementsDetailScreen";
 import AboutScreen from "./src/screens/main/AboutScreen";
+import StoreManagementScreen from "./src/screens/main/StoreManagementScreen";
 import OnboardingScreen from "./src/screens/main/OnboardingScreen";
 import AuthScreen from "./src/screens/auth/AuthScreen";
 import VerifyEmailScreen from "./src/screens/auth/VerifyEmailScreen";
@@ -93,7 +94,10 @@ import DailyExternalRatePrompt from "./src/components/exchange/DailyExternalRate
 import StoreUpdatePrompt from "./src/components/storeUpdate/StoreUpdatePrompt";
 
 // Database initialization
-import { initAllTables } from "./src/services/database/db";
+import {
+  initAllTables,
+  migrateLegacyDatabaseToCurrentStoreIfNeeded,
+} from "./src/services/database/db";
 import {
   getSettings,
   initSettingsTable,
@@ -592,7 +596,8 @@ function AppContent() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingInitialStep, setOnboardingInitialStep] = useState("slides");
-  const { user, authLoading, emailVerified } = useAuth();
+  const { user, authLoading, emailVerified, storeLoading, activeStoreId } =
+    useAuth();
 
   const applyImmersiveMode = useCallback(async () => {
     try {
@@ -629,8 +634,12 @@ function AppContent() {
   }, [applyImmersiveMode]);
 
   useEffect(() => {
+    if (authLoading || storeLoading) {
+      return;
+    }
+
     initializeApp();
-  }, []);
+  }, [authLoading, storeLoading, user?.uid, activeStoreId]);
 
   /**
    * Resetea el onboarding para mostrarlo nuevamente
@@ -656,8 +665,12 @@ function AppContent() {
    */
   const initializeApp = async () => {
     try {
+      setIsReady(false);
+
       // Inicializar todas las tablas en una sola transacción
       await initAllTables();
+
+      await migrateLegacyDatabaseToCurrentStoreIfNeeded();
 
       // Inicializar settings con valores por defecto
       await initSettingsTable();
@@ -768,7 +781,7 @@ function AppContent() {
     }
   };
 
-  if (!isReady || authLoading) {
+  if (!isReady || authLoading || storeLoading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <StatusBar hidden translucent />
@@ -1077,6 +1090,21 @@ function AppContent() {
                   component={CancelledSalesScreen}
                   options={{
                     title: "Ventas Anuladas",
+                    headerStyle: {
+                      backgroundColor: "#4CAF50",
+                    },
+                    headerTintColor: "#fff",
+                    headerTitleStyle: {
+                      fontWeight: "bold",
+                      fontSize: rf(18),
+                    },
+                  }}
+                />
+                <Stack.Screen
+                  name="StoreManagement"
+                  component={StoreManagementScreen}
+                  options={{
+                    title: "Tiendas y colaboradores",
                     headerStyle: {
                       backgroundColor: "#4CAF50",
                     },

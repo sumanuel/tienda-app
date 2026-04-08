@@ -1,5 +1,6 @@
 import { doc, runTransaction } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import { getStoreDocRef } from "../store/storeRefs";
 
 export const CONSECUTIVE_CONFIG = {
   product: { field: "productNumber", prefix: "PRD", digits: 6 },
@@ -46,18 +47,18 @@ export const getNextCloudConsecutive = async (entityType, options = {}) => {
   }
 
   const config = getEntityConfig(entityType);
-  const userRef = doc(firestore, "users", uid);
+  const storeRef = getStoreDocRef();
   const minimum = Math.max(0, Number(options.minimum) || 0);
 
   return runTransaction(firestore, async (transaction) => {
-    const snapshot = await transaction.get(userRef);
+    const snapshot = await transaction.get(storeRef);
     const data = snapshot.exists() ? snapshot.data() || {} : {};
     const counters = data.counters || {};
     const currentValue = Number(counters[entityType]) || 0;
     const nextValue = Math.max(currentValue, minimum) + 1;
 
     transaction.set(
-      userRef,
+      storeRef,
       {
         counters: {
           ...counters,

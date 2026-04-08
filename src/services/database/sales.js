@@ -1,6 +1,5 @@
 import { db } from "./db";
 import {
-  collection,
   doc,
   getDoc,
   getDocs,
@@ -9,15 +8,23 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import { handleCloudAccessError } from "../firebase/cloudAccess";
 import {
   formatConsecutiveNumber,
   getNextCloudConsecutive,
   parseConsecutiveSequence,
 } from "./consecutives";
+import {
+  getActiveStoreSeedKey,
+  getStoreCollectionRef,
+  getStoreDocRef,
+  hasActiveStoreContext,
+} from "../store/storeRefs";
 
 const cloudSalesSeeded = new Set();
 
-const isCloudSalesEnabled = () => Boolean(auth.currentUser?.uid);
+const isCloudSalesEnabled = () =>
+  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
 
 const createCloudNumericId = () =>
   Number(
@@ -26,11 +33,9 @@ const createCloudNumericId = () =>
       .padStart(3, "0")}`,
   );
 
-const getSalesCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "sales");
+const getSalesCollectionRef = () => getStoreCollectionRef("sales");
 
-const getProductsCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "products");
+const getProductsCollectionRef = () => getStoreCollectionRef("products");
 
 const normalizeSaleItem = (item = {}) => ({
   productId: Number(item.productId) || 0,
@@ -94,7 +99,6 @@ const getCloudSales = async () => {
 };
 
 const normalizeExistingCloudSales = async (existingSnapshot) => {
-  const uid = auth.currentUser.uid;
   const collectionRef = getSalesCollectionRef();
 
   const existingRows = existingSnapshot.docs
@@ -115,7 +119,7 @@ const normalizeExistingCloudSales = async (existingSnapshot) => {
 
   if (!requiresNormalization) {
     await setDoc(
-      doc(firestore, "users", uid),
+      getStoreDocRef(),
       {
         counters: {
           sale: existingRows.length,
@@ -152,7 +156,7 @@ const normalizeExistingCloudSales = async (existingSnapshot) => {
   }
 
   await setDoc(
-    doc(firestore, "users", uid),
+    getStoreDocRef(),
     {
       counters: {
         sale: existingRows.length,
@@ -165,14 +169,14 @@ const normalizeExistingCloudSales = async (existingSnapshot) => {
 const ensureCloudSalesSeeded = async () => {
   if (!isCloudSalesEnabled()) return;
 
-  const uid = auth.currentUser.uid;
-  if (cloudSalesSeeded.has(uid)) return;
+  const seedKey = getActiveStoreSeedKey();
+  if (cloudSalesSeeded.has(seedKey)) return;
 
   const collectionRef = getSalesCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
     await normalizeExistingCloudSales(existingSnapshot);
-    cloudSalesSeeded.add(uid);
+    cloudSalesSeeded.add(seedKey);
     return;
   }
 
@@ -197,7 +201,7 @@ const ensureCloudSalesSeeded = async () => {
     await batch.commit();
 
     await setDoc(
-      doc(firestore, "users", uid),
+      getStoreDocRef(),
       {
         counters: {
           sale: salesRows.length,
@@ -207,7 +211,7 @@ const ensureCloudSalesSeeded = async () => {
     );
   }
 
-  cloudSalesSeeded.add(uid);
+  cloudSalesSeeded.add(seedKey);
 };
 
 const getTodayUtcRangeForDevice = () => {
@@ -264,6 +268,9 @@ export const initSalesTable = async () => {
       );`,
     );
   } catch (error) {
+    if (handleCloudAccessError(error, "sales:getAll")) {
+      return await getAllSales(limit);
+    }
     throw error;
   }
 };
@@ -346,6 +353,9 @@ export const insertSale = async (sale, items) => {
 
     return { id: saleId, saleNumber };
   } catch (error) {
+    if (handleCloudAccessError(error, "sales:getToday")) {
+      return await getTodaySales();
+    }
     throw error;
   }
 };

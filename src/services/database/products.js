@@ -1,6 +1,5 @@
 import { db } from "./db";
 import {
-  collection,
   doc,
   getDocs,
   query,
@@ -10,17 +9,25 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import { handleCloudAccessError } from "../firebase/cloudAccess";
 import {
   formatConsecutiveNumber,
   getNextCloudConsecutive,
   parseConsecutiveSequence,
 } from "./consecutives";
+import {
+  getActiveStoreSeedKey,
+  getStoreCollectionRef,
+  getStoreDocRef,
+  hasActiveStoreContext,
+} from "../store/storeRefs";
 
 let productsColumnsChecked = false;
 let productsHasAdditionalCostColumn = false;
 const cloudProductsSeeded = new Set();
 
-const isCloudProductsEnabled = () => Boolean(auth.currentUser?.uid);
+const isCloudProductsEnabled = () =>
+  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
 
 const createCloudNumericId = () =>
   Number(
@@ -29,14 +36,12 @@ const createCloudNumericId = () =>
       .padStart(3, "0")}`,
   );
 
-const getProductsCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "products");
+const getProductsCollectionRef = () => getStoreCollectionRef("products");
 
-const getSalesCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "sales");
+const getSalesCollectionRef = () => getStoreCollectionRef("sales");
 
 const getInventoryMovementsCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "inventory_movements");
+  getStoreCollectionRef("inventory_movements");
 
 const normalizeProductRecord = (product = {}) => ({
   id:
@@ -126,7 +131,6 @@ const getCloudInventoryMovements = async (filters = {}) => {
 };
 
 const normalizeExistingCloudInventoryMovements = async (existingSnapshot) => {
-  const uid = auth.currentUser.uid;
   const collectionRef = getInventoryMovementsCollectionRef();
   const productsSnapshot = await getDocs(getProductsCollectionRef());
   const validActiveProductIds = new Set(
@@ -166,7 +170,7 @@ const normalizeExistingCloudInventoryMovements = async (existingSnapshot) => {
 
   if (!requiresNormalization) {
     await setDoc(
-      doc(firestore, "users", uid),
+      getStoreDocRef(),
       {
         counters: {
           movement: validRows.length,
@@ -203,7 +207,7 @@ const normalizeExistingCloudInventoryMovements = async (existingSnapshot) => {
   }
 
   await setDoc(
-    doc(firestore, "users", uid),
+    getStoreDocRef(),
     {
       counters: {
         movement: validRows.length,
@@ -214,7 +218,6 @@ const normalizeExistingCloudInventoryMovements = async (existingSnapshot) => {
 };
 
 const normalizeExistingCloudProducts = async (existingSnapshot) => {
-  const uid = auth.currentUser.uid;
   const collectionRef = getProductsCollectionRef();
   const salesCollectionRef = getSalesCollectionRef();
   const movementsCollectionRef = getInventoryMovementsCollectionRef();
@@ -237,7 +240,7 @@ const normalizeExistingCloudProducts = async (existingSnapshot) => {
 
   if (!requiresNormalization) {
     await setDoc(
-      doc(firestore, "users", uid),
+      getStoreDocRef(),
       {
         counters: {
           product: existingRows.length,
@@ -331,7 +334,7 @@ const normalizeExistingCloudProducts = async (existingSnapshot) => {
   }
 
   await setDoc(
-    doc(firestore, "users", uid),
+    getStoreDocRef(),
     {
       counters: {
         product: existingRows.length,
@@ -344,14 +347,14 @@ const normalizeExistingCloudProducts = async (existingSnapshot) => {
 const ensureCloudProductsSeeded = async () => {
   if (!isCloudProductsEnabled()) return;
 
-  const uid = auth.currentUser.uid;
-  if (cloudProductsSeeded.has(uid)) return;
+  const seedKey = getActiveStoreSeedKey();
+  if (cloudProductsSeeded.has(seedKey)) return;
 
   const collectionRef = getProductsCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
     await normalizeExistingCloudProducts(existingSnapshot);
-    cloudProductsSeeded.add(uid);
+    cloudProductsSeeded.add(seedKey);
     return;
   }
 
@@ -371,7 +374,7 @@ const ensureCloudProductsSeeded = async () => {
     await batch.commit();
 
     await setDoc(
-      doc(firestore, "users", uid),
+      getStoreDocRef(),
       {
         counters: {
           product: rows.length,
@@ -381,14 +384,13 @@ const ensureCloudProductsSeeded = async () => {
     );
   }
 
-  cloudProductsSeeded.add(uid);
+  cloudProductsSeeded.add(seedKey);
 };
 
 const ensureCloudInventoryMovementsSeeded = async () => {
   if (!isCloudProductsEnabled()) return;
 
-  const uid = auth.currentUser.uid;
-  const seedKey = `${uid}:inventory_movements`;
+  const seedKey = `${getActiveStoreSeedKey()}:inventory_movements`;
   if (cloudProductsSeeded.has(seedKey)) return;
 
   const collectionRef = getInventoryMovementsCollectionRef();
@@ -424,7 +426,7 @@ const ensureCloudInventoryMovementsSeeded = async () => {
     await batch.commit();
 
     await setDoc(
-      doc(firestore, "users", uid),
+      getStoreDocRef(),
       {
         counters: {
           movement: rows.length,
@@ -551,6 +553,9 @@ export const getAllProducts = async () => {
     // console.log("Productos obtenidos de BD:", result.length);
     return result;
   } catch (error) {
+    if (handleCloudAccessError(error, "products:getAll")) {
+      return await getAllProducts();
+    }
     console.error("Error obteniendo productos:", error);
     throw new Error(`Error al acceder a la base de datos: ${error.message}`);
   }

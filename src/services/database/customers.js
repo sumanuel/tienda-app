@@ -1,6 +1,5 @@
 import { db } from "./db";
 import {
-  collection,
   doc,
   getDocs,
   setDoc,
@@ -8,15 +7,23 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import { handleCloudAccessError } from "../firebase/cloudAccess";
 import {
   formatConsecutiveNumber,
   getNextCloudConsecutive,
   parseConsecutiveSequence,
 } from "./consecutives";
+import {
+  getActiveStoreSeedKey,
+  getStoreCollectionRef,
+  getStoreDocRef,
+  hasActiveStoreContext,
+} from "../store/storeRefs";
 
 const cloudCustomersSeeded = new Set();
 
-const isCloudCustomersEnabled = () => Boolean(auth.currentUser?.uid);
+const isCloudCustomersEnabled = () =>
+  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
 
 const createCloudNumericId = () =>
   Number(
@@ -25,14 +32,12 @@ const createCloudNumericId = () =>
       .padStart(3, "0")}`,
   );
 
-const getCustomersCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "customers");
+const getCustomersCollectionRef = () => getStoreCollectionRef("customers");
 
-const getSalesCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "sales");
+const getSalesCollectionRef = () => getStoreCollectionRef("sales");
 
 const getReceivableCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "accounts_receivable");
+  getStoreCollectionRef("accounts_receivable");
 
 const normalizeCustomerRecord = (customer = {}) => ({
   id:
@@ -67,7 +72,6 @@ const getCloudCustomers = async () => {
 };
 
 const normalizeExistingCloudCustomers = async (existingSnapshot) => {
-  const uid = auth.currentUser.uid;
   const collectionRef = getCustomersCollectionRef();
   const salesCollectionRef = getSalesCollectionRef();
   const receivableCollectionRef = getReceivableCollectionRef();
@@ -90,7 +94,7 @@ const normalizeExistingCloudCustomers = async (existingSnapshot) => {
 
   if (!requiresNormalization) {
     await setDoc(
-      doc(firestore, "users", uid),
+      getStoreDocRef(),
       {
         counters: {
           customer: existingRows.length,
@@ -185,7 +189,7 @@ const normalizeExistingCloudCustomers = async (existingSnapshot) => {
   }
 
   await setDoc(
-    doc(firestore, "users", uid),
+    getStoreDocRef(),
     {
       counters: {
         customer: existingRows.length,
@@ -198,14 +202,14 @@ const normalizeExistingCloudCustomers = async (existingSnapshot) => {
 const ensureCloudCustomersSeeded = async () => {
   if (!isCloudCustomersEnabled()) return;
 
-  const uid = auth.currentUser.uid;
-  if (cloudCustomersSeeded.has(uid)) return;
+  const seedKey = getActiveStoreSeedKey();
+  if (cloudCustomersSeeded.has(seedKey)) return;
 
   const collectionRef = getCustomersCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
     await normalizeExistingCloudCustomers(existingSnapshot);
-    cloudCustomersSeeded.add(uid);
+    cloudCustomersSeeded.add(seedKey);
     return;
   }
 
@@ -223,7 +227,7 @@ const ensureCloudCustomersSeeded = async () => {
     await batch.commit();
 
     await setDoc(
-      doc(firestore, "users", uid),
+      getStoreDocRef(),
       {
         counters: {
           customer: rows.length,
@@ -233,7 +237,7 @@ const ensureCloudCustomersSeeded = async () => {
     );
   }
 
-  cloudCustomersSeeded.add(uid);
+  cloudCustomersSeeded.add(seedKey);
 };
 
 /**
@@ -257,6 +261,9 @@ export const initCustomersTable = async () => {
       );`,
     );
   } catch (error) {
+    if (handleCloudAccessError(error, "customers:getAll")) {
+      return await getAllCustomers();
+    }
     throw error;
   }
 };

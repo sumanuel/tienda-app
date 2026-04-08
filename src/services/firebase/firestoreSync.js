@@ -1,6 +1,5 @@
 import {
   collection,
-  doc,
   getDoc,
   getDocs,
   serverTimestamp,
@@ -9,6 +8,13 @@ import {
 } from "firebase/firestore";
 import { auth, firestore } from "./firebase";
 import { db } from "../database/db";
+import {
+  getStoreCollectionRef,
+  getStoreDocRef,
+  getStoreNestedDocRef,
+  getUserDocRef,
+  hasActiveStoreContext,
+} from "../store/storeRefs";
 
 const SYNC_CHUNK_SIZE = 300;
 const CLOUD_SNAPSHOT_DATASETS = [
@@ -60,18 +66,13 @@ const getUserTables = async () => {
   return rows.map((row) => row.name).filter(Boolean);
 };
 
-const syncRowsToSnapshot = async ({
-  userId,
-  bucket,
-  datasetName,
-  rows,
-  syncRunId,
-}) => {
-  const datasetRef = doc(firestore, "users", userId, bucket, datasetName);
+const syncRowsToSnapshot = async ({ bucket, datasetName, rows, syncRunId }) => {
+  const storeRef = getStoreDocRef();
+  const datasetRef = getStoreNestedDocRef([bucket, datasetName]);
   const rowsCollectionRef = collection(
     firestore,
-    "users",
-    userId,
+    "stores",
+    storeRef.id,
     bucket,
     datasetName,
     "rows",
@@ -128,9 +129,9 @@ const syncRowsToSnapshot = async ({
   }
 };
 
-const syncAuxiliaryCloudDatasets = async (userId, syncRunId) => {
+const syncAuxiliaryCloudDatasets = async (syncRunId) => {
   const settingsSnapshot = await getDoc(
-    doc(firestore, "users", userId, "settings", "app_settings"),
+    getStoreNestedDocRef(["settings", "app_settings"]),
   );
 
   const settingsRows = settingsSnapshot.exists()
@@ -138,7 +139,6 @@ const syncAuxiliaryCloudDatasets = async (userId, syncRunId) => {
     : [];
 
   await syncRowsToSnapshot({
-    userId,
     bucket: "cloud_snapshots",
     datasetName: "settings",
     rows: settingsRows,
@@ -146,12 +146,9 @@ const syncAuxiliaryCloudDatasets = async (userId, syncRunId) => {
   });
 
   for (const datasetName of CLOUD_SNAPSHOT_DATASETS) {
-    const snapshot = await getDocs(
-      collection(firestore, "users", userId, datasetName),
-    );
+    const snapshot = await getDocs(getStoreCollectionRef(datasetName));
     const rows = snapshot.docs.map((item) => item.data() || {});
     await syncRowsToSnapshot({
-      userId,
       bucket: "cloud_snapshots",
       datasetName,
       rows,
@@ -166,6 +163,10 @@ export const syncCurrentUserSQLiteToFirestore = async (options = {}) => {
     return { skipped: true, reason: "no-user" };
   }
 
+  if (!hasActiveStoreContext()) {
+    return { skipped: true, reason: "no-active-store" };
+  }
+
   if (inFlightSync) {
     return inFlightSync;
   }
@@ -173,7 +174,8 @@ export const syncCurrentUserSQLiteToFirestore = async (options = {}) => {
   inFlightSync = (async () => {
     const syncRunId = new Date().toISOString();
     const tables = await getUserTables();
-    const userRef = doc(firestore, "users", user.uid);
+    const userRef = getUserDocRef(user.uid);
+    const storeRef = getStoreDocRef();
 
     await setDoc(
       userRef,
@@ -190,10 +192,21 @@ export const syncCurrentUserSQLiteToFirestore = async (options = {}) => {
       { merge: true },
     );
 
+    await setDoc(
+      storeRef,
+      {
+        lastCloudSyncAt: serverTimestamp(),
+        lastCloudSyncRunId: syncRunId,
+        lastCloudSyncReason: options.reason || "manual",
+        tableCount: tables.length,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+
     for (const tableName of tables) {
       const rows = await db.getAllAsync(`SELECT * FROM ${tableName};`);
       await syncRowsToSnapshot({
-        userId: user.uid,
         bucket: "tables",
         datasetName: tableName,
         rows,
@@ -201,7 +214,7 @@ export const syncCurrentUserSQLiteToFirestore = async (options = {}) => {
       });
     }
 
-    await syncAuxiliaryCloudDatasets(user.uid, syncRunId);
+    await syncAuxiliaryCloudDatasets(syncRunId);
 
     return {
       skipped: false,

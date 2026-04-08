@@ -1,14 +1,184 @@
 import * as SQLite from "expo-sqlite";
 
+const LEGACY_DB_NAME = "tienda.db";
+const TABLE_MIGRATION_ORDER = [
+  "products",
+  "inventory_movements",
+  "sales",
+  "sale_items",
+  "customers",
+  "suppliers",
+  "accounts_receivable",
+  "accounts_payable",
+  "account_payments",
+  "exchange_rates",
+  "settings",
+  "mobile_payments",
+  "rate_notifications",
+];
+
+let currentDbName = LEGACY_DB_NAME;
+let currentDb = SQLite.openDatabaseSync(currentDbName);
+const initializedDatabases = new Set();
+
+const bindDatabaseMethod = (database, property) => {
+  const value = database[property];
+  return typeof value === "function" ? value.bind(database) : value;
+};
+
+const openDatabase = (name) => SQLite.openDatabaseSync(name);
+
+const sanitizeDatabaseSegment = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "default";
+
+const buildStoreDatabaseName = ({ userId, storeId }) => {
+  const normalizedUserId = String(userId || "").trim();
+  const normalizedStoreId = String(storeId || "").trim();
+
+  if (!normalizedUserId || !normalizedStoreId) {
+    return LEGACY_DB_NAME;
+  }
+
+  return `tienda-${sanitizeDatabaseSegment(normalizedUserId)}-${sanitizeDatabaseSegment(normalizedStoreId)}.db`;
+};
+
+const getNonEmptyUserTables = async (database) => {
+  const rows = await database.getAllAsync(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;",
+  );
+
+  const nonEmptyTables = [];
+  for (const row of rows) {
+    const tableName = row?.name;
+    if (!tableName) continue;
+
+    try {
+      const countRow = await database.getFirstAsync(
+        `SELECT COUNT(*) AS total FROM ${tableName};`,
+      );
+      if (Number(countRow?.total) > 0) {
+        nonEmptyTables.push(tableName);
+      }
+    } catch (_) {
+      // Ignorar tablas que no se puedan contar por compatibilidad.
+    }
+  }
+
+  return nonEmptyTables;
+};
+
+const copyLegacyRowsToCurrentDatabase = async (
+  sourceDb,
+  targetDb,
+  tableName,
+) => {
+  const rows = await sourceDb.getAllAsync(`SELECT * FROM ${tableName};`);
+  if (!rows.length) return;
+
+  const columns = await targetDb.getAllAsync(
+    `PRAGMA table_info(${tableName});`,
+  );
+  const validColumns = new Set((columns || []).map((column) => column?.name));
+
+  for (const row of rows) {
+    const rowEntries = Object.entries(row || {}).filter(([columnName]) =>
+      validColumns.has(columnName),
+    );
+
+    if (!rowEntries.length) continue;
+
+    const columnNames = rowEntries.map(([columnName]) => columnName);
+    const placeholders = columnNames.map(() => "?").join(", ");
+    const values = rowEntries.map(([, value]) => value);
+
+    await targetDb.runAsync(
+      `INSERT OR REPLACE INTO ${tableName} (${columnNames.join(", ")}) VALUES (${placeholders});`,
+      values,
+    );
+  }
+};
+
 /**
  * Instancia única de la base de datos
  * Todos los servicios deben importar esta instancia
  * para evitar múltiples conexiones y bloqueos
  */
-export const db = SQLite.openDatabaseSync("tienda.db");
+export const db = new Proxy(
+  {},
+  {
+    get(_, property) {
+      return bindDatabaseMethod(currentDb, property);
+    },
+  },
+);
 
-// Flag para saber si las tablas ya fueron inicializadas
-let tablesInitialized = false;
+export const getCurrentDatabaseName = () => currentDbName;
+
+export const configureStoreDatabase = async ({ userId, storeId } = {}) => {
+  const nextDbName = buildStoreDatabaseName({ userId, storeId });
+  const hasChanged = nextDbName !== currentDbName;
+
+  if (hasChanged) {
+    currentDb = openDatabase(nextDbName);
+    currentDbName = nextDbName;
+  }
+
+  return {
+    changed: hasChanged,
+    dbName: currentDbName,
+  };
+};
+
+export const resetDatabaseContext = async () => {
+  currentDbName = LEGACY_DB_NAME;
+  currentDb = openDatabase(LEGACY_DB_NAME);
+  return { dbName: currentDbName };
+};
+
+export const migrateLegacyDatabaseToCurrentStoreIfNeeded = async () => {
+  if (currentDbName === LEGACY_DB_NAME) {
+    return { migrated: false, reason: "legacy-active" };
+  }
+
+  const sourceDb = openDatabase(LEGACY_DB_NAME);
+  const [sourceTables, targetTables] = await Promise.all([
+    getNonEmptyUserTables(sourceDb),
+    getNonEmptyUserTables(currentDb),
+  ]);
+
+  if (!sourceTables.length) {
+    return { migrated: false, reason: "legacy-empty" };
+  }
+
+  if (targetTables.length) {
+    return { migrated: false, reason: "target-has-data" };
+  }
+
+  const tableOrder = [
+    ...TABLE_MIGRATION_ORDER.filter((tableName) =>
+      sourceTables.includes(tableName),
+    ),
+    ...sourceTables.filter(
+      (tableName) => !TABLE_MIGRATION_ORDER.includes(tableName),
+    ),
+  ];
+
+  await currentDb.execAsync("PRAGMA foreign_keys = OFF;");
+  try {
+    for (const tableName of tableOrder) {
+      await copyLegacyRowsToCurrentDatabase(sourceDb, currentDb, tableName);
+    }
+  } finally {
+    await currentDb.execAsync("PRAGMA foreign_keys = ON;");
+  }
+
+  initializedDatabases.delete(currentDbName);
+  return { migrated: true, tables: tableOrder.length };
+};
 
 const LOCAL_CONSECUTIVE_COLUMNS = [
   {
@@ -99,7 +269,7 @@ const ensureLocalConsecutiveColumn = async ({
  */
 export const initAllTables = async () => {
   try {
-    if (tablesInitialized) {
+    if (initializedDatabases.has(currentDbName)) {
       console.log("Tables already initialized, skipping table creation...");
       // Aún así, intentar ejecutar migraciones por si faltan columnas/tablas
       await runMigrations();
@@ -332,7 +502,7 @@ export const initAllTables = async () => {
     // Ejecutar migraciones DESPUÉS de que exista el schema base
     await runMigrations();
 
-    tablesInitialized = true;
+    initializedDatabases.add(currentDbName);
     console.log("All tables created successfully");
   } catch (error) {
     console.error("Error creating tables:", error);

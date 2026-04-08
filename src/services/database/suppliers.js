@@ -5,7 +5,6 @@ import {
   parseConsecutiveSequence,
 } from "./consecutives";
 import {
-  collection,
   doc,
   getDocs,
   setDoc,
@@ -13,10 +12,18 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import { handleCloudAccessError } from "../firebase/cloudAccess";
+import {
+  getActiveStoreSeedKey,
+  getStoreCollectionRef,
+  getStoreDocRef,
+  hasActiveStoreContext,
+} from "../store/storeRefs";
 
 const cloudSuppliersSeeded = new Set();
 
-const isCloudSuppliersEnabled = () => Boolean(auth.currentUser?.uid);
+const isCloudSuppliersEnabled = () =>
+  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
 
 const createCloudNumericId = () =>
   Number(
@@ -25,11 +32,9 @@ const createCloudNumericId = () =>
       .padStart(3, "0")}`,
   );
 
-const getSuppliersCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "suppliers");
+const getSuppliersCollectionRef = () => getStoreCollectionRef("suppliers");
 
-const getPayableCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "accounts_payable");
+const getPayableCollectionRef = () => getStoreCollectionRef("accounts_payable");
 
 const normalizeSupplierRecord = (supplier = {}) => ({
   id:
@@ -66,7 +71,6 @@ const getCloudSuppliers = async () => {
 };
 
 const normalizeExistingCloudSuppliers = async (existingSnapshot) => {
-  const uid = auth.currentUser.uid;
   const collectionRef = getSuppliersCollectionRef();
   const payableCollectionRef = getPayableCollectionRef();
 
@@ -88,7 +92,7 @@ const normalizeExistingCloudSuppliers = async (existingSnapshot) => {
 
   if (!requiresNormalization) {
     await setDoc(
-      doc(firestore, "users", uid),
+      getStoreDocRef(),
       {
         counters: {
           supplier: existingRows.length,
@@ -155,7 +159,7 @@ const normalizeExistingCloudSuppliers = async (existingSnapshot) => {
   }
 
   await setDoc(
-    doc(firestore, "users", uid),
+    getStoreDocRef(),
     {
       counters: {
         supplier: existingRows.length,
@@ -168,14 +172,14 @@ const normalizeExistingCloudSuppliers = async (existingSnapshot) => {
 const ensureCloudSuppliersSeeded = async () => {
   if (!isCloudSuppliersEnabled()) return;
 
-  const uid = auth.currentUser.uid;
-  if (cloudSuppliersSeeded.has(uid)) return;
+  const seedKey = getActiveStoreSeedKey();
+  if (cloudSuppliersSeeded.has(seedKey)) return;
 
   const collectionRef = getSuppliersCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
     await normalizeExistingCloudSuppliers(existingSnapshot);
-    cloudSuppliersSeeded.add(uid);
+    cloudSuppliersSeeded.add(seedKey);
     return;
   }
 
@@ -194,7 +198,7 @@ const ensureCloudSuppliersSeeded = async () => {
     await batch.commit();
 
     await setDoc(
-      doc(firestore, "users", uid),
+      getStoreDocRef(),
       {
         counters: {
           supplier: rows.length,
@@ -204,7 +208,7 @@ const ensureCloudSuppliersSeeded = async () => {
     );
   }
 
-  cloudSuppliersSeeded.add(uid);
+  cloudSuppliersSeeded.add(seedKey);
 };
 
 /**
@@ -229,6 +233,9 @@ export const initSuppliersTable = async () => {
       );`,
     );
   } catch (error) {
+    if (handleCloudAccessError(error, "suppliers:getAll")) {
+      return await getAllSuppliers();
+    }
     throw error;
   }
 };

@@ -1,6 +1,5 @@
 import { db } from "./db";
 import {
-  collection,
   doc,
   getDocs,
   setDoc,
@@ -8,10 +7,16 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import {
+  getActiveStoreSeedKey,
+  getStoreCollectionRef,
+  hasActiveStoreContext,
+} from "../store/storeRefs";
 
 const cloudMobilePaymentsSeeded = new Set();
 
-const isCloudMobilePaymentsEnabled = () => Boolean(auth.currentUser?.uid);
+const isCloudMobilePaymentsEnabled = () =>
+  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
 
 const createCloudNumericId = () =>
   Number(
@@ -21,7 +26,7 @@ const createCloudNumericId = () =>
   );
 
 const getMobilePaymentsCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "mobile_payments");
+  getStoreCollectionRef("mobile_payments");
 
 const normalizeMobilePaymentRecord = (payment = {}) => ({
   id: Number(payment.id) || createCloudNumericId(),
@@ -41,13 +46,13 @@ const getCloudMobilePayments = async () => {
 const ensureCloudMobilePaymentsSeeded = async () => {
   if (!isCloudMobilePaymentsEnabled()) return;
 
-  const uid = auth.currentUser.uid;
-  if (cloudMobilePaymentsSeeded.has(uid)) return;
+  const seedKey = getActiveStoreSeedKey();
+  if (cloudMobilePaymentsSeeded.has(seedKey)) return;
 
   const collectionRef = getMobilePaymentsCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
-    cloudMobilePaymentsSeeded.add(uid);
+    cloudMobilePaymentsSeeded.add(seedKey);
     return;
   }
 
@@ -66,7 +71,7 @@ const ensureCloudMobilePaymentsSeeded = async () => {
     await batch.commit();
   }
 
-  cloudMobilePaymentsSeeded.add(uid);
+  cloudMobilePaymentsSeeded.add(seedKey);
 };
 
 const normalizeText = (value) => {

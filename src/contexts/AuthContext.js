@@ -17,7 +17,22 @@ import {
 } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, firestore } from "../services/firebase/firebase";
+import {
+  disableCloudAccessForSession,
+  isPermissionDeniedError,
+  resetCloudAccessForSession,
+} from "../services/firebase/cloudAccess";
+import {
+  configureStoreDatabase,
+  resetDatabaseContext,
+} from "../services/database/db";
 import { syncCurrentUserSQLiteToFirestore } from "../services/firebase/firestoreSync";
+import {
+  clearActiveStoreSession,
+  ensureUserStoreContext,
+  switchActiveStoreForUser,
+} from "../services/store/storeService";
+import { migrateLegacyUserDataToStoreIfNeeded } from "../services/store/storeMigration";
 
 const AuthContext = createContext(null);
 
@@ -25,21 +40,57 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [emailVerified, setEmailVerified] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [storeLoading, setStoreLoading] = useState(true);
+  const [activeStoreId, setActiveStoreId] = useState(null);
+  const [defaultStoreId, setDefaultStoreId] = useState(null);
+  const [memberships, setMemberships] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState(null);
+
+  const refreshStoreContext = async (preferredStoreId) => {
+    if (!auth.currentUser) {
+      return null;
+    }
+
+    const refreshedContext = await ensureUserStoreContext(auth.currentUser, {
+      preferredStoreId: preferredStoreId || activeStoreId,
+    });
+
+    if (refreshedContext?.activeStoreId) {
+      await configureStoreDatabase({
+        userId: auth.currentUser.uid,
+        storeId: refreshedContext.activeStoreId,
+      });
+    }
+
+    setActiveStoreId(refreshedContext?.activeStoreId || null);
+    setDefaultStoreId(refreshedContext?.defaultStoreId || null);
+    setMemberships(refreshedContext?.memberships || []);
+
+    return refreshedContext;
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
       setUser(nextUser);
       setEmailVerified(Boolean(nextUser?.emailVerified));
-      setAuthLoading(false);
 
       if (!nextUser) {
+        resetCloudAccessForSession();
         setLastSyncResult(null);
+        setActiveStoreId(null);
+        setDefaultStoreId(null);
+        setMemberships([]);
+        clearActiveStoreSession();
+        await resetDatabaseContext();
+        setStoreLoading(false);
+        setAuthLoading(false);
         return;
       }
 
       try {
+        resetCloudAccessForSession();
+        setStoreLoading(true);
         setSyncing(true);
         await setDoc(
           doc(firestore, "users", nextUser.uid),
@@ -52,14 +103,43 @@ export const AuthProvider = ({ children }) => {
           },
           { merge: true },
         );
+
+        const storeContext = await ensureUserStoreContext(nextUser);
+        await migrateLegacyUserDataToStoreIfNeeded({
+          uid: nextUser.uid,
+          storeId: storeContext.activeStoreId,
+        });
+        await configureStoreDatabase({
+          userId: nextUser.uid,
+          storeId: storeContext.activeStoreId,
+        });
+
+        setActiveStoreId(storeContext.activeStoreId);
+        setDefaultStoreId(storeContext.defaultStoreId);
+        setMemberships(storeContext.memberships || []);
+
         const result = await syncCurrentUserSQLiteToFirestore({
           reason: "auth-state",
         });
         setLastSyncResult(result);
       } catch (error) {
+        if (isPermissionDeniedError(error)) {
+          disableCloudAccessForSession("auth-state");
+          clearActiveStoreSession();
+          await resetDatabaseContext();
+          setActiveStoreId(null);
+          setDefaultStoreId(null);
+          setMemberships([]);
+          setLastSyncResult({
+            skipped: true,
+            reason: "cloud-permission-denied",
+          });
+        }
         console.warn("Initial cloud sync failed:", error);
       } finally {
         setSyncing(false);
+        setStoreLoading(false);
+        setAuthLoading(false);
       }
     });
 
@@ -102,6 +182,36 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     await firebaseSignOut(auth);
+  };
+
+  const switchStore = async (storeId) => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      throw new Error("No hay un usuario autenticado.");
+    }
+
+    setStoreLoading(true);
+    try {
+      const session = await switchActiveStoreForUser({ userId: uid, storeId });
+      await configureStoreDatabase({
+        userId: uid,
+        storeId: session.activeStoreId,
+      });
+      setActiveStoreId(session.activeStoreId);
+      setDefaultStoreId(session.defaultStoreId);
+
+      const refreshedContext = await ensureUserStoreContext(auth.currentUser, {
+        preferredStoreId: session.activeStoreId,
+      });
+      setMemberships(refreshedContext.memberships || []);
+      const result = await syncCurrentUserSQLiteToFirestore({
+        reason: "store-switch",
+      });
+      setLastSyncResult(result);
+      return refreshedContext;
+    } finally {
+      setStoreLoading(false);
+    }
   };
 
   const sendVerification = async () => {
@@ -147,17 +257,33 @@ export const AuthProvider = ({ children }) => {
       user,
       emailVerified,
       authLoading,
+      storeLoading,
+      activeStoreId,
+      defaultStoreId,
+      memberships,
       syncing,
       lastSyncResult,
       signIn,
       signUp,
       signOut,
+      switchStore,
+      refreshStoreContext,
       sendVerification,
       refreshVerification,
       sendPasswordReset,
       syncNow,
     }),
-    [user, emailVerified, authLoading, syncing, lastSyncResult],
+    [
+      user,
+      emailVerified,
+      authLoading,
+      storeLoading,
+      activeStoreId,
+      defaultStoreId,
+      memberships,
+      syncing,
+      lastSyncResult,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

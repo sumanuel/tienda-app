@@ -1,6 +1,5 @@
 import { db } from "./db";
 import {
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -8,11 +7,18 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import { handleCloudAccessError } from "../firebase/cloudAccess";
+import {
+  getActiveStoreSeedKey,
+  getStoreCollectionRef,
+  hasActiveStoreContext,
+} from "../store/storeRefs";
 
 const TABLE = "rate_notifications";
 const cloudRateNotificationsSeeded = new Set();
 
-const isCloudRateNotificationsEnabled = () => Boolean(auth.currentUser?.uid);
+const isCloudRateNotificationsEnabled = () =>
+  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
 
 const createCloudNumericId = () =>
   Number(
@@ -22,7 +28,7 @@ const createCloudNumericId = () =>
   );
 
 const getRateNotificationsCollectionRef = () =>
-  collection(firestore, "users", auth.currentUser.uid, "rate_notifications");
+  getStoreCollectionRef("rate_notifications");
 
 const normalizeRateNotificationRecord = (notification = {}) => ({
   id: Number(notification.id) || createCloudNumericId(),
@@ -51,13 +57,13 @@ const getCloudRateNotifications = async () => {
 const ensureCloudRateNotificationsSeeded = async () => {
   if (!isCloudRateNotificationsEnabled()) return;
 
-  const uid = auth.currentUser.uid;
-  if (cloudRateNotificationsSeeded.has(uid)) return;
+  const seedKey = getActiveStoreSeedKey();
+  if (cloudRateNotificationsSeeded.has(seedKey)) return;
 
   const collectionRef = getRateNotificationsCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
-    cloudRateNotificationsSeeded.add(uid);
+    cloudRateNotificationsSeeded.add(seedKey);
     return;
   }
 
@@ -76,7 +82,7 @@ const ensureCloudRateNotificationsSeeded = async () => {
     await batch.commit();
   }
 
-  cloudRateNotificationsSeeded.add(uid);
+  cloudRateNotificationsSeeded.add(seedKey);
 };
 
 export const insertRateNotification = async ({
@@ -144,14 +150,21 @@ export const deleteRateNotification = async (id) => {
 };
 
 export const getRateNotificationsCount = async () => {
-  if (isCloudRateNotificationsEnabled()) {
-    await ensureCloudRateNotificationsSeeded();
-    const notifications = await getCloudRateNotifications();
-    return notifications.length;
-  }
+  try {
+    if (isCloudRateNotificationsEnabled()) {
+      await ensureCloudRateNotificationsSeeded();
+      const notifications = await getCloudRateNotifications();
+      return notifications.length;
+    }
 
-  const row = await db.getFirstAsync(`SELECT COUNT(*) AS cnt FROM ${TABLE};`);
-  return Number(row?.cnt || 0);
+    const row = await db.getFirstAsync(`SELECT COUNT(*) AS cnt FROM ${TABLE};`);
+    return Number(row?.cnt || 0);
+  } catch (error) {
+    if (handleCloudAccessError(error, "rateNotifications:getCount")) {
+      return await getRateNotificationsCount();
+    }
+    throw error;
+  }
 };
 
 export default {

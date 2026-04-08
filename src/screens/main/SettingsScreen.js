@@ -39,7 +39,8 @@ import {
 export const SettingsScreen = () => {
   const navigation = useNavigation();
   const { showAlert, CustomAlert } = useCustomAlert();
-  const { user, syncing, signOut, syncNow } = useAuth();
+  const { user, syncing, signOut, syncNow, activeStoreId, memberships } =
+    useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [backupBusy, setBackupBusy] = useState(false);
   const [excelBusy, setExcelBusy] = useState(false);
@@ -290,6 +291,34 @@ export const SettingsScreen = () => {
               </Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.formCard}
+            onPress={() => navigation.navigate("StoreManagement")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.cardHeader}>
+              <View style={styles.cardIcon}>
+                <Ionicons
+                  name="storefront-outline"
+                  size={iconSize.md}
+                  color="#2f5ae0"
+                />
+              </View>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>Tiendas y colaboradores</Text>
+                <Text style={styles.cardSubtitle}>
+                  {memberships.length} tienda(s) · activa{" "}
+                  {memberships.find((item) => item.storeId === activeStoreId)
+                    ?.storeName || "sin contexto"}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.cardAction}>
+              <Text style={styles.cardActionText}>Gestionar</Text>
+              <Text style={styles.cardArrow}>›</Text>
+            </View>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.formCard}

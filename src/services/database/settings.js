@@ -1,11 +1,18 @@
 import { db } from "./db";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { auth, firestore } from "../firebase/firebase";
+import { getDoc, setDoc } from "firebase/firestore";
+import { auth } from "../firebase/firebase";
+import { handleCloudAccessError } from "../firebase/cloudAccess";
+import {
+  getStoreDocRef,
+  getStoreNestedDocRef,
+  hasActiveStoreContext,
+} from "../store/storeRefs";
 
-const isCloudSettingsEnabled = () => Boolean(auth.currentUser?.uid);
+const isCloudSettingsEnabled = () =>
+  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
 
 const getSettingsDocRef = () =>
-  doc(firestore, "users", auth.currentUser.uid, "settings", "app_settings");
+  getStoreNestedDocRef(["settings", "app_settings"]);
 
 const isPlainObject = (value) => {
   return (
@@ -87,6 +94,9 @@ export const initSettingsTable = async () => {
       console.log("Default settings inserted");
     }
   } catch (error) {
+    if (handleCloudAccessError(error, "settings:init")) {
+      return await initSettingsTable();
+    }
     console.error("Error initializing settings:", error);
     throw error;
   }
@@ -173,6 +183,9 @@ export const getSettings = async () => {
 
     return getDefaultSettings();
   } catch (error) {
+    if (handleCloudAccessError(error, "settings:get")) {
+      return await getSettings();
+    }
     console.error("Error getting settings:", error);
     return getDefaultSettings();
   }
@@ -195,6 +208,19 @@ export const saveSettings = async (settings) => {
   try {
     if (isCloudSettingsEnabled()) {
       await setDoc(getSettingsDocRef(), settings, { merge: true });
+
+      const businessName = String(settings?.business?.name || "").trim();
+      if (businessName) {
+        await setDoc(
+          getStoreDocRef(),
+          {
+            name: businessName,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+      }
+
       return true;
     }
 
@@ -206,6 +232,9 @@ export const saveSettings = async (settings) => {
     );
     return true;
   } catch (error) {
+    if (handleCloudAccessError(error, "settings:save")) {
+      return await saveSettings(settings);
+    }
     console.error("Error saving settings:", error);
     return false;
   }
