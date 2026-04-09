@@ -40,6 +40,51 @@ const normalizeStoreInput = (store = {}) => {
   };
 };
 
+const listOwnerMembershipsForCurrentUser = async (uid) => {
+  const snapshot = await getDocs(
+    collection(firestore, "users", uid, "memberships"),
+  );
+
+  return snapshot.docs
+    .map((item) => ({
+      storeId: normalizeText(item.data()?.storeId || item.id),
+      storeName: normalizeText(item.data()?.storeName),
+      role: normalizeText(item.data()?.role),
+      status: normalizeText(item.data()?.status || "active") || "active",
+    }))
+    .filter(
+      (item) =>
+        item.storeId && item.role === "owner" && item.status !== "inactive",
+    );
+};
+
+const resolveReusableOwnerStore = async (uid, store) => {
+  const ownerMemberships = await listOwnerMembershipsForCurrentUser(uid);
+  if (!ownerMemberships.length) {
+    return null;
+  }
+
+  const normalizedTargetName = normalizeText(store?.name).toLowerCase();
+
+  const matchedMembership =
+    ownerMemberships.find(
+      (item) => item.storeName.toLowerCase() === normalizedTargetName,
+    ) || ownerMemberships[0];
+
+  if (!matchedMembership?.storeId) {
+    return null;
+  }
+
+  return {
+    storeId: matchedMembership.storeId,
+    storeName: matchedMembership.storeName || store?.name || "Mi Tienda",
+    rif: store?.rif || "",
+    address: store?.address || "",
+    role: "owner",
+    reused: true,
+  };
+};
+
 const mapStoreInvite = (snapshot) => {
   const data = snapshot.data() || {};
   return {
@@ -72,7 +117,10 @@ const mapStoreMember = (snapshot) => {
 
 export const getAvailableStoreRoles = () => [...ROLES];
 
-export const createStoreForCurrentUser = async (storeInput = {}) => {
+export const createStoreForCurrentUser = async (
+  storeInput = {},
+  options = {},
+) => {
   const user = auth.currentUser;
   const uid = getCurrentUserIdOrThrow(user?.uid);
   const store = normalizeStoreInput(storeInput);
@@ -80,6 +128,13 @@ export const createStoreForCurrentUser = async (storeInput = {}) => {
 
   if (!storeName) {
     throw new Error("El nombre de la tienda es obligatorio.");
+  }
+
+  if (options?.reuseExistingOwnerStore) {
+    const existingStore = await resolveReusableOwnerStore(uid, store);
+    if (existingStore) {
+      return existingStore;
+    }
   }
 
   const storeRef = doc(collection(firestore, "stores"));

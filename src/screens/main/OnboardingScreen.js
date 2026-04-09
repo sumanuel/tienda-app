@@ -184,13 +184,16 @@ export const OnboardingScreen = ({
           let createdStore = null;
 
           if (requireInitialStoreSetup && !activeStoreId) {
-            createdStore = await createStoreForCurrentUser({
-              name: business.name,
-              rif: business.rif,
-              address: business.address,
-              phone: business.phone,
-              email: business.email,
-            });
+            createdStore = await createStoreForCurrentUser(
+              {
+                name: business.name,
+                rif: business.rif,
+                address: business.address,
+                phone: business.phone,
+                email: business.email,
+              },
+              { reuseExistingOwnerStore: true },
+            );
 
             const refreshedContext = await refreshStoreContext(
               createdStore.storeId,
