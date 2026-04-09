@@ -126,14 +126,15 @@ const hydrateMembershipFromStore = async (uid, membership) => {
             retriedStoreSnapshot,
           );
         } catch (retryError) {
-          console.warn(
-            "Membership hydration from store failed after reconciliation:",
-            retryError,
-          );
+          if (!isPermissionDeniedError(retryError)) {
+            console.warn(
+              "Membership hydration from store failed after reconciliation:",
+              retryError,
+            );
+          }
         }
       }
 
-      console.warn("Membership hydration from store failed:", error);
       return {
         ...membership,
         cloudAccessible: false,

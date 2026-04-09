@@ -410,29 +410,25 @@ export const createInviteForActiveStore = async ({
     throw new Error("El correo del colaborador es obligatorio.");
   }
 
-  const [storeSnapshot, existingInvitesSnapshot] = await Promise.all([
-    getDoc(getStoreDocRef(storeId)),
-    getDocs(
-      query(
-        getStoreCollectionRef("invites", storeId),
-        where("emailNormalized", "==", emailNormalized),
-      ),
-    ),
-  ]);
-
-  const pendingInvite = existingInvitesSnapshot.docs
-    .map(mapStoreInvite)
-    .find((invite) => invite.status === "pending");
-
-  if (pendingInvite) {
-    throw new Error("Ya existe una invitación pendiente para ese correo.");
-  }
-
-  const storeName = normalizeText(storeSnapshot.data()?.name) || "Mi Tienda";
   const inviteRef = doc(
     getStoreCollectionRef("invites", storeId),
     emailNormalized,
   );
+
+  const [storeSnapshot, existingInviteSnapshot] = await Promise.all([
+    getDoc(getStoreDocRef(storeId)),
+    getDoc(inviteRef),
+  ]);
+
+  const pendingInvite = existingInviteSnapshot.exists()
+    ? mapStoreInvite(existingInviteSnapshot)
+    : null;
+
+  if (pendingInvite?.status === "pending") {
+    throw new Error("Ya existe una invitación pendiente para ese correo.");
+  }
+
+  const storeName = normalizeText(storeSnapshot.data()?.name) || "Mi Tienda";
 
   await setDoc(
     inviteRef,

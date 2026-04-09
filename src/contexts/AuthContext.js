@@ -222,6 +222,7 @@ export const AuthProvider = ({ children }) => {
             skipped: true,
             reason: "cloud-permission-denied",
           });
+          return;
         }
         console.warn("Initial cloud sync failed:", error);
       } finally {
