@@ -27,6 +27,7 @@ import {
   resetDatabaseContext,
 } from "../services/database/db";
 import { syncCurrentUserSQLiteToFirestore } from "../services/firebase/firestoreSync";
+import { setStoreSession } from "../services/store/storeSession";
 import {
   clearActiveStoreSession,
   ensureUserStoreContext,
@@ -47,6 +48,51 @@ export const AuthProvider = ({ children }) => {
   const [requiresStoreSetup, setRequiresStoreSetup] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState(null);
+
+  const activateStoreLocally = async ({ storeId, storeName, role } = {}) => {
+    const uid = auth.currentUser?.uid;
+    const normalizedStoreId = String(storeId || "").trim();
+
+    if (!uid || !normalizedStoreId) {
+      return null;
+    }
+
+    const session = setStoreSession({
+      userId: uid,
+      activeStoreId: normalizedStoreId,
+      defaultStoreId: normalizedStoreId,
+    });
+
+    await configureStoreDatabase({
+      userId: uid,
+      storeId: normalizedStoreId,
+    });
+
+    setActiveStoreId(normalizedStoreId);
+    setDefaultStoreId(normalizedStoreId);
+    setRequiresStoreSetup(false);
+    setMemberships((current) => {
+      const existing = current.find((item) => item.storeId === normalizedStoreId);
+      const nextMembership = {
+        id: normalizedStoreId,
+        storeId: normalizedStoreId,
+        storeName: String(storeName || existing?.storeName || "Mi Tienda").trim(),
+        role: String(role || existing?.role || "owner").trim(),
+        status: String(existing?.status || "active").trim(),
+        ownerUserId: String(existing?.ownerUserId || uid).trim(),
+      };
+
+      if (existing) {
+        return current.map((item) =>
+          item.storeId === normalizedStoreId ? { ...item, ...nextMembership } : item,
+        );
+      }
+
+      return [...current, nextMembership];
+    });
+
+    return session;
+  };
 
   const refreshStoreContext = async (preferredStoreId) => {
     if (!auth.currentUser) {
@@ -284,6 +330,7 @@ export const AuthProvider = ({ children }) => {
       refreshVerification,
       sendPasswordReset,
       syncNow,
+      activateStoreLocally,
     }),
     [
       user,

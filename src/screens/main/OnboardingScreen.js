@@ -76,7 +76,8 @@ export const OnboardingScreen = ({
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [step, setStep] = useState(initialStep); // slides | business | currency
-  const { activeStoreId, refreshStoreContext, syncNow } = useAuth();
+  const { activeStoreId, refreshStoreContext, syncNow, activateStoreLocally } =
+    useAuth();
   const { showAlert, CustomAlert } = useCustomAlert();
   const scrollViewRef = useRef(null);
   const rateDirtyRef = useRef(false);
@@ -191,7 +192,13 @@ export const OnboardingScreen = ({
               email: business.email,
             });
 
-            await refreshStoreContext(createdStore.storeId);
+            const refreshedContext = await refreshStoreContext(
+              createdStore.storeId,
+            );
+
+            if (!refreshedContext?.activeStoreId) {
+              await activateStoreLocally(createdStore);
+            }
           }
 
           const current = await getSettings();
@@ -249,7 +256,10 @@ export const OnboardingScreen = ({
     try {
       setSaving(true);
       const accepted = await acceptInviteForCurrentUser(invite);
-      await refreshStoreContext(accepted.storeId);
+      const refreshedContext = await refreshStoreContext(accepted.storeId);
+      if (!refreshedContext?.activeStoreId) {
+        await activateStoreLocally(accepted);
+      }
       await syncNow("stores:accept-invite-onboarding");
       await AsyncStorage.setItem("onboardingCompleted", "true");
       await markSlidesSeen();
