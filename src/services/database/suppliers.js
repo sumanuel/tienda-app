@@ -235,7 +235,7 @@ export const initSuppliersTable = async () => {
     );
   } catch (error) {
     if (handleCloudAccessError(error, "suppliers:getAll")) {
-      return await getAllSuppliers();
+      return;
     }
     throw error;
   }

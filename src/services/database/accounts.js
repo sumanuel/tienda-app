@@ -438,7 +438,9 @@ export const getAllAccountsReceivable = async () => {
     return result;
   } catch (error) {
     if (handleCloudAccessError(error, "accounts:getReceivable")) {
-      return await getAllAccountsReceivable();
+      return await db.getAllAsync(
+        "SELECT ar.id, ar.receivableNumber, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId ORDER BY ar.createdAt DESC;",
+      );
     }
     throw error;
   }
@@ -484,7 +486,17 @@ export const searchAccountsReceivable = async (query) => {
     return result;
   } catch (error) {
     if (handleCloudAccessError(error, "accounts:getPayable")) {
-      return await getAllAccountsPayable();
+      const searchTerm = `%${query}%`;
+      return await db.getAllAsync(
+        `SELECT ar.id, ar.receivableNumber, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId
+         WHERE ar.customerName LIKE ? 
+         OR ar.documentNumber LIKE ? 
+         OR ar.description LIKE ?
+         OR ar.receivableNumber LIKE ?
+         OR ar.invoiceNumber LIKE ?
+         ORDER BY ar.createdAt DESC;`,
+        [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm],
+      );
     }
     throw error;
   }
@@ -507,7 +519,9 @@ export const getAllAccountsPayable = async () => {
     return result;
   } catch (error) {
     if (handleCloudAccessError(error, "accounts:fixCorruptedData")) {
-      return await fixCorruptedAccountData();
+      return await db.getAllAsync(
+        "SELECT id, payableNumber, supplierId, supplierName, documentNumber, description, invoiceNumber, dueDate, baseCurrency, baseAmountUSD, exchangeRateAtCreation, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;",
+      );
     }
     throw error;
   }

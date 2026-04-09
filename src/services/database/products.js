@@ -555,7 +555,10 @@ export const getAllProducts = async () => {
     return result;
   } catch (error) {
     if (handleCloudAccessError(error, "products:getAll")) {
-      return await getAllProducts();
+      await ensureProductsAdditionalCostColumn();
+      return await db.getAllAsync(
+        "SELECT * FROM products WHERE active = 1 ORDER BY name;",
+      );
     }
     console.error("Error obteniendo productos:", error);
     throw new Error(`Error al acceder a la base de datos: ${error.message}`);

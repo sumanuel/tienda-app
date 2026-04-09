@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -11,11 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCustomAlert } from "../../components/common/CustomAlert";
-import {
-  getCloudAccessState,
-  handleCloudAccessError,
-  resetCloudAccessForSession,
-} from "../../services/firebase/cloudAccess";
+import { handleCloudAccessError } from "../../services/firebase/cloudAccess";
 import {
   acceptInviteForCurrentUser,
   cleanupDuplicateOwnerStoresForCurrentUser,
@@ -84,7 +80,6 @@ export const StoreManagementScreen = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("seller");
   const [duplicateStores, setDuplicateStores] = useState([]);
-  const autoRetryAttemptedRef = useRef(false);
 
   const roles = useMemo(
     () => getAvailableStoreRoles().filter((role) => role !== "owner"),
@@ -95,22 +90,11 @@ export const StoreManagementScreen = () => {
     () => memberships.find((item) => item.storeId === activeStoreId) || null,
     [memberships, activeStoreId],
   );
-  const cloudAccessState = getCloudAccessState();
-  const isCloudBlocked = Boolean(cloudAccessState?.disabled);
   const hasAnyMembership = memberships.length > 0;
-  const hasResolvedActiveStore = Boolean(activeMembership?.storeId);
 
   const loadData = async () => {
     try {
       setLoadingData(true);
-
-      if (isCloudBlocked) {
-        setIncomingInvites([]);
-        setMembers([]);
-        setStoreInvites([]);
-        setDuplicateStores([]);
-        return;
-      }
 
       const [
         nextIncomingInvites,
@@ -157,7 +141,7 @@ export const StoreManagementScreen = () => {
 
   useEffect(() => {
     loadData();
-  }, [activeStoreId, memberships.length, isCloudBlocked]);
+  }, [activeStoreId, memberships.length]);
 
   const handleSwitchStore = async (storeId) => {
     try {
@@ -316,70 +300,6 @@ export const StoreManagementScreen = () => {
     }
   };
 
-  const handleRetryCloudConnection = async ({ silent = false } = {}) => {
-    try {
-      setSubmitting(true);
-      resetCloudAccessForSession();
-
-      const refreshedContext = await refreshStoreContext(
-        activeStoreId || undefined,
-      );
-
-      if (refreshedContext?.activeStoreId) {
-        await syncNow("stores:retry-cloud");
-      }
-
-      await loadData();
-
-      if (refreshedContext?.activeStoreId) {
-        if (!silent) {
-          showAlert({
-            title: "Conexión restablecida",
-            message: "La tienda activa en Firestore se recuperó correctamente.",
-            type: "success",
-          });
-        }
-        return;
-      }
-
-      if (!silent) {
-        showAlert({
-          title: "Sin tienda cloud",
-          message:
-            "La conexión a Firestore respondió, pero este usuario todavía no tiene una tienda registrada en la nube.",
-          type: "info",
-        });
-      }
-    } catch (error) {
-      console.error("Error retrying cloud store context:", error);
-      if (!silent) {
-        showAlert({
-          title: "No se pudo reconectar",
-          message: getStoreErrorMessage(
-            error,
-            "Firestore sigue rechazando permisos o la sesión aún no tiene acceso a una tienda.",
-          ),
-          type: "error",
-        });
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  useEffect(() => {
-    if (
-      !hasResolvedActiveStore ||
-      !isCloudBlocked ||
-      autoRetryAttemptedRef.current
-    ) {
-      return;
-    }
-
-    autoRetryAttemptedRef.current = true;
-    handleRetryCloudConnection({ silent: true });
-  }, [hasResolvedActiveStore, isCloudBlocked]);
-
   return (
     <>
       <ScrollView
@@ -404,31 +324,6 @@ export const StoreManagementScreen = () => {
             </Text>
           </View>
         </View>
-
-        {isCloudBlocked && (
-          <View style={styles.warningCard}>
-            <Text style={styles.warningTitle}>
-              {hasResolvedActiveStore
-                ? "Tienda resuelta, acceso cloud bloqueado"
-                : "Sin tienda activa en Firestore"}
-            </Text>
-            <Text style={styles.warningText}>
-              {hasResolvedActiveStore
-                ? "Tu perfil ya resolvió una tienda activa y por eso aparece como Activa más abajo. Lo que sigue fallando es el acceso a parte de la data cloud de esa tienda en esta sesión, normalmente por permisos sobre documentos dentro de stores/{storeId}."
-                : "Los datos que guardaste en el onboarding quedaron en la base local, pero no se creó la tienda en la nube porque Firestore sigue rechazando permisos en esta sesión. Hasta que eso se resuelva, aquí vas a ver Sin tienda."}
-            </Text>
-            <TouchableOpacity
-              style={[styles.retryButton, submitting && styles.buttonDisabled]}
-              onPress={handleRetryCloudConnection}
-              disabled={submitting}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.retryButtonText}>
-                Reintentar conexión cloud
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {(storeLoading || loadingData) && (
           <View style={styles.loadingBox}>
@@ -511,20 +406,13 @@ export const StoreManagementScreen = () => {
           <TouchableOpacity
             style={[
               styles.primaryButton,
-              (!newStoreName.trim() || submitting || isCloudBlocked) &&
-                styles.buttonDisabled,
+              (!newStoreName.trim() || submitting) && styles.buttonDisabled,
             ]}
             onPress={handleCreateStore}
-            disabled={!newStoreName.trim() || submitting || isCloudBlocked}
+            disabled={!newStoreName.trim() || submitting}
           >
             <Text style={styles.primaryButtonText}>Crear tienda</Text>
           </TouchableOpacity>
-          {isCloudBlocked && (
-            <Text style={styles.helperText}>
-              Debes corregir los permisos de Firestore y volver a iniciar sesión
-              antes de crear la tienda en la nube.
-            </Text>
-          )}
         </View>
 
         <View style={styles.card}>

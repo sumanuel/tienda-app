@@ -1,6 +1,5 @@
 import { collection, doc } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
-import { isCloudAccessAllowed } from "../firebase/cloudAccess";
 import { getActiveStoreId } from "./storeSession";
 
 const normalizeValue = (value) => String(value || "").trim();
@@ -22,11 +21,7 @@ export const getActiveStoreIdOrThrow = (storeId = getActiveStoreId()) => {
 };
 
 export const hasActiveStoreContext = (storeId = getActiveStoreId()) =>
-  Boolean(
-    isCloudAccessAllowed() &&
-    normalizeValue(auth.currentUser?.uid) &&
-    normalizeValue(storeId),
-  );
+  Boolean(normalizeValue(auth.currentUser?.uid) && normalizeValue(storeId));
 
 export const getUserDocRef = (uid = auth.currentUser?.uid) =>
   doc(firestore, "users", getCurrentUserIdOrThrow(uid));

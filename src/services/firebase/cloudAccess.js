@@ -53,14 +53,9 @@ export const handleCloudAccessError = (error, context = "cloud") => {
     return false;
   }
 
-  const alreadyDisabled = cloudAccessDisabled;
-  disableCloudAccessForSession(`${context}:permission-denied`);
-
-  if (!alreadyDisabled) {
-    console.warn(
-      `Cloud access disabled for this session after permission error in ${context}. Falling back to local database.`,
-    );
-  }
+  console.warn(
+    `Cloud access error detected in ${context}. The operation will resolve its own fallback without disabling Firestore for the whole session.`,
+  );
 
   return true;
 };

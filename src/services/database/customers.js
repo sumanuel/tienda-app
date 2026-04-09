@@ -263,7 +263,7 @@ export const initCustomersTable = async () => {
     );
   } catch (error) {
     if (handleCloudAccessError(error, "customers:getAll")) {
-      return await getAllCustomers();
+      return;
     }
     throw error;
   }

@@ -18,7 +18,6 @@ import {
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, firestore } from "../services/firebase/firebase";
 import {
-  disableCloudAccessForSession,
   isPermissionDeniedError,
   resetCloudAccessForSession,
 } from "../services/firebase/cloudAccess";
@@ -191,8 +190,6 @@ export const AuthProvider = ({ children }) => {
         setLastSyncResult(result);
       } catch (error) {
         if (isPermissionDeniedError(error)) {
-          disableCloudAccessForSession("auth-state");
-
           if (resolvedStoreContext?.activeStoreId) {
             await configureStoreDatabase({
               userId: nextUser.uid,
@@ -223,7 +220,7 @@ export const AuthProvider = ({ children }) => {
 
           setLastSyncResult({
             skipped: true,
-            reason: "cloud-permission-denied",
+            reason: "cloud-sync-permission-denied",
           });
           return;
         }

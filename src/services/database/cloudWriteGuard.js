@@ -8,9 +8,9 @@ export const hasResolvedSharedStore = () =>
   );
 
 export const assertSharedStoreCloudWriteAvailable = () => {
-  if (hasResolvedSharedStore()) {
+  if (!hasResolvedSharedStore()) {
     throw new Error(
-      "La tienda está en modo local para esta sesión. Este cambio no se guardaría en Firestore ni se vería en otros usuarios. Reintenta la conexión cloud antes de continuar.",
+      "No hay una tienda activa disponible para guardar este cambio en Firestore.",
     );
   }
 };

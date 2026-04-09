@@ -271,7 +271,7 @@ export const initSalesTable = async () => {
     );
   } catch (error) {
     if (handleCloudAccessError(error, "sales:getAll")) {
-      return await getAllSales(limit);
+      return;
     }
     throw error;
   }
@@ -360,7 +360,7 @@ export const insertSale = async (sale, items) => {
     return { id: saleId, saleNumber };
   } catch (error) {
     if (handleCloudAccessError(error, "sales:getToday")) {
-      return await getTodaySales();
+      throw error;
     }
     throw error;
   }
@@ -550,7 +550,15 @@ export const getTodaySales = async () => {
     return result;
   } catch (error) {
     if (handleCloudAccessError(error, "sales:getToday")) {
-      return await getTodaySales();
+      const { startIso, endIso } = getTodayUtcRangeForDevice();
+      return await db.getFirstAsync(
+        `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total
+         FROM sales
+         WHERE datetime(createdAt) >= datetime(?)
+           AND datetime(createdAt) < datetime(?)
+           AND status = 'completed';`,
+        [startIso, endIso],
+      );
     }
     throw error;
   }
