@@ -22,6 +22,7 @@ import {
   listDuplicateOwnerStoresForCurrentUser,
   listMembersForStore,
   listPendingInvitesForCurrentUser,
+  renameActiveStoreForCurrentUser,
 } from "../../services/store/storeCollaborationService";
 import {
   hs,
@@ -37,6 +38,9 @@ const canManageCollaborators = (membership) => {
   const role = String(membership?.role || "").trim();
   return role === "owner" || role === "admin";
 };
+
+const isOwner = (membership) =>
+  String(membership?.role || "").trim() === "owner";
 
 const formatRole = (role) => {
   const map = {
@@ -77,6 +81,7 @@ export const StoreManagementScreen = () => {
   const [storeInvites, setStoreInvites] = useState([]);
   const [incomingInvites, setIncomingInvites] = useState([]);
   const [newStoreName, setNewStoreName] = useState("");
+  const [renameStoreName, setRenameStoreName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("seller");
   const [duplicateStores, setDuplicateStores] = useState([]);
@@ -91,6 +96,10 @@ export const StoreManagementScreen = () => {
     [memberships, activeStoreId],
   );
   const hasAnyMembership = memberships.length > 0;
+
+  useEffect(() => {
+    setRenameStoreName(activeMembership?.storeName || "");
+  }, [activeMembership?.storeName]);
 
   const loadData = async () => {
     try {
@@ -211,6 +220,33 @@ export const StoreManagementScreen = () => {
       showAlert({
         title: "Error",
         message: getStoreErrorMessage(error, "No se pudo crear la invitación."),
+        type: "error",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRenameStore = async () => {
+    try {
+      setSubmitting(true);
+      const renamedStore =
+        await renameActiveStoreForCurrentUser(renameStoreName);
+      await refreshStoreContext(activeStoreId);
+      await loadData();
+      showAlert({
+        title: "Tienda actualizada",
+        message: `El nuevo nombre es ${renamedStore.storeName}.`,
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error renaming store:", error);
+      showAlert({
+        title: "Error",
+        message: getStoreErrorMessage(
+          error,
+          "No se pudo cambiar el nombre de la tienda.",
+        ),
         type: "error",
       });
     } finally {
@@ -414,6 +450,30 @@ export const StoreManagementScreen = () => {
             <Text style={styles.primaryButtonText}>Crear tienda</Text>
           </TouchableOpacity>
         </View>
+
+        {isOwner(activeMembership) && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Renombrar tienda activa</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nuevo nombre de la tienda"
+              placeholderTextColor="#8a94a6"
+              value={renameStoreName}
+              onChangeText={setRenameStoreName}
+            />
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                (!renameStoreName.trim() || submitting) &&
+                  styles.buttonDisabled,
+              ]}
+              onPress={handleRenameStore}
+              disabled={!renameStoreName.trim() || submitting}
+            >
+              <Text style={styles.primaryButtonText}>Guardar nuevo nombre</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Invitaciones recibidas</Text>

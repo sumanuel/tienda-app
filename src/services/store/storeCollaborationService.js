@@ -10,6 +10,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
 import {
@@ -364,6 +365,89 @@ export const createStoreForCurrentUser = async (
     rif: store.rif,
     address: store.address,
     role: "owner",
+  };
+};
+
+export const renameActiveStoreForCurrentUser = async (nextStoreName) => {
+  const user = auth.currentUser;
+  const uid = getCurrentUserIdOrThrow(user?.uid);
+  const storeId = getActiveStoreIdOrThrow();
+  const normalizedStoreName = normalizeText(nextStoreName);
+
+  if (!normalizedStoreName) {
+    throw new Error("El nombre de la tienda es obligatorio.");
+  }
+
+  const membershipSnapshot = await getDoc(
+    getUserMembershipDocRef(uid, storeId),
+  );
+  const membershipRole = normalizeText(membershipSnapshot.data()?.role);
+
+  if (membershipRole !== "owner") {
+    throw new Error(
+      "Solo el propietario puede cambiar el nombre de esta tienda.",
+    );
+  }
+
+  const [membersSnapshot, invitesSnapshot] = await Promise.all([
+    getDocs(collection(firestore, "stores", storeId, "members")),
+    getDocs(collection(firestore, "stores", storeId, "invites")),
+  ]);
+
+  const batch = writeBatch(firestore);
+  const updatedAt = serverTimestamp();
+
+  batch.set(
+    getStoreDocRef(storeId),
+    {
+      name: normalizedStoreName,
+      updatedAt,
+    },
+    { merge: true },
+  );
+
+  batch.set(
+    getUserMembershipDocRef(uid, storeId),
+    {
+      storeName: normalizedStoreName,
+      updatedAt,
+    },
+    { merge: true },
+  );
+
+  membersSnapshot.docs.forEach((memberDoc) => {
+    const memberUid = normalizeText(memberDoc.data()?.uid || memberDoc.id);
+    if (!memberUid) {
+      return;
+    }
+
+    batch.set(
+      getUserMembershipDocRef(memberUid, storeId),
+      {
+        storeId,
+        storeName: normalizedStoreName,
+        updatedAt,
+      },
+      { merge: true },
+    );
+  });
+
+  invitesSnapshot.docs.forEach((inviteDoc) => {
+    batch.set(
+      inviteDoc.ref,
+      {
+        storeName: normalizedStoreName,
+        updatedAt,
+      },
+      { merge: true },
+    );
+  });
+
+  await batch.commit();
+
+  return {
+    storeId,
+    storeName: normalizedStoreName,
   };
 };
 
