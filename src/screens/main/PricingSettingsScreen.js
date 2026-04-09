@@ -241,7 +241,8 @@ export const PricingSettingsScreen = () => {
       console.error("Error saving pricing settings:", error);
       showAlert({
         title: "Error",
-        message: "No pudimos actualizar los datos de márgenes",
+        message:
+          error?.message || "No pudimos actualizar los datos de márgenes",
         type: "error",
       });
     } finally {
@@ -282,7 +283,7 @@ export const PricingSettingsScreen = () => {
       console.error("Error saving inventory settings:", error);
       showAlert({
         title: "Error",
-        message: "No pudimos actualizar el umbral de stock",
+        message: error?.message || "No pudimos actualizar el umbral de stock",
         type: "error",
       });
     } finally {

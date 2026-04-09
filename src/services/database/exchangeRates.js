@@ -13,6 +13,7 @@ import {
   getStoreCollectionRef,
   hasActiveStoreContext,
 } from "../store/storeRefs";
+import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 
 const cloudExchangeRatesSeeded = new Set();
 
@@ -139,6 +140,10 @@ export const getActiveExchangeRate = async () => {
 export const insertExchangeRate = async (source, rate) => {
   try {
     console.log(`Inserting exchange rate: ${source} = ${rate}`);
+
+    if (!isCloudExchangeRatesEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
 
     if (isCloudExchangeRatesEnabled()) {
       await ensureCloudExchangeRatesSeeded();

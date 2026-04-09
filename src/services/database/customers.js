@@ -13,6 +13,7 @@ import {
   getNextCloudConsecutive,
   parseConsecutiveSequence,
 } from "./consecutives";
+import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 import {
   getActiveStoreSeedKey,
   getStoreCollectionRef,
@@ -382,6 +383,10 @@ export const getCustomerByDocumentNumber = async (documentNumber) => {
  */
 export const createGenericCustomer = async () => {
   try {
+    if (!isCloudCustomersEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     // Verificar si ya existe el cliente genérico
     const existing = await getCustomerByDocumentNumber("1");
     if (existing) {
@@ -436,6 +441,10 @@ export const createGenericCustomer = async () => {
  */
 export const insertCustomer = async (customer) => {
   try {
+    if (!isCloudCustomersEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudCustomersEnabled()) {
       await ensureCloudCustomersSeeded();
       const now = new Date().toISOString();
@@ -492,6 +501,10 @@ export const insertCustomer = async (customer) => {
  */
 export const updateCustomer = async (id, customer) => {
   try {
+    if (!isCloudCustomersEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudCustomersEnabled()) {
       await ensureCloudCustomersSeeded();
       await setDoc(
@@ -532,6 +545,10 @@ export const updateCustomer = async (id, customer) => {
  */
 export const deleteCustomer = async (id) => {
   try {
+    if (!isCloudCustomersEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     // Verificar si el cliente tiene cuentas por cobrar pendientes
     const accountsResult = await db.getAllAsync(
       "SELECT COUNT(*) as count FROM accounts_receivable WHERE customerId = ? AND status != 'paid' AND COALESCE(paidAmount, 0) < amount;",
@@ -567,6 +584,10 @@ export const deleteCustomer = async (id) => {
  */
 export const cleanDuplicateCustomers = async () => {
   try {
+    if (!isCloudCustomersEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudCustomersEnabled()) {
       await ensureCloudCustomersSeeded();
       const customers = (await getCloudCustomers()).filter(
@@ -581,8 +602,15 @@ export const cleanDuplicateCustomers = async () => {
       }, {});
 
       let cleanedCount = 0;
-      const salesSnapshot = await getDocs(getSalesCollectionRef());
+      const [salesSnapshot, receivableSnapshot] = await Promise.all([
+        getDocs(getSalesCollectionRef()),
+        getDocs(getReceivableCollectionRef()),
+      ]);
       const sales = salesSnapshot.docs.map((item) => item.data());
+      const receivables = receivableSnapshot.docs.map((item) => ({
+        ref: item.ref,
+        data: item.data() || {},
+      }));
 
       for (const group of Object.values(groups)) {
         if (group.length <= 1) continue;
@@ -592,20 +620,31 @@ export const cleanDuplicateCustomers = async () => {
         const duplicates = sorted.slice(0, -1);
 
         for (const duplicate of duplicates) {
-          await updateDoc(
+          const batch = writeBatch(firestore);
+          batch.set(
             doc(getCustomersCollectionRef(), String(duplicate.id)),
             {
               active: 0,
               updatedAt: new Date().toISOString(),
             },
+            { merge: true },
           );
 
-          await db.runAsync(
-            "UPDATE accounts_receivable SET customerId = ?, updatedAt = CURRENT_TIMESTAMP WHERE customerId = ?;",
-            [keep.id, duplicate.id],
-          );
+          receivables
+            .filter(
+              ({ data }) => Number(data.customerId) === Number(duplicate.id),
+            )
+            .forEach(({ ref }) => {
+              batch.set(
+                ref,
+                {
+                  customerId: keep.id,
+                  updatedAt: new Date().toISOString(),
+                },
+                { merge: true },
+              );
+            });
 
-          const batch = writeBatch(firestore);
           sales
             .filter((sale) => Number(sale.customerId) === Number(duplicate.id))
             .forEach((sale) => {
@@ -678,6 +717,10 @@ export const cleanDuplicateCustomers = async () => {
  */
 export const recoverDeletedCustomers = async () => {
   try {
+    if (!isCloudCustomersEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudCustomersEnabled()) {
       await ensureCloudCustomersSeeded();
       const customers = await getCloudCustomers();

@@ -249,7 +249,7 @@ export const SalesScreen = () => {
             } catch (error) {
               showAlert({
                 title: "Error",
-                message: "No se pudo anular la venta",
+                message: error?.message || "No se pudo anular la venta",
                 type: "error",
               });
             }

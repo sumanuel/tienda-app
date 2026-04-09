@@ -21,6 +21,7 @@ import {
   getStoreDocRef,
   hasActiveStoreContext,
 } from "../store/storeRefs";
+import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 
 let productsColumnsChecked = false;
 let productsHasAdditionalCostColumn = false;
@@ -628,6 +629,8 @@ export const searchProducts = async (query) => {
  */
 export const insertProduct = async (product) => {
   try {
+    assertSharedStoreCloudWriteAvailable();
+
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
       const now = new Date().toISOString();
@@ -693,6 +696,8 @@ export const insertProduct = async (product) => {
  */
 export const updateProduct = async (id, product) => {
   try {
+    assertSharedStoreCloudWriteAvailable();
+
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
       const payload = normalizeProductRecord({
@@ -740,6 +745,8 @@ export const updateProduct = async (id, product) => {
  */
 export const updateProductStock = async (id, newStock) => {
   try {
+    assertSharedStoreCloudWriteAvailable();
+
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
       await updateDoc(doc(getProductsCollectionRef(), String(id)), {
@@ -764,6 +771,8 @@ export const updateProductStock = async (id, newStock) => {
  */
 export const deleteProduct = async (id) => {
   try {
+    assertSharedStoreCloudWriteAvailable();
+
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
       await updateDoc(doc(getProductsCollectionRef(), String(id)), {
@@ -814,6 +823,10 @@ export const getLowStockProducts = async () => {
  */
 export const initSampleProducts = async () => {
   try {
+    if (!isCloudProductsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     // Evitar poblar productos “fantasma” fuera de desarrollo
     if (!__DEV__) {
       return;
@@ -920,6 +933,10 @@ export const initSampleProducts = async () => {
  */
 export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
   try {
+    if (!isCloudProductsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
       const products = await getCloudProducts();
@@ -1021,6 +1038,8 @@ export const insertInventoryMovement = async (
   notes = null,
 ) => {
   try {
+    assertSharedStoreCloudWriteAvailable();
+
     const newStock =
       type === "entry" ? previousStock + quantity : previousStock - quantity;
 

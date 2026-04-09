@@ -103,7 +103,7 @@ export const BusinessSettingsScreen = () => {
       console.error("Error saving business data:", error);
       showAlert({
         title: "Error",
-        message: "No se pudieron guardar los cambios",
+        message: error?.message || "No se pudieron guardar los cambios",
         type: "error",
       });
     } finally {

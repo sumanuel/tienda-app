@@ -12,6 +12,7 @@ import {
   getStoreCollectionRef,
   hasActiveStoreContext,
 } from "../store/storeRefs";
+import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 
 const cloudMobilePaymentsSeeded = new Set();
 
@@ -95,6 +96,10 @@ export const insertMobilePayment = async ({
     throw new Error("Monto inválido");
   }
 
+  if (!isCloudMobilePaymentsEnabled()) {
+    assertSharedStoreCloudWriteAvailable();
+  }
+
   if (isCloudMobilePaymentsEnabled()) {
     await ensureCloudMobilePaymentsSeeded();
     const id = createCloudNumericId();
@@ -167,6 +172,10 @@ export const verifyMobilePayment = async (id) => {
   const numericId = Number(id);
   if (!Number.isFinite(numericId) || numericId <= 0) {
     throw new Error("ID inválido");
+  }
+
+  if (!isCloudMobilePaymentsEnabled()) {
+    assertSharedStoreCloudWriteAvailable();
   }
 
   if (isCloudMobilePaymentsEnabled()) {

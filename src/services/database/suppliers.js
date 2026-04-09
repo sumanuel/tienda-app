@@ -19,6 +19,7 @@ import {
   getStoreDocRef,
   hasActiveStoreContext,
 } from "../store/storeRefs";
+import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 
 const cloudSuppliersSeeded = new Set();
 
@@ -307,6 +308,10 @@ export const searchSuppliers = async (query) => {
  */
 export const insertSupplier = async (supplier) => {
   try {
+    if (!isCloudSuppliersEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudSuppliersEnabled()) {
       await ensureCloudSuppliersSeeded();
       const now = new Date().toISOString();
@@ -362,6 +367,10 @@ export const insertSupplier = async (supplier) => {
  */
 export const updateSupplier = async (id, supplier) => {
   try {
+    if (!isCloudSuppliersEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudSuppliersEnabled()) {
       await ensureCloudSuppliersSeeded();
       await setDoc(
@@ -403,6 +412,10 @@ export const updateSupplier = async (id, supplier) => {
  */
 export const deleteSupplier = async (id) => {
   try {
+    if (!isCloudSuppliersEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudSuppliersEnabled()) {
       await ensureCloudSuppliersSeeded();
       await updateDoc(doc(getSuppliersCollectionRef(), String(id)), {

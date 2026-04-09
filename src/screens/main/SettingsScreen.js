@@ -125,7 +125,7 @@ export const SettingsScreen = () => {
       console.error("Error saving inventory settings:", error);
       showAlert({
         title: "Error",
-        message: "No pudimos actualizar el umbral de stock",
+        message: error?.message || "No pudimos actualizar el umbral de stock",
         type: "error",
       });
     } finally {

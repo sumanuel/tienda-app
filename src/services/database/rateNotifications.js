@@ -13,6 +13,7 @@ import {
   getStoreCollectionRef,
   hasActiveStoreContext,
 } from "../store/storeRefs";
+import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 
 const TABLE = "rate_notifications";
 const cloudRateNotificationsSeeded = new Set();
@@ -95,6 +96,10 @@ export const insertRateNotification = async ({
     throw new Error("Message is required");
   }
 
+  if (!isCloudRateNotificationsEnabled()) {
+    assertSharedStoreCloudWriteAvailable();
+  }
+
   if (isCloudRateNotificationsEnabled()) {
     await ensureCloudRateNotificationsSeeded();
     const id = createCloudNumericId();
@@ -138,6 +143,10 @@ export const getRateNotifications = async ({ limit = 100 } = {}) => {
 
 export const deleteRateNotification = async (id) => {
   if (!id) return false;
+
+  if (!isCloudRateNotificationsEnabled()) {
+    assertSharedStoreCloudWriteAvailable();
+  }
 
   if (isCloudRateNotificationsEnabled()) {
     await ensureCloudRateNotificationsSeeded();

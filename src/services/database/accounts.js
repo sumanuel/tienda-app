@@ -15,6 +15,7 @@ import {
   getNextCloudConsecutive,
   parseConsecutiveSequence,
 } from "./consecutives";
+import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 import {
   getActiveStoreSeedKey,
   getStoreCollectionRef,
@@ -642,6 +643,10 @@ export const getAccountsPayableStats = async () => {
  */
 export const createAccountReceivable = async (accountData) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const existingAccounts = await getCloudAccounts("receivable");
@@ -720,6 +725,10 @@ export const createAccountReceivable = async (accountData) => {
  */
 export const createAccountPayable = async (accountData) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const existingAccounts = await getCloudAccounts("payable");
@@ -798,6 +807,10 @@ export const createAccountPayable = async (accountData) => {
  */
 export const updateAccountReceivable = async (id, accountData) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       await setDoc(
@@ -853,6 +866,10 @@ export const updateAccountReceivable = async (id, accountData) => {
  */
 export const updateAccountPayable = async (id, accountData) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       await setDoc(
@@ -904,6 +921,10 @@ export const updateAccountPayable = async (id, accountData) => {
  */
 export const markAccountReceivableAsPaid = async (id) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const ref = doc(getReceivableCollectionRef(), String(id));
@@ -937,6 +958,10 @@ export const markAccountReceivableAsPaid = async (id) => {
  */
 export const markAccountPayableAsPaid = async (id) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const ref = doc(getPayableCollectionRef(), String(id));
@@ -970,6 +995,10 @@ export const markAccountPayableAsPaid = async (id) => {
  */
 export const deleteAccountReceivable = async (id) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const payments = await getCloudPayments();
@@ -1005,6 +1034,10 @@ export const deleteAccountReceivable = async (id) => {
  */
 export const deleteAccountPayable = async (id) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const payments = await getCloudPayments();
@@ -1044,6 +1077,10 @@ export const recordAccountPayment = async (
   accountType = "receivable",
 ) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
 
@@ -1284,6 +1321,10 @@ export const getAccountBalance = async (
  */
 export const fixCorruptedAccountData = async () => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
 
@@ -1467,6 +1508,10 @@ export const fixCorruptedAccountData = async () => {
 
 export const updateReceivableAmountsOnRateChange = async (newRate) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const accounts = await getCloudAccounts("receivable");
@@ -1549,6 +1594,10 @@ export const updateReceivableAmountsOnRateChange = async (newRate) => {
  */
 export const updatePayableAmountsOnRateChange = async (newRate) => {
   try {
+    if (!isCloudAccountsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const accounts = await getCloudAccounts("payable");

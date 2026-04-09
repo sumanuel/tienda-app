@@ -258,7 +258,7 @@ export const AddProductScreen = ({ navigation }) => {
       console.error("Error adding product:", error);
       showAlert({
         title: "Error",
-        message: "No se pudo agregar el producto",
+        message: error?.message || "No se pudo agregar el producto",
         type: "error",
       });
     } finally {

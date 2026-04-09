@@ -1,5 +1,6 @@
 import { db } from "./db";
 import {
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -14,6 +15,7 @@ import {
   getNextCloudConsecutive,
   parseConsecutiveSequence,
 } from "./consecutives";
+import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 import {
   getActiveStoreSeedKey,
   getStoreCollectionRef,
@@ -280,6 +282,10 @@ export const initSalesTable = async () => {
  */
 export const insertSale = async (sale, items) => {
   try {
+    if (!isCloudSalesEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
       const existingSales = await getCloudSales();
@@ -555,6 +561,10 @@ export const getTodaySales = async () => {
  */
 export const cancelSale = async (saleId) => {
   try {
+    if (!isCloudSalesEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
       await updateDoc(doc(getSalesCollectionRef(), String(saleId)), {
@@ -578,6 +588,16 @@ export const cancelSale = async (saleId) => {
  */
 export const deleteSaleById = async (saleId) => {
   try {
+    if (!isCloudSalesEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
+    if (isCloudSalesEnabled()) {
+      await ensureCloudSalesSeeded();
+      await deleteDoc(doc(getSalesCollectionRef(), String(saleId)));
+      return 1;
+    }
+
     // Primero eliminar items de venta
     await db.runAsync("DELETE FROM sale_items WHERE saleId = ?;", [saleId]);
 

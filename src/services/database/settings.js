@@ -2,6 +2,7 @@ import { db } from "./db";
 import { getDoc, setDoc } from "firebase/firestore";
 import { auth } from "../firebase/firebase";
 import { handleCloudAccessError } from "../firebase/cloudAccess";
+import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 import {
   getStoreDocRef,
   getStoreNestedDocRef,
@@ -250,6 +251,10 @@ export const ensureSettingsDefaults = async () => {
  */
 export const saveSettings = async (settings) => {
   try {
+    if (!isCloudSettingsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
     await persistSettingsLocally(settings);
 
     if (isCloudSettingsEnabled()) {
@@ -293,7 +298,7 @@ export const saveSettings = async (settings) => {
       return await saveSettings(settings);
     }
     console.error("Error saving settings:", error);
-    return false;
+    throw error;
   }
 };
 
@@ -308,7 +313,7 @@ export const updateSetting = async (key, value) => {
     return true;
   } catch (error) {
     console.error("Error updating setting:", error);
-    return false;
+    throw error;
   }
 };
 
@@ -381,7 +386,7 @@ export const resetSettings = async () => {
     return true;
   } catch (error) {
     console.error("Error resetting settings:", error);
-    return false;
+    throw error;
   }
 };
 
