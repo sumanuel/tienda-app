@@ -200,7 +200,7 @@ export const ensureUserStoreContext = async (user, options = {}) => {
     (item) => item.status !== "inactive" && item.cloudAccessible !== false,
   );
 
-  if (memberships.length === 0 || availableMemberships.length === 0) {
+  if (memberships.length === 0) {
     clearStoreSession();
     await setDoc(
       userRef,
@@ -219,6 +219,60 @@ export const ensureUserStoreContext = async (user, options = {}) => {
       activeStore: null,
       defaultStore: null,
       requiresStoreSetup: true,
+      userData,
+    };
+  }
+
+  if (availableMemberships.length === 0) {
+    const fallbackMemberships = sortMemberships(
+      memberships.filter((item) => item.status !== "inactive"),
+    );
+    const requestedStoreId = normalizeValue(options.preferredStoreId);
+    const persistedActiveStoreId = normalizeValue(userData?.activeStoreId);
+    const persistedDefaultStoreId = normalizeValue(userData?.defaultStoreId);
+
+    const fallbackActiveMembership =
+      fallbackMemberships.find((item) => item.storeId === requestedStoreId) ||
+      fallbackMemberships.find(
+        (item) => item.storeId === persistedActiveStoreId,
+      ) ||
+      fallbackMemberships[0] ||
+      null;
+
+    const fallbackDefaultMembership =
+      fallbackMemberships.find(
+        (item) => item.storeId === persistedDefaultStoreId,
+      ) ||
+      fallbackMemberships.find((item) => item.role === "owner") ||
+      fallbackActiveMembership;
+
+    if (!fallbackActiveMembership) {
+      clearStoreSession();
+      return {
+        userId: uid,
+        activeStoreId: null,
+        defaultStoreId: null,
+        memberships: fallbackMemberships,
+        activeStore: null,
+        defaultStore: null,
+        requiresStoreSetup: false,
+        userData,
+      };
+    }
+
+    const session = setStoreSession({
+      userId: uid,
+      activeStoreId: fallbackActiveMembership.storeId,
+      defaultStoreId:
+        fallbackDefaultMembership?.storeId || fallbackActiveMembership.storeId,
+    });
+
+    return {
+      ...session,
+      memberships: fallbackMemberships,
+      activeStore: fallbackActiveMembership,
+      defaultStore: fallbackDefaultMembership,
+      requiresStoreSetup: false,
       userData,
     };
   }

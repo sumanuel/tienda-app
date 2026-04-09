@@ -13,6 +13,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
   getCloudAccessState,
+  handleCloudAccessError,
   resetCloudAccessForSession,
 } from "../../services/firebase/cloudAccess";
 import {
@@ -122,6 +123,13 @@ export const StoreManagementScreen = () => {
       setMembers(nextMembers);
       setStoreInvites(nextStoreInvites);
     } catch (error) {
+      if (handleCloudAccessError(error, "stores:management-load")) {
+        setIncomingInvites([]);
+        setMembers([]);
+        setStoreInvites([]);
+        return;
+      }
+
       console.error("Error loading store management data:", error);
       showAlert({
         title: "Error",
