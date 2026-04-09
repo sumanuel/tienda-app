@@ -597,6 +597,8 @@ function AppContent() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingInitialStep, setOnboardingInitialStep] = useState("slides");
+  const initializingRef = useRef(false);
+  const initializedKeyRef = useRef("");
   const {
     user,
     authLoading,
@@ -640,14 +642,6 @@ function AppContent() {
     return () => sub.remove();
   }, [applyImmersiveMode]);
 
-  useEffect(() => {
-    if (authLoading || storeLoading) {
-      return;
-    }
-
-    initializeApp();
-  }, [authLoading, storeLoading, user?.uid, activeStoreId]);
-
   /**
    * Resetea el onboarding para mostrarlo nuevamente
    */
@@ -671,6 +665,18 @@ function AppContent() {
    * Inicializa la aplicación y la base de datos
    */
   const initializeApp = async () => {
+    const initializationKey = `${String(user?.uid || "anon")}:${String(activeStoreId || "no-store")}:${requiresStoreSetup ? "needs-store" : "ready"}`;
+
+    if (
+      initializingRef.current &&
+      initializedKeyRef.current === initializationKey
+    ) {
+      return;
+    }
+
+    initializingRef.current = true;
+    initializedKeyRef.current = initializationKey;
+
     try {
       setIsReady(false);
 
@@ -796,8 +802,18 @@ function AppContent() {
     } catch (error) {
       console.error("Error initializing app:", error);
       setIsReady(true); // Continuar aunque haya error
+    } finally {
+      initializingRef.current = false;
     }
   };
+
+  useEffect(() => {
+    if (authLoading || storeLoading) {
+      return;
+    }
+
+    initializeApp();
+  }, [authLoading, storeLoading, user?.uid, activeStoreId, requiresStoreSetup]);
 
   if (!isReady || authLoading || storeLoading) {
     return (
