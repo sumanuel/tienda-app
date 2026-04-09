@@ -9,24 +9,38 @@ import {
   updateReceivableAmountsOnRateChange,
   updatePayableAmountsOnRateChange,
 } from "../services/database/accounts";
+import { useAuth } from "./AuthContext";
 
 // Crear el contexto
 const ExchangeRateContext = createContext();
 
 // Provider del contexto
 export const ExchangeRateProvider = ({ children }) => {
+  const { user, activeStoreId, authLoading, storeLoading } = useAuth();
   const [rate, setRate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
 
-  // Cargar tasa inicial con un pequeño delay para asegurar que las tablas existan
+  // Recargar la tasa cuando cambia la sesión o la tienda activa.
   useEffect(() => {
+    if (authLoading || storeLoading) {
+      return;
+    }
+
+    if (!user?.uid || !activeStoreId) {
+      setRate(null);
+      setLastUpdate(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     const timer = setTimeout(() => {
       loadCurrentRate();
     }, 100);
     return () => clearTimeout(timer);
-  }, []);
+  }, [user?.uid, activeStoreId, authLoading, storeLoading]);
 
   /**
    * Carga la tasa actual de la base de datos
@@ -44,6 +58,8 @@ export const ExchangeRateProvider = ({ children }) => {
         setLastUpdate(new Date(currentRate.createdAt));
       } else {
         console.log("No rate found in DB, using default");
+        setRate(null);
+        setLastUpdate(null);
       }
     } catch (err) {
       setError(err.message);
@@ -72,7 +88,7 @@ export const ExchangeRateProvider = ({ children }) => {
       } catch (recalcError) {
         console.warn(
           "Error recalculating accounts on rate update:",
-          recalcError
+          recalcError,
         );
       }
 
@@ -106,7 +122,7 @@ export const ExchangeRateProvider = ({ children }) => {
       } catch (recalcError) {
         console.warn(
           "Error recalculating accounts on manual rate:",
-          recalcError
+          recalcError,
         );
       }
 
@@ -151,7 +167,7 @@ export const useExchangeRateContext = () => {
   const context = useContext(ExchangeRateContext);
   if (!context) {
     throw new Error(
-      "useExchangeRateContext must be used within an ExchangeRateProvider"
+      "useExchangeRateContext must be used within an ExchangeRateProvider",
     );
   }
   return context;
@@ -165,9 +181,12 @@ export const useExchangeRate = (settings = {}) => {
   useEffect(() => {
     if (!settings.autoUpdate) return;
 
-    const interval = setInterval(() => {
-      context.updateRate("BCV");
-    }, (settings.updateInterval || 30) * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        context.updateRate("BCV");
+      },
+      (settings.updateInterval || 30) * 60 * 1000,
+    );
 
     return () => clearInterval(interval);
   }, [settings.autoUpdate, settings.updateInterval, context]);

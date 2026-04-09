@@ -1,6 +1,7 @@
 import { db } from "./db";
 import {
   doc,
+  getDoc,
   getDocs,
   setDoc,
   updateDoc,
@@ -11,6 +12,8 @@ import { handleCloudAccessError } from "../firebase/cloudAccess";
 import {
   getActiveStoreSeedKey,
   getStoreCollectionRef,
+  getStoreNestedDocRef,
+  getUserMembershipDocRef,
   hasActiveStoreContext,
 } from "../store/storeRefs";
 import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
@@ -30,6 +33,34 @@ const createCloudNumericId = () =>
 const getExchangeRatesCollectionRef = () =>
   getStoreCollectionRef("exchange_rates");
 
+const getSettingsDocRef = () =>
+  getStoreNestedDocRef(["settings", "app_settings"]);
+
+const canManageCloudExchangeRates = async () => {
+  if (!isCloudExchangeRatesEnabled()) {
+    return false;
+  }
+
+  try {
+    const membershipSnapshot = await getDoc(
+      getUserMembershipDocRef(auth.currentUser?.uid),
+    );
+
+    if (!membershipSnapshot.exists()) {
+      return false;
+    }
+
+    const role = String(membershipSnapshot.data()?.role || "")
+      .trim()
+      .toLowerCase();
+
+    return role === "owner" || role === "admin";
+  } catch (error) {
+    console.warn("Error resolving exchange rate permissions:", error);
+    return false;
+  }
+};
+
 const normalizeExchangeRateRecord = (rate = {}) => ({
   id: Number(rate.id) || createCloudNumericId(),
   source: String(rate.source || "MANUAL").trim(),
@@ -47,6 +78,98 @@ const sortExchangeRatesByDateDesc = (items = []) =>
       new Date(a.createdAt || 0).getTime(),
   );
 
+const buildFallbackRateRecord = (settings = {}) => {
+  const explicitRate = Number(settings?.exchange?.lastKnownRate);
+  const pricingRate = Number(settings?.pricing?.currencies?.USD);
+  const hasExplicitRate = Number.isFinite(explicitRate) && explicitRate > 0;
+  const hasCustomizedPricingRate =
+    Number.isFinite(pricingRate) && pricingRate > 0 && pricingRate !== 280;
+
+  const resolvedRate = hasExplicitRate
+    ? explicitRate
+    : hasCustomizedPricingRate
+      ? pricingRate
+      : 0;
+
+  if (!resolvedRate) {
+    return null;
+  }
+
+  return normalizeExchangeRateRecord({
+    id: Number(settings?.exchange?.lastKnownRateId) || createCloudNumericId(),
+    source: String(settings?.exchange?.lastKnownRateSource || "SETTINGS")
+      .trim()
+      .toUpperCase(),
+    rate: resolvedRate,
+    fromCurrency: "USD",
+    toCurrency: "VES",
+    isActive: 1,
+    createdAt:
+      settings?.exchange?.lastRateUpdatedAt ||
+      settings?.updatedAt ||
+      new Date().toISOString(),
+  });
+};
+
+const getFallbackRateFromCloudSettings = async () => {
+  if (!isCloudExchangeRatesEnabled()) {
+    return null;
+  }
+
+  const snapshot = await getDoc(getSettingsDocRef());
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  return buildFallbackRateRecord(snapshot.data() || {});
+};
+
+const getFallbackRateFromLocalSettings = async () => {
+  const result = await db.getFirstAsync(
+    "SELECT value FROM settings WHERE key = 'app_settings' LIMIT 1;",
+  );
+
+  if (!result?.value) {
+    return null;
+  }
+
+  try {
+    return buildFallbackRateRecord(JSON.parse(result.value));
+  } catch (error) {
+    console.warn(
+      "Error parsing local settings fallback for exchange rate:",
+      error,
+    );
+    return null;
+  }
+};
+
+const syncRateSnapshotToCloudSettings = async (rateRecord) => {
+  if (!isCloudExchangeRatesEnabled()) {
+    return;
+  }
+
+  await setDoc(
+    getSettingsDocRef(),
+    {
+      pricing: {
+        currencies: {
+          USD: Number(rateRecord?.rate) || 0,
+        },
+      },
+      exchange: {
+        lastKnownRate: Number(rateRecord?.rate) || 0,
+        lastKnownRateId: Number(rateRecord?.id) || null,
+        lastKnownRateSource: String(rateRecord?.source || "MANUAL")
+          .trim()
+          .toUpperCase(),
+        lastRateUpdatedAt: rateRecord?.createdAt || new Date().toISOString(),
+      },
+    },
+    { merge: true },
+  );
+};
+
 const getCloudExchangeRates = async () => {
   const snapshot = await getDocs(getExchangeRatesCollectionRef());
   return sortExchangeRatesByDateDesc(
@@ -56,6 +179,11 @@ const getCloudExchangeRates = async () => {
 
 const ensureCloudExchangeRatesSeeded = async () => {
   if (!isCloudExchangeRatesEnabled()) return;
+
+  const canManageExchangeRates = await canManageCloudExchangeRates();
+  if (!canManageExchangeRates) {
+    return;
+  }
 
   const seedKey = getActiveStoreSeedKey();
   if (cloudExchangeRatesSeeded.has(seedKey)) return;
@@ -122,15 +250,28 @@ export const getActiveExchangeRate = async () => {
     if (isCloudExchangeRatesEnabled()) {
       await ensureCloudExchangeRatesSeeded();
       const rates = await getCloudExchangeRates();
-      return rates.find((item) => Number(item.isActive) === 1) || null;
+      const activeRate = rates.find((item) => Number(item.isActive) === 1);
+
+      if (activeRate) {
+        return activeRate;
+      }
+
+      return await getFallbackRateFromCloudSettings();
     }
 
     const result = await db.getFirstAsync(
       "SELECT * FROM exchange_rates WHERE isActive = 1 ORDER BY createdAt DESC LIMIT 1;",
     );
-    return result || null;
+    return result || (await getFallbackRateFromLocalSettings());
   } catch (error) {
-    throw error;
+    console.warn(
+      "Cloud exchange rate read failed, falling back locally:",
+      error,
+    );
+    const localRate = await db.getFirstAsync(
+      "SELECT * FROM exchange_rates WHERE isActive = 1 ORDER BY createdAt DESC LIMIT 1;",
+    );
+    return localRate || (await getFallbackRateFromLocalSettings());
   }
 };
 
@@ -146,6 +287,14 @@ export const insertExchangeRate = async (source, rate) => {
     }
 
     if (isCloudExchangeRatesEnabled()) {
+      const canManageExchangeRates = await canManageCloudExchangeRates();
+
+      if (!canManageExchangeRates) {
+        throw new Error(
+          "Solo el propietario o un administrador puede cambiar la tasa de esta tienda.",
+        );
+      }
+
       await ensureCloudExchangeRatesSeeded();
       const activeRates = (await getCloudExchangeRates()).filter(
         (item) => Number(item.isActive) === 1,
@@ -170,6 +319,7 @@ export const insertExchangeRate = async (source, rate) => {
       });
       batch.set(doc(getExchangeRatesCollectionRef(), String(id)), payload);
       await batch.commit();
+      await syncRateSnapshotToCloudSettings(payload);
       return id;
     }
 

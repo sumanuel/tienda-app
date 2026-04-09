@@ -26,6 +26,11 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import * as NavigationBar from "expo-navigation-bar";
 import { getCloudAccessState } from "./src/services/firebase/cloudAccess";
+import {
+  clearOnboardingState,
+  getOnboardingState,
+  saveOnboardingState,
+} from "./src/services/onboarding/onboardingState";
 
 // Context
 import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
@@ -112,6 +117,13 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const navigationRef = createNavigationContainerRef();
+
+const canManageBusinessSetup = (membership) => {
+  const role = String(membership?.role || "")
+    .trim()
+    .toLowerCase();
+  return role === "owner" || role === "admin";
+};
 
 function TabBarIcon({ name, color, size, containerWidth, containerHeight }) {
   return (
@@ -605,8 +617,15 @@ function AppContent() {
     emailVerified,
     storeLoading,
     activeStoreId,
+    memberships,
     requiresStoreSetup,
   } = useAuth();
+
+  const activeMembership = memberships.find(
+    (item) => item.storeId === activeStoreId,
+  );
+  const canManageActiveStoreBusiness =
+    !activeStoreId || canManageBusinessSetup(activeMembership);
 
   const applyImmersiveMode = useCallback(async () => {
     try {
@@ -647,8 +666,7 @@ function AppContent() {
    */
   const resetOnboarding = async () => {
     try {
-      await AsyncStorage.removeItem("onboardingCompleted");
-      await AsyncStorage.removeItem("onboardingSlidesSeen");
+      await clearOnboardingState(user?.uid);
       setShowOnboarding(true);
       setOnboardingInitialStep("slides");
     } catch (error) {
@@ -689,10 +707,9 @@ function AppContent() {
       await initSettingsTable();
 
       // Verificar si el usuario ya completó el onboarding y si ya vio las slides
-      const [onboardingCompleted, onboardingSlidesSeen] = await Promise.all([
-        AsyncStorage.getItem("onboardingCompleted"),
-        AsyncStorage.getItem("onboardingSlidesSeen"),
-      ]);
+      const onboardingState = await getOnboardingState(user?.uid);
+      const resolvedOnboardingCompleted = onboardingState.completed;
+      const resolvedOnboardingSlidesSeen = onboardingState.slidesSeen;
       const cloudAccessState = getCloudAccessState();
 
       // Si aún no llenó datos del negocio, pedirlos al entrar.
@@ -736,7 +753,10 @@ function AppContent() {
         console.warn("Error loading settings for onboarding check:", error);
       }
 
-      const needsBusinessSetup = !isBusinessConfigured;
+      const needsBusinessSetup =
+        canManageActiveStoreBusiness &&
+        !isBusinessConfigured &&
+        !cloudAccessState.disabled;
       const needsInitialStoreSetup =
         Boolean(user) &&
         Boolean(requiresStoreSetup) &&
@@ -748,20 +768,41 @@ function AppContent() {
       const inferredOnboardingCompleted =
         !needsBusinessSetup && !needsInitialStoreSetup && Boolean(hasRate);
 
-      if (!onboardingCompleted && inferredOnboardingCompleted) {
+      if (!resolvedOnboardingCompleted && inferredOnboardingCompleted) {
         try {
-          await AsyncStorage.setItem("onboardingCompleted", "true");
-          await AsyncStorage.setItem("onboardingSlidesSeen", "true");
+          await saveOnboardingState(user?.uid, {
+            completed: true,
+            slidesSeen: true,
+          });
         } catch (error) {
           console.warn("Error migrating onboarding flags:", error);
+        }
+      }
+
+      if (
+        onboardingState.hasCloudCompleted ||
+        onboardingState.hasCloudSlidesSeen ||
+        onboardingState.hasLegacyCompleted ||
+        onboardingState.hasLegacySlidesSeen ||
+        onboardingState.hasLocalCompleted ||
+        onboardingState.hasLocalSlidesSeen
+      ) {
+        try {
+          await saveOnboardingState(user?.uid, {
+            completed: resolvedOnboardingCompleted,
+            slidesSeen: resolvedOnboardingSlidesSeen,
+          });
+        } catch (error) {
+          console.warn("Error synchronizing onboarding flags:", error);
         }
       }
 
       const shouldShowOnboarding =
         needsInitialStoreSetup ||
         needsBusinessSetup ||
-        (!onboardingCompleted && !inferredOnboardingCompleted);
-      const isFirstRun = !onboardingCompleted && !onboardingSlidesSeen;
+        (!resolvedOnboardingCompleted && !inferredOnboardingCompleted);
+      const isFirstRun =
+        !resolvedOnboardingCompleted && !resolvedOnboardingSlidesSeen;
       const initialStep = needsInitialStoreSetup
         ? isFirstRun
           ? "slides"
@@ -770,7 +811,7 @@ function AppContent() {
           ? "slides"
           : needsBusinessSetup
             ? "business"
-            : !onboardingCompleted && onboardingSlidesSeen
+            : !resolvedOnboardingCompleted && resolvedOnboardingSlidesSeen
               ? "business"
               : "slides";
 
@@ -813,7 +854,14 @@ function AppContent() {
     }
 
     initializeApp();
-  }, [authLoading, storeLoading, user?.uid, activeStoreId, requiresStoreSetup]);
+  }, [
+    authLoading,
+    storeLoading,
+    user?.uid,
+    activeStoreId,
+    requiresStoreSetup,
+    canManageActiveStoreBusiness,
+  ]);
 
   if (!isReady || authLoading || storeLoading) {
     return (

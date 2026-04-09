@@ -1321,10 +1321,6 @@ export const getAccountBalance = async (
  */
 export const fixCorruptedAccountData = async () => {
   try {
-    if (!isCloudAccountsEnabled()) {
-      assertSharedStoreCloudWriteAvailable();
-    }
-
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
 

@@ -2,15 +2,16 @@ import { db } from "./db";
 import {
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   setDoc,
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
-import { handleCloudAccessError } from "../firebase/cloudAccess";
 import {
   getActiveStoreSeedKey,
   getStoreCollectionRef,
+  getUserMembershipDocRef,
   hasActiveStoreContext,
 } from "../store/storeRefs";
 import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
@@ -30,6 +31,31 @@ const createCloudNumericId = () =>
 
 const getRateNotificationsCollectionRef = () =>
   getStoreCollectionRef("rate_notifications");
+
+const canManageCloudRateNotifications = async () => {
+  if (!isCloudRateNotificationsEnabled()) {
+    return false;
+  }
+
+  try {
+    const membershipSnapshot = await getDoc(
+      getUserMembershipDocRef(auth.currentUser?.uid),
+    );
+
+    if (!membershipSnapshot.exists()) {
+      return false;
+    }
+
+    const role = String(membershipSnapshot.data()?.role || "")
+      .trim()
+      .toLowerCase();
+
+    return role === "owner" || role === "admin";
+  } catch (error) {
+    console.warn("Error resolving rate notifications permissions:", error);
+    return false;
+  }
+};
 
 const normalizeRateNotificationRecord = (notification = {}) => ({
   id: Number(notification.id) || createCloudNumericId(),
@@ -57,6 +83,11 @@ const getCloudRateNotifications = async () => {
 
 const ensureCloudRateNotificationsSeeded = async () => {
   if (!isCloudRateNotificationsEnabled()) return;
+
+  const canManageNotifications = await canManageCloudRateNotifications();
+  if (!canManageNotifications) {
+    return;
+  }
 
   const seedKey = getActiveStoreSeedKey();
   if (cloudRateNotificationsSeeded.has(seedKey)) return;
@@ -169,10 +200,12 @@ export const getRateNotificationsCount = async () => {
     const row = await db.getFirstAsync(`SELECT COUNT(*) AS cnt FROM ${TABLE};`);
     return Number(row?.cnt || 0);
   } catch (error) {
-    if (handleCloudAccessError(error, "rateNotifications:getCount")) {
-      return await getRateNotificationsCount();
-    }
-    throw error;
+    console.warn(
+      "Cloud rate notifications count failed, falling back locally:",
+      error,
+    );
+    const row = await db.getFirstAsync(`SELECT COUNT(*) AS cnt FROM ${TABLE};`);
+    return Number(row?.cnt || 0);
   }
 };
 

@@ -230,7 +230,18 @@ export const SettingsScreen = () => {
   const handleManualCloudSync = async () => {
     try {
       setManualSyncBusy(true);
-      await syncNow("settings:manual-sync");
+      const result = await syncNow("settings:manual-sync");
+
+      if (result?.skipped && result?.reason === "no-sync-permission") {
+        showAlert({
+          title: "Sincronización no necesaria",
+          message:
+            "Tu rol en esta tienda no publica snapshots técnicos en Firestore. Los datos compartidos siguen leyéndose desde la nube según tus permisos.",
+          type: "success",
+        });
+        return;
+      }
+
       showAlert({
         title: "Sincronización completa",
         message: "Los datos locales fueron enviados a Firestore.",

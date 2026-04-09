@@ -30,7 +30,14 @@ export const useCustomers = () => {
       setError(null);
 
       // Asegurar que el cliente genérico existe
-      await createGenericCustomer();
+      try {
+        await createGenericCustomer();
+      } catch (genericCustomerError) {
+        console.warn(
+          "Skipping generic customer auto-create during load:",
+          genericCustomerError,
+        );
+      }
 
       const data = await getAllCustomers();
       setCustomers(data);

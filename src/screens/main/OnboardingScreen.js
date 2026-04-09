@@ -26,6 +26,7 @@ import {
   createStoreForCurrentUser,
   listPendingInvitesForCurrentUser,
 } from "../../services/store/storeCollaborationService";
+import { saveOnboardingState } from "../../services/onboarding/onboardingState";
 import {
   s,
   rf,
@@ -37,7 +38,6 @@ import {
 } from "../../utils/responsive";
 
 const { width, height } = Dimensions.get("window");
-
 const slides = [
   {
     id: 1,
@@ -69,6 +69,12 @@ const slides = [
   },
 ];
 
+const isSharedStoreCloudBlockedError = (error) =>
+  String(error?.message || "")
+    .trim()
+    .toLowerCase()
+    .includes("la tienda está en modo local para esta sesión");
+
 export const OnboardingScreen = ({
   onComplete,
   initialStep = "slides",
@@ -76,11 +82,19 @@ export const OnboardingScreen = ({
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [step, setStep] = useState(initialStep); // slides | business | currency
-  const { activeStoreId, refreshStoreContext, syncNow, activateStoreLocally } =
-    useAuth();
+  const {
+    user,
+    activeStoreId,
+    memberships,
+    refreshStoreContext,
+    syncNow,
+    activateStoreLocally,
+  } = useAuth();
   const { showAlert, CustomAlert } = useCustomAlert();
   const scrollViewRef = useRef(null);
   const rateDirtyRef = useRef(false);
+  const existingBusinessLoadedRef = useRef(false);
+  const existingRateLoadedRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [pendingInvites, setPendingInvites] = useState([]);
 
@@ -95,9 +109,21 @@ export const OnboardingScreen = ({
   const [displayCurrency, setDisplayCurrency] = useState("VES");
   const [rateInput, setRateInput] = useState("");
 
+  const activeMembership = memberships.find(
+    (item) => item.storeId === activeStoreId,
+  );
+  const canManageStoreSettings = ["owner", "admin"].includes(
+    String(activeMembership?.role || "")
+      .trim()
+      .toLowerCase(),
+  );
+
   const markSlidesSeen = async () => {
     try {
-      await AsyncStorage.setItem("onboardingSlidesSeen", "true");
+      await saveOnboardingState(user?.uid, {
+        completed: false,
+        slidesSeen: true,
+      });
     } catch (error) {
       console.warn("Error saving onboardingSlidesSeen:", error);
     }
@@ -118,6 +144,15 @@ export const OnboardingScreen = ({
       try {
         const current = await getSettings();
         const existingBusiness = current?.business || {};
+        const hasExistingBusiness = [
+          existingBusiness?.name,
+          existingBusiness?.rif,
+          existingBusiness?.address,
+          existingBusiness?.phone,
+          existingBusiness?.email,
+        ].some((value) => String(value || "").trim().length > 0);
+
+        existingBusinessLoadedRef.current = hasExistingBusiness;
         setBusiness((prev) => ({
           ...prev,
           ...existingBusiness,
@@ -128,6 +163,7 @@ export const OnboardingScreen = ({
         const currentRate = await getCurrentRate();
         const savedRate = currentRate?.rate;
         if (!rateDirtyRef.current && savedRate && savedRate > 0) {
+          existingRateLoadedRef.current = true;
           setRateInput(String(savedRate));
         }
       } catch (error) {
@@ -178,10 +214,17 @@ export const OnboardingScreen = ({
   const completeOnboarding = async ({ persistSettings = false } = {}) => {
     try {
       setSaving(true);
-      if (persistSettings) {
+      const shouldReuseExistingConfiguration =
+        !requireInitialStoreSetup &&
+        Boolean(activeStoreId) &&
+        (existingBusinessLoadedRef.current || existingRateLoadedRef.current);
+
+      if (persistSettings && !shouldReuseExistingConfiguration) {
         // Guardar settings del onboarding (si aplica)
         try {
           let createdStore = null;
+          const shouldPersistStoreSettings =
+            requireInitialStoreSetup || canManageStoreSettings;
 
           if (requireInitialStoreSetup && !activeStoreId) {
             createdStore = await createStoreForCurrentUser(
@@ -219,7 +262,9 @@ export const OnboardingScreen = ({
             },
           };
 
-          await saveSettings(nextSettings);
+          if (shouldPersistStoreSettings) {
+            await saveSettings(nextSettings);
+          }
           if (createdStore?.storeId) {
             await syncNow("stores:create-initial");
           }
@@ -231,13 +276,26 @@ export const OnboardingScreen = ({
             await setManualRate(rate, "ONBOARDING");
           }
         } catch (error) {
-          console.warn("Onboarding settings save failed:", error);
-          throw error;
+          if (
+            isSharedStoreCloudBlockedError(error) &&
+            !requireInitialStoreSetup &&
+            activeStoreId
+          ) {
+            console.warn(
+              "Onboarding settings skipped because the existing store is temporarily in local-only mode:",
+              error,
+            );
+          } else {
+            console.warn("Onboarding settings save failed:", error);
+            throw error;
+          }
         }
       }
 
-      await AsyncStorage.setItem("onboardingCompleted", "true");
-      await markSlidesSeen();
+      await saveOnboardingState(user?.uid, {
+        completed: true,
+        slidesSeen: true,
+      });
       if (onComplete) {
         onComplete();
       }
@@ -264,8 +322,10 @@ export const OnboardingScreen = ({
         await activateStoreLocally(accepted);
       }
       await syncNow("stores:accept-invite-onboarding");
-      await AsyncStorage.setItem("onboardingCompleted", "true");
-      await markSlidesSeen();
+      await saveOnboardingState(user?.uid, {
+        completed: true,
+        slidesSeen: true,
+      });
       if (onComplete) {
         onComplete();
       }

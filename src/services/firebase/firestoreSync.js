@@ -13,7 +13,9 @@ import {
   getStoreCollectionRef,
   getStoreDocRef,
   getStoreNestedDocRef,
+  getStoreMemberDocRef,
   getUserDocRef,
+  getUserMembershipDocRef,
   hasActiveStoreContext,
 } from "../store/storeRefs";
 
@@ -23,8 +25,14 @@ const CLOUD_SNAPSHOT_DATASETS = [
   "rate_notifications",
   "mobile_payments",
 ];
+const MANAGER_ROLES = new Set(["owner", "admin"]);
 let syncTimer = null;
 let inFlightSync = null;
+
+const normalizeText = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
 
 export const cancelRequestedCloudSync = () => {
   if (!syncTimer) {
@@ -74,6 +82,26 @@ const getUserTables = async () => {
     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;",
   );
   return rows.map((row) => row.name).filter(Boolean);
+};
+
+const getCurrentUserStoreRole = async () => {
+  const refs = [getUserMembershipDocRef(), getStoreMemberDocRef()];
+
+  for (const ref of refs) {
+    try {
+      const snapshot = await getDoc(ref);
+      if (snapshot.exists()) {
+        const role = normalizeText(snapshot.data()?.role);
+        if (role) {
+          return role;
+        }
+      }
+    } catch (_) {
+      // Ignorar y probar la siguiente referencia disponible.
+    }
+  }
+
+  return null;
 };
 
 const syncRowsToSnapshot = async ({ bucket, datasetName, rows, syncRunId }) => {
@@ -175,6 +203,15 @@ export const syncCurrentUserSQLiteToFirestore = async (options = {}) => {
 
   if (!hasActiveStoreContext()) {
     return { skipped: true, reason: "no-active-store" };
+  }
+
+  const role = await getCurrentUserStoreRole();
+  if (!MANAGER_ROLES.has(role)) {
+    return {
+      skipped: true,
+      reason: "no-sync-permission",
+      role: role || null,
+    };
   }
 
   if (inFlightSync) {

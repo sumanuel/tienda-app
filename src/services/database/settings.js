@@ -16,6 +16,31 @@ const isCloudSettingsEnabled = () =>
 const getSettingsDocRef = () =>
   getStoreNestedDocRef(["settings", "app_settings"]);
 
+const canManageCloudStoreSettings = async () => {
+  if (!isCloudSettingsEnabled()) {
+    return false;
+  }
+
+  try {
+    const membershipSnapshot = await getDoc(
+      getUserMembershipDocRef(auth.currentUser?.uid),
+    );
+
+    if (!membershipSnapshot.exists()) {
+      return false;
+    }
+
+    const role = String(membershipSnapshot.data()?.role || "")
+      .trim()
+      .toLowerCase();
+
+    return role === "owner" || role === "admin";
+  } catch (error) {
+    console.warn("Error resolving settings permissions:", error);
+    return false;
+  }
+};
+
 const persistSettingsLocally = async (settings) => {
   const settingsJson = JSON.stringify(settings);
   await db.runAsync(
@@ -92,7 +117,9 @@ export const initSettingsTable = async () => {
   try {
     if (isCloudSettingsEnabled()) {
       const existing = await getDoc(getSettingsDocRef());
-      if (!existing.exists()) {
+      const canManageSettings = await canManageCloudStoreSettings();
+
+      if (!existing.exists() && canManageSettings) {
         await setDoc(getSettingsDocRef(), getDefaultSettings(), {
           merge: true,
         });
@@ -131,6 +158,7 @@ export const initSettingsTable = async () => {
 export const getSettings = async () => {
   try {
     if (isCloudSettingsEnabled()) {
+      const canManageSettings = await canManageCloudStoreSettings();
       const [snapshot, storeSnapshot] = await Promise.all([
         getDoc(getSettingsDocRef()),
         getDoc(getStoreDocRef()),
@@ -179,7 +207,10 @@ export const getSettings = async () => {
         // noop
       }
 
-      if (stableStringify(parsed) !== stableStringify(merged)) {
+      if (
+        canManageSettings &&
+        stableStringify(parsed) !== stableStringify(merged)
+      ) {
         await saveSettings(merged);
       }
 
@@ -253,6 +284,16 @@ export const saveSettings = async (settings) => {
   try {
     if (!isCloudSettingsEnabled()) {
       assertSharedStoreCloudWriteAvailable();
+    }
+
+    if (isCloudSettingsEnabled()) {
+      const canManageSettings = await canManageCloudStoreSettings();
+
+      if (!canManageSettings) {
+        throw new Error(
+          "Solo el propietario o un administrador puede cambiar los datos de esta tienda.",
+        );
+      }
     }
 
     await persistSettingsLocally(settings);
