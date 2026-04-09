@@ -172,6 +172,55 @@ const sortMemberships = (memberships = []) => {
   });
 };
 
+const normalizeStoreNameKey = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const dedupeMemberships = ({
+  memberships = [],
+  requestedStoreId,
+  persistedActiveStoreId,
+  persistedDefaultStoreId,
+}) => {
+  const grouped = new Map();
+
+  memberships.forEach((membership) => {
+    const role = normalizeValue(membership?.role);
+    const ownerUserId = normalizeValue(membership?.ownerUserId);
+    const storeNameKey = normalizeStoreNameKey(membership?.storeName);
+    const dedupeKey =
+      role === "owner" && storeNameKey
+        ? `owner:${ownerUserId || "self"}:${storeNameKey}`
+        : `store:${normalizeValue(membership?.storeId)}`;
+
+    const current = grouped.get(dedupeKey) || [];
+    current.push(membership);
+    grouped.set(dedupeKey, current);
+  });
+
+  const preferredIds = [
+    normalizeValue(requestedStoreId),
+    normalizeValue(persistedActiveStoreId),
+    normalizeValue(persistedDefaultStoreId),
+  ].filter(Boolean);
+
+  return Array.from(grouped.values()).map((group) => {
+    if (group.length === 1) {
+      return group[0];
+    }
+
+    const preferred =
+      group.find((item) =>
+        preferredIds.includes(normalizeValue(item?.storeId)),
+      ) ||
+      group.find((item) => item?.cloudAccessible !== false) ||
+      group[0];
+
+    return preferred;
+  });
+};
+
 export const clearActiveStoreSession = () => {
   clearStoreSession();
 };
@@ -196,11 +245,22 @@ export const ensureUserStoreContext = async (user, options = {}) => {
     membershipsSnapshot.docs.map(mapMembership),
   );
 
-  const availableMemberships = memberships.filter(
+  const requestedStoreId = normalizeValue(options.preferredStoreId);
+  const persistedActiveStoreId = normalizeValue(userData?.activeStoreId);
+  const persistedDefaultStoreId = normalizeValue(userData?.defaultStoreId);
+
+  const dedupedMemberships = dedupeMemberships({
+    memberships,
+    requestedStoreId,
+    persistedActiveStoreId,
+    persistedDefaultStoreId,
+  });
+
+  const availableMemberships = dedupedMemberships.filter(
     (item) => item.status !== "inactive" && item.cloudAccessible !== false,
   );
 
-  if (memberships.length === 0) {
+  if (dedupedMemberships.length === 0) {
     clearStoreSession();
     await setDoc(
       userRef,
@@ -225,11 +285,8 @@ export const ensureUserStoreContext = async (user, options = {}) => {
 
   if (availableMemberships.length === 0) {
     const fallbackMemberships = sortMemberships(
-      memberships.filter((item) => item.status !== "inactive"),
+      dedupedMemberships.filter((item) => item.status !== "inactive"),
     );
-    const requestedStoreId = normalizeValue(options.preferredStoreId);
-    const persistedActiveStoreId = normalizeValue(userData?.activeStoreId);
-    const persistedDefaultStoreId = normalizeValue(userData?.defaultStoreId);
 
     const fallbackActiveMembership =
       fallbackMemberships.find((item) => item.storeId === requestedStoreId) ||
@@ -278,10 +335,6 @@ export const ensureUserStoreContext = async (user, options = {}) => {
   }
 
   const orderedMemberships = sortMemberships(availableMemberships);
-
-  const requestedStoreId = normalizeValue(options.preferredStoreId);
-  const persistedActiveStoreId = normalizeValue(userData?.activeStoreId);
-  const persistedDefaultStoreId = normalizeValue(userData?.defaultStoreId);
 
   const activeMembership =
     orderedMemberships.find((item) => item.storeId === requestedStoreId) ||

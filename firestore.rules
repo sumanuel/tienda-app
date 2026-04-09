@@ -15,34 +15,46 @@ service cloud.firestore {
         : null;
     }
 
+    function memberPath(storeId) {
+      return /databases/$(database)/documents/stores/$(storeId)/members/$(request.auth.uid);
+    }
+
+    function userMembershipPath(storeId) {
+      return /databases/$(database)/documents/users/$(request.auth.uid)/memberships/$(storeId);
+    }
+
+    function invitePathForCurrentUser(storeId) {
+      return /databases/$(database)/documents/stores/$(storeId)/invites/$(authEmail());
+    }
+
     function membership(storeId) {
-      return get(/databases/$(database)/documents/stores/$(storeId)/members/$(request.auth.uid));
+      return get(memberPath(storeId));
     }
 
     function userMembership(storeId) {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)/memberships/$(storeId));
+      return get(userMembershipPath(storeId));
     }
 
     function hasUserMembership(storeId) {
       return isSignedIn()
-        && userMembership(storeId).exists()
+        && exists(userMembershipPath(storeId))
         && userMembership(storeId).data.status != 'inactive';
     }
 
     function inviteForCurrentUser(storeId) {
-      return get(/databases/$(database)/documents/stores/$(storeId)/invites/$(authEmail()));
+      return get(invitePathForCurrentUser(storeId));
     }
 
     function isStoreMember(storeId) {
       return isSignedIn()
         && (
-          membership(storeId).exists()
+          exists(memberPath(storeId))
           || hasUserMembership(storeId)
         );
     }
 
     function storeRole(storeId) {
-      return membership(storeId).exists()
+      return exists(memberPath(storeId))
         ? membership(storeId).data.role
         : hasUserMembership(storeId)
           ? userMembership(storeId).data.role
@@ -90,7 +102,7 @@ service cloud.firestore {
         && authEmail() != null
         && memberUserId == request.auth.uid
         && request.resource.data.uid == request.auth.uid
-        && inviteForCurrentUser(storeId).exists()
+        && exists(invitePathForCurrentUser(storeId))
         && inviteForCurrentUser(storeId).data.status == 'pending'
         && inviteForCurrentUser(storeId).data.emailNormalized == authEmail()
         && request.resource.data.role == inviteForCurrentUser(storeId).data.role;

@@ -18,10 +18,12 @@ import {
 } from "../../services/firebase/cloudAccess";
 import {
   acceptInviteForCurrentUser,
+  cleanupDuplicateOwnerStoresForCurrentUser,
   createInviteForActiveStore,
   createStoreForCurrentUser,
   getAvailableStoreRoles,
   listInvitesForStore,
+  listDuplicateOwnerStoresForCurrentUser,
   listMembersForStore,
   listPendingInvitesForCurrentUser,
 } from "../../services/store/storeCollaborationService";
@@ -81,6 +83,7 @@ export const StoreManagementScreen = () => {
   const [newStoreName, setNewStoreName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("seller");
+  const [duplicateStores, setDuplicateStores] = useState([]);
   const autoRetryAttemptedRef = useRef(false);
 
   const roles = useMemo(
@@ -105,28 +108,36 @@ export const StoreManagementScreen = () => {
         setIncomingInvites([]);
         setMembers([]);
         setStoreInvites([]);
+        setDuplicateStores([]);
         return;
       }
 
-      const [nextIncomingInvites, nextMembers, nextStoreInvites] =
-        await Promise.all([
-          listPendingInvitesForCurrentUser(),
-          activeStoreId
-            ? listMembersForStore(activeStoreId)
-            : Promise.resolve([]),
-          activeStoreId
-            ? listInvitesForStore(activeStoreId)
-            : Promise.resolve([]),
-        ]);
+      const [
+        nextIncomingInvites,
+        nextMembers,
+        nextStoreInvites,
+        nextDuplicateStores,
+      ] = await Promise.all([
+        listPendingInvitesForCurrentUser(),
+        activeStoreId
+          ? listMembersForStore(activeStoreId)
+          : Promise.resolve([]),
+        activeStoreId
+          ? listInvitesForStore(activeStoreId)
+          : Promise.resolve([]),
+        listDuplicateOwnerStoresForCurrentUser({ keepStoreId: activeStoreId }),
+      ]);
 
       setIncomingInvites(nextIncomingInvites);
       setMembers(nextMembers);
       setStoreInvites(nextStoreInvites);
+      setDuplicateStores(nextDuplicateStores);
     } catch (error) {
       if (handleCloudAccessError(error, "stores:management-load")) {
         setIncomingInvites([]);
         setMembers([]);
         setStoreInvites([]);
+        setDuplicateStores([]);
         return;
       }
 
@@ -221,6 +232,61 @@ export const StoreManagementScreen = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleCleanupDuplicateStores = async () => {
+    const duplicateCount = duplicateStores.length;
+    if (!duplicateCount || !activeStoreId) {
+      return;
+    }
+
+    showAlert({
+      title: "Eliminar tiendas duplicadas",
+      message:
+        duplicateCount === 1
+          ? "Se eliminará 1 tienda duplicada y se conservará la tienda activa."
+          : `Se eliminarán ${duplicateCount} tiendas duplicadas y se conservará la tienda activa.`,
+      type: "warning",
+      buttons: [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              const result = await cleanupDuplicateOwnerStoresForCurrentUser({
+                keepStoreId: activeStoreId,
+              });
+              await refreshStoreContext(activeStoreId);
+              await loadData();
+              showAlert({
+                title: "Duplicadas eliminadas",
+                message:
+                  result.deletedStores === 1
+                    ? "Se eliminó 1 tienda duplicada del usuario actual."
+                    : `Se eliminaron ${result.deletedStores} tiendas duplicadas del usuario actual.`,
+                type: "success",
+              });
+            } catch (error) {
+              console.error("Error cleaning duplicate stores:", error);
+              showAlert({
+                title: "Error",
+                message:
+                  error?.message ||
+                  "No se pudieron eliminar las tiendas duplicadas.",
+                type: "error",
+              });
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ],
+    });
   };
 
   const handleAcceptInvite = async (invite) => {
@@ -373,6 +439,29 @@ export const StoreManagementScreen = () => {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Mis tiendas</Text>
+          {duplicateStores.length > 0 && (
+            <View style={styles.duplicateBanner}>
+              <View style={styles.duplicateBannerInfo}>
+                <Text style={styles.duplicateBannerTitle}>
+                  Hay {duplicateStores.length} tienda(s) duplicada(s)
+                </Text>
+                <Text style={styles.duplicateBannerText}>
+                  Puedes borrar las duplicadas y conservar solo la tienda
+                  activa.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.cleanupButton,
+                  (submitting || !activeStoreId) && styles.buttonDisabled,
+                ]}
+                onPress={handleCleanupDuplicateStores}
+                disabled={submitting || !activeStoreId}
+              >
+                <Text style={styles.cleanupButtonText}>Limpiar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {!hasAnyMembership ? (
             <Text style={styles.emptyText}>
               No hay tiendas cargadas para este usuario en Firestore.
@@ -655,6 +744,44 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: s(14),
     elevation: 6,
+  },
+  duplicateBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    backgroundColor: "#fff7ed",
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: "#fed7aa",
+    padding: spacing.md,
+  },
+  duplicateBannerInfo: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  duplicateBannerTitle: {
+    fontSize: rf(14),
+    fontWeight: "700",
+    color: "#9a3412",
+  },
+  duplicateBannerText: {
+    fontSize: rf(12),
+    lineHeight: rf(18),
+    color: "#9a3412",
+  },
+  cleanupButton: {
+    backgroundColor: "#ea580c",
+    borderRadius: borderRadius.md,
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(10),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cleanupButtonText: {
+    color: "#fff",
+    fontSize: rf(13),
+    fontWeight: "700",
   },
   sectionTitle: {
     fontSize: rf(18),
