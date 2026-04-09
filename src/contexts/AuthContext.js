@@ -72,11 +72,15 @@ export const AuthProvider = ({ children }) => {
     setDefaultStoreId(normalizedStoreId);
     setRequiresStoreSetup(false);
     setMemberships((current) => {
-      const existing = current.find((item) => item.storeId === normalizedStoreId);
+      const existing = current.find(
+        (item) => item.storeId === normalizedStoreId,
+      );
       const nextMembership = {
         id: normalizedStoreId,
         storeId: normalizedStoreId,
-        storeName: String(storeName || existing?.storeName || "Mi Tienda").trim(),
+        storeName: String(
+          storeName || existing?.storeName || "Mi Tienda",
+        ).trim(),
         role: String(role || existing?.role || "owner").trim(),
         status: String(existing?.status || "active").trim(),
         ownerUserId: String(existing?.ownerUserId || uid).trim(),
@@ -84,7 +88,9 @@ export const AuthProvider = ({ children }) => {
 
       if (existing) {
         return current.map((item) =>
-          item.storeId === normalizedStoreId ? { ...item, ...nextMembership } : item,
+          item.storeId === normalizedStoreId
+            ? { ...item, ...nextMembership }
+            : item,
         );
       }
 
