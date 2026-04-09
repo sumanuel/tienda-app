@@ -1,17 +1,16 @@
 import { db } from "./db";
 import { getDoc, setDoc } from "firebase/firestore";
 import { auth } from "../firebase/firebase";
-import { handleCloudAccessError } from "../firebase/cloudAccess";
 import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 import {
   getStoreDocRef,
   getStoreNestedDocRef,
   getUserMembershipDocRef,
-  hasActiveStoreContext,
 } from "../store/storeRefs";
+import { getActiveStoreId } from "../store/storeSession";
 
 const isCloudSettingsEnabled = () =>
-  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
+  Boolean(auth.currentUser?.uid) && Boolean(getActiveStoreId());
 
 const getSettingsDocRef = () =>
   getStoreNestedDocRef(["settings", "app_settings"]);
@@ -144,9 +143,6 @@ export const initSettingsTable = async () => {
       console.log("Default settings inserted");
     }
   } catch (error) {
-    if (handleCloudAccessError(error, "settings:init")) {
-      return await initSettingsTable();
-    }
     console.error("Error initializing settings:", error);
     throw error;
   }
@@ -259,10 +255,21 @@ export const getSettings = async () => {
 
     return getDefaultSettings();
   } catch (error) {
-    if (handleCloudAccessError(error, "settings:get")) {
-      return await getSettings();
+    console.error("Error getting settings from cloud/local sources:", error);
+
+    const result = await db.getFirstAsync(
+      "SELECT value FROM settings WHERE key = 'app_settings';",
+    );
+
+    if (result?.value) {
+      try {
+        const parsed = JSON.parse(result.value);
+        return deepMergeDefaults(getDefaultSettings(), parsed);
+      } catch (parseError) {
+        console.warn("Error parsing local settings fallback:", parseError);
+      }
     }
-    console.error("Error getting settings:", error);
+
     return getDefaultSettings();
   }
 };
@@ -335,9 +342,6 @@ export const saveSettings = async (settings) => {
 
     return true;
   } catch (error) {
-    if (handleCloudAccessError(error, "settings:save")) {
-      return await saveSettings(settings);
-    }
     console.error("Error saving settings:", error);
     throw error;
   }

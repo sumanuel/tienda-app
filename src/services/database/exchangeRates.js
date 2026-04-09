@@ -14,14 +14,14 @@ import {
   getStoreCollectionRef,
   getStoreNestedDocRef,
   getUserMembershipDocRef,
-  hasActiveStoreContext,
 } from "../store/storeRefs";
 import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
+import { getActiveStoreId } from "../store/storeSession";
 
 const cloudExchangeRatesSeeded = new Set();
 
 const isCloudExchangeRatesEnabled = () =>
-  Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
+  Boolean(auth.currentUser?.uid) && Boolean(getActiveStoreId());
 
 const createCloudNumericId = () =>
   Number(
@@ -235,9 +235,6 @@ export const initExchangeRatesTable = async () => {
       "CREATE INDEX IF NOT EXISTS idx_active_rate ON exchange_rates(isActive, createdAt);",
     );
   } catch (error) {
-    if (handleCloudAccessError(error, "exchangeRates:getActive")) {
-      return await getActiveExchangeRate();
-    }
     throw error;
   }
 };
