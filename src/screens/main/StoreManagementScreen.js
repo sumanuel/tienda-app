@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { getCloudAccessState } from "../../services/firebase/cloudAccess";
 import {
   acceptInviteForCurrentUser,
   createInviteForActiveStore,
@@ -80,10 +81,20 @@ export const StoreManagementScreen = () => {
     () => memberships.find((item) => item.storeId === activeStoreId) || null,
     [memberships, activeStoreId],
   );
+  const cloudAccessState = getCloudAccessState();
+  const isCloudBlocked = Boolean(cloudAccessState?.disabled);
+  const hasAnyMembership = memberships.length > 0;
 
   const loadData = async () => {
     try {
       setLoadingData(true);
+
+      if (isCloudBlocked) {
+        setIncomingInvites([]);
+        setMembers([]);
+        setStoreInvites([]);
+        return;
+      }
 
       const [nextIncomingInvites, nextMembers, nextStoreInvites] =
         await Promise.all([
@@ -116,7 +127,7 @@ export const StoreManagementScreen = () => {
 
   useEffect(() => {
     loadData();
-  }, [activeStoreId, memberships.length]);
+  }, [activeStoreId, memberships.length, isCloudBlocked]);
 
   const handleSwitchStore = async (storeId) => {
     try {
@@ -245,6 +256,20 @@ export const StoreManagementScreen = () => {
           </View>
         </View>
 
+        {isCloudBlocked && (
+          <View style={styles.warningCard}>
+            <Text style={styles.warningTitle}>
+              Sin tienda activa en Firestore
+            </Text>
+            <Text style={styles.warningText}>
+              Los datos que guardaste en el onboarding quedaron en la base
+              local, pero no se creó la tienda en la nube porque Firestore sigue
+              rechazando permisos en esta sesión. Hasta que eso se resuelva,
+              aquí vas a ver "Sin tienda".
+            </Text>
+          </View>
+        )}
+
         {(storeLoading || loadingData) && (
           <View style={styles.loadingBox}>
             <ActivityIndicator color="#2f5ae0" />
@@ -254,35 +279,41 @@ export const StoreManagementScreen = () => {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Mis tiendas</Text>
-          {memberships.map((membership) => {
-            const isActive = membership.storeId === activeStoreId;
-            return (
-              <View key={membership.storeId} style={styles.listRow}>
-                <View style={styles.listInfo}>
-                  <Text style={styles.listTitle}>{membership.storeName}</Text>
-                  <Text style={styles.listSubtitle}>
-                    {formatRole(membership.role)}
-                  </Text>
-                </View>
-                {isActive ? (
-                  <View style={styles.badgeActive}>
-                    <Text style={styles.badgeActiveText}>Activa</Text>
+          {!hasAnyMembership ? (
+            <Text style={styles.emptyText}>
+              No hay tiendas cargadas para este usuario en Firestore.
+            </Text>
+          ) : (
+            memberships.map((membership) => {
+              const isActive = membership.storeId === activeStoreId;
+              return (
+                <View key={membership.storeId} style={styles.listRow}>
+                  <View style={styles.listInfo}>
+                    <Text style={styles.listTitle}>{membership.storeName}</Text>
+                    <Text style={styles.listSubtitle}>
+                      {formatRole(membership.role)}
+                    </Text>
                   </View>
-                ) : (
-                  <TouchableOpacity
-                    style={[
-                      styles.smallButton,
-                      submitting && styles.buttonDisabled,
-                    ]}
-                    onPress={() => handleSwitchStore(membership.storeId)}
-                    disabled={submitting}
-                  >
-                    <Text style={styles.smallButtonText}>Entrar</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            );
-          })}
+                  {isActive ? (
+                    <View style={styles.badgeActive}>
+                      <Text style={styles.badgeActiveText}>Activa</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={[
+                        styles.smallButton,
+                        submitting && styles.buttonDisabled,
+                      ]}
+                      onPress={() => handleSwitchStore(membership.storeId)}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.smallButtonText}>Entrar</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })
+          )}
         </View>
 
         <View style={styles.card}>
@@ -297,13 +328,20 @@ export const StoreManagementScreen = () => {
           <TouchableOpacity
             style={[
               styles.primaryButton,
-              (!newStoreName.trim() || submitting) && styles.buttonDisabled,
+              (!newStoreName.trim() || submitting || isCloudBlocked) &&
+                styles.buttonDisabled,
             ]}
             onPress={handleCreateStore}
-            disabled={!newStoreName.trim() || submitting}
+            disabled={!newStoreName.trim() || submitting || isCloudBlocked}
           >
             <Text style={styles.primaryButtonText}>Crear tienda</Text>
           </TouchableOpacity>
+          {isCloudBlocked && (
+            <Text style={styles.helperText}>
+              Debes corregir los permisos de Firestore y volver a iniciar sesión
+              antes de crear la tienda en la nube.
+            </Text>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -490,6 +528,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
   },
+  warningCard: {
+    backgroundColor: "#fff8e8",
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: "#f2ddb2",
+  },
+  warningTitle: {
+    fontSize: rf(16),
+    fontWeight: "800",
+    color: "#8b5e00",
+  },
+  warningText: {
+    fontSize: rf(14),
+    color: "#7a6240",
+    lineHeight: rf(20),
+  },
   loadingText: {
     fontSize: rf(14),
     color: "#5b6472",
@@ -606,6 +662,11 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: rf(14),
     color: "#6f7c8c",
+  },
+  helperText: {
+    fontSize: rf(13),
+    color: "#6f7c8c",
+    lineHeight: rf(18),
   },
 });
 

@@ -57,6 +57,11 @@ service cloud.firestore {
         );
     }
 
+    function canReadInviteByEmail() {
+      return authEmail() != null
+        && resource.data.emailNormalized == authEmail();
+    }
+
     function isOwnerBootstrap(storeId, memberUserId) {
       return isSignedIn()
         && memberUserId == request.auth.uid
@@ -102,8 +107,7 @@ service cloud.firestore {
       }
 
       match /invites/{inviteId} {
-        allow read: if canManageStore(storeId)
-          || (authEmail() != null && resource.data.emailNormalized == authEmail());
+        allow read: if canManageStore(storeId) || canReadInviteByEmail();
         allow create: if canManageStore(storeId);
         allow update: if canManageStore(storeId)
           || (
@@ -194,6 +198,10 @@ service cloud.firestore {
         allow read, write: if false;
       }
     }
+
+    match /{path=**}/invites/{inviteId} {
+      allow read: if canReadInviteByEmail();
+    }
   }
 }
 ```
@@ -204,5 +212,6 @@ Notas
 - El usuario sigue conservando su documento users/{uid} y su subcolección users/{uid}/memberships para perfil y pertenencias.
 - Las invitaciones se guardan en stores/{storeId}/invites usando emailNormalized como id del documento; eso permite validar por reglas cuándo el invitado puede unirse a la tienda.
 - La causa del permission-denied al crear tienda es que la versión anterior de las reglas permitía crear stores/{storeId}, pero no crear el primer documento stores/{storeId}/members/{uid} con role owner.
+- La lectura de invitaciones pendientes desde collectionGroup requiere una regla que también cubra /{path=\*\*}/invites/{inviteId}; de lo contrario, la pantalla de Tiendas puede fallar incluso cuando el usuario solo quiere revisar si tiene invitaciones.
 - Ajusta los permisos por rol si quieres que seller o inventory tengan más o menos alcance.
 - Para usar estas reglas, debes publicarlas manualmente en tu proyecto Firebase, porque este repositorio no tiene un archivo firestore.rules ni un firebase.json enlazado a despliegue.

@@ -54,6 +54,11 @@ service cloud.firestore {
         );
     }
 
+    function canReadInviteByEmail() {
+      return authEmail() != null
+        && resource.data.emailNormalized == authEmail();
+    }
+
     function isOwnerBootstrap(storeId, memberUserId) {
       return isSignedIn()
         && memberUserId == request.auth.uid
@@ -99,8 +104,7 @@ service cloud.firestore {
       }
 
       match /invites/{inviteId} {
-        allow read: if canManageStore(storeId)
-          || (authEmail() != null && resource.data.emailNormalized == authEmail());
+        allow read: if canManageStore(storeId) || canReadInviteByEmail();
         allow create: if canManageStore(storeId);
         allow update: if canManageStore(storeId)
           || (
@@ -190,6 +194,10 @@ service cloud.firestore {
       match /{document=**} {
         allow read, write: if false;
       }
+    }
+
+    match /{path=**}/invites/{inviteId} {
+      allow read: if canReadInviteByEmail();
     }
   }
 }
