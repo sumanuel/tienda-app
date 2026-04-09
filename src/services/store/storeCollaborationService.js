@@ -245,6 +245,9 @@ export const cleanupDuplicateOwnerStoresForCurrentUser = async ({
       continue;
     }
 
+    deletedDocuments += await deleteStoreTree(duplicateStoreId);
+    deletedStores += 1;
+
     await setDoc(
       getUserMembershipDocRef(uid, duplicateStoreId),
       {
@@ -254,9 +257,6 @@ export const cleanupDuplicateOwnerStoresForCurrentUser = async ({
       },
       { merge: true },
     );
-
-    deletedDocuments += await deleteStoreTree(duplicateStoreId);
-    deletedStores += 1;
   }
 
   if (normalizedKeepStoreId) {
