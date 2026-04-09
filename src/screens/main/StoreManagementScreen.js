@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -80,6 +80,7 @@ export const StoreManagementScreen = () => {
   const [newStoreName, setNewStoreName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("seller");
+  const autoRetryAttemptedRef = useRef(false);
 
   const roles = useMemo(
     () => getAvailableStoreRoles().filter((role) => role !== "owner"),
@@ -241,7 +242,7 @@ export const StoreManagementScreen = () => {
     }
   };
 
-  const handleRetryCloudConnection = async () => {
+  const handleRetryCloudConnection = async ({ silent = false } = {}) => {
     try {
       setSubmitting(true);
       resetCloudAccessForSession();
@@ -257,34 +258,53 @@ export const StoreManagementScreen = () => {
       await loadData();
 
       if (refreshedContext?.activeStoreId) {
-        showAlert({
-          title: "Conexión restablecida",
-          message: "La tienda activa en Firestore se recuperó correctamente.",
-          type: "success",
-        });
+        if (!silent) {
+          showAlert({
+            title: "Conexión restablecida",
+            message: "La tienda activa en Firestore se recuperó correctamente.",
+            type: "success",
+          });
+        }
         return;
       }
 
-      showAlert({
-        title: "Sin tienda cloud",
-        message:
-          "La conexión a Firestore respondió, pero este usuario todavía no tiene una tienda registrada en la nube.",
-        type: "info",
-      });
+      if (!silent) {
+        showAlert({
+          title: "Sin tienda cloud",
+          message:
+            "La conexión a Firestore respondió, pero este usuario todavía no tiene una tienda registrada en la nube.",
+          type: "info",
+        });
+      }
     } catch (error) {
       console.error("Error retrying cloud store context:", error);
-      showAlert({
-        title: "No se pudo reconectar",
-        message: getStoreErrorMessage(
-          error,
-          "Firestore sigue rechazando permisos o la sesión aún no tiene acceso a una tienda.",
-        ),
-        type: "error",
-      });
+      if (!silent) {
+        showAlert({
+          title: "No se pudo reconectar",
+          message: getStoreErrorMessage(
+            error,
+            "Firestore sigue rechazando permisos o la sesión aún no tiene acceso a una tienda.",
+          ),
+          type: "error",
+        });
+      }
     } finally {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (
+      !hasResolvedActiveStore ||
+      !isCloudBlocked ||
+      autoRetryAttemptedRef.current
+    ) {
+      return;
+    }
+
+    autoRetryAttemptedRef.current = true;
+    handleRetryCloudConnection({ silent: true });
+  }, [hasResolvedActiveStore, isCloudBlocked]);
 
   return (
     <>
