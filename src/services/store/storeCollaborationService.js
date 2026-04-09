@@ -378,21 +378,31 @@ export const renameActiveStoreForCurrentUser = async (nextStoreName) => {
     throw new Error("El nombre de la tienda es obligatorio.");
   }
 
-  const membershipSnapshot = await getDoc(
-    getUserMembershipDocRef(uid, storeId),
-  );
-  const membershipRole = normalizeText(membershipSnapshot.data()?.role);
+  const [
+    membershipSnapshot,
+    storeMemberSnapshot,
+    storeSnapshot,
+    invitesSnapshot,
+  ] = await Promise.all([
+    getDoc(getUserMembershipDocRef(uid, storeId)),
+    getDoc(getStoreMemberDocRef(storeId, uid)),
+    getDoc(getStoreDocRef(storeId)),
+    getDocs(collection(firestore, "stores", storeId, "invites")),
+  ]);
 
-  if (membershipRole !== "owner") {
+  const membershipRole = normalizeText(membershipSnapshot.data()?.role);
+  const storeMemberRole = normalizeText(storeMemberSnapshot.data()?.role);
+  const storeOwnerUserId = normalizeText(storeSnapshot.data()?.ownerUserId);
+  const isOwner =
+    membershipRole === "owner" ||
+    storeMemberRole === "owner" ||
+    storeOwnerUserId === uid;
+
+  if (!isOwner) {
     throw new Error(
       "Solo el propietario puede cambiar el nombre de esta tienda.",
     );
   }
-
-  const [membersSnapshot, invitesSnapshot] = await Promise.all([
-    getDocs(collection(firestore, "stores", storeId, "members")),
-    getDocs(collection(firestore, "stores", storeId, "invites")),
-  ]);
 
   const batch = writeBatch(firestore);
   const updatedAt = serverTimestamp();
@@ -409,28 +419,12 @@ export const renameActiveStoreForCurrentUser = async (nextStoreName) => {
   batch.set(
     getUserMembershipDocRef(uid, storeId),
     {
+      storeId,
       storeName: normalizedStoreName,
       updatedAt,
     },
     { merge: true },
   );
-
-  membersSnapshot.docs.forEach((memberDoc) => {
-    const memberUid = normalizeText(memberDoc.data()?.uid || memberDoc.id);
-    if (!memberUid) {
-      return;
-    }
-
-    batch.set(
-      getUserMembershipDocRef(memberUid, storeId),
-      {
-        storeId,
-        storeName: normalizedStoreName,
-        updatedAt,
-      },
-      { merge: true },
-    );
-  });
 
   invitesSnapshot.docs.forEach((inviteDoc) => {
     batch.set(
