@@ -7,6 +7,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { firestore } from "../firebase/firebase";
+import { isPermissionDeniedError } from "../firebase/cloudAccess";
 import { clearStoreSession, setStoreSession } from "./storeSession";
 
 const normalizeValue = (value) => String(value || "").trim();
@@ -23,63 +24,7 @@ const mapMembership = (snapshot) => {
   };
 };
 
-const hydrateMembershipFromStore = async (uid, membership) => {
-  const storeId = normalizeValue(membership?.storeId);
-
-  if (!uid || !storeId) {
-    return membership;
-  }
-
-  try {
-    const storeSnapshot = await getDoc(doc(firestore, "stores", storeId));
-    if (!storeSnapshot.exists()) {
-      return membership;
-    }
-
-    const storeData = storeSnapshot.data() || {};
-    const resolvedStoreName = normalizeValue(storeData?.name);
-    const resolvedOwnerUserId =
-      normalizeValue(storeData?.ownerUserId) ||
-      normalizeValue(membership?.ownerUserId);
-
-    const nextMembership = {
-      ...membership,
-      storeName: resolvedStoreName || normalizeValue(membership?.storeName),
-      ownerUserId: resolvedOwnerUserId,
-    };
-
-    const storeNameChanged = nextMembership.storeName !== membership.storeName;
-    const ownerChanged = nextMembership.ownerUserId !== membership.ownerUserId;
-
-    if (storeNameChanged || ownerChanged) {
-      await setDoc(
-        doc(firestore, "users", uid, "memberships", storeId),
-        {
-          storeId,
-          storeName: nextMembership.storeName,
-          ownerUserId: nextMembership.ownerUserId,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true },
-      );
-    }
-
-    return nextMembership;
-  } catch (error) {
-    console.warn("Membership hydration from store failed:", error);
-    return membership;
-  }
-};
-
-const hydrateMemberships = async (uid, memberships = []) => {
-  return await Promise.all(
-    memberships.map((membership) =>
-      hydrateMembershipFromStore(uid, membership),
-    ),
-  );
-};
-
-const ensureOwnerStoreMemberLink = async (uid, membership) => {
+async function ensureOwnerStoreMemberLink(uid, membership, options = {}) {
   const storeId = normalizeValue(membership?.storeId);
   const role = normalizeValue(membership?.role);
 
@@ -103,9 +48,114 @@ const ensureOwnerStoreMemberLink = async (uid, membership) => {
     );
     return true;
   } catch (error) {
-    console.warn("Owner membership reconciliation failed:", error);
+    if (!options.silent) {
+      console.warn("Owner membership reconciliation failed:", error);
+    }
     return false;
   }
+}
+
+const mergeMembershipWithStoreData = async (uid, membership, storeSnapshot) => {
+  if (!storeSnapshot.exists()) {
+    return {
+      ...membership,
+      cloudAccessible: false,
+      missingStore: true,
+    };
+  }
+
+  const storeData = storeSnapshot.data() || {};
+  const resolvedStoreName = normalizeValue(storeData?.name);
+  const resolvedOwnerUserId =
+    normalizeValue(storeData?.ownerUserId) ||
+    normalizeValue(membership?.ownerUserId);
+
+  const nextMembership = {
+    ...membership,
+    storeName: resolvedStoreName || normalizeValue(membership?.storeName),
+    ownerUserId: resolvedOwnerUserId,
+    cloudAccessible: true,
+  };
+
+  const storeNameChanged = nextMembership.storeName !== membership.storeName;
+  const ownerChanged = nextMembership.ownerUserId !== membership.ownerUserId;
+
+  if (storeNameChanged || ownerChanged) {
+    await setDoc(
+      doc(firestore, "users", uid, "memberships", nextMembership.storeId),
+      {
+        storeId: nextMembership.storeId,
+        storeName: nextMembership.storeName,
+        ownerUserId: nextMembership.ownerUserId,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  }
+
+  return nextMembership;
+};
+
+const hydrateMembershipFromStore = async (uid, membership) => {
+  const storeId = normalizeValue(membership?.storeId);
+
+  if (!uid || !storeId) {
+    return {
+      ...membership,
+      cloudAccessible: false,
+    };
+  }
+
+  try {
+    const storeSnapshot = await getDoc(doc(firestore, "stores", storeId));
+    return await mergeMembershipWithStoreData(uid, membership, storeSnapshot);
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      const repaired = await ensureOwnerStoreMemberLink(uid, membership, {
+        silent: true,
+      });
+
+      if (repaired) {
+        try {
+          const retriedStoreSnapshot = await getDoc(
+            doc(firestore, "stores", storeId),
+          );
+          return await mergeMembershipWithStoreData(
+            uid,
+            membership,
+            retriedStoreSnapshot,
+          );
+        } catch (retryError) {
+          console.warn(
+            "Membership hydration from store failed after reconciliation:",
+            retryError,
+          );
+        }
+      }
+
+      console.warn("Membership hydration from store failed:", error);
+      return {
+        ...membership,
+        cloudAccessible: false,
+        accessError: "permission-denied",
+      };
+    }
+
+    console.warn("Membership hydration from store failed:", error);
+    return {
+      ...membership,
+      cloudAccessible: false,
+      accessError: "unknown",
+    };
+  }
+};
+
+const hydrateMemberships = async (uid, memberships = []) => {
+  return await Promise.all(
+    memberships.map((membership) =>
+      hydrateMembershipFromStore(uid, membership),
+    ),
+  );
 };
 
 const sortMemberships = (memberships = []) => {
@@ -146,13 +196,26 @@ export const ensureUserStoreContext = async (user, options = {}) => {
     membershipsSnapshot.docs.map(mapMembership),
   );
 
-  if (memberships.length === 0) {
+  const availableMemberships = memberships.filter(
+    (item) => item.status !== "inactive" && item.cloudAccessible !== false,
+  );
+
+  if (memberships.length === 0 || availableMemberships.length === 0) {
     clearStoreSession();
+    await setDoc(
+      userRef,
+      {
+        activeStoreId: null,
+        defaultStoreId: null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
     return {
       userId: uid,
       activeStoreId: null,
       defaultStoreId: null,
-      memberships: [],
+      memberships: availableMemberships,
       activeStore: null,
       defaultStore: null,
       requiresStoreSetup: true,
@@ -160,9 +223,7 @@ export const ensureUserStoreContext = async (user, options = {}) => {
     };
   }
 
-  const orderedMemberships = sortMemberships(
-    memberships.filter((item) => item.status !== "inactive"),
-  );
+  const orderedMemberships = sortMemberships(availableMemberships);
 
   const requestedStoreId = normalizeValue(options.preferredStoreId);
   const persistedActiveStoreId = normalizeValue(userData?.activeStoreId);

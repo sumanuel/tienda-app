@@ -543,6 +543,9 @@ export const getTodaySales = async () => {
     );
     return result;
   } catch (error) {
+    if (handleCloudAccessError(error, "sales:getToday")) {
+      return await getTodaySales();
+    }
     throw error;
   }
 };

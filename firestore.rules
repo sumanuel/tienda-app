@@ -19,16 +19,34 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/stores/$(storeId)/members/$(request.auth.uid));
     }
 
+    function userMembership(storeId) {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)/memberships/$(storeId));
+    }
+
+    function hasUserMembership(storeId) {
+      return isSignedIn()
+        && userMembership(storeId).exists()
+        && userMembership(storeId).data.status != 'inactive';
+    }
+
     function inviteForCurrentUser(storeId) {
       return get(/databases/$(database)/documents/stores/$(storeId)/invites/$(authEmail()));
     }
 
     function isStoreMember(storeId) {
-      return isSignedIn() && membership(storeId).exists();
+      return isSignedIn()
+        && (
+          membership(storeId).exists()
+          || hasUserMembership(storeId)
+        );
     }
 
     function storeRole(storeId) {
-      return isStoreMember(storeId) ? membership(storeId).data.role : null;
+      return membership(storeId).exists()
+        ? membership(storeId).data.role
+        : hasUserMembership(storeId)
+          ? userMembership(storeId).data.role
+          : null;
     }
 
     function canManageStore(storeId) {
