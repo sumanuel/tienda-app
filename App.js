@@ -25,6 +25,7 @@ import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import * as NavigationBar from "expo-navigation-bar";
+import { getCloudAccessState } from "./src/services/firebase/cloudAccess";
 
 // Context
 import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
@@ -596,8 +597,14 @@ function AppContent() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingInitialStep, setOnboardingInitialStep] = useState("slides");
-  const { user, authLoading, emailVerified, storeLoading, activeStoreId } =
-    useAuth();
+  const {
+    user,
+    authLoading,
+    emailVerified,
+    storeLoading,
+    activeStoreId,
+    requiresStoreSetup,
+  } = useAuth();
 
   const applyImmersiveMode = useCallback(async () => {
     try {
@@ -680,6 +687,7 @@ function AppContent() {
         AsyncStorage.getItem("onboardingCompleted"),
         AsyncStorage.getItem("onboardingSlidesSeen"),
       ]);
+      const cloudAccessState = getCloudAccessState();
 
       // Si aún no llenó datos del negocio, pedirlos al entrar.
       let isBusinessConfigured = false;
@@ -723,11 +731,16 @@ function AppContent() {
       }
 
       const needsBusinessSetup = !isBusinessConfigured;
+      const needsInitialStoreSetup =
+        Boolean(user) &&
+        Boolean(requiresStoreSetup) &&
+        !activeStoreId &&
+        !cloudAccessState.disabled;
 
       // Si el usuario ya tiene negocio configurado y una tasa guardada,
       // consideramos onboarding completo (migración para usuarios antiguos).
       const inferredOnboardingCompleted =
-        !needsBusinessSetup && Boolean(hasRate);
+        !needsBusinessSetup && !needsInitialStoreSetup && Boolean(hasRate);
 
       if (!onboardingCompleted && inferredOnboardingCompleted) {
         try {
@@ -739,16 +752,21 @@ function AppContent() {
       }
 
       const shouldShowOnboarding =
+        needsInitialStoreSetup ||
         needsBusinessSetup ||
         (!onboardingCompleted && !inferredOnboardingCompleted);
       const isFirstRun = !onboardingCompleted && !onboardingSlidesSeen;
-      const initialStep = isFirstRun
-        ? "slides"
-        : needsBusinessSetup
-          ? "business"
-          : !onboardingCompleted && onboardingSlidesSeen
+      const initialStep = needsInitialStoreSetup
+        ? isFirstRun
+          ? "slides"
+          : "business"
+        : isFirstRun
+          ? "slides"
+          : needsBusinessSetup
             ? "business"
-            : "slides";
+            : !onboardingCompleted && onboardingSlidesSeen
+              ? "business"
+              : "slides";
 
       setOnboardingInitialStep(initialStep);
       setShowOnboarding(shouldShowOnboarding);
@@ -815,6 +833,7 @@ function AppContent() {
         <StatusBar hidden translucent />
         <OnboardingScreen
           initialStep={onboardingInitialStep}
+          requireInitialStoreSetup={requiresStoreSetup && !activeStoreId}
           onComplete={() => setShowOnboarding(false)}
         />
       </>

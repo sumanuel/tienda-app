@@ -18,15 +18,78 @@ const TABLE_MIGRATION_ORDER = [
 ];
 
 let currentDbName = LEGACY_DB_NAME;
-let currentDb = SQLite.openDatabaseSync(currentDbName);
+let currentDbPromise = null;
 const initializedDatabases = new Set();
 
-const bindDatabaseMethod = (database, property) => {
-  const value = database[property];
-  return typeof value === "function" ? value.bind(database) : value;
+const openDatabase = async (name) => SQLite.openDatabaseAsync(name);
+
+const isRecoverableDatabaseError = (error) => {
+  const message = String(error?.message || "");
+  return (
+    message.includes("NativeDatabase.prepareAsync") ||
+    message.includes("NativeDatabase.execAsync") ||
+    message.includes("NativeDatabase.runAsync") ||
+    message.includes("java.lang.NullPointerException")
+  );
 };
 
-const openDatabase = (name) => SQLite.openDatabaseSync(name);
+const ensureCurrentDb = async () => {
+  if (!currentDbPromise) {
+    currentDbPromise = openDatabase(currentDbName);
+  }
+
+  return await currentDbPromise;
+};
+
+const closeDatabaseQuietly = async (databasePromise) => {
+  if (!databasePromise) return;
+
+  try {
+    const database = await databasePromise;
+    if (database?.closeAsync) {
+      await database.closeAsync();
+    }
+  } catch (_) {
+    // noop
+  }
+};
+
+const reopenCurrentDatabase = async () => {
+  await closeDatabaseQuietly(currentDbPromise);
+  currentDbPromise = openDatabase(currentDbName);
+  return await currentDbPromise;
+};
+
+const callDatabaseMethod = async (property, args) => {
+  const invoke = async () => {
+    const database = await ensureCurrentDb();
+    const value = database[property];
+
+    if (typeof value !== "function") {
+      return value;
+    }
+
+    return await value.apply(database, args);
+  };
+
+  const retryInvoke = async () => {
+    console.warn(
+      `SQLite handle recovery triggered for ${String(property)} on ${currentDbName}.`,
+    );
+    await reopenCurrentDatabase();
+    return await invoke();
+  };
+
+  try {
+    return await invoke();
+  } catch (error) {
+    if (!isRecoverableDatabaseError(error)) {
+      throw error;
+    }
+
+    return await retryInvoke();
+  }
+};
 
 const sanitizeDatabaseSegment = (value) =>
   String(value || "")
@@ -111,7 +174,11 @@ export const db = new Proxy(
   {},
   {
     get(_, property) {
-      return bindDatabaseMethod(currentDb, property);
+      if (typeof property !== "string") {
+        return undefined;
+      }
+
+      return (...args) => callDatabaseMethod(property, args);
     },
   },
 );
@@ -123,8 +190,9 @@ export const configureStoreDatabase = async ({ userId, storeId } = {}) => {
   const hasChanged = nextDbName !== currentDbName;
 
   if (hasChanged) {
-    currentDb = openDatabase(nextDbName);
+    await closeDatabaseQuietly(currentDbPromise);
     currentDbName = nextDbName;
+    currentDbPromise = openDatabase(nextDbName);
   }
 
   return {
@@ -134,8 +202,9 @@ export const configureStoreDatabase = async ({ userId, storeId } = {}) => {
 };
 
 export const resetDatabaseContext = async () => {
+  await closeDatabaseQuietly(currentDbPromise);
   currentDbName = LEGACY_DB_NAME;
-  currentDb = openDatabase(LEGACY_DB_NAME);
+  currentDbPromise = openDatabase(LEGACY_DB_NAME);
   return { dbName: currentDbName };
 };
 
@@ -144,10 +213,10 @@ export const migrateLegacyDatabaseToCurrentStoreIfNeeded = async () => {
     return { migrated: false, reason: "legacy-active" };
   }
 
-  const sourceDb = openDatabase(LEGACY_DB_NAME);
+  const sourceDb = await openDatabase(LEGACY_DB_NAME);
   const [sourceTables, targetTables] = await Promise.all([
     getNonEmptyUserTables(sourceDb),
-    getNonEmptyUserTables(currentDb),
+    ensureCurrentDb().then((database) => getNonEmptyUserTables(database)),
   ]);
 
   if (!sourceTables.length) {
@@ -167,13 +236,15 @@ export const migrateLegacyDatabaseToCurrentStoreIfNeeded = async () => {
     ),
   ];
 
-  await currentDb.execAsync("PRAGMA foreign_keys = OFF;");
+  const targetDb = await ensureCurrentDb();
+
+  await targetDb.execAsync("PRAGMA foreign_keys = OFF;");
   try {
     for (const tableName of tableOrder) {
-      await copyLegacyRowsToCurrentDatabase(sourceDb, currentDb, tableName);
+      await copyLegacyRowsToCurrentDatabase(sourceDb, targetDb, tableName);
     }
   } finally {
-    await currentDb.execAsync("PRAGMA foreign_keys = ON;");
+    await targetDb.execAsync("PRAGMA foreign_keys = ON;");
   }
 
   initializedDatabases.delete(currentDbName);

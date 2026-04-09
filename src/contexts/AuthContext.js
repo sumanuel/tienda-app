@@ -44,6 +44,7 @@ export const AuthProvider = ({ children }) => {
   const [activeStoreId, setActiveStoreId] = useState(null);
   const [defaultStoreId, setDefaultStoreId] = useState(null);
   const [memberships, setMemberships] = useState([]);
+  const [requiresStoreSetup, setRequiresStoreSetup] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState(null);
 
@@ -66,6 +67,7 @@ export const AuthProvider = ({ children }) => {
     setActiveStoreId(refreshedContext?.activeStoreId || null);
     setDefaultStoreId(refreshedContext?.defaultStoreId || null);
     setMemberships(refreshedContext?.memberships || []);
+    setRequiresStoreSetup(Boolean(refreshedContext?.requiresStoreSetup));
 
     return refreshedContext;
   };
@@ -81,6 +83,7 @@ export const AuthProvider = ({ children }) => {
         setActiveStoreId(null);
         setDefaultStoreId(null);
         setMemberships([]);
+        setRequiresStoreSetup(false);
         clearActiveStoreSession();
         await resetDatabaseContext();
         setStoreLoading(false);
@@ -105,6 +108,16 @@ export const AuthProvider = ({ children }) => {
         );
 
         const storeContext = await ensureUserStoreContext(nextUser);
+        setActiveStoreId(storeContext.activeStoreId);
+        setDefaultStoreId(storeContext.defaultStoreId);
+        setMemberships(storeContext.memberships || []);
+        setRequiresStoreSetup(Boolean(storeContext.requiresStoreSetup));
+
+        if (!storeContext.activeStoreId) {
+          setLastSyncResult({ skipped: true, reason: "no-active-store" });
+          return;
+        }
+
         await migrateLegacyUserDataToStoreIfNeeded({
           uid: nextUser.uid,
           storeId: storeContext.activeStoreId,
@@ -113,10 +126,6 @@ export const AuthProvider = ({ children }) => {
           userId: nextUser.uid,
           storeId: storeContext.activeStoreId,
         });
-
-        setActiveStoreId(storeContext.activeStoreId);
-        setDefaultStoreId(storeContext.defaultStoreId);
-        setMemberships(storeContext.memberships || []);
 
         const result = await syncCurrentUserSQLiteToFirestore({
           reason: "auth-state",
@@ -130,6 +139,7 @@ export const AuthProvider = ({ children }) => {
           setActiveStoreId(null);
           setDefaultStoreId(null);
           setMemberships([]);
+          setRequiresStoreSetup(false);
           setLastSyncResult({
             skipped: true,
             reason: "cloud-permission-denied",
@@ -199,6 +209,7 @@ export const AuthProvider = ({ children }) => {
       });
       setActiveStoreId(session.activeStoreId);
       setDefaultStoreId(session.defaultStoreId);
+      setRequiresStoreSetup(false);
 
       const refreshedContext = await ensureUserStoreContext(auth.currentUser, {
         preferredStoreId: session.activeStoreId,
@@ -261,6 +272,7 @@ export const AuthProvider = ({ children }) => {
       activeStoreId,
       defaultStoreId,
       memberships,
+      requiresStoreSetup,
       syncing,
       lastSyncResult,
       signIn,
@@ -281,6 +293,7 @@ export const AuthProvider = ({ children }) => {
       activeStoreId,
       defaultStoreId,
       memberships,
+      requiresStoreSetup,
       syncing,
       lastSyncResult,
     ],

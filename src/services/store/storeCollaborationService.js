@@ -17,6 +17,7 @@ import {
   getStoreCollectionRef,
   getStoreDocRef,
   getStoreMemberDocRef,
+  getUserDocRef,
   getUserMembershipDocRef,
 } from "./storeRefs";
 
@@ -24,6 +25,19 @@ const ROLES = ["owner", "admin", "seller", "inventory", "viewer"];
 
 const normalizeText = (value) => String(value || "").trim();
 const normalizeEmail = (value) => normalizeText(value).toLowerCase();
+const normalizeRif = (value) => normalizeText(value).toUpperCase();
+
+const normalizeStoreInput = (store = {}) => {
+  const name = normalizeText(store.name);
+
+  return {
+    name,
+    rif: normalizeRif(store.rif),
+    address: normalizeText(store.address),
+    phone: normalizeText(store.phone),
+    email: normalizeEmail(store.email),
+  };
+};
 
 const mapStoreInvite = (snapshot) => {
   const data = snapshot.data() || {};
@@ -57,10 +71,11 @@ const mapStoreMember = (snapshot) => {
 
 export const getAvailableStoreRoles = () => [...ROLES];
 
-export const createStoreForCurrentUser = async ({ name }) => {
+export const createStoreForCurrentUser = async (storeInput = {}) => {
   const user = auth.currentUser;
   const uid = getCurrentUserIdOrThrow(user?.uid);
-  const storeName = normalizeText(name);
+  const store = normalizeStoreInput(storeInput);
+  const storeName = store.name;
 
   if (!storeName) {
     throw new Error("El nombre de la tienda es obligatorio.");
@@ -76,6 +91,10 @@ export const createStoreForCurrentUser = async ({ name }) => {
     {
       id: storeId,
       name: storeName,
+      rif: store.rif,
+      address: store.address,
+      phone: store.phone,
+      email: store.email,
       ownerUserId: uid,
       createdBy: uid,
       createdAt: serverTimestamp(),
@@ -112,9 +131,21 @@ export const createStoreForCurrentUser = async ({ name }) => {
     { merge: true },
   );
 
+  await setDoc(
+    getUserDocRef(uid),
+    {
+      activeStoreId: storeId,
+      defaultStoreId: storeId,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
   return {
     storeId,
     storeName,
+    rif: store.rif,
+    address: store.address,
     role: "owner",
   };
 };

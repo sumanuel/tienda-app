@@ -11,16 +11,6 @@ import { clearStoreSession, setStoreSession } from "./storeSession";
 
 const normalizeValue = (value) => String(value || "").trim();
 
-const buildDefaultStoreName = (user, userData = {}) => {
-  const businessName = normalizeValue(userData?.businessName);
-  if (businessName) return businessName;
-
-  const displayName = normalizeValue(user?.displayName);
-  if (displayName) return `Tienda de ${displayName}`;
-
-  return "Mi Tienda";
-};
-
 const mapMembership = (snapshot) => {
   const data = snapshot.data() || {};
   return {
@@ -66,64 +56,20 @@ export const ensureUserStoreContext = async (user, options = {}) => {
   ]);
 
   const userData = userSnapshot.exists() ? userSnapshot.data() || {} : {};
-  let memberships = membershipsSnapshot.docs.map(mapMembership);
+  const memberships = membershipsSnapshot.docs.map(mapMembership);
 
   if (memberships.length === 0) {
-    const storeRef = doc(collection(firestore, "stores"));
-    const storeId = storeRef.id;
-    const storeName = buildDefaultStoreName(user, userData);
-
-    await setDoc(
-      storeRef,
-      {
-        id: storeId,
-        name: storeName,
-        ownerUserId: uid,
-        createdBy: uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-
-    await setDoc(
-      doc(firestore, "stores", storeId, "members", uid),
-      {
-        uid,
-        storeId,
-        role: "owner",
-        status: "active",
-        ownerUserId: uid,
-        joinedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-
-    await setDoc(
-      doc(firestore, "users", uid, "memberships", storeId),
-      {
-        storeId,
-        storeName,
-        role: "owner",
-        status: "active",
-        ownerUserId: uid,
-        joinedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-
-    memberships = [
-      {
-        id: storeId,
-        storeId,
-        storeName,
-        role: "owner",
-        status: "active",
-        ownerUserId: uid,
-      },
-    ];
+    clearStoreSession();
+    return {
+      userId: uid,
+      activeStoreId: null,
+      defaultStoreId: null,
+      memberships: [],
+      activeStore: null,
+      defaultStore: null,
+      requiresStoreSetup: true,
+      userData,
+    };
   }
 
   const orderedMemberships = sortMemberships(
@@ -173,6 +119,8 @@ export const ensureUserStoreContext = async (user, options = {}) => {
     memberships: orderedMemberships,
     activeStore: activeMembership,
     defaultStore: defaultMembership,
+    requiresStoreSetup: false,
+    userData,
   };
 };
 

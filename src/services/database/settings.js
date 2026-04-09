@@ -215,6 +215,14 @@ export const saveSettings = async (settings) => {
           getStoreDocRef(),
           {
             name: businessName,
+            rif: String(settings?.business?.rif || "")
+              .trim()
+              .toUpperCase(),
+            address: String(settings?.business?.address || "").trim(),
+            phone: String(settings?.business?.phone || "").trim(),
+            email: String(settings?.business?.email || "")
+              .trim()
+              .toLowerCase(),
             updatedAt: new Date().toISOString(),
           },
           { merge: true },
