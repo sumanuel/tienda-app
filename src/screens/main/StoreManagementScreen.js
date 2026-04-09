@@ -11,7 +11,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCustomAlert } from "../../components/common/CustomAlert";
-import { getCloudAccessState } from "../../services/firebase/cloudAccess";
+import {
+  getCloudAccessState,
+  resetCloudAccessForSession,
+} from "../../services/firebase/cloudAccess";
 import {
   acceptInviteForCurrentUser,
   createInviteForActiveStore,
@@ -60,8 +63,14 @@ const getStoreErrorMessage = (error, fallbackMessage) => {
 };
 
 export const StoreManagementScreen = () => {
-  const { activeStoreId, memberships, storeLoading, switchStore, syncNow } =
-    useAuth();
+  const {
+    activeStoreId,
+    memberships,
+    storeLoading,
+    switchStore,
+    syncNow,
+    refreshStoreContext,
+  } = useAuth();
   const { showAlert, CustomAlert } = useCustomAlert();
   const [loadingData, setLoadingData] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +93,7 @@ export const StoreManagementScreen = () => {
   const cloudAccessState = getCloudAccessState();
   const isCloudBlocked = Boolean(cloudAccessState?.disabled);
   const hasAnyMembership = memberships.length > 0;
+  const hasResolvedActiveStore = Boolean(activeMembership?.storeId);
 
   const loadData = async () => {
     try {
@@ -231,6 +241,51 @@ export const StoreManagementScreen = () => {
     }
   };
 
+  const handleRetryCloudConnection = async () => {
+    try {
+      setSubmitting(true);
+      resetCloudAccessForSession();
+
+      const refreshedContext = await refreshStoreContext(
+        activeStoreId || undefined,
+      );
+
+      if (refreshedContext?.activeStoreId) {
+        await syncNow("stores:retry-cloud");
+      }
+
+      await loadData();
+
+      if (refreshedContext?.activeStoreId) {
+        showAlert({
+          title: "Conexión restablecida",
+          message: "La tienda activa en Firestore se recuperó correctamente.",
+          type: "success",
+        });
+        return;
+      }
+
+      showAlert({
+        title: "Sin tienda cloud",
+        message:
+          "La conexión a Firestore respondió, pero este usuario todavía no tiene una tienda registrada en la nube.",
+        type: "info",
+      });
+    } catch (error) {
+      console.error("Error retrying cloud store context:", error);
+      showAlert({
+        title: "No se pudo reconectar",
+        message: getStoreErrorMessage(
+          error,
+          "Firestore sigue rechazando permisos o la sesión aún no tiene acceso a una tienda.",
+        ),
+        type: "error",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <>
       <ScrollView
@@ -259,14 +314,25 @@ export const StoreManagementScreen = () => {
         {isCloudBlocked && (
           <View style={styles.warningCard}>
             <Text style={styles.warningTitle}>
-              Sin tienda activa en Firestore
+              {hasResolvedActiveStore
+                ? "Tienda resuelta, acceso cloud bloqueado"
+                : "Sin tienda activa en Firestore"}
             </Text>
             <Text style={styles.warningText}>
-              Los datos que guardaste en el onboarding quedaron en la base
-              local, pero no se creó la tienda en la nube porque Firestore sigue
-              rechazando permisos en esta sesión. Hasta que eso se resuelva,
-              aquí vas a ver "Sin tienda".
+              {hasResolvedActiveStore
+                ? "Tu perfil ya resolvió una tienda activa y por eso aparece como Activa más abajo. Lo que sigue fallando es el acceso a parte de la data cloud de esa tienda en esta sesión, normalmente por permisos sobre documentos dentro de stores/{storeId}."
+                : "Los datos que guardaste en el onboarding quedaron en la base local, pero no se creó la tienda en la nube porque Firestore sigue rechazando permisos en esta sesión. Hasta que eso se resuelva, aquí vas a ver Sin tienda."}
             </Text>
+            <TouchableOpacity
+              style={[styles.retryButton, submitting && styles.buttonDisabled]}
+              onPress={handleRetryCloudConnection}
+              disabled={submitting}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.retryButtonText}>
+                Reintentar conexión cloud
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -667,6 +733,18 @@ const styles = StyleSheet.create({
     fontSize: rf(13),
     color: "#6f7c8c",
     lineHeight: rf(18),
+  },
+  retryButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#8b5e00",
+    borderRadius: borderRadius.md,
+    paddingHorizontal: hs(14),
+    paddingVertical: vs(10),
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontSize: rf(13),
+    fontWeight: "800",
   },
 });
 

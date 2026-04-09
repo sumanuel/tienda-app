@@ -20,6 +20,7 @@ import {
   getUserDocRef,
   getUserMembershipDocRef,
 } from "./storeRefs";
+import { isMissingIndexError } from "../firebase/cloudAccess";
 
 const ROLES = ["owner", "admin", "seller", "inventory", "viewer"];
 
@@ -253,12 +254,23 @@ export const listPendingInvitesForCurrentUser = async () => {
     return [];
   }
 
-  const snapshot = await getDocs(
-    query(
-      collectionGroup(firestore, "invites"),
-      where("emailNormalized", "==", emailNormalized),
-    ),
-  );
+  let snapshot;
+  try {
+    snapshot = await getDocs(
+      query(
+        collectionGroup(firestore, "invites"),
+        where("emailNormalized", "==", emailNormalized),
+      ),
+    );
+  } catch (error) {
+    if (isMissingIndexError(error)) {
+      console.warn(
+        "Missing Firestore index for invites collectionGroup query. Returning no pending invites until the index is created.",
+      );
+      return [];
+    }
+    throw error;
+  }
 
   return snapshot.docs
     .map(mapStoreInvite)

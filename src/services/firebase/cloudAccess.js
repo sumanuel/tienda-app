@@ -17,6 +17,18 @@ export const isPermissionDeniedError = (error) => {
   );
 };
 
+export const isMissingIndexError = (error) => {
+  const code = normalizeText(error?.code);
+  const message = normalizeText(error?.message);
+
+  return (
+    code === "failed-precondition" ||
+    code.endsWith("/failed-precondition") ||
+    message.includes("requires a collection_group_asc index") ||
+    message.includes("requires an index")
+  );
+};
+
 export const disableCloudAccessForSession = (reason = "permission-denied") => {
   cloudAccessDisabled = true;
   disableReason = reason;

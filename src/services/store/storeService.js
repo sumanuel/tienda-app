@@ -23,6 +23,35 @@ const mapMembership = (snapshot) => {
   };
 };
 
+const ensureOwnerStoreMemberLink = async (uid, membership) => {
+  const storeId = normalizeValue(membership?.storeId);
+  const role = normalizeValue(membership?.role);
+
+  if (!uid || !storeId || role !== "owner") {
+    return false;
+  }
+
+  try {
+    await setDoc(
+      doc(firestore, "stores", storeId, "members", uid),
+      {
+        uid,
+        storeId,
+        role: "owner",
+        status: normalizeValue(membership?.status) || "active",
+        ownerUserId: normalizeValue(membership?.ownerUserId) || uid,
+        joinedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    return true;
+  } catch (error) {
+    console.warn("Owner membership reconciliation failed:", error);
+    return false;
+  }
+};
+
 const sortMemberships = (memberships = []) => {
   return [...memberships].sort((a, b) => {
     if (a.role === "owner" && b.role !== "owner") return -1;
@@ -97,6 +126,8 @@ export const ensureUserStoreContext = async (user, options = {}) => {
     ) ||
     orderedMemberships.find((item) => item.role === "owner") ||
     activeMembership;
+
+  await ensureOwnerStoreMemberLink(uid, activeMembership);
 
   await setDoc(
     userRef,
