@@ -15,6 +15,16 @@ const isCloudSettingsEnabled = () =>
 const getSettingsDocRef = () =>
   getStoreNestedDocRef(["settings", "app_settings"]);
 
+const persistSettingsLocally = async (settings) => {
+  const settingsJson = JSON.stringify(settings);
+  await db.runAsync(
+    `INSERT OR REPLACE INTO settings (key, value, updatedAt) 
+     VALUES ('app_settings', ?, datetime('now'));`,
+    [settingsJson],
+  );
+  return true;
+};
+
 const pickTextValue = (...values) => {
   for (const value of values) {
     const normalized = String(value || "").trim();
@@ -240,6 +250,8 @@ export const ensureSettingsDefaults = async () => {
  */
 export const saveSettings = async (settings) => {
   try {
+    await persistSettingsLocally(settings);
+
     if (isCloudSettingsEnabled()) {
       await setDoc(getSettingsDocRef(), settings, { merge: true });
 
@@ -275,12 +287,6 @@ export const saveSettings = async (settings) => {
       return true;
     }
 
-    const settingsJson = JSON.stringify(settings);
-    await db.runAsync(
-      `INSERT OR REPLACE INTO settings (key, value, updatedAt) 
-       VALUES ('app_settings', ?, datetime('now'));`,
-      [settingsJson],
-    );
     return true;
   } catch (error) {
     if (handleCloudAccessError(error, "settings:save")) {

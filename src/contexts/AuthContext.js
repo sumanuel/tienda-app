@@ -126,6 +126,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      let resolvedStoreContext = null;
+
       setUser(nextUser);
       setEmailVerified(Boolean(nextUser?.emailVerified));
 
@@ -160,6 +162,7 @@ export const AuthProvider = ({ children }) => {
         );
 
         const storeContext = await ensureUserStoreContext(nextUser);
+        resolvedStoreContext = storeContext;
         setActiveStoreId(storeContext.activeStoreId);
         setDefaultStoreId(storeContext.defaultStoreId);
         setMemberships(storeContext.memberships || []);
@@ -186,12 +189,35 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         if (isPermissionDeniedError(error)) {
           disableCloudAccessForSession("auth-state");
-          clearActiveStoreSession();
-          await resetDatabaseContext();
-          setActiveStoreId(null);
-          setDefaultStoreId(null);
-          setMemberships([]);
-          setRequiresStoreSetup(false);
+
+          if (resolvedStoreContext?.activeStoreId) {
+            await configureStoreDatabase({
+              userId: nextUser.uid,
+              storeId: resolvedStoreContext.activeStoreId,
+            });
+            setStoreSession({
+              userId: nextUser.uid,
+              activeStoreId: resolvedStoreContext.activeStoreId,
+              defaultStoreId:
+                resolvedStoreContext.defaultStoreId ||
+                resolvedStoreContext.activeStoreId,
+            });
+            setActiveStoreId(resolvedStoreContext.activeStoreId);
+            setDefaultStoreId(
+              resolvedStoreContext.defaultStoreId ||
+                resolvedStoreContext.activeStoreId,
+            );
+            setMemberships(resolvedStoreContext.memberships || []);
+            setRequiresStoreSetup(false);
+          } else {
+            clearActiveStoreSession();
+            await resetDatabaseContext();
+            setActiveStoreId(null);
+            setDefaultStoreId(null);
+            setMemberships([]);
+            setRequiresStoreSetup(false);
+          }
+
           setLastSyncResult({
             skipped: true,
             reason: "cloud-permission-denied",
