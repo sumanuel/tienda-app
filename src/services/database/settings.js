@@ -5,6 +5,7 @@ import { handleCloudAccessError } from "../firebase/cloudAccess";
 import {
   getStoreDocRef,
   getStoreNestedDocRef,
+  getUserMembershipDocRef,
   hasActiveStoreContext,
 } from "../store/storeRefs";
 
@@ -13,6 +14,17 @@ const isCloudSettingsEnabled = () =>
 
 const getSettingsDocRef = () =>
   getStoreNestedDocRef(["settings", "app_settings"]);
+
+const pickTextValue = (...values) => {
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+};
 
 const isPlainObject = (value) => {
   return (
@@ -108,10 +120,32 @@ export const initSettingsTable = async () => {
 export const getSettings = async () => {
   try {
     if (isCloudSettingsEnabled()) {
-      const snapshot = await getDoc(getSettingsDocRef());
+      const [snapshot, storeSnapshot] = await Promise.all([
+        getDoc(getSettingsDocRef()),
+        getDoc(getStoreDocRef()),
+      ]);
       const parsed = snapshot.exists() ? snapshot.data() || {} : {};
+      const storeData = storeSnapshot.exists()
+        ? storeSnapshot.data() || {}
+        : {};
       const defaults = getDefaultSettings();
       const merged = deepMergeDefaults(defaults, parsed);
+
+      merged.business = {
+        ...(merged.business || {}),
+        name: pickTextValue(
+          storeData?.name,
+          merged?.business?.name,
+          defaults.business.name,
+        ),
+        rif: pickTextValue(storeData?.rif, merged?.business?.rif),
+        address: pickTextValue(storeData?.address, merged?.business?.address),
+        phone: pickTextValue(storeData?.phone, merged?.business?.phone),
+        email: pickTextValue(
+          storeData?.email,
+          merged?.business?.email,
+        ).toLowerCase(),
+      };
 
       try {
         const name = String(merged?.business?.name || "").trim();
@@ -223,6 +257,15 @@ export const saveSettings = async (settings) => {
             email: String(settings?.business?.email || "")
               .trim()
               .toLowerCase(),
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+
+        await setDoc(
+          getUserMembershipDocRef(auth.currentUser?.uid),
+          {
+            storeName: businessName,
             updatedAt: new Date().toISOString(),
           },
           { merge: true },
