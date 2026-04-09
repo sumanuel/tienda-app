@@ -26,7 +26,10 @@ import {
   configureStoreDatabase,
   resetDatabaseContext,
 } from "../services/database/db";
-import { syncCurrentUserSQLiteToFirestore } from "../services/firebase/firestoreSync";
+import {
+  cancelRequestedCloudSync,
+  syncCurrentUserSQLiteToFirestore,
+} from "../services/firebase/firestoreSync";
 import { setStoreSession } from "../services/store/storeSession";
 import {
   clearActiveStoreSession,
@@ -270,6 +273,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
+    cancelRequestedCloudSync();
+    setSyncing(false);
+    setLastSyncResult(null);
     await firebaseSignOut(auth);
   };
 

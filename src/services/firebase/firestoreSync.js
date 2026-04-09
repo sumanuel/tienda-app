@@ -26,6 +26,15 @@ const CLOUD_SNAPSHOT_DATASETS = [
 let syncTimer = null;
 let inFlightSync = null;
 
+export const cancelRequestedCloudSync = () => {
+  if (!syncTimer) {
+    return;
+  }
+
+  clearTimeout(syncTimer);
+  syncTimer = null;
+};
+
 const sanitizeValue = (value) => {
   if (value === undefined) return null;
   if (value === null) return null;
@@ -233,11 +242,10 @@ export const syncCurrentUserSQLiteToFirestore = async (options = {}) => {
 };
 
 export const requestCloudSync = (reason = "mutation") => {
-  if (syncTimer) {
-    clearTimeout(syncTimer);
-  }
+  cancelRequestedCloudSync();
 
   syncTimer = setTimeout(() => {
+    syncTimer = null;
     syncCurrentUserSQLiteToFirestore({ reason }).catch((error) => {
       console.warn("Cloud sync failed:", error);
     });

@@ -44,6 +44,7 @@ export const SettingsScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [backupBusy, setBackupBusy] = useState(false);
   const [excelBusy, setExcelBusy] = useState(false);
+  const [manualSyncBusy, setManualSyncBusy] = useState(false);
 
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
 
@@ -228,6 +229,7 @@ export const SettingsScreen = () => {
 
   const handleManualCloudSync = async () => {
     try {
+      setManualSyncBusy(true);
       await syncNow("settings:manual-sync");
       showAlert({
         title: "Sincronización completa",
@@ -238,9 +240,11 @@ export const SettingsScreen = () => {
       console.error("Error syncing to Firestore:", error);
       showAlert({
         title: "Error",
-        message: "No se pudo sincronizar con Firestore.",
+        message: error?.message || "No se pudo sincronizar con Firestore.",
         type: "error",
       });
+    } finally {
+      setManualSyncBusy(false);
     }
   };
 
@@ -473,12 +477,13 @@ export const SettingsScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.secondaryButton,
-                  (syncing || backupBusy || excelBusy) && styles.buttonDisabled,
+                  (manualSyncBusy || syncing || backupBusy || excelBusy) &&
+                    styles.buttonDisabled,
                 ]}
                 onPress={handleManualCloudSync}
-                disabled={syncing || backupBusy || excelBusy}
+                disabled={manualSyncBusy || syncing || backupBusy || excelBusy}
               >
-                {syncing ? (
+                {manualSyncBusy || syncing ? (
                   <ActivityIndicator />
                 ) : (
                   <Text style={styles.secondaryButtonText}>
@@ -489,10 +494,10 @@ export const SettingsScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.secondaryButtonOutline,
-                  syncing && styles.buttonDisabled,
+                  (backupBusy || excelBusy) && styles.buttonDisabled,
                 ]}
                 onPress={handleSignOut}
-                disabled={syncing}
+                disabled={backupBusy || excelBusy}
                 activeOpacity={0.85}
               >
                 <Text style={styles.secondaryButtonOutlineText}>
