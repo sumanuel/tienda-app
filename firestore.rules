@@ -35,6 +35,12 @@ service cloud.firestore {
       return get(userMembershipPath(storeId));
     }
 
+    function hasActiveMemberLink(storeId) {
+      return isSignedIn()
+        && exists(memberPath(storeId))
+        && membership(storeId).data.status != 'inactive';
+    }
+
     function hasUserMembership(storeId) {
       return isSignedIn()
         && exists(userMembershipPath(storeId))
@@ -48,13 +54,13 @@ service cloud.firestore {
     function isStoreMember(storeId) {
       return isSignedIn()
         && (
-          exists(memberPath(storeId))
+          hasActiveMemberLink(storeId)
           || hasUserMembership(storeId)
         );
     }
 
     function storeRole(storeId) {
-      return exists(memberPath(storeId))
+      return hasActiveMemberLink(storeId)
         ? membership(storeId).data.role
         : hasUserMembership(storeId)
           ? userMembership(storeId).data.role
@@ -112,8 +118,8 @@ service cloud.firestore {
       allow read, write: if isSelf(userId);
 
       match /memberships/{storeId} {
-        allow read: if isSelf(userId);
-        allow create, update: if isSelf(userId);
+        allow read: if isSelf(userId) || canManageStore(storeId);
+        allow create, update: if isSelf(userId) || canManageStore(storeId);
         allow delete: if false;
       }
     }

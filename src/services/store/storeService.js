@@ -55,8 +55,60 @@ async function ensureOwnerStoreMemberLink(uid, membership, options = {}) {
   }
 }
 
+async function ensureOwnerStoreExists(uid, membership, options = {}) {
+  const storeId = normalizeValue(membership?.storeId);
+  const role = normalizeValue(membership?.role);
+
+  if (!uid || !storeId || role !== "owner") {
+    return false;
+  }
+
+  try {
+    await setDoc(
+      doc(firestore, "stores", storeId),
+      {
+        id: storeId,
+        name: normalizeValue(membership?.storeName) || "Mi Tienda",
+        ownerUserId: normalizeValue(membership?.ownerUserId) || uid,
+        createdBy: normalizeValue(membership?.ownerUserId) || uid,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    await ensureOwnerStoreMemberLink(uid, membership, { silent: true });
+    return true;
+  } catch (error) {
+    if (!options.silent) {
+      console.warn("Owner store reconstruction failed:", error);
+    }
+    return false;
+  }
+}
+
 const mergeMembershipWithStoreData = async (uid, membership, storeSnapshot) => {
   if (!storeSnapshot.exists()) {
+    const restored = await ensureOwnerStoreExists(uid, membership, {
+      silent: true,
+    });
+
+    if (restored) {
+      try {
+        const restoredSnapshot = await getDoc(
+          doc(firestore, "stores", normalizeValue(membership?.storeId)),
+        );
+        if (restoredSnapshot.exists()) {
+          return await mergeMembershipWithStoreData(
+            uid,
+            membership,
+            restoredSnapshot,
+          );
+        }
+      } catch (restoreError) {
+        console.warn("Owner store reconstruction retry failed:", restoreError);
+      }
+    }
+
     return {
       ...membership,
       cloudAccessible: false,
@@ -111,6 +163,24 @@ const hydrateMembershipFromStore = async (uid, membership) => {
     return await mergeMembershipWithStoreData(uid, membership, storeSnapshot);
   } catch (error) {
     if (isPermissionDeniedError(error)) {
+      const restored = await ensureOwnerStoreExists(uid, membership, {
+        silent: true,
+      });
+      if (restored) {
+        try {
+          const restoredStoreSnapshot = await getDoc(
+            doc(firestore, "stores", storeId),
+          );
+          return await mergeMembershipWithStoreData(
+            uid,
+            membership,
+            restoredStoreSnapshot,
+          );
+        } catch (_) {
+          // Continuar con la reconciliacion por member link.
+        }
+      }
+
       const repaired = await ensureOwnerStoreMemberLink(uid, membership, {
         silent: true,
       });

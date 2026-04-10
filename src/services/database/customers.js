@@ -285,6 +285,11 @@ export const getAllCustomers = async () => {
     );
     return result;
   } catch (error) {
+    if (handleCloudAccessError(error, "customers:getAll")) {
+      return await db.getAllAsync(
+        "SELECT * FROM customers WHERE active = 1 ORDER BY name;",
+      );
+    }
     throw error;
   }
 };

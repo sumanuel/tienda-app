@@ -203,6 +203,34 @@ const buildDuplicateOwnerGroups = (memberships = []) => {
   return Array.from(groups.values()).filter((group) => group.length > 1);
 };
 
+const sortMembershipsForFallback = (memberships = []) => {
+  return [...memberships].sort((a, b) => {
+    if (a.role === "owner" && b.role !== "owner") return -1;
+    if (a.role !== "owner" && b.role === "owner") return 1;
+    return String(a.storeName || "").localeCompare(
+      String(b.storeName || ""),
+      "es",
+      { sensitivity: "base" },
+    );
+  });
+};
+
+const listActiveMembershipsForCurrentUser = async (uid) => {
+  const snapshot = await getDocs(
+    collection(firestore, "users", uid, "memberships"),
+  );
+
+  return snapshot.docs
+    .map((item) => ({
+      storeId: normalizeText(item.data()?.storeId || item.id),
+      storeName: normalizeText(item.data()?.storeName),
+      role: normalizeText(item.data()?.role || "member") || "member",
+      status: normalizeText(item.data()?.status || "active") || "active",
+      ownerUserId: normalizeText(item.data()?.ownerUserId),
+    }))
+    .filter((item) => item.storeId && item.status !== "inactive");
+};
+
 export const getAvailableStoreRoles = () => [...ROLES];
 
 export const listDuplicateOwnerStoresForCurrentUser = async ({
@@ -445,6 +473,72 @@ export const renameActiveStoreForCurrentUser = async (nextStoreName) => {
   };
 };
 
+export const deleteActiveStoreForCurrentUser = async () => {
+  const user = auth.currentUser;
+  const uid = getCurrentUserIdOrThrow(user?.uid);
+  const storeId = getActiveStoreIdOrThrow();
+
+  const [membershipSnapshot, storeMemberSnapshot, storeSnapshot, memberships] =
+    await Promise.all([
+      getDoc(getUserMembershipDocRef(uid, storeId)),
+      getDoc(getStoreMemberDocRef(storeId, uid)),
+      getDoc(getStoreDocRef(storeId)),
+      listActiveMembershipsForCurrentUser(uid),
+    ]);
+
+  const membershipRole = normalizeText(membershipSnapshot.data()?.role);
+  const storeMemberRole = normalizeText(storeMemberSnapshot.data()?.role);
+  const storeOwnerUserId = normalizeText(storeSnapshot.data()?.ownerUserId);
+  const isOwner =
+    membershipRole === "owner" ||
+    storeMemberRole === "owner" ||
+    storeOwnerUserId === uid;
+
+  if (!isOwner) {
+    throw new Error("Solo el propietario puede eliminar esta tienda.");
+  }
+
+  const deletedStoreName =
+    normalizeText(storeSnapshot.data()?.name) ||
+    normalizeText(membershipSnapshot.data()?.storeName) ||
+    "Mi Tienda";
+
+  const remainingMemberships = sortMembershipsForFallback(
+    memberships.filter((item) => item.storeId !== storeId),
+  );
+  const nextMembership = remainingMemberships[0] || null;
+
+  const deletedDocuments = await deleteStoreTree(storeId);
+
+  await setDoc(
+    getUserMembershipDocRef(uid, storeId),
+    {
+      status: "inactive",
+      deletedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  await setDoc(
+    getUserDocRef(uid),
+    {
+      activeStoreId: nextMembership?.storeId || null,
+      defaultStoreId: nextMembership?.storeId || null,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return {
+    deletedStoreId: storeId,
+    deletedStoreName,
+    deletedDocuments,
+    nextStoreId: nextMembership?.storeId || null,
+    nextStoreName: nextMembership?.storeName || null,
+  };
+};
+
 export const listMembersForStore = async (
   storeId = getActiveStoreIdOrThrow(),
 ) => {
@@ -533,6 +627,122 @@ export const createInviteForActiveStore = async ({
     invitedEmail,
     role: resolvedRole,
     status: "pending",
+  };
+};
+
+export const revokeInviteForActiveStore = async (invite) => {
+  const storeId = getActiveStoreIdOrThrow();
+  const inviteId = normalizeText(invite?.id);
+  const inviteEmail = normalizeEmail(
+    invite?.invitedEmail || invite?.emailNormalized,
+  );
+
+  if (!inviteId && !inviteEmail) {
+    throw new Error("La invitación no es válida.");
+  }
+
+  const targetId = inviteId || inviteEmail;
+  const inviteRef = doc(firestore, "stores", storeId, "invites", targetId);
+  const snapshot = await getDoc(inviteRef);
+
+  if (!snapshot.exists()) {
+    throw new Error("La invitación ya no existe.");
+  }
+
+  const currentInvite = mapStoreInvite(snapshot);
+  if (currentInvite.status !== "pending") {
+    throw new Error("Solo se pueden revocar invitaciones pendientes.");
+  }
+
+  await deleteDoc(inviteRef);
+  return currentInvite;
+};
+
+export const removeCollaboratorFromActiveStore = async (member) => {
+  const user = auth.currentUser;
+  const uid = getCurrentUserIdOrThrow(user?.uid);
+  const storeId = getActiveStoreIdOrThrow();
+  const targetUid = normalizeText(member?.uid || member?.id);
+
+  if (!targetUid) {
+    throw new Error("El colaborador no es válido.");
+  }
+
+  if (targetUid === uid) {
+    throw new Error("No puedes revocar tu propio acceso desde esta pantalla.");
+  }
+
+  const [
+    actorMembershipSnapshot,
+    actorStoreMemberSnapshot,
+    targetMembershipSnapshot,
+    targetStoreMemberSnapshot,
+  ] = await Promise.all([
+    getDoc(getUserMembershipDocRef(uid, storeId)),
+    getDoc(getStoreMemberDocRef(storeId, uid)),
+    getDoc(getUserMembershipDocRef(targetUid, storeId)),
+    getDoc(getStoreMemberDocRef(storeId, targetUid)),
+  ]);
+
+  const actorRole =
+    normalizeText(actorStoreMemberSnapshot.data()?.role) ||
+    normalizeText(actorMembershipSnapshot.data()?.role);
+  const targetRole =
+    normalizeText(targetStoreMemberSnapshot.data()?.role) ||
+    normalizeText(targetMembershipSnapshot.data()?.role);
+
+  if (actorRole !== "owner" && actorRole !== "admin") {
+    throw new Error(
+      "Solo el propietario o un administrador pueden revocar colaboradores.",
+    );
+  }
+
+  if (
+    !targetMembershipSnapshot.exists() &&
+    !targetStoreMemberSnapshot.exists()
+  ) {
+    throw new Error("El colaborador ya no tiene acceso a esta tienda.");
+  }
+
+  if (targetRole === "owner") {
+    throw new Error("No puedes revocar al propietario de la tienda.");
+  }
+
+  const updatedAt = serverTimestamp();
+
+  await Promise.all([
+    setDoc(
+      getStoreMemberDocRef(storeId, targetUid),
+      {
+        uid: targetUid,
+        status: "inactive",
+        updatedAt,
+        revokedAt: updatedAt,
+        revokedByUserId: uid,
+      },
+      { merge: true },
+    ),
+    setDoc(
+      getUserMembershipDocRef(targetUid, storeId),
+      {
+        storeId,
+        status: "inactive",
+        updatedAt,
+        revokedAt: updatedAt,
+        revokedByUserId: uid,
+      },
+      { merge: true },
+    ),
+  ]);
+
+  return {
+    uid: targetUid,
+    displayName:
+      normalizeText(member?.displayName) ||
+      normalizeText(targetStoreMemberSnapshot.data()?.displayName),
+    email:
+      normalizeText(member?.email) ||
+      normalizeText(targetStoreMemberSnapshot.data()?.email),
   };
 };
 

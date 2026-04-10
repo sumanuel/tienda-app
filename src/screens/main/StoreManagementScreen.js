@@ -17,12 +17,15 @@ import {
   cleanupDuplicateOwnerStoresForCurrentUser,
   createInviteForActiveStore,
   createStoreForCurrentUser,
+  deleteActiveStoreForCurrentUser,
   getAvailableStoreRoles,
   listInvitesForStore,
   listDuplicateOwnerStoresForCurrentUser,
   listMembersForStore,
   listPendingInvitesForCurrentUser,
+  removeCollaboratorFromActiveStore,
   renameActiveStoreForCurrentUser,
+  revokeInviteForActiveStore,
 } from "../../services/store/storeCollaborationService";
 import {
   hs,
@@ -254,6 +257,56 @@ export const StoreManagementScreen = () => {
     }
   };
 
+  const handleDeleteActiveStore = async () => {
+    if (!activeStoreId || !activeMembership) {
+      return;
+    }
+
+    showAlert({
+      title: "Eliminar tienda",
+      message:
+        "Esta acción es irreversible. Se eliminará la tienda activa con toda su información en Firestore. Asegúrate de que realmente quieres borrarla.",
+      type: "warning",
+      buttons: [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              const result = await deleteActiveStoreForCurrentUser();
+              await refreshStoreContext(result.nextStoreId || undefined);
+              await loadData();
+              showAlert({
+                title: "Tienda eliminada",
+                message: result.nextStoreName
+                  ? `Se eliminó ${result.deletedStoreName}. Ahora estás trabajando en ${result.nextStoreName}.`
+                  : `Se eliminó ${result.deletedStoreName}. Ya no tienes una tienda activa.`,
+                type: "success",
+              });
+            } catch (error) {
+              console.error("Error deleting store:", error);
+              showAlert({
+                title: "Error",
+                message: getStoreErrorMessage(
+                  error,
+                  "No se pudo eliminar la tienda.",
+                ),
+                type: "error",
+              });
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ],
+    });
+  };
+
   const handleCleanupDuplicateStores = async () => {
     const duplicateCount = duplicateStores.length;
     if (!duplicateCount || !activeStoreId) {
@@ -334,6 +387,92 @@ export const StoreManagementScreen = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleRevokeInvite = async (invite) => {
+    showAlert({
+      title: "Revocar invitación",
+      message:
+        "La invitación pendiente será eliminada y el usuario ya no podrá aceptarla.",
+      type: "warning",
+      buttons: [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Revocar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              await revokeInviteForActiveStore(invite);
+              await loadData();
+              showAlert({
+                title: "Invitación revocada",
+                message: `Se revocó la invitación de ${invite.invitedEmail}.`,
+                type: "success",
+              });
+            } catch (error) {
+              console.error("Error revoking invite:", error);
+              showAlert({
+                title: "Error",
+                message: getStoreErrorMessage(
+                  error,
+                  "No se pudo revocar la invitación.",
+                ),
+                type: "error",
+              });
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleRemoveCollaborator = async (member) => {
+    showAlert({
+      title: "Revocar acceso",
+      message:
+        "El colaborador perderá acceso a esta tienda y dejará de ver su información compartida.",
+      type: "warning",
+      buttons: [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Revocar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              const removed = await removeCollaboratorFromActiveStore(member);
+              await loadData();
+              showAlert({
+                title: "Acceso revocado",
+                message: `Se revocó el acceso de ${removed.displayName || removed.email || removed.uid}.`,
+                type: "success",
+              });
+            } catch (error) {
+              console.error("Error removing collaborator:", error);
+              showAlert({
+                title: "Error",
+                message: getStoreErrorMessage(
+                  error,
+                  "No se pudo revocar el acceso del colaborador.",
+                ),
+                type: "error",
+              });
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ],
+    });
   };
 
   return (
@@ -472,6 +611,20 @@ export const StoreManagementScreen = () => {
             >
               <Text style={styles.primaryButtonText}>Guardar nuevo nombre</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.dangerButton, submitting && styles.buttonDisabled]}
+              onPress={handleDeleteActiveStore}
+              disabled={submitting}
+            >
+              <Text style={styles.dangerButtonText}>
+                Eliminar tienda activa
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.helperText}>
+              Esta acción es irreversible y borrará toda la data cloud de la
+              tienda.
+            </Text>
           </View>
         )}
 
@@ -522,6 +675,19 @@ export const StoreManagementScreen = () => {
                     {formatRole(member.role)}
                   </Text>
                 </View>
+                {canManageCollaborators(activeMembership) &&
+                  member.role !== "owner" && (
+                    <TouchableOpacity
+                      style={[
+                        styles.revokeButton,
+                        submitting && styles.buttonDisabled,
+                      ]}
+                      onPress={() => handleRemoveCollaborator(member)}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.revokeButtonText}>Revocar</Text>
+                    </TouchableOpacity>
+                  )}
               </View>
             ))
           )}
@@ -589,6 +755,18 @@ export const StoreManagementScreen = () => {
                       {invite.status === "pending" ? "Pendiente" : "Aceptada"}
                     </Text>
                   </View>
+                  {invite.status === "pending" && (
+                    <TouchableOpacity
+                      style={[
+                        styles.revokeButton,
+                        submitting && styles.buttonDisabled,
+                      ]}
+                      onPress={() => handleRevokeInvite(invite)}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.revokeButtonText}>Revocar</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               ))
             )}
@@ -761,8 +939,24 @@ const styles = StyleSheet.create({
     fontSize: rf(15),
     fontWeight: "700",
   },
+  dangerButton: {
+    backgroundColor: "#b42318",
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.lg,
+    alignItems: "center",
+  },
+  dangerButtonText: {
+    color: "#fff",
+    fontSize: rf(15),
+    fontWeight: "700",
+  },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  helperText: {
+    fontSize: rf(12),
+    color: "#6f7c8c",
+    lineHeight: rf(18),
   },
   listRow: {
     flexDirection: "row",
@@ -803,6 +997,17 @@ const styles = StyleSheet.create({
   },
   smallButtonText: {
     color: "#2f5ae0",
+    fontSize: rf(13),
+    fontWeight: "700",
+  },
+  revokeButton: {
+    backgroundColor: "#fff1f2",
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(8),
+  },
+  revokeButtonText: {
+    color: "#b42318",
     fontSize: rf(13),
     fontWeight: "700",
   },

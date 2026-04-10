@@ -1511,6 +1511,9 @@ export const fixCorruptedAccountData = async () => {
 
     console.log("Datos corruptos corregidos");
   } catch (error) {
+    if (handleCloudAccessError(error, "accounts:fixCorruptedData")) {
+      return;
+    }
     console.error("Error fixing corrupted data:", error);
     throw error;
   }
