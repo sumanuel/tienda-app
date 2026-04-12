@@ -23,6 +23,8 @@ import {
 } from "../services/firebase/cloudAccess";
 import {
   configureStoreDatabase,
+  initAllTables,
+  migrateLegacyDatabaseToCurrentStoreIfNeeded,
   resetDatabaseContext,
 } from "../services/database/db";
 import {
@@ -69,6 +71,8 @@ export const AuthProvider = ({ children }) => {
       userId: uid,
       storeId: normalizedStoreId,
     });
+    await initAllTables();
+    await migrateLegacyDatabaseToCurrentStoreIfNeeded();
 
     setActiveStoreId(normalizedStoreId);
     setDefaultStoreId(normalizedStoreId);
@@ -102,6 +106,23 @@ export const AuthProvider = ({ children }) => {
     return session;
   };
 
+  const prepareStoreDatabase = async ({ uid, userId, storeId } = {}) => {
+    const normalizedUid = String(uid || userId || "").trim();
+    const normalizedStoreId = String(storeId || "").trim();
+
+    if (!normalizedUid || !normalizedStoreId) {
+      return { migrated: false, reason: "missing-context" };
+    }
+
+    await configureStoreDatabase({
+      userId: normalizedUid,
+      storeId: normalizedStoreId,
+    });
+
+    await initAllTables();
+    return await migrateLegacyDatabaseToCurrentStoreIfNeeded();
+  };
+
   const refreshStoreContext = async (preferredStoreId) => {
     if (!auth.currentUser) {
       return null;
@@ -112,7 +133,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     if (refreshedContext?.activeStoreId) {
-      await configureStoreDatabase({
+      await prepareStoreDatabase({
         userId: auth.currentUser.uid,
         storeId: refreshedContext.activeStoreId,
       });
@@ -179,7 +200,7 @@ export const AuthProvider = ({ children }) => {
           uid: nextUser.uid,
           storeId: storeContext.activeStoreId,
         });
-        await configureStoreDatabase({
+        await prepareStoreDatabase({
           userId: nextUser.uid,
           storeId: storeContext.activeStoreId,
         });
@@ -191,7 +212,7 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         if (isPermissionDeniedError(error)) {
           if (resolvedStoreContext?.activeStoreId) {
-            await configureStoreDatabase({
+            await prepareStoreDatabase({
               userId: nextUser.uid,
               storeId: resolvedStoreContext.activeStoreId,
             });
@@ -285,7 +306,7 @@ export const AuthProvider = ({ children }) => {
     setStoreLoading(true);
     try {
       const session = await switchActiveStoreForUser({ userId: uid, storeId });
-      await configureStoreDatabase({
+      await prepareStoreDatabase({
         userId: uid,
         storeId: session.activeStoreId,
       });
