@@ -134,6 +134,17 @@ const getNonEmptyUserTables = async (database) => {
   return nonEmptyTables;
 };
 
+const getTableRowCount = async (database, tableName) => {
+  try {
+    const countRow = await database.getFirstAsync(
+      `SELECT COUNT(*) AS total FROM ${tableName};`,
+    );
+    return Number(countRow?.total) || 0;
+  } catch (_) {
+    return 0;
+  }
+};
+
 const copyLegacyRowsToCurrentDatabase = async (
   sourceDb,
   targetDb,
@@ -214,17 +225,10 @@ export const migrateLegacyDatabaseToCurrentStoreIfNeeded = async () => {
   }
 
   const sourceDb = await openDatabase(LEGACY_DB_NAME);
-  const [sourceTables, targetTables] = await Promise.all([
-    getNonEmptyUserTables(sourceDb),
-    ensureCurrentDb().then((database) => getNonEmptyUserTables(database)),
-  ]);
+  const sourceTables = await getNonEmptyUserTables(sourceDb);
 
   if (!sourceTables.length) {
     return { migrated: false, reason: "legacy-empty" };
-  }
-
-  if (targetTables.length) {
-    return { migrated: false, reason: "target-has-data" };
   }
 
   const tableOrder = [
@@ -237,18 +241,49 @@ export const migrateLegacyDatabaseToCurrentStoreIfNeeded = async () => {
   ];
 
   const targetDb = await ensureCurrentDb();
+  const migratedTables = [];
+  const skippedTables = [];
 
   await targetDb.execAsync("PRAGMA foreign_keys = OFF;");
   try {
     for (const tableName of tableOrder) {
+      const [sourceCount, targetCount] = await Promise.all([
+        getTableRowCount(sourceDb, tableName),
+        getTableRowCount(targetDb, tableName),
+      ]);
+
+      if (sourceCount <= 0) {
+        skippedTables.push({ tableName, reason: "source-empty" });
+        continue;
+      }
+
+      if (targetCount > 0) {
+        skippedTables.push({ tableName, reason: "target-has-data" });
+        continue;
+      }
+
       await copyLegacyRowsToCurrentDatabase(sourceDb, targetDb, tableName);
+      migratedTables.push({ tableName, rows: sourceCount });
     }
   } finally {
     await targetDb.execAsync("PRAGMA foreign_keys = ON;");
   }
 
   initializedDatabases.delete(currentDbName);
-  return { migrated: true, tables: tableOrder.length };
+  if (!migratedTables.length) {
+    return {
+      migrated: false,
+      reason: skippedTables.length ? "target-has-data" : "no-tables-copied",
+      skippedTables,
+    };
+  }
+
+  return {
+    migrated: true,
+    tables: migratedTables.length,
+    migratedTables,
+    skippedTables,
+  };
 };
 
 const LOCAL_CONSECUTIVE_COLUMNS = [

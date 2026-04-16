@@ -120,7 +120,27 @@ export const AuthProvider = ({ children }) => {
     });
 
     await initAllTables();
-    return await migrateLegacyDatabaseToCurrentStoreIfNeeded();
+    const migrationResult = await migrateLegacyDatabaseToCurrentStoreIfNeeded();
+
+    if (migrationResult?.migrated) {
+      console.log(
+        "Legacy SQLite migration completed:",
+        normalizedStoreId,
+        migrationResult,
+      );
+    } else if (
+      migrationResult?.reason &&
+      migrationResult.reason !== "legacy-empty" &&
+      migrationResult.reason !== "legacy-active"
+    ) {
+      console.log(
+        "Legacy SQLite migration skipped:",
+        normalizedStoreId,
+        migrationResult,
+      );
+    }
+
+    return migrationResult;
   };
 
   const refreshStoreContext = async (preferredStoreId) => {
