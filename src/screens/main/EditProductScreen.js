@@ -39,6 +39,7 @@ export const EditProductScreen = ({ navigation, route }) => {
   const [additionalCost, setAdditionalCost] = useState("");
   const [costCurrency, setCostCurrency] = useState("USD");
   const [margin, setMargin] = useState(30);
+  const [iva, setIva] = useState(0);
   const [calculatedPrices, setCalculatedPrices] = useState({
     usd: "",
     ves: "",
@@ -49,6 +50,7 @@ export const EditProductScreen = ({ navigation, route }) => {
       const s = await getSettings();
       setSettings(s);
       setMargin(s?.pricing?.defaultMargin || 30);
+      setIva(s?.pricing?.iva || 0);
     };
     loadSettings();
   }, []);
@@ -101,6 +103,7 @@ export const EditProductScreen = ({ navigation, route }) => {
   const costRef = useRef(null);
   const additionalCostRef = useRef(null);
   const marginRef = useRef(null);
+  const ivaRef = useRef(null);
   const stockRef = useRef(null);
   const descriptionRef = useRef(null);
   const scrollViewRef = useRef(null);
@@ -143,6 +146,10 @@ export const EditProductScreen = ({ navigation, route }) => {
 
       if (typeof product.margin === "number") {
         setMargin(product.margin);
+      }
+
+      if (typeof product.iva === "number") {
+        setIva(product.iva);
       }
 
       if (typeof product.cost === "number") {
@@ -222,6 +229,15 @@ export const EditProductScreen = ({ navigation, route }) => {
       return;
     }
 
+    if (Number.isNaN(Number(iva)) || Number(iva) < 0 || Number(iva) > 100) {
+      showAlert({
+        title: "Error",
+        message: "El IVA debe ser un porcentaje válido entre 0 y 100",
+        type: "error",
+      });
+      return;
+    }
+
     try {
       const rateFromSettings = Number(settings?.pricing?.currencies?.USD) || 0;
       const appliedRate = Number(exchangeRate) || rateFromSettings || 0;
@@ -254,6 +270,7 @@ export const EditProductScreen = ({ navigation, route }) => {
         priceUSD: parseFloat(calculatedPrices.usd),
         priceVES: parseFloat(calculatedPrices.ves),
         margin: margin,
+        iva: Number(iva) || 0,
         stock: parseInt(formData.stock),
         minStock: 0,
         description: formData.description.trim(),
@@ -519,8 +536,24 @@ export const EditProductScreen = ({ navigation, route }) => {
                 value={String(margin)}
                 onChangeText={(value) => setMargin(Number(value) || 0)}
                 keyboardType="numeric"
-                returnKeyType="done"
+                returnKeyType="next"
                 onFocus={() => scrollToField(marginRef)}
+                onSubmitEditing={() => ivaRef.current?.focus()}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>IVA (%)</Text>
+              <TextInput
+                ref={ivaRef}
+                style={styles.input}
+                placeholder="16"
+                placeholderTextColor="#9aa2b1"
+                value={String(iva)}
+                onChangeText={(value) => setIva(Number(value) || 0)}
+                keyboardType="numeric"
+                returnKeyType="done"
+                onFocus={() => scrollToField(ivaRef)}
                 onSubmitEditing={() => stockRef.current?.focus()}
               />
             </View>

@@ -8,6 +8,7 @@ import {
   TextInput,
   SafeAreaView,
   ActivityIndicator,
+  Switch,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
@@ -42,6 +43,7 @@ export const PricingSettingsScreen = () => {
     USD2: 350,
   });
   const [iva, setIva] = useState(16);
+  const [applyIvaOnSales, setApplyIvaOnSales] = useState(false);
 
   const [editingSection, setEditingSection] = useState(null);
   const [savingSection, setSavingSection] = useState(null);
@@ -55,6 +57,7 @@ export const PricingSettingsScreen = () => {
     USD2: "350",
   });
   const [formIva, setFormIva] = useState("16");
+  const [formApplyIvaOnSales, setFormApplyIvaOnSales] = useState(false);
   const [manualRateInput, setManualRateInput] = useState("280");
 
   useEffect(() => {
@@ -88,12 +91,14 @@ export const PricingSettingsScreen = () => {
         }
 
         const ivaValue = pricing.iva ?? 16;
+        const shouldApplyIva = pricing.applyIvaOnSales ?? false;
 
         setMargin(defaultMargin);
         setLowStockThreshold(defaultLowStock);
         setBaseCurrency(defaultBaseCurrency);
         setCurrencies(syncedCurrencies);
         setIva(ivaValue);
+        setApplyIvaOnSales(shouldApplyIva);
 
         setFormMargin(defaultMargin.toString());
         setFormLowStock(defaultLowStock.toString());
@@ -104,6 +109,7 @@ export const PricingSettingsScreen = () => {
           USD2: (syncedCurrencies.USD2 ?? 0).toString(),
         });
         setFormIva(ivaValue.toString());
+        setFormApplyIvaOnSales(shouldApplyIva);
         setManualRateInput(
           rate?.toString() || (syncedCurrencies.USD ?? 0).toString(),
         );
@@ -138,6 +144,7 @@ export const PricingSettingsScreen = () => {
         USD2: (currencies.USD2 ?? 0).toString(),
       });
       setFormIva(iva.toString());
+      setFormApplyIvaOnSales(applyIvaOnSales);
       setManualRateInput(rate?.toString() || (currencies.USD ?? 0).toString());
     }
     if (section === "inventory") {
@@ -158,6 +165,7 @@ export const PricingSettingsScreen = () => {
       USD2: (currencies.USD2 ?? 0).toString(),
     });
     setFormIva(iva.toString());
+    setFormApplyIvaOnSales(applyIvaOnSales);
     setManualRateInput(rate?.toString() || (currencies.USD ?? 0).toString());
   };
 
@@ -218,6 +226,7 @@ export const PricingSettingsScreen = () => {
             USD2: numericUsd2,
           },
           iva: numericIva,
+          applyIvaOnSales: formApplyIvaOnSales,
         },
       };
       await saveSettings(updatedSettings);
@@ -230,11 +239,12 @@ export const PricingSettingsScreen = () => {
         USD2: numericUsd2,
       });
       setIva(numericIva);
+      setApplyIvaOnSales(formApplyIvaOnSales);
 
       setEditingSection(null);
       showAlert({
         title: "Éxito",
-        message: "Configuración de márgenes actualizada",
+        message: "Configuración de márgenes e IVA actualizada",
         type: "success",
       });
     } catch (error) {
@@ -354,6 +364,12 @@ export const PricingSettingsScreen = () => {
               <Text style={styles.detailLabel}>IVA</Text>
               <Text style={styles.detailValue}>{iva}%</Text>
             </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Cobrar IVA en ventas</Text>
+              <Text style={styles.detailValue}>
+                {applyIvaOnSales ? "Activado" : "Desactivado"}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity
             style={styles.cardButton}
@@ -433,6 +449,24 @@ export const PricingSettingsScreen = () => {
                   onChangeText={setFormIva}
                   placeholder="Ej: 16"
                 />
+
+                <View style={styles.switchRow}>
+                  <View style={styles.switchCopy}>
+                    <Text style={styles.switchTitle}>
+                      Aplicar IVA al cobrar
+                    </Text>
+                    <Text style={styles.switchDescription}>
+                      Si está activado, el POS sumará el IVA configurado al
+                      total de la venta.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={formApplyIvaOnSales}
+                    onValueChange={setFormApplyIvaOnSales}
+                    trackColor={{ false: "#d5dbe7", true: "#81C784" }}
+                    thumbColor={formApplyIvaOnSales ? "#1f9254" : "#f4f3f4"}
+                  />
+                </View>
               </ScrollView>
 
               <View style={styles.modalFooter}>
@@ -754,6 +788,27 @@ const styles = StyleSheet.create({
     color: "#7a8796",
     textTransform: "uppercase",
     letterSpacing: 0.6,
+  },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.lg,
+    marginTop: spacing.md,
+  },
+  switchCopy: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  switchTitle: {
+    fontSize: rf(15),
+    fontWeight: "600",
+    color: "#1f2633",
+  },
+  switchDescription: {
+    fontSize: rf(13),
+    color: "#6f7c8c",
+    lineHeight: rf(18),
   },
 });
 

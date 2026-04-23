@@ -9,6 +9,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -108,6 +109,8 @@ export const OnboardingScreen = ({
 
   const [displayCurrency, setDisplayCurrency] = useState("VES");
   const [rateInput, setRateInput] = useState("");
+  const [ivaInput, setIvaInput] = useState("16");
+  const [applyIvaOnSales, setApplyIvaOnSales] = useState(false);
 
   const activeMembership = memberships.find(
     (item) => item.storeId === activeStoreId,
@@ -162,10 +165,13 @@ export const OnboardingScreen = ({
         // Esto aplica especialmente cuando el usuario reabre el onboarding desde el librito.
         const currentRate = await getCurrentRate();
         const savedRate = currentRate?.rate;
+        const pricing = current?.pricing || {};
         if (!rateDirtyRef.current && savedRate && savedRate > 0) {
           existingRateLoadedRef.current = true;
           setRateInput(String(savedRate));
         }
+        setIvaInput(String(pricing.iva ?? 16));
+        setApplyIvaOnSales(pricing.applyIvaOnSales ?? false);
       } catch (error) {
         console.warn("Onboarding settings load failed:", error);
       }
@@ -259,6 +265,9 @@ export const OnboardingScreen = ({
               ...current.pricing,
               displayCurrency: "VES",
               baseCurrency: "USD",
+              iva:
+                parseFloat((ivaInput || "").toString().replace(/,/g, ".")) || 0,
+              applyIvaOnSales,
             },
           };
 
@@ -388,6 +397,17 @@ export const OnboardingScreen = ({
       });
       return false;
     }
+
+    const iva = parseFloat((ivaInput || "").toString().replace(/,/g, "."));
+    if (Number.isNaN(iva) || iva < 0 || iva > 100) {
+      showAlert({
+        title: "IVA inválido",
+        message: "Ingresa un porcentaje de IVA entre 0 y 100.",
+        type: "error",
+      });
+      return false;
+    }
+
     return true;
   };
 
@@ -652,8 +672,39 @@ export const OnboardingScreen = ({
                   />
                 </View>
 
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>IVA por defecto (%)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ej: 16"
+                    placeholderTextColor="#9aa2b1"
+                    value={ivaInput}
+                    onChangeText={setIvaInput}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+
+                <View style={styles.toggleRow}>
+                  <View style={styles.toggleCopy}>
+                    <Text style={styles.toggleTitle}>
+                      Aplicar IVA al cobrar
+                    </Text>
+                    <Text style={styles.toggleDescription}>
+                      Cuando esté activo, el punto de venta sumará IVA a las
+                      ventas.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={applyIvaOnSales}
+                    onValueChange={setApplyIvaOnSales}
+                    trackColor={{ false: "#d5dbe7", true: "#81C784" }}
+                    thumbColor={applyIvaOnSales ? "#1f9254" : "#f4f3f4"}
+                  />
+                </View>
+
                 <Text style={styles.helperText}>
-                  Podrás modificar la tasa luego en la sección “USD ($)”.
+                  Podrás modificar la tasa y el IVA luego en “Margen de
+                  ganancias”.
                 </Text>
               </View>
             )}
@@ -929,6 +980,26 @@ const styles = StyleSheet.create({
     color: "#4c5767",
     backgroundColor: "#f3f8ff",
     padding: spacing.sm,
+    toggleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.lg,
+    },
+    toggleCopy: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    toggleTitle: {
+      fontSize: rf(15),
+      fontWeight: "600",
+      color: "#1f2633",
+    },
+    toggleDescription: {
+      fontSize: rf(13),
+      color: "#6f7c8c",
+      lineHeight: vs(18),
+    },
     borderRadius: borderRadius.sm,
     lineHeight: vs(18),
   },

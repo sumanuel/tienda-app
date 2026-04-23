@@ -25,6 +25,7 @@ import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 
 let productsColumnsChecked = false;
 let productsHasAdditionalCostColumn = false;
+let productsHasIvaColumn = false;
 const cloudProductsSeeded = new Set();
 
 const isCloudProductsEnabled = () =>
@@ -61,6 +62,7 @@ const normalizeProductRecord = (product = {}) => ({
   priceUSD: Number(product.priceUSD) || 0,
   priceVES: Number(product.priceVES) || 0,
   margin: Number(product.margin) || 0,
+  iva: Number(product.iva) || 0,
   stock: Number(product.stock) || 0,
   minStock: Number(product.minStock) || 0,
   image: String(product.image || "").trim(),
@@ -460,12 +462,18 @@ const ensureProductsAdditionalCostColumn = async () => {
     productsHasAdditionalCostColumn = (columns || []).some(
       (c) => c?.name === "additionalCost",
     );
+    productsHasIvaColumn = (columns || []).some((c) => c?.name === "iva");
 
     if (!productsHasAdditionalCostColumn) {
       await db.execAsync(
         "ALTER TABLE products ADD COLUMN additionalCost REAL DEFAULT 0;",
       );
       productsHasAdditionalCostColumn = true;
+    }
+
+    if (!productsHasIvaColumn) {
+      await db.execAsync("ALTER TABLE products ADD COLUMN iva REAL DEFAULT 0;");
+      productsHasIvaColumn = true;
     }
 
     productsColumnsChecked = true;
@@ -493,6 +501,7 @@ export const initDatabase = async () => {
         priceUSD REAL DEFAULT 0,
         priceVES REAL DEFAULT 0,
         margin REAL DEFAULT 0,
+        iva REAL DEFAULT 0,
         stock INTEGER DEFAULT 0,
         minStock INTEGER DEFAULT 0,
         image TEXT,
@@ -664,8 +673,8 @@ export const insertProduct = async (product) => {
     await ensureProductsAdditionalCostColumn();
     console.log("Insertando producto en BD:", product);
     const result = await db.runAsync(
-      `INSERT INTO products (name, barcode, category, description, cost, additionalCost, priceUSD, priceVES, margin, stock, minStock, image, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO products (name, barcode, category, description, cost, additionalCost, priceUSD, priceVES, margin, iva, stock, minStock, image, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         product.name,
         product.barcode,
@@ -676,6 +685,7 @@ export const insertProduct = async (product) => {
         product.priceUSD || 0,
         product.priceVES || 0,
         product.margin || 0,
+        product.iva || 0,
         product.stock || 0,
         product.minStock || 0,
         product.image || "",
@@ -718,7 +728,7 @@ export const updateProduct = async (id, product) => {
     const result = await db.runAsync(
       `UPDATE products
        SET name = ?, barcode = ?, category = ?, description = ?,
-           cost = ?, additionalCost = ?, priceUSD = ?, priceVES = ?, margin = ?,
+           cost = ?, additionalCost = ?, priceUSD = ?, priceVES = ?, margin = ?, iva = ?,
            stock = ?, minStock = ?, image = ?, updatedAt = CURRENT_TIMESTAMP
        WHERE id = ?;`,
       [
@@ -731,6 +741,7 @@ export const updateProduct = async (id, product) => {
         product.priceUSD,
         product.priceVES || 0,
         product.margin,
+        product.iva || 0,
         product.stock,
         product.minStock,
         product.image,

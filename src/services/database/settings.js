@@ -388,6 +388,7 @@ const getDefaultSettings = () => ({
       USD2: 350,
     },
     iva: 16,
+    applyIvaOnSales: false,
   },
   exchange: {
     autoUpdate: true,

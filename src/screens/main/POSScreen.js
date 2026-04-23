@@ -27,6 +27,7 @@ import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
+import { getSettings } from "../../services/database/settings";
 import {
   updateProductStock,
   insertInventoryMovement,
@@ -67,7 +68,13 @@ export const POSScreen = ({ navigation }) => {
 
   const [cart, setCart] = useState([]);
   const [quantityDrafts, setQuantityDrafts] = useState({});
+  const [subtotalAmount, setSubtotalAmount] = useState(0);
+  const [taxAmount, setTaxAmount] = useState(0);
   const [total, setTotal] = useState(0);
+  const [pricingSettings, setPricingSettings] = useState({
+    iva: 0,
+    applyIvaOnSales: false,
+  });
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [customerDocument, setCustomerDocument] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
@@ -82,6 +89,18 @@ export const POSScreen = ({ navigation }) => {
   const [scanning, setScanning] = useState(false);
 
   const scrollViewRef = useRef(null);
+
+  const loadPricingSettings = async () => {
+    try {
+      const settings = await getSettings();
+      setPricingSettings({
+        iva: Number(settings?.pricing?.iva) || 0,
+        applyIvaOnSales: Boolean(settings?.pricing?.applyIvaOnSales),
+      });
+    } catch (error) {
+      console.warn("Error loading pricing settings in POS:", error);
+    }
+  };
 
   const formatQuantity = (quantity) => {
     const value = Number(quantity);
@@ -177,11 +196,23 @@ export const POSScreen = ({ navigation }) => {
     return null;
   };
 
+  useEffect(() => {
+    loadPricingSettings();
+  }, []);
+
   // Calcular total cuando cambie el carrito
   useEffect(() => {
-    const newTotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-    setTotal(newTotal);
-  }, [cart]);
+    const newSubtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+    const newTax = pricingSettings.applyIvaOnSales
+      ? cart.reduce(
+          (sum, item) => sum + item.subtotal * ((Number(item.iva) || 0) / 100),
+          0,
+        )
+      : 0;
+    setSubtotalAmount(newSubtotal);
+    setTaxAmount(newTax);
+    setTotal(newSubtotal + newTax);
+  }, [cart, pricingSettings]);
 
   // Scroll hacia arriba cuando se abre el carrito
   useEffect(() => {
@@ -198,6 +229,7 @@ export const POSScreen = ({ navigation }) => {
       const unsubscribe = navigation.addListener("focus", () => {
         console.log("Volviendo a POS, recargando productos...");
         refreshProducts();
+        loadPricingSettings();
       });
       return unsubscribe;
     }
@@ -300,6 +332,7 @@ export const POSScreen = ({ navigation }) => {
         priceUSD: basePriceUSD,
         quantity: 1,
         subtotal: product.priceVES || product.priceUSD * exchangeRate,
+        iva: Number(product.iva ?? pricingSettings.iva) || 0,
         product: product,
       };
       setCart([newItem, ...cart]);
@@ -449,8 +482,8 @@ export const POSScreen = ({ navigation }) => {
           } else {
             // Cliente no existe, mostrar modal para crear
             setPendingSaleData({
-              subtotal: total,
-              tax: 0,
+              subtotal: subtotalAmount,
+              tax: taxAmount,
               discount: 0,
               total: total,
               currency: "VES",
@@ -484,8 +517,8 @@ export const POSScreen = ({ navigation }) => {
       // Preparar datos de la venta
       const saleData = {
         customerId: customerId,
-        subtotal: total,
-        tax: 0,
+        subtotal: subtotalAmount,
+        tax: taxAmount,
         discount: 0,
         total: total,
         currency: "VES",
@@ -1241,13 +1274,27 @@ export const POSScreen = ({ navigation }) => {
               <View style={styles.modalFooter}>
                 <View style={styles.totalSection}>
                   <View style={styles.totalVES}>
+                    <Text style={styles.totalMetaLabel}>Subtotal</Text>
+                    <Text style={styles.totalMetaValue}>
+                      {subtotalAmount.toFixed(2)}
+                    </Text>
+                    {taxAmount > 0 && (
+                      <>
+                        <Text style={styles.totalMetaLabel}>IVA</Text>
+                        <Text style={styles.totalMetaValue}>
+                          {taxAmount.toFixed(2)}
+                        </Text>
+                      </>
+                    )}
                     <Text style={styles.totalLabel}>PAGAR VES</Text>
                     <Text style={styles.totalAmount}>{total.toFixed(2)}</Text>
                   </View>
                   <View style={styles.totalUSD}>
                     <Text style={styles.totalLabel}>PAGAR USD</Text>
                     <Text style={styles.totalAmount}>
-                      {(total / exchangeRate).toFixed(2)}
+                      {exchangeRate > 0
+                        ? (total / exchangeRate).toFixed(2)
+                        : "0.00"}
                     </Text>
                   </View>
                 </View>
@@ -1949,6 +1996,19 @@ const styles = StyleSheet.create({
     color: "#7a8796",
     textTransform: "uppercase",
     letterSpacing: 0.6,
+  },
+  totalMetaLabel: {
+    fontSize: rf(11),
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  totalMetaValue: {
+    fontSize: rf(15),
+    fontWeight: "700",
+    color: "#1f2633",
+    marginBottom: vs(4),
   },
   totalAmount: {
     fontSize: rf(18),

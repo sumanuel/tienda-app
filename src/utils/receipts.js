@@ -31,11 +31,11 @@ export const generateReceiptText = (sale, business) => {
     receipt += `${item.name}\n`;
     receipt += `  ${item.quantity} x ${formatCurrency(
       item.price,
-      sale.currency
+      sale.currency,
     )}\n`;
     receipt += `  ${formatCurrency(
       item.quantity * item.price,
-      sale.currency
+      sale.currency,
     )}\n`;
   });
 
@@ -43,7 +43,7 @@ export const generateReceiptText = (sale, business) => {
   receipt += `Subtotal: ${formatCurrency(subtotal, sale.currency)}\n`;
 
   if (tax && tax > 0) {
-    receipt += `IVA (16%): ${formatCurrency(tax, sale.currency)}\n`;
+    receipt += `IVA: ${formatCurrency(tax, sale.currency)}\n`;
   }
 
   receipt += `TOTAL: ${formatCurrency(total, sale.currency)}\n`;
@@ -105,28 +105,28 @@ export const generateReceiptHTML = (sale, business) => {
           <p>${item.name}</p>
           <p>${item.quantity} x ${formatCurrency(
             item.price,
-            sale.currency
+            sale.currency,
           )} = ${formatCurrency(item.quantity * item.price, sale.currency)}</p>
         </div>
-      `
+      `,
         )
         .join("")}
       <div class="line"></div>
       <p>Subtotal: <span class="right">${formatCurrency(
         subtotal,
-        sale.currency
+        sale.currency,
       )}</span></p>
       ${
         tax
-          ? `<p>IVA (16%): <span class="right">${formatCurrency(
+          ? `<p>IVA: <span class="right">${formatCurrency(
               tax,
-              sale.currency
+              sale.currency,
             )}</span></p>`
           : ""
       }
       <p class="total">TOTAL: <span class="right">${formatCurrency(
         total,
-        sale.currency
+        sale.currency,
       )}</span></p>
       <div class="line"></div>
       ${
