@@ -1318,6 +1318,7 @@ export const POSScreen = ({ navigation }) => {
                       "Completa la venta. Si elegiste 'Por Cobrar', se creará la cuenta por cobrar automáticamente."
                     }
                     borderRadius={borderRadius.lg}
+                    style={styles.checkoutTourZone}
                   >
                     <TouchableOpacity
                       style={[
@@ -2018,6 +2019,9 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: "row",
     gap: hs(12),
+  },
+  checkoutTourZone: {
+    flex: 1,
   },
   clearButton: {
     flex: 1,
