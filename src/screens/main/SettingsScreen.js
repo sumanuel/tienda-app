@@ -391,149 +391,49 @@ export const SettingsScreen = () => {
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
                 <Ionicons
-                  name="cube-outline"
-                  size={iconSize.md}
-                  color="#c9861a"
-                />
-              </View>
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardTitle}>Inventario</Text>
-                <Text style={styles.cardSubtitle}>
-                  Alertas y umbrales de stock
-                </Text>
-              </View>
-            </View>
-            <View style={styles.cardContent}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Stock bajo</Text>
-                <Text style={styles.detailValue}>
-                  {lowStockThreshold} unidades
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.cardButton}
-              onPress={() => startEditing("inventory")}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cardButtonText}>Configurar inventario</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.formCard}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardIcon}>
-                <Ionicons
-                  name="cloud-upload-outline"
+                  name="options-outline"
                   size={iconSize.md}
                   color="#2f5ae0"
                 />
               </View>
               <View style={styles.cardInfo}>
-                <View style={styles.cardTitleRow}>
-                  <Text style={styles.cardTitle}>Sistema</Text>
-                  <TouchableOpacity
-                    onPress={showBackupInfo}
-                    style={styles.infoIcon}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.infoIconText}>i</Text>
-                  </TouchableOpacity>
-                </View>
+                <Text style={styles.cardTitle}>Sistema</Text>
                 <Text style={styles.cardSubtitle}>
-                  Respaldos y gestión de datos
+                  Exportación y acceso a la cuenta
                 </Text>
               </View>
             </View>
 
-            <View style={styles.cloudStatusBox}>
-              <Text style={styles.cloudStatusTitle}>Firestore conectado</Text>
-              <Text style={styles.cloudStatusSubtitle}>
-                Sesión activa: {user?.email || "sin correo"}
-              </Text>
-            </View>
-
             <View style={styles.quickActions}>
               <TouchableOpacity
                 style={[
-                  styles.secondaryButton,
-                  backupBusy && styles.buttonDisabled,
+                  styles.secondaryButtonOutline,
+                  excelBusy && styles.buttonDisabled,
                 ]}
-                onPress={handleExportData}
-                disabled={backupBusy}
+                onPress={handleExportExcel}
+                disabled={excelBusy}
+                activeOpacity={0.85}
               >
-                {backupBusy ? (
+                {excelBusy ? (
                   <ActivityIndicator />
                 ) : (
-                  <Text style={styles.secondaryButtonText}>Exportar datos</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.secondaryButton,
-                  backupBusy && styles.buttonDisabled,
-                ]}
-                onPress={handleImportData}
-                disabled={backupBusy}
-              >
-                {backupBusy ? (
-                  <ActivityIndicator />
-                ) : (
-                  <Text style={styles.secondaryButtonText}>Importar datos</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.quickActions}>
-              <TouchableOpacity
-                style={[
-                  styles.secondaryButton,
-                  (manualSyncBusy || syncing || backupBusy || excelBusy) &&
-                    styles.buttonDisabled,
-                ]}
-                onPress={handleManualCloudSync}
-                disabled={manualSyncBusy || syncing || backupBusy || excelBusy}
-              >
-                {manualSyncBusy || syncing ? (
-                  <ActivityIndicator />
-                ) : (
-                  <Text style={styles.secondaryButtonText}>
-                    Sincronizar Firestore
+                  <Text style={styles.secondaryButtonOutlineText}>
+                    Exportar Excel
                   </Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
-                  styles.secondaryButtonOutline,
-                  (backupBusy || excelBusy) && styles.buttonDisabled,
+                  styles.secondaryButton,
+                  excelBusy && styles.buttonDisabled,
                 ]}
                 onPress={handleSignOut}
-                disabled={backupBusy || excelBusy}
+                disabled={excelBusy}
                 activeOpacity={0.85}
               >
-                <Text style={styles.secondaryButtonOutlineText}>
-                  Cerrar sesión
-                </Text>
+                <Text style={styles.secondaryButtonText}>Cerrar sesión</Text>
               </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={[
-                styles.secondaryButtonOutline,
-                (excelBusy || backupBusy) && styles.buttonDisabled,
-              ]}
-              onPress={handleExportExcel}
-              disabled={excelBusy || backupBusy}
-              activeOpacity={0.85}
-            >
-              {excelBusy ? (
-                <ActivityIndicator />
-              ) : (
-                <Text style={styles.secondaryButtonOutlineText}>
-                  Exportar a Excel
-                </Text>
-              )}
-            </TouchableOpacity>
           </View>
 
           <TouchableOpacity

@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Linking,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import {
   s,
   rf,
@@ -20,9 +20,11 @@ import {
   iconSize,
 } from "../../utils/responsive";
 
-export const AboutScreen = () => {
-  const navigation = useNavigation();
+import appConfig from "../../../app.json";
 
+const appVersion = appConfig?.expo?.version || "1.0.0";
+
+export const AboutScreen = () => {
   const handleEmailPress = () => {
     Linking.openURL("mailto:soporte@tsuma.com");
   };
@@ -40,9 +42,14 @@ export const AboutScreen = () => {
         {/* Logo/Brand Section */}
         <View style={styles.brandCard}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>T-Suma</Text>
+            <Image
+              source={require("../../../assets/icon.png")}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
-          <Text style={styles.versionText}>Versión 1.0.0</Text>
+          <Text style={styles.logoText}>T-Suma</Text>
+          <Text style={styles.versionText}>Versión {appVersion}</Text>
           <Text style={styles.taglineText}>
             Sistema de Punto de Venta Inteligente
           </Text>
@@ -155,18 +162,24 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   logoContainer: {
-    width: s(80),
-    height: s(80),
-    borderRadius: s(40),
-    backgroundColor: "#2f5ae0",
+    width: s(96),
+    height: s(96),
+    borderRadius: s(28),
+    backgroundColor: "#f3f8ff",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.lg,
+    overflow: "hidden",
+  },
+  logoImage: {
+    width: "100%",
+    height: "100%",
   },
   logoText: {
     fontSize: rf(24),
     fontWeight: "700",
-    color: "#fff",
+    color: "#1f2633",
+    marginBottom: s(8),
   },
   versionText: {
     fontSize: rf(14),
