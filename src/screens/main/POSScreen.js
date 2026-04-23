@@ -1039,7 +1039,11 @@ export const POSScreen = ({ navigation }) => {
                   onPress={openQRScanner}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.qrButtonText}>QR</Text>
+                  <Ionicons
+                    name="qr-code-outline"
+                    size={rf(24)}
+                    color="#fff"
+                  />
                 </TouchableOpacity>
               </View>
 
