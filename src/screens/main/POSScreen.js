@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import {
   TourGuideProvider,
   TourGuideZone,
@@ -26,6 +27,7 @@ import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
+import { getSettings } from "../../services/database/settings";
 import {
   updateProductStock,
   insertInventoryMovement,
@@ -66,7 +68,13 @@ export const POSScreen = ({ navigation }) => {
 
   const [cart, setCart] = useState([]);
   const [quantityDrafts, setQuantityDrafts] = useState({});
+  const [subtotalAmount, setSubtotalAmount] = useState(0);
+  const [taxAmount, setTaxAmount] = useState(0);
   const [total, setTotal] = useState(0);
+  const [pricingSettings, setPricingSettings] = useState({
+    iva: 0,
+    applyIvaOnSales: false,
+  });
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [customerDocument, setCustomerDocument] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
@@ -81,6 +89,18 @@ export const POSScreen = ({ navigation }) => {
   const [scanning, setScanning] = useState(false);
 
   const scrollViewRef = useRef(null);
+
+  const loadPricingSettings = async () => {
+    try {
+      const settings = await getSettings();
+      setPricingSettings({
+        iva: Number(settings?.pricing?.iva) || 0,
+        applyIvaOnSales: Boolean(settings?.pricing?.applyIvaOnSales),
+      });
+    } catch (error) {
+      console.warn("Error loading pricing settings in POS:", error);
+    }
+  };
 
   const formatQuantity = (quantity) => {
     const value = Number(quantity);
@@ -176,11 +196,23 @@ export const POSScreen = ({ navigation }) => {
     return null;
   };
 
+  useEffect(() => {
+    loadPricingSettings();
+  }, []);
+
   // Calcular total cuando cambie el carrito
   useEffect(() => {
-    const newTotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-    setTotal(newTotal);
-  }, [cart]);
+    const newSubtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+    const newTax = pricingSettings.applyIvaOnSales
+      ? cart.reduce(
+          (sum, item) => sum + item.subtotal * ((Number(item.iva) || 0) / 100),
+          0,
+        )
+      : 0;
+    setSubtotalAmount(newSubtotal);
+    setTaxAmount(newTax);
+    setTotal(newSubtotal + newTax);
+  }, [cart, pricingSettings]);
 
   // Scroll hacia arriba cuando se abre el carrito
   useEffect(() => {
@@ -197,6 +229,7 @@ export const POSScreen = ({ navigation }) => {
       const unsubscribe = navigation.addListener("focus", () => {
         console.log("Volviendo a POS, recargando productos...");
         refreshProducts();
+        loadPricingSettings();
       });
       return unsubscribe;
     }
@@ -299,6 +332,7 @@ export const POSScreen = ({ navigation }) => {
         priceUSD: basePriceUSD,
         quantity: 1,
         subtotal: product.priceVES || product.priceUSD * exchangeRate,
+        iva: Number(product.iva ?? pricingSettings.iva) || 0,
         product: product,
       };
       setCart([newItem, ...cart]);
@@ -395,6 +429,8 @@ export const POSScreen = ({ navigation }) => {
    * Completa la venta
    */
   const completeSale = async () => {
+    if (processingSale) return;
+
     if (cart.length === 0) {
       showAlert({
         title: "Error",
@@ -426,6 +462,7 @@ export const POSScreen = ({ navigation }) => {
     }
 
     try {
+      setProcessingSale(true);
       let customerId = null;
       let customerName = "Cliente";
 
@@ -445,8 +482,8 @@ export const POSScreen = ({ navigation }) => {
           } else {
             // Cliente no existe, mostrar modal para crear
             setPendingSaleData({
-              subtotal: total,
-              tax: 0,
+              subtotal: subtotalAmount,
+              tax: taxAmount,
               discount: 0,
               total: total,
               currency: "VES",
@@ -471,6 +508,7 @@ export const POSScreen = ({ navigation }) => {
               })),
             });
             setShowNewCustomerModal(true);
+            setProcessingSale(false);
             return;
           }
         }
@@ -479,8 +517,8 @@ export const POSScreen = ({ navigation }) => {
       // Preparar datos de la venta
       const saleData = {
         customerId: customerId,
-        subtotal: total,
-        tax: 0,
+        subtotal: subtotalAmount,
+        tax: taxAmount,
         discount: 0,
         total: total,
         currency: "VES",
@@ -507,14 +545,17 @@ export const POSScreen = ({ navigation }) => {
         subtotal: item.subtotal,
       }));
 
-      // Registrar la venta y obtener el ID
-      const saleId = await addSale(saleData, saleItems);
+      // Registrar la venta y obtener el ID/consecutivo visible
+      const saleResult = await addSale(saleData, saleItems);
+      const saleId = saleResult?.id ?? saleResult;
+      const saleNumber =
+        saleResult?.saleNumber || `VTA-${String(saleId).padStart(6, "0")}`;
 
       const customerLabel = (customerName || "Cliente").trim() || "Cliente";
       const paymentLabel = (paymentMethod || "").toString();
       const saleMovementNote = paymentLabel
-        ? `Venta #${saleId} - ${customerLabel} - ${paymentLabel}`
-        : `Venta #${saleId} - ${customerLabel}`;
+        ? `${saleNumber} - ${customerLabel} - ${paymentLabel}`
+        : `${saleNumber} - ${customerLabel}`;
 
       // Actualizar stock de productos vendidos
       for (const item of cart) {
@@ -560,7 +601,7 @@ export const POSScreen = ({ navigation }) => {
               .map((item) => item.name.toUpperCase())
               .join(", ")}`,
             dueDate: null, // Sin fecha de vencimiento por defecto
-            invoiceNumber: saleId, // Número de la venta
+            invoiceNumber: saleNumber,
           };
           await addAccountReceivable(accountData);
           console.log("Cuenta por cobrar creada automáticamente");
@@ -582,11 +623,11 @@ export const POSScreen = ({ navigation }) => {
         paymentMethod === "por_cobrar"
           ? `Total: VES. ${total.toFixed(
               2,
-            )}\nCliente: ${customerName}\n\n✅ Cuenta por cobrar creada automáticamente`
+            )}\nCliente: ${customerName}\n\nCuenta por cobrar creada automáticamente`
           : `Total: VES. ${total.toFixed(2)}\nCliente: ${customerName}`;
 
       showAlert({
-        title: "✓ Venta completada",
+        title: "Venta completada",
         message: confirmationMessage,
         type: "success",
       });
@@ -597,6 +638,8 @@ export const POSScreen = ({ navigation }) => {
         message: "No se pudo completar la venta",
         type: "error",
       });
+    } finally {
+      setProcessingSale(false);
     }
   };
 
@@ -651,7 +694,10 @@ export const POSScreen = ({ navigation }) => {
           : "Cliente genérico",
       };
 
-      const saleId = await addSale(saleData, pendingSaleData.saleItems);
+      const saleResult = await addSale(saleData, pendingSaleData.saleItems);
+      const saleId = saleResult?.id ?? saleResult;
+      const saleNumber =
+        saleResult?.saleNumber || `VTA-${String(saleId).padStart(6, "0")}`;
 
       const pendingCustomerLabel = customerDocument.trim()
         ? newCustomerName.trim() || "Cliente"
@@ -660,8 +706,8 @@ export const POSScreen = ({ navigation }) => {
         pendingSaleData.paymentMethod || ""
       ).toString();
       const pendingSaleMovementNote = pendingPaymentLabel
-        ? `Venta #${saleId} - ${pendingCustomerLabel} - ${pendingPaymentLabel}`
-        : `Venta #${saleId} - ${pendingCustomerLabel}`;
+        ? `${saleNumber} - ${pendingCustomerLabel} - ${pendingPaymentLabel}`
+        : `${saleNumber} - ${pendingCustomerLabel}`;
 
       // Actualizar stock de productos vendidos
       for (const item of cart) {
@@ -709,7 +755,7 @@ export const POSScreen = ({ navigation }) => {
               .map((item) => item.name.toUpperCase())
               .join(", ")}`,
             dueDate: null,
-            invoiceNumber: saleId, // Número de la venta
+            invoiceNumber: saleNumber,
           };
           await addAccountReceivable(accountData);
           console.log("Cuenta por cobrar creada automáticamente");
@@ -733,13 +779,13 @@ export const POSScreen = ({ navigation }) => {
         pendingSaleData.paymentMethod === "por_cobrar"
           ? `Total: VES. ${pendingSaleData.total.toFixed(
               2,
-            )}\nCliente: ${newCustomerName.trim()}\n\n✅ Cliente creado y cuenta por cobrar generada`
+            )}\nCliente: ${newCustomerName.trim()}\n\nCliente creado y cuenta por cobrar generada`
           : `Total: VES. ${pendingSaleData.total.toFixed(
               2,
-            )}\nCliente: ${newCustomerName.trim()}\n\n✅ Cliente creado exitosamente`;
+            )}\nCliente: ${newCustomerName.trim()}\n\nCliente creado exitosamente`;
 
       showAlert({
-        title: "✓ Venta completada",
+        title: "Venta completada",
         message: confirmationMessage,
         type: "success",
       });
@@ -872,7 +918,7 @@ export const POSScreen = ({ navigation }) => {
           style={styles.removeButton}
           onPress={() => removeFromCart(item.id)}
         >
-          <Text style={styles.removeButtonText}>🗑️ Eliminar</Text>
+          <Text style={styles.removeButtonText}>Eliminar</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -901,9 +947,6 @@ export const POSScreen = ({ navigation }) => {
             <View style={styles.listHeader}>
               <View style={styles.heroCard}>
                 <View style={styles.heroHeader}>
-                  <View style={styles.heroIcon}>
-                    <Text style={styles.heroIconText}>🛒</Text>
-                  </View>
                   <View style={styles.heroCopy}>
                     <Text style={styles.heroTitle}>Punto de venta</Text>
                     <Text style={styles.heroSubtitle}>
@@ -939,7 +982,6 @@ export const POSScreen = ({ navigation }) => {
           ]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>📦</Text>
               <Text style={styles.emptyText}>No hay productos disponibles</Text>
               <Text style={styles.emptySubtext}>
                 {searchQuery
@@ -997,7 +1039,7 @@ export const POSScreen = ({ navigation }) => {
                   onPress={openQRScanner}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.qrButtonText}>QR</Text>
+                  <Ionicons name="qr-code-outline" size={rf(24)} color="#fff" />
                 </TouchableOpacity>
               </View>
 
@@ -1013,7 +1055,7 @@ export const POSScreen = ({ navigation }) => {
                   style={styles.customerSection}
                 >
                   <View>
-                    <Text style={styles.sectionTitle}>👤 Cliente</Text>
+                    <Text style={styles.sectionTitle}>Cliente</Text>
                     <TextInput
                       style={styles.customerInput}
                       placeholder="Cédula del cliente (obligatorio)*"
@@ -1038,11 +1080,10 @@ export const POSScreen = ({ navigation }) => {
                 {/* Items del carrito */}
                 <View style={styles.cartItemsSection}>
                   <Text style={styles.sectionTitle}>
-                    📦 Productos ({cart.length})
+                    Productos ({cart.length})
                   </Text>
                   {cart.length === 0 ? (
                     <View style={styles.emptyCartContainer}>
-                      <Text style={styles.emptyCartEmoji}>🛒</Text>
                       <Text style={styles.emptyCartText}>
                         El carrito está vacío
                       </Text>
@@ -1063,7 +1104,7 @@ export const POSScreen = ({ navigation }) => {
                 {/* Método de pago */}
                 {cart.length > 0 && (
                   <View style={styles.paymentSection}>
-                    <Text style={styles.sectionTitle}>💳 Método de Pago</Text>
+                    <Text style={styles.sectionTitle}>Método de Pago</Text>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -1078,7 +1119,14 @@ export const POSScreen = ({ navigation }) => {
                         ]}
                         onPress={() => setPaymentMethod("cash")}
                       >
-                        <Text style={styles.paymentButtonIcon}>💵</Text>
+                        <Ionicons
+                          name="cash-outline"
+                          size={rf(20)}
+                          color={
+                            paymentMethod === "cash" ? "#ffffff" : "#1f2633"
+                          }
+                          style={styles.paymentButtonIcon}
+                        />
                         <Text
                           style={[
                             styles.paymentButtonText,
@@ -1097,7 +1145,14 @@ export const POSScreen = ({ navigation }) => {
                         ]}
                         onPress={() => setPaymentMethod("card")}
                       >
-                        <Text style={styles.paymentButtonIcon}>💳</Text>
+                        <Ionicons
+                          name="card-outline"
+                          size={rf(20)}
+                          color={
+                            paymentMethod === "card" ? "#ffffff" : "#1f2633"
+                          }
+                          style={styles.paymentButtonIcon}
+                        />
                         <Text
                           style={[
                             styles.paymentButtonText,
@@ -1116,7 +1171,14 @@ export const POSScreen = ({ navigation }) => {
                         ]}
                         onPress={() => setPaymentMethod("transfer")}
                       >
-                        <Text style={styles.paymentButtonIcon}>🏦</Text>
+                        <Ionicons
+                          name="business-outline"
+                          size={rf(20)}
+                          color={
+                            paymentMethod === "transfer" ? "#ffffff" : "#1f2633"
+                          }
+                          style={styles.paymentButtonIcon}
+                        />
                         <Text
                           style={[
                             styles.paymentButtonText,
@@ -1135,7 +1197,16 @@ export const POSScreen = ({ navigation }) => {
                         ]}
                         onPress={() => setPaymentMethod("pago_movil")}
                       >
-                        <Text style={styles.paymentButtonIcon}>📱</Text>
+                        <Ionicons
+                          name="phone-portrait-outline"
+                          size={rf(20)}
+                          color={
+                            paymentMethod === "pago_movil"
+                              ? "#ffffff"
+                              : "#1f2633"
+                          }
+                          style={styles.paymentButtonIcon}
+                        />
                         <Text
                           style={[
                             styles.paymentButtonText,
@@ -1162,7 +1233,16 @@ export const POSScreen = ({ navigation }) => {
                           ]}
                           onPress={() => setPaymentMethod("por_cobrar")}
                         >
-                          <Text style={styles.paymentButtonIcon}>⏳</Text>
+                          <Ionicons
+                            name="time-outline"
+                            size={rf(20)}
+                            color={
+                              paymentMethod === "por_cobrar"
+                                ? "#ffffff"
+                                : "#1f2633"
+                            }
+                            style={styles.paymentButtonIcon}
+                          />
                           <Text
                             style={[
                               styles.paymentButtonText,
@@ -1194,13 +1274,27 @@ export const POSScreen = ({ navigation }) => {
               <View style={styles.modalFooter}>
                 <View style={styles.totalSection}>
                   <View style={styles.totalVES}>
+                    <Text style={styles.totalMetaLabel}>Subtotal</Text>
+                    <Text style={styles.totalMetaValue}>
+                      {subtotalAmount.toFixed(2)}
+                    </Text>
+                    {taxAmount > 0 && (
+                      <>
+                        <Text style={styles.totalMetaLabel}>IVA</Text>
+                        <Text style={styles.totalMetaValue}>
+                          {taxAmount.toFixed(2)}
+                        </Text>
+                      </>
+                    )}
                     <Text style={styles.totalLabel}>PAGAR VES</Text>
                     <Text style={styles.totalAmount}>{total.toFixed(2)}</Text>
                   </View>
                   <View style={styles.totalUSD}>
                     <Text style={styles.totalLabel}>PAGAR USD</Text>
                     <Text style={styles.totalAmount}>
-                      {(total / exchangeRate).toFixed(2)}
+                      {exchangeRate > 0
+                        ? (total / exchangeRate).toFixed(2)
+                        : "0.00"}
                     </Text>
                   </View>
                 </View>
@@ -1214,7 +1308,7 @@ export const POSScreen = ({ navigation }) => {
                     onPress={clearCart}
                     disabled={cart.length === 0}
                   >
-                    <Text style={styles.clearButtonText}>🗑️ Limpiar</Text>
+                    <Text style={styles.clearButtonText}>Limpiar</Text>
                   </TouchableOpacity>
 
                   <TourGuideZone
@@ -1224,16 +1318,22 @@ export const POSScreen = ({ navigation }) => {
                       "Completa la venta. Si elegiste 'Por Cobrar', se creará la cuenta por cobrar automáticamente."
                     }
                     borderRadius={borderRadius.lg}
+                    style={styles.checkoutTourZone}
                   >
                     <TouchableOpacity
                       style={[
                         styles.checkoutButton,
-                        cart.length === 0 && styles.buttonDisabled,
+                        (cart.length === 0 || processingSale) &&
+                          styles.buttonDisabled,
                       ]}
                       onPress={completeSale}
-                      disabled={cart.length === 0}
+                      disabled={cart.length === 0 || processingSale}
                     >
-                      <Text style={styles.checkoutText}>✓ Completar Venta</Text>
+                      {processingSale ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.checkoutText}>Completar Venta</Text>
+                      )}
                     </TouchableOpacity>
                   </TourGuideZone>
                 </View>
@@ -1286,7 +1386,7 @@ export const POSScreen = ({ navigation }) => {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.newCustomerModalContent}>
-              <Text style={styles.modalTitle}>👤 Nuevo Cliente</Text>
+              <Text style={styles.modalTitle}>Nuevo Cliente</Text>
               <Text style={styles.newCustomerInfo}>
                 La cédula {customerDocument} no está registrada.{"\n"}
                 Ingresa el nombre para crear el cliente:
@@ -1898,6 +1998,19 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
+  totalMetaLabel: {
+    fontSize: rf(11),
+    fontWeight: "600",
+    color: "#7a8796",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  totalMetaValue: {
+    fontSize: rf(15),
+    fontWeight: "700",
+    color: "#1f2633",
+    marginBottom: vs(4),
+  },
   totalAmount: {
     fontSize: rf(18),
     fontWeight: "700",
@@ -1906,6 +2019,9 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: "row",
     gap: hs(12),
+  },
+  checkoutTourZone: {
+    flex: 1,
   },
   clearButton: {
     flex: 1,
@@ -1920,7 +2036,7 @@ const styles = StyleSheet.create({
     fontSize: rf(14),
   },
   checkoutButton: {
-    flex: 1.4,
+    flex: 1,
     backgroundColor: "#1f9254",
     borderRadius: borderRadius.md,
     alignItems: "center",

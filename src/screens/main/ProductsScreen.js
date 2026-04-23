@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -13,10 +14,10 @@ import { useTourGuideController } from "rn-tourguide";
 import { useProducts } from "../../hooks/useProducts";
 import { getAllSales } from "../../services/database/sales";
 import { getSettings } from "../../services/database/settings";
+import { countProductInventoryMovements } from "../../services/database/products";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
-import { db } from "../../services/database/db";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   s,
@@ -112,27 +113,16 @@ export const ProductsScreen = ({ navigation }) => {
 
   const handleDeleteProduct = async (product) => {
     try {
-      // Verificar si el producto tiene movimientos asociados
-      const saleItemsResult = await db.getAllAsync(
-        `SELECT COUNT(*) as count FROM sale_items WHERE productId = ?`,
-        [product.id],
-      );
-      const salesCount = saleItemsResult[0]?.count || 0;
+      const allSales = await getAllSales(100000);
+      const salesCount = allSales.filter((sale) =>
+        Array.isArray(sale.items)
+          ? sale.items.some(
+              (item) => Number(item.productId) === Number(product.id),
+            )
+          : false,
+      ).length;
 
-      // Verificar movimientos de inventario (si existe la tabla)
-      let inventoryCount = 0;
-      try {
-        const inventoryResult = await db.getAllAsync(
-          `SELECT COUNT(*) as count FROM inventory_movements WHERE productId = ?`,
-          [product.id],
-        );
-        inventoryCount = inventoryResult[0]?.count || 0;
-      } catch (error) {
-        // Si no existe la tabla inventory_movements, continuar
-        console.log(
-          "Tabla inventory_movements no existe, omitiendo verificación",
-        );
-      }
+      const inventoryCount = await countProductInventoryMovements(product.id);
 
       if (salesCount > 0 || inventoryCount > 0) {
         showAlert({
@@ -240,8 +230,12 @@ export const ProductsScreen = ({ navigation }) => {
               {item.name.toUpperCase()}
             </Text>
             <Text style={styles.productCode}>
-              Código: {item.barcode || `PROD-${item.id}`}
+              Código:{" "}
+              {item.productNumber || `PRD-${String(item.id).padStart(6, "0")}`}
             </Text>
+            {!!item.barcode && (
+              <Text style={styles.productCode}>Barcode: {item.barcode}</Text>
+            )}
           </View>
           <View style={styles.productRight}>
             <Text style={styles.productCategory}>
@@ -273,7 +267,7 @@ export const ProductsScreen = ({ navigation }) => {
     <View style={styles.headerContent}>
       <View style={styles.heroCard}>
         <View style={styles.heroIcon}>
-          <Text style={styles.heroIconText}>📦</Text>
+          <Ionicons name="cube-outline" size={iconSize.xl} color="#c9861a" />
         </View>
         <View style={styles.heroTextContainer}>
           <Text style={styles.heroTitle}>Catálogo de productos</Text>

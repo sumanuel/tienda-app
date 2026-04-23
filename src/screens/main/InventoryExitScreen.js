@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -10,7 +11,15 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useProducts } from "../../hooks/useProducts";
-import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
+import {
+  s,
+  rf,
+  vs,
+  hs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 
 export const InventoryExitScreen = ({ navigation }) => {
   const {
@@ -73,7 +82,7 @@ export const InventoryExitScreen = ({ navigation }) => {
     if (!searchQuery.trim()) {
       return (
         <View style={styles.emptyMovements}>
-          <Text style={styles.emptyEmoji}>🔎</Text>
+          <Ionicons name="search-outline" size={iconSize.xxl} color="#8ca0b8" />
           <Text style={styles.emptyTitle}>Busca un producto</Text>
           <Text style={styles.emptySubtitle}>
             Escribe el nombre, categoría o código para mostrar resultados.
@@ -84,7 +93,7 @@ export const InventoryExitScreen = ({ navigation }) => {
 
     return (
       <View style={styles.emptyMovements}>
-        <Text style={styles.emptyEmoji}>📦</Text>
+        <Ionicons name="cube-outline" size={iconSize.xxl} color="#8ca0b8" />
         <Text style={styles.emptyTitle}>Sin resultados</Text>
         <Text style={styles.emptySubtitle}>Intenta con otra búsqueda.</Text>
       </View>
@@ -98,7 +107,11 @@ export const InventoryExitScreen = ({ navigation }) => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>📤</Text>
+                <Ionicons
+                  name="arrow-up-circle-outline"
+                  size={iconSize.xl}
+                  color="#d64545"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Salida de Inventario</Text>

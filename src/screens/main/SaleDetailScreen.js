@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSales } from "../../hooks/useSales";
@@ -37,6 +38,10 @@ export const SaleDetailScreen = () => {
   const { rate } = useExchangeRateContext();
 
   const exchangeRate = Number(rate) || 0;
+
+  const getSaleDisplayNumber = (saleData) =>
+    saleData?.saleNumber ||
+    `VTA-${String(saleData?.id || saleId || 0).padStart(6, "0")}`;
 
   const calculateTotal = (saleData) => {
     if (saleData?.paymentMethod === "por_cobrar" && exchangeRate > 0) {
@@ -129,7 +134,7 @@ export const SaleDetailScreen = () => {
       totalUSDNumber > 0 ? formatCurrency(totalUSDNumber, "USD") : null;
 
     const parts = [
-      `Factura - Venta #${sale?.id}`,
+      `Factura - ${getSaleDisplayNumber(sale)}`,
       `Fecha: ${created.toLocaleDateString("es-VE")} ${created.toLocaleTimeString(
         [],
         {
@@ -246,11 +251,15 @@ export const SaleDetailScreen = () => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>🧾</Text>
+                <Ionicons
+                  name="receipt-outline"
+                  size={rf(30)}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.heroCopy}>
                 <Text style={styles.heroTitle}>
-                  Detalle de venta #{sale.id}
+                  Detalle de venta {getSaleDisplayNumber(sale)}
                 </Text>
                 <Text style={styles.heroSubtitle}>
                   Revisa los productos, cliente y método de pago de esta venta.
@@ -261,10 +270,16 @@ export const SaleDetailScreen = () => {
             <View style={styles.saleCard}>
               <View style={styles.saleHeader}>
                 <View style={styles.saleIcon}>
-                  <Text style={styles.saleIconText}>🧾</Text>
+                  <Ionicons
+                    name="receipt-outline"
+                    size={rf(24)}
+                    color="#2f5ae0"
+                  />
                 </View>
                 <View style={styles.saleInfo}>
-                  <Text style={styles.saleNumber}>Venta #{sale.id}</Text>
+                  <Text style={styles.saleNumber}>
+                    {getSaleDisplayNumber(sale)}
+                  </Text>
                   <Text style={styles.saleDate}>
                     {new Date(sale.createdAt).toLocaleDateString("es-VE")} ·{" "}
                     {new Date(sale.createdAt).toLocaleTimeString([], {
@@ -294,6 +309,33 @@ export const SaleDetailScreen = () => {
                   <Text style={styles.metaLabel}>Pago</Text>
                   <Text style={styles.metaValue}>
                     {getPaymentMethodText(sale.paymentMethod)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.totalsDivider} />
+
+              <View style={styles.totalsSummary}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalRowLabel}>Subtotal</Text>
+                  <Text style={styles.totalRowValue}>
+                    {formatCurrency(Number(sale.subtotal) || 0, "VES")}
+                  </Text>
+                </View>
+
+                {(Number(sale.tax) || 0) > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalRowLabel}>IVA</Text>
+                    <Text style={styles.totalRowValue}>
+                      {formatCurrency(Number(sale.tax) || 0, "VES")}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalRowLabelStrong}>Total</Text>
+                  <Text style={styles.totalRowValueStrong}>
+                    {formatCurrency(Number(sale.total) || 0, "VES")}
                   </Text>
                 </View>
               </View>
@@ -332,7 +374,7 @@ export const SaleDetailScreen = () => {
           onPress={handleSendWhatsAppInvoice}
           activeOpacity={0.85}
         >
-          <Text style={styles.whatsappFabText}>✉️</Text>
+          <Ionicons name="logo-whatsapp" size={rf(22)} color="#ffffff" />
         </TouchableOpacity>
       ) : null}
     </SafeAreaView>
@@ -486,6 +528,39 @@ const styles = StyleSheet.create({
     width: 1,
     height: s(32),
     backgroundColor: "#e4e9f2",
+  },
+  totalsDivider: {
+    height: 1,
+    backgroundColor: "#e4e9f2",
+  },
+  totalsSummary: {
+    gap: s(10),
+  },
+  totalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: s(12),
+  },
+  totalRowLabel: {
+    fontSize: rf(13),
+    color: "#6f7c8c",
+    fontWeight: "600",
+  },
+  totalRowValue: {
+    fontSize: rf(13),
+    color: "#1f2633",
+    fontWeight: "700",
+  },
+  totalRowLabelStrong: {
+    fontSize: rf(14),
+    color: "#1f2633",
+    fontWeight: "700",
+  },
+  totalRowValueStrong: {
+    fontSize: rf(15),
+    color: "#2f5ae0",
+    fontWeight: "700",
   },
   productsCard: {
     backgroundColor: "#fff",

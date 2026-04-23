@@ -6,7 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -32,12 +32,14 @@ export const AddProductScreen = ({ navigation }) => {
   const { addProduct } = useProducts();
   const { rate: exchangeRate } = useExchangeRate();
   const { showAlert, CustomAlert } = useCustomAlert();
+  const [loading, setLoading] = useState(false);
 
   const [settings, setSettings] = useState({});
   const [cost, setCost] = useState("");
   const [additionalCost, setAdditionalCost] = useState("");
   const [costCurrency, setCostCurrency] = useState("USD");
   const [margin, setMargin] = useState(30);
+  const [iva, setIva] = useState(0);
   const [calculatedPrices, setCalculatedPrices] = useState({
     usd: "",
     ves: "",
@@ -48,6 +50,7 @@ export const AddProductScreen = ({ navigation }) => {
   const costRef = useRef(null);
   const additionalCostRef = useRef(null);
   const marginRef = useRef(null);
+  const ivaRef = useRef(null);
   const stockRef = useRef(null);
   const descriptionRef = useRef(null);
   const scrollViewRef = useRef(null);
@@ -57,6 +60,7 @@ export const AddProductScreen = ({ navigation }) => {
       const data = await getSettings();
       setSettings(data);
       setMargin(data?.pricing?.defaultMargin || 30);
+      setIva(data?.pricing?.iva || 0);
     };
     loadSettings();
   }, []);
@@ -144,6 +148,8 @@ export const AddProductScreen = ({ navigation }) => {
   };
 
   const handleSubmit = async () => {
+    if (loading) return;
+
     if (!formData.name.trim()) {
       showAlert({
         title: "Error",
@@ -194,7 +200,17 @@ export const AddProductScreen = ({ navigation }) => {
       return;
     }
 
+    if (Number.isNaN(Number(iva)) || Number(iva) < 0 || Number(iva) > 100) {
+      showAlert({
+        title: "Error",
+        message: "El IVA debe ser un porcentaje válido entre 0 y 100",
+        type: "error",
+      });
+      return;
+    }
+
     try {
+      setLoading(true);
       const rateFromSettings = Number(settings?.pricing?.currencies?.USD) || 0;
       const appliedRate = Number(exchangeRate) || rateFromSettings || 0;
 
@@ -226,6 +242,7 @@ export const AddProductScreen = ({ navigation }) => {
         priceUSD: parseFloat(calculatedPrices.usd),
         priceVES: parseFloat(calculatedPrices.ves),
         margin,
+        iva: Number(iva) || 0,
         stock: parseInt(formData.stock, 10),
         minStock: 0,
         description: formData.description.trim(),
@@ -254,9 +271,11 @@ export const AddProductScreen = ({ navigation }) => {
       console.error("Error adding product:", error);
       showAlert({
         title: "Error",
-        message: "No se pudo agregar el producto",
+        message: error?.message || "No se pudo agregar el producto",
         type: "error",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -287,9 +306,6 @@ export const AddProductScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.heroCard}>
-            <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>🛒</Text>
-            </View>
             <View style={styles.heroTextContainer}>
               <Text style={styles.heroTitle}>Nuevo producto</Text>
               <Text style={styles.heroSubtitle}>
@@ -498,8 +514,24 @@ export const AddProductScreen = ({ navigation }) => {
                 value={String(margin)}
                 onChangeText={(value) => setMargin(Number(value) || 0)}
                 keyboardType="numeric"
-                returnKeyType="done"
+                returnKeyType="next"
                 onFocus={() => scrollToField(marginRef)}
+                onSubmitEditing={() => ivaRef.current?.focus()}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>IVA (%)</Text>
+              <TextInput
+                ref={ivaRef}
+                style={styles.input}
+                placeholder="16"
+                placeholderTextColor="#9aa2b1"
+                value={String(iva)}
+                onChangeText={(value) => setIva(Number(value) || 0)}
+                keyboardType="numeric"
+                returnKeyType="done"
+                onFocus={() => scrollToField(ivaRef)}
                 onSubmitEditing={() => stockRef.current?.focus()}
               />
             </View>
@@ -550,26 +582,40 @@ export const AddProductScreen = ({ navigation }) => {
             </View>
 
             <Text style={styles.helperText}>
-              Puedes ajustar el stock y margen luego desde la pantalla de
+              Puedes ajustar el stock, margen e IVA luego desde la pantalla de
               edición del producto.
             </Text>
           </View>
 
           <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.secondaryButton]}
+              style={[
+                styles.actionButton,
+                styles.secondaryButton,
+                loading && styles.buttonDisabled,
+              ]}
               onPress={() => navigation.goBack()}
               activeOpacity={0.85}
+              disabled={loading}
             >
               <Text style={styles.secondaryButtonText}>Cancelar</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionButton, styles.primaryButton]}
+              style={[
+                styles.actionButton,
+                styles.primaryButton,
+                loading && styles.buttonDisabled,
+              ]}
               onPress={handleSubmit}
               activeOpacity={0.85}
+              disabled={loading}
             >
-              <Text style={styles.primaryButtonText}>Guardar producto</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Guardar producto</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -794,6 +840,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#c3cad5",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   secondaryButtonText: {
     color: "#4c5767",

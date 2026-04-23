@@ -6,11 +6,12 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -54,7 +55,7 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
   const formatLocalDate = (date) => {
     const pad = (value) => String(value).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-      date.getDate()
+      date.getDate(),
     )}`;
   };
 
@@ -75,8 +76,8 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
     formData.baseCurrency === "USD"
       ? baseAmountValue
       : currentRate > 0
-      ? baseAmountValue / currentRate
-      : null;
+        ? baseAmountValue / currentRate
+        : null;
   const computedVES =
     formData.baseCurrency === "USD"
       ? currentRate > 0
@@ -184,7 +185,7 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
     setLoading(true);
     try {
       let customer = await getCustomerByDocument(
-        formData.documentNumber.trim()
+        formData.documentNumber.trim(),
       );
 
       if (!customer) {
@@ -202,7 +203,7 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
         amount: computedVES ?? 0,
         baseCurrency: formData.baseCurrency,
         baseAmountUSD:
-          formData.baseCurrency === "USD" ? computedUSD ?? 0 : null,
+          formData.baseCurrency === "USD" ? (computedUSD ?? 0) : null,
         exchangeRateAtCreation:
           formData.baseCurrency === "USD" ? currentRate : null,
         description: formData.description.trim(),
@@ -245,7 +246,11 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
           >
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>💳</Text>
+                <Ionicons
+                  name="card-outline"
+                  size={iconSize.lg}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Nueva cuenta por cobrar</Text>
@@ -428,17 +433,31 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
 
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.actionButton, styles.secondaryButton]}
+                style={[
+                  styles.actionButton,
+                  styles.secondaryButton,
+                  loading && styles.buttonDisabled,
+                ]}
                 onPress={() => navigation.goBack()}
+                disabled={loading}
               >
                 <Text style={styles.secondaryButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, styles.primaryButton]}
+                style={[
+                  styles.actionButton,
+                  styles.primaryButton,
+                  loading && styles.buttonDisabled,
+                ]}
                 onPress={handleSave}
+                disabled={loading}
               >
-                <Text style={styles.primaryButtonText}>Guardar cuenta</Text>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Guardar cuenta</Text>
+                )}
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -662,6 +681,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#c3cad5",
     backgroundColor: "#fff",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   secondaryButtonText: {
     color: "#4c5767",

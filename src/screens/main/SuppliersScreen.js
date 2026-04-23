@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -89,7 +90,7 @@ export const SuppliersScreen = () => {
         // Verificar si el proveedor tiene movimientos asociados
         const allPayables = await getAllAccountsPayable();
         const supplierPayables = allPayables.filter(
-          (account) => account.supplierId === supplier.id,
+          (account) => Number(account.supplierId) === Number(supplier.id),
         );
 
         if (supplierPayables.length > 0) {
@@ -164,8 +165,18 @@ export const SuppliersScreen = () => {
             <View style={styles.cardHeader}>
               <Text style={styles.supplierName}>{item.name}</Text>
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.documentNumber}</Text>
+                <Text style={styles.badgeText}>
+                  {item.supplierNumber ||
+                    `PRV-${String(item.id).padStart(6, "0")}`}
+                </Text>
               </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Documento</Text>
+              <Text style={styles.infoValue}>
+                {item.documentNumber || "Sin documento"}
+              </Text>
             </View>
 
             <View style={styles.infoRow}>
@@ -207,7 +218,11 @@ export const SuppliersScreen = () => {
     <View style={styles.headerContent}>
       <View style={styles.heroCard}>
         <View style={styles.heroIcon}>
-          <Text style={styles.heroIconText}>🏢</Text>
+          <Ionicons
+            name="business-outline"
+            size={iconSize.xl}
+            color="#2f5ae0"
+          />
         </View>
         <View style={styles.heroTextContainer}>
           <Text style={styles.heroTitle}>Proveedores y aliados</Text>

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { getSettings, saveSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -23,6 +24,8 @@ import {
   exportDataToExcel,
   shareExcelFile,
 } from "../../services/export/excelExportService";
+import { useAuth } from "../../contexts/AuthContext";
+import { requestCloudSync } from "../../services/firebase/firestoreSync";
 import {
   s,
   rf,
@@ -36,9 +39,12 @@ import {
 export const SettingsScreen = () => {
   const navigation = useNavigation();
   const { showAlert, CustomAlert } = useCustomAlert();
+  const { user, syncing, signOut, syncNow, activeStoreId, memberships } =
+    useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [backupBusy, setBackupBusy] = useState(false);
   const [excelBusy, setExcelBusy] = useState(false);
+  const [manualSyncBusy, setManualSyncBusy] = useState(false);
 
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
 
@@ -110,6 +116,7 @@ export const SettingsScreen = () => {
       await saveSettings(updatedSettings);
       setLowStockThreshold(numericLowStock);
       setEditingSection(null);
+      requestCloudSync("settings:inventory");
       showAlert({
         title: "Éxito",
         message: "Umbral de stock bajo actualizado",
@@ -119,7 +126,7 @@ export const SettingsScreen = () => {
       console.error("Error saving inventory settings:", error);
       showAlert({
         title: "Error",
-        message: "No pudimos actualizar el umbral de stock",
+        message: error?.message || "No pudimos actualizar el umbral de stock",
         type: "error",
       });
     } finally {
@@ -156,6 +163,7 @@ export const SettingsScreen = () => {
       if (!file) return;
 
       await importDatabaseBackupFromUri(file.uri);
+      await syncNow("settings:import-backup");
 
       showAlert({
         title: "Respaldo importado",
@@ -219,6 +227,51 @@ export const SettingsScreen = () => {
     });
   };
 
+  const handleManualCloudSync = async () => {
+    try {
+      setManualSyncBusy(true);
+      const result = await syncNow("settings:manual-sync");
+
+      if (result?.skipped && result?.reason === "no-sync-permission") {
+        showAlert({
+          title: "Sincronización no necesaria",
+          message:
+            "Tu rol en esta tienda no publica snapshots técnicos en Firestore. Los datos compartidos siguen leyéndose desde la nube según tus permisos.",
+          type: "success",
+        });
+        return;
+      }
+
+      showAlert({
+        title: "Sincronización completa",
+        message: "Los datos locales fueron enviados a Firestore.",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error syncing to Firestore:", error);
+      showAlert({
+        title: "Error",
+        message: error?.message || "No se pudo sincronizar con Firestore.",
+        type: "error",
+      });
+    } finally {
+      setManualSyncBusy(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+      showAlert({
+        title: "Error",
+        message: "No se pudo cerrar la sesión.",
+        type: "error",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -237,15 +290,50 @@ export const SettingsScreen = () => {
         >
           <View style={styles.heroCard}>
             <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>⚙️</Text>
+              <Ionicons
+                name="settings-outline"
+                size={iconSize.lg}
+                color="#2f5ae0"
+              />
             </View>
             <View style={styles.heroInfo}>
               <Text style={styles.heroTitle}>Configuración</Text>
               <Text style={styles.heroSubtitle}>
                 Gestiona los parámetros y datos de tu negocio.
               </Text>
+              <Text style={styles.accountPill}>
+                {user?.email || "Sin cuenta"}
+              </Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.formCard}
+            onPress={() => navigation.navigate("StoreManagement")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.cardHeader}>
+              <View style={styles.cardIcon}>
+                <Ionicons
+                  name="storefront-outline"
+                  size={iconSize.md}
+                  color="#2f5ae0"
+                />
+              </View>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>Tiendas y colaboradores</Text>
+                <Text style={styles.cardSubtitle}>
+                  {memberships.length} tienda(s) · activa{" "}
+                  {memberships.find((item) => item.storeId === activeStoreId)
+                    ?.storeName || "sin contexto"}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.cardAction}>
+              <Text style={styles.cardActionText}>Gestionar</Text>
+              <Text style={styles.cardArrow}>›</Text>
+            </View>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.formCard}
@@ -254,7 +342,11 @@ export const SettingsScreen = () => {
           >
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
-                <Text style={styles.cardIconText}>🏢</Text>
+                <Ionicons
+                  name="business-outline"
+                  size={iconSize.md}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle}>Datos del Negocio</Text>
@@ -276,7 +368,11 @@ export const SettingsScreen = () => {
           >
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
-                <Text style={styles.cardIconText}>💰</Text>
+                <Ionicons
+                  name="cash-outline"
+                  size={iconSize.md}
+                  color="#169c5a"
+                />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle}>Margen de ganancias</Text>
@@ -294,101 +390,50 @@ export const SettingsScreen = () => {
           <View style={styles.formCard}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
-                <Text style={styles.cardIconText}>📦</Text>
+                <Ionicons
+                  name="options-outline"
+                  size={iconSize.md}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.cardInfo}>
-                <Text style={styles.cardTitle}>Inventario</Text>
+                <Text style={styles.cardTitle}>Sistema</Text>
                 <Text style={styles.cardSubtitle}>
-                  Alertas y umbrales de stock
+                  Exportación y acceso a la cuenta
                 </Text>
               </View>
             </View>
-            <View style={styles.cardContent}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Stock bajo</Text>
-                <Text style={styles.detailValue}>
-                  {lowStockThreshold} unidades
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.cardButton}
-              onPress={() => startEditing("inventory")}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cardButtonText}>Configurar inventario</Text>
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.formCard}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardIcon}>
-                <Text style={styles.cardIconText}>💾</Text>
-              </View>
-              <View style={styles.cardInfo}>
-                <View style={styles.cardTitleRow}>
-                  <Text style={styles.cardTitle}>Sistema</Text>
-                  <TouchableOpacity
-                    onPress={showBackupInfo}
-                    style={styles.infoIcon}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.infoIconText}>i</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.cardSubtitle}>
-                  Respaldos y gestión de datos
-                </Text>
-              </View>
-            </View>
             <View style={styles.quickActions}>
               <TouchableOpacity
                 style={[
-                  styles.secondaryButton,
-                  backupBusy && styles.buttonDisabled,
+                  styles.secondaryButtonOutline,
+                  excelBusy && styles.buttonDisabled,
                 ]}
-                onPress={handleExportData}
-                disabled={backupBusy}
+                onPress={handleExportExcel}
+                disabled={excelBusy}
+                activeOpacity={0.85}
               >
-                {backupBusy ? (
+                {excelBusy ? (
                   <ActivityIndicator />
                 ) : (
-                  <Text style={styles.secondaryButtonText}>Exportar datos</Text>
+                  <Text style={styles.secondaryButtonOutlineText}>
+                    Exportar Excel
+                  </Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   styles.secondaryButton,
-                  backupBusy && styles.buttonDisabled,
+                  excelBusy && styles.buttonDisabled,
                 ]}
-                onPress={handleImportData}
-                disabled={backupBusy}
+                onPress={handleSignOut}
+                disabled={excelBusy}
+                activeOpacity={0.85}
               >
-                {backupBusy ? (
-                  <ActivityIndicator />
-                ) : (
-                  <Text style={styles.secondaryButtonText}>Importar datos</Text>
-                )}
+                <Text style={styles.secondaryButtonText}>Cerrar sesión</Text>
               </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={[
-                styles.secondaryButtonOutline,
-                (excelBusy || backupBusy) && styles.buttonDisabled,
-              ]}
-              onPress={handleExportExcel}
-              disabled={excelBusy || backupBusy}
-              activeOpacity={0.85}
-            >
-              {excelBusy ? (
-                <ActivityIndicator />
-              ) : (
-                <Text style={styles.secondaryButtonOutlineText}>
-                  Exportar a Excel
-                </Text>
-              )}
-            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
@@ -398,7 +443,11 @@ export const SettingsScreen = () => {
           >
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
-                <Text style={styles.cardIconText}>ℹ️</Text>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={iconSize.md}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle}>Acerca de</Text>
@@ -533,6 +582,17 @@ const styles = StyleSheet.create({
     color: "#5b6472",
     lineHeight: rf(20),
   },
+  accountPill: {
+    alignSelf: "flex-start",
+    marginTop: vs(4),
+    backgroundColor: "#edf3ff",
+    color: "#2f5ae0",
+    fontSize: rf(12),
+    fontWeight: "700",
+    paddingHorizontal: hs(10),
+    paddingVertical: vs(6),
+    borderRadius: s(999),
+  },
   formArea: {
     gap: spacing.lg,
   },
@@ -587,6 +647,23 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: "row",
     gap: spacing.lg,
+  },
+  cloudStatusBox: {
+    backgroundColor: "#f7fbff",
+    borderWidth: 1,
+    borderColor: "#d9e8ff",
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  cloudStatusTitle: {
+    fontSize: rf(14),
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  cloudStatusSubtitle: {
+    fontSize: rf(13),
+    color: "#5b6472",
   },
   secondaryButtonOutline: {
     flex: 1,

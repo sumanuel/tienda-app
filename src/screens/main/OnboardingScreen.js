@@ -9,16 +9,25 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import PhoneInput from "../../components/common/PhoneInput";
+import { useAuth } from "../../contexts/AuthContext";
 import { getSettings, saveSettings } from "../../services/database/settings";
 import {
   getCurrentRate,
   setManualRate,
 } from "../../services/exchange/rateService";
+import {
+  acceptInviteForCurrentUser,
+  createStoreForCurrentUser,
+  listPendingInvitesForCurrentUser,
+} from "../../services/store/storeCollaborationService";
+import { saveOnboardingState } from "../../services/onboarding/onboardingState";
 import {
   s,
   rf,
@@ -30,44 +39,65 @@ import {
 } from "../../utils/responsive";
 
 const { width, height } = Dimensions.get("window");
-
 const slides = [
   {
     id: 1,
     title: "¡Bienvenido a T-Suma!",
     description:
       "Tu sistema completo de punto de venta para gestionar tu negocio de manera eficiente.",
-    icon: "🏪",
+    iconName: "storefront-outline",
   },
   {
     id: 2,
     title: "Gestión de Productos",
     description:
       "Administra tu inventario, precios y stock. Escanea códigos QR para ventas rápidas.",
-    icon: "📦",
+    iconName: "cube-outline",
   },
   {
     id: 3,
     title: "Ventas y Clientes",
     description:
       "Registra ventas, administra clientes y controla cuentas por cobrar y pagar.",
-    icon: "💰",
+    iconName: "cash-outline",
   },
   {
     id: 4,
     title: "Reportes y Respaldos",
     description:
       "Visualiza estadísticas de ventas, genera respaldos automáticos y mantén tus datos seguros.",
-    icon: "📊",
+    iconName: "bar-chart-outline",
   },
 ];
 
-export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
+const isSharedStoreCloudBlockedError = (error) =>
+  String(error?.message || "")
+    .trim()
+    .toLowerCase()
+    .includes("la tienda está en modo local para esta sesión");
+
+export const OnboardingScreen = ({
+  onComplete,
+  initialStep = "slides",
+  requireInitialStoreSetup = false,
+}) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [step, setStep] = useState(initialStep); // slides | business | currency
+  const {
+    user,
+    activeStoreId,
+    memberships,
+    refreshStoreContext,
+    syncNow,
+    activateStoreLocally,
+  } = useAuth();
   const { showAlert, CustomAlert } = useCustomAlert();
   const scrollViewRef = useRef(null);
   const rateDirtyRef = useRef(false);
+  const existingBusinessLoadedRef = useRef(false);
+  const existingRateLoadedRef = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState([]);
 
   const [business, setBusiness] = useState({
     name: "",
@@ -79,10 +109,24 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
 
   const [displayCurrency, setDisplayCurrency] = useState("VES");
   const [rateInput, setRateInput] = useState("");
+  const [ivaInput, setIvaInput] = useState("16");
+  const [applyIvaOnSales, setApplyIvaOnSales] = useState(false);
+
+  const activeMembership = memberships.find(
+    (item) => item.storeId === activeStoreId,
+  );
+  const canManageStoreSettings = ["owner", "admin"].includes(
+    String(activeMembership?.role || "")
+      .trim()
+      .toLowerCase(),
+  );
 
   const markSlidesSeen = async () => {
     try {
-      await AsyncStorage.setItem("onboardingSlidesSeen", "true");
+      await saveOnboardingState(user?.uid, {
+        completed: false,
+        slidesSeen: true,
+      });
     } catch (error) {
       console.warn("Error saving onboardingSlidesSeen:", error);
     }
@@ -103,6 +147,15 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
       try {
         const current = await getSettings();
         const existingBusiness = current?.business || {};
+        const hasExistingBusiness = [
+          existingBusiness?.name,
+          existingBusiness?.rif,
+          existingBusiness?.address,
+          existingBusiness?.phone,
+          existingBusiness?.email,
+        ].some((value) => String(value || "").trim().length > 0);
+
+        existingBusinessLoadedRef.current = hasExistingBusiness;
         setBusiness((prev) => ({
           ...prev,
           ...existingBusiness,
@@ -112,9 +165,13 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
         // Esto aplica especialmente cuando el usuario reabre el onboarding desde el librito.
         const currentRate = await getCurrentRate();
         const savedRate = currentRate?.rate;
+        const pricing = current?.pricing || {};
         if (!rateDirtyRef.current && savedRate && savedRate > 0) {
+          existingRateLoadedRef.current = true;
           setRateInput(String(savedRate));
         }
+        setIvaInput(String(pricing.iva ?? 16));
+        setApplyIvaOnSales(pricing.applyIvaOnSales ?? false);
       } catch (error) {
         console.warn("Onboarding settings load failed:", error);
       }
@@ -122,6 +179,24 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
 
     loadExisting();
   }, []);
+
+  useEffect(() => {
+    const loadPendingInvites = async () => {
+      if (!requireInitialStoreSetup || activeStoreId) {
+        setPendingInvites([]);
+        return;
+      }
+
+      try {
+        const invites = await listPendingInvitesForCurrentUser();
+        setPendingInvites(invites);
+      } catch (error) {
+        console.warn("Onboarding invites load failed:", error);
+      }
+    };
+
+    loadPendingInvites();
+  }, [requireInitialStoreSetup, activeStoreId]);
 
   const handleNext = () => {
     if (currentSlide < slides.length - 1) {
@@ -144,9 +219,40 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
 
   const completeOnboarding = async ({ persistSettings = false } = {}) => {
     try {
-      if (persistSettings) {
+      setSaving(true);
+      const shouldReuseExistingConfiguration =
+        !requireInitialStoreSetup &&
+        Boolean(activeStoreId) &&
+        (existingBusinessLoadedRef.current || existingRateLoadedRef.current);
+
+      if (persistSettings && !shouldReuseExistingConfiguration) {
         // Guardar settings del onboarding (si aplica)
         try {
+          let createdStore = null;
+          const shouldPersistStoreSettings =
+            requireInitialStoreSetup || canManageStoreSettings;
+
+          if (requireInitialStoreSetup && !activeStoreId) {
+            createdStore = await createStoreForCurrentUser(
+              {
+                name: business.name,
+                rif: business.rif,
+                address: business.address,
+                phone: business.phone,
+                email: business.email,
+              },
+              { reuseExistingOwnerStore: true },
+            );
+
+            const refreshedContext = await refreshStoreContext(
+              createdStore.storeId,
+            );
+
+            if (!refreshedContext?.activeStoreId) {
+              await activateStoreLocally(createdStore);
+            }
+          }
+
           const current = await getSettings();
           const nextSettings = {
             ...current,
@@ -159,10 +265,18 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
               ...current.pricing,
               displayCurrency: "VES",
               baseCurrency: "USD",
+              iva:
+                parseFloat((ivaInput || "").toString().replace(/,/g, ".")) || 0,
+              applyIvaOnSales,
             },
           };
 
-          await saveSettings(nextSettings);
+          if (shouldPersistStoreSettings) {
+            await saveSettings(nextSettings);
+          }
+          if (createdStore?.storeId) {
+            await syncNow("stores:create-initial");
+          }
 
           const rate = parseFloat(
             (rateInput || "").toString().replace(/,/g, "."),
@@ -171,20 +285,69 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
             await setManualRate(rate, "ONBOARDING");
           }
         } catch (error) {
-          console.warn("Onboarding settings save failed:", error);
+          if (
+            isSharedStoreCloudBlockedError(error) &&
+            !requireInitialStoreSetup &&
+            activeStoreId
+          ) {
+            console.warn(
+              "Onboarding settings skipped because the existing store is temporarily in local-only mode:",
+              error,
+            );
+          } else {
+            console.warn("Onboarding settings save failed:", error);
+            throw error;
+          }
         }
       }
 
-      await AsyncStorage.setItem("onboardingCompleted", "true");
-      await markSlidesSeen();
+      await saveOnboardingState(user?.uid, {
+        completed: true,
+        slidesSeen: true,
+      });
       if (onComplete) {
         onComplete();
       }
     } catch (error) {
       console.error("Error saving onboarding status:", error);
+      showAlert({
+        title: "Error",
+        message:
+          error?.message ||
+          "No se pudo completar la configuración inicial de la tienda.",
+        type: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAcceptInvite = async (invite) => {
+    try {
+      setSaving(true);
+      const accepted = await acceptInviteForCurrentUser(invite);
+      const refreshedContext = await refreshStoreContext(accepted.storeId);
+      if (!refreshedContext?.activeStoreId) {
+        await activateStoreLocally(accepted);
+      }
+      await syncNow("stores:accept-invite-onboarding");
+      await saveOnboardingState(user?.uid, {
+        completed: true,
+        slidesSeen: true,
+      });
       if (onComplete) {
         onComplete();
       }
+    } catch (error) {
+      console.error("Error accepting invite during onboarding:", error);
+      showAlert({
+        title: "Error",
+        message:
+          error?.message || "No se pudo aceptar la invitación a la tienda.",
+        type: "error",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -202,6 +365,25 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
       });
       return false;
     }
+
+    if (requireInitialStoreSetup && !business.rif?.trim()) {
+      showAlert({
+        title: "Falta información",
+        message: "El RIF de la tienda es obligatorio.",
+        type: "error",
+      });
+      return false;
+    }
+
+    if (requireInitialStoreSetup && !business.address?.trim()) {
+      showAlert({
+        title: "Falta información",
+        message: "La dirección de la tienda es obligatoria.",
+        type: "error",
+      });
+      return false;
+    }
+
     return true;
   };
 
@@ -215,6 +397,17 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
       });
       return false;
     }
+
+    const iva = parseFloat((ivaInput || "").toString().replace(/,/g, "."));
+    if (Number.isNaN(iva) || iva < 0 || iva > 100) {
+      showAlert({
+        title: "IVA inválido",
+        message: "Ingresa un porcentaje de IVA entre 0 y 100.",
+        type: "error",
+      });
+      return false;
+    }
+
     return true;
   };
 
@@ -242,7 +435,11 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
             {slides.map((slide) => (
               <View key={slide.id} style={styles.slide}>
                 <View style={styles.iconContainer}>
-                  <Text style={styles.icon}>{slide.icon}</Text>
+                  <Ionicons
+                    name={slide.iconName}
+                    size={iconSize.xxl}
+                    color="#ffffff"
+                  />
                 </View>
 
                 <View style={styles.textContainer}>
@@ -300,19 +497,59 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
           >
             <View style={styles.formHeader}>
               <Text style={styles.formTitle}>
-                {step === "business" ? "Datos del negocio" : "Moneda y tasa"}
+                {step === "business"
+                  ? requireInitialStoreSetup
+                    ? "Crea tu tienda inicial"
+                    : "Datos del negocio"
+                  : "Moneda y tasa"}
               </Text>
               <Text style={styles.formSubtitle}>
                 {step === "business"
-                  ? "Configura la información básica para tus comprobantes y reportes."
+                  ? requireInitialStoreSetup
+                    ? "Usaremos estos datos para crear tu primera tienda en Firebase y dejarla activa."
+                    : "Configura la información básica para tus comprobantes y reportes."
                   : "La app trabaja con una tasa USD → VES para cálculos y reportes."}
               </Text>
             </View>
 
             {step === "business" ? (
               <View style={styles.formCard}>
+                {requireInitialStoreSetup && pendingInvites.length > 0 && (
+                  <View style={styles.invitesCard}>
+                    <Text style={styles.invitesTitle}>
+                      Ya tienes invitaciones pendientes
+                    </Text>
+                    <Text style={styles.invitesSubtitle}>
+                      Si solo vas a trabajar en una tienda existente, puedes
+                      aceptarla ahora sin crear una nueva.
+                    </Text>
+                    {pendingInvites.map((invite) => (
+                      <View key={invite.id} style={styles.inviteRow}>
+                        <View style={styles.inviteInfo}>
+                          <Text style={styles.inviteName}>
+                            {invite.storeName}
+                          </Text>
+                          <Text style={styles.inviteRole}>{invite.role}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.inviteButton}
+                          activeOpacity={0.85}
+                          disabled={saving}
+                          onPress={() => handleAcceptInvite(invite)}
+                        >
+                          <Text style={styles.inviteButtonText}>Aceptar</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Nombre del negocio *</Text>
+                  <Text style={styles.fieldLabel}>
+                    {requireInitialStoreSetup
+                      ? "Nombre de la tienda *"
+                      : "Nombre del negocio *"}
+                  </Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Ej: Mi Tienda C.A."
@@ -435,8 +672,39 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
                   />
                 </View>
 
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>IVA por defecto (%)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ej: 16"
+                    placeholderTextColor="#9aa2b1"
+                    value={ivaInput}
+                    onChangeText={setIvaInput}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+
+                <View style={styles.toggleRow}>
+                  <View style={styles.toggleCopy}>
+                    <Text style={styles.toggleTitle}>
+                      Aplicar IVA al cobrar
+                    </Text>
+                    <Text style={styles.toggleDescription}>
+                      Cuando esté activo, el punto de venta sumará IVA a las
+                      ventas.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={applyIvaOnSales}
+                    onValueChange={setApplyIvaOnSales}
+                    trackColor={{ false: "#d5dbe7", true: "#81C784" }}
+                    thumbColor={applyIvaOnSales ? "#1f9254" : "#f4f3f4"}
+                  />
+                </View>
+
                 <Text style={styles.helperText}>
-                  Podrás modificar la tasa luego en la sección “USD ($)”.
+                  Podrás modificar la tasa y el IVA luego en “Margen de
+                  ganancias”.
                 </Text>
               </View>
             )}
@@ -445,6 +713,7 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
               <TouchableOpacity
                 style={[styles.formButton, styles.formButtonSecondary]}
                 activeOpacity={0.85}
+                disabled={saving}
                 onPress={() => {
                   if (step === "business") {
                     setStep("slides");
@@ -462,8 +731,13 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.formButton, styles.formButtonPrimary]}
+                style={[
+                  styles.formButton,
+                  styles.formButtonPrimary,
+                  saving && styles.buttonDisabled,
+                ]}
                 activeOpacity={0.85}
+                disabled={saving}
                 onPress={() => {
                   if (step === "business") {
                     if (!validateBusiness()) return;
@@ -475,9 +749,19 @@ export const OnboardingScreen = ({ onComplete, initialStep = "slides" }) => {
                   completeOnboarding({ persistSettings: true });
                 }}
               >
-                <Text style={styles.formButtonPrimaryText}>
-                  {step === "business" ? "Siguiente" : "Finalizar"}
-                </Text>
+                {saving ? (
+                  <Text style={styles.formButtonPrimaryText}>
+                    Procesando...
+                  </Text>
+                ) : (
+                  <Text style={styles.formButtonPrimaryText}>
+                    {step === "business"
+                      ? "Siguiente"
+                      : requireInitialStoreSetup && !activeStoreId
+                        ? "Crear tienda"
+                        : "Finalizar"}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -617,6 +901,56 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: vs(14),
   },
+  invitesCard: {
+    backgroundColor: "#f6f9ff",
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    gap: vs(10),
+    borderWidth: 1,
+    borderColor: "#d9e6ff",
+  },
+  invitesTitle: {
+    fontSize: rf(14),
+    fontWeight: "800",
+    color: "#1f2633",
+  },
+  invitesSubtitle: {
+    fontSize: rf(12),
+    color: "#4c5767",
+    lineHeight: vs(18),
+  },
+  inviteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: hs(10),
+    paddingVertical: vs(6),
+  },
+  inviteInfo: {
+    flex: 1,
+    gap: vs(2),
+  },
+  inviteName: {
+    fontSize: rf(14),
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  inviteRole: {
+    fontSize: rf(12),
+    color: "#6f7c8c",
+    textTransform: "capitalize",
+  },
+  inviteButton: {
+    backgroundColor: "#2f5ae0",
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: hs(14),
+    paddingVertical: vs(10),
+  },
+  inviteButtonText: {
+    color: "#fff",
+    fontSize: rf(12),
+    fontWeight: "800",
+  },
   fieldGroup: {
     gap: vs(8),
   },
@@ -646,6 +980,26 @@ const styles = StyleSheet.create({
     color: "#4c5767",
     backgroundColor: "#f3f8ff",
     padding: spacing.sm,
+    toggleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.lg,
+    },
+    toggleCopy: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    toggleTitle: {
+      fontSize: rf(15),
+      fontWeight: "600",
+      color: "#1f2633",
+    },
+    toggleDescription: {
+      fontSize: rf(13),
+      color: "#6f7c8c",
+      lineHeight: vs(18),
+    },
     borderRadius: borderRadius.sm,
     lineHeight: vs(18),
   },

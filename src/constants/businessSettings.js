@@ -14,6 +14,8 @@ export const BUSINESS_SETTINGS = {
     baseCurrency: "USD", // Moneda base para almacenar precios
     displayCurrency: "VES", // Moneda principal para mostrar
     defaultMargin: 30, // Margen de ganancia por defecto (%)
+    iva: 16, // IVA por defecto (%)
+    applyIvaOnSales: false, // Aplicar IVA al momento del cobro
     minMargin: 10, // Margen mínimo permitido (%)
     maxMargin: 200, // Margen máximo permitido (%)
     roundPrices: true, // Redondear precios

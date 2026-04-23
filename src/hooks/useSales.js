@@ -6,6 +6,7 @@ import {
   getTodaySales,
   cancelSale as cancelSaleDB,
 } from "../services/database/sales";
+import { requestCloudSync } from "../services/firebase/firestoreSync";
 
 /**
  * Hook para gestionar ventas
@@ -58,10 +59,11 @@ export const useSales = () => {
   const registerSale = useCallback(async (sale, items) => {
     try {
       setError(null);
-      const id = await insertSale(sale, items);
+      const result = await insertSale(sale, items);
       await loadSales(); // Recargar lista
       await loadTodayStats(); // Actualizar estadísticas
-      return id;
+      requestCloudSync("sales:add");
+      return result;
     } catch (err) {
       setError(err.message);
       console.error("Error registering sale:", err);
@@ -92,6 +94,7 @@ export const useSales = () => {
       await cancelSaleDB(saleId);
       await loadSales(); // Recargar lista
       await loadTodayStats(); // Actualizar estadísticas
+      requestCloudSync("sales:cancel");
     } catch (err) {
       setError(err.message);
       console.error("Error cancelling sale:", err);

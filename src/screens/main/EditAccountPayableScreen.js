@@ -11,6 +11,7 @@ import {
   Platform,
   SafeAreaView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -72,7 +73,7 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
   const formatLocalDate = (date) => {
     const pad = (value) => String(value).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-      date.getDate()
+      date.getDate(),
     )}`;
   };
 
@@ -93,8 +94,8 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
     formData.baseCurrency === "USD"
       ? baseAmountValue
       : currentRate > 0
-      ? baseAmountValue / currentRate
-      : null;
+        ? baseAmountValue / currentRate
+        : null;
   const computedVES =
     formData.baseCurrency === "USD"
       ? currentRate > 0
@@ -194,7 +195,7 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
         amount: computedVES ?? 0,
         baseCurrency: formData.baseCurrency,
         baseAmountUSD:
-          formData.baseCurrency === "USD" ? computedUSD ?? 0 : null,
+          formData.baseCurrency === "USD" ? (computedUSD ?? 0) : null,
         exchangeRateAtCreation:
           formData.baseCurrency === "USD" ? currentRate : null,
         description: formData.description.trim(),
@@ -303,7 +304,11 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
           >
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>💰</Text>
+                <Ionicons
+                  name="cash-outline"
+                  size={iconSize.lg}
+                  color="#169c5a"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Editar cuenta por pagar</Text>

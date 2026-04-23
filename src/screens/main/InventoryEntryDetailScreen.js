@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -107,10 +108,15 @@ export const InventoryEntryDetailScreen = ({ navigation, route }) => {
   const renderMovement = ({ item }) => (
     <View style={styles.movementCard}>
       <View style={styles.movementHeader}>
-        <Text style={styles.movementDate}>
-          {parseMovementDate(item.createdAt).toLocaleDateString()}{" "}
-          {parseMovementDate(item.createdAt).toLocaleTimeString()}
-        </Text>
+        <View>
+          <Text style={styles.movementDate}>
+            {item.movementNumber || `MOV-${String(item.id).padStart(6, "0")}`}
+          </Text>
+          <Text style={styles.movementDate}>
+            {parseMovementDate(item.createdAt).toLocaleDateString()}{" "}
+            {parseMovementDate(item.createdAt).toLocaleTimeString()}
+          </Text>
+        </View>
         <View style={styles.movementBadge}>
           <Text style={styles.movementBadgeText}>Entrada</Text>
         </View>
@@ -132,7 +138,11 @@ export const InventoryEntryDetailScreen = ({ navigation, route }) => {
 
     return (
       <View style={styles.emptyMovements}>
-        <Text style={styles.emptyEmoji}>📋</Text>
+        <Ionicons
+          name="document-text-outline"
+          size={iconSize.xxl}
+          color="#8ca0b8"
+        />
         <Text style={styles.emptyTitle}>Sin movimientos registrados</Text>
         <Text style={styles.emptySubtitle}>
           El inventario actual ({product.stock} unidades) se considera como
@@ -149,7 +159,11 @@ export const InventoryEntryDetailScreen = ({ navigation, route }) => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>📥</Text>
+                <Ionicons
+                  name="arrow-down-circle-outline"
+                  size={iconSize.xl}
+                  color="#169c5a"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Entrada de Inventario</Text>
@@ -179,8 +193,15 @@ export const InventoryEntryDetailScreen = ({ navigation, route }) => {
                   </Text>
                 </View>
                 <Text style={styles.productCode}>
-                  Código: {product.barcode}
+                  Código:{" "}
+                  {product.productNumber ||
+                    `PRD-${String(product.id).padStart(6, "0")}`}
                 </Text>
+                {!!product.barcode && (
+                  <Text style={styles.productCode}>
+                    Barcode: {product.barcode}
+                  </Text>
+                )}
               </View>
             </View>
           )}

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -171,15 +172,15 @@ export const CustomersScreen = () => {
 
         // Verificar si el cliente tiene movimientos asociados
         const [allSales, allReceivables] = await Promise.all([
-          getAllSales(),
+          getAllSales(100000),
           getAllAccountsReceivable(),
         ]);
 
         const customerSales = allSales.filter(
-          (sale) => sale.customerId === customer.id,
+          (sale) => Number(sale.customerId) === Number(customer.id),
         );
         const customerReceivables = allReceivables.filter(
-          (account) => account.customerId === customer.id,
+          (account) => Number(account.customerId) === Number(customer.id),
         );
 
         if (customerSales.length > 0 || customerReceivables.length > 0) {
@@ -286,8 +287,18 @@ export const CustomersScreen = () => {
                 {isGeneric && " (ventas rápidas)"}
               </Text>
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>#{item.documentNumber}</Text>
+                <Text style={styles.badgeText}>
+                  {item.customerNumber ||
+                    `CLI-${String(item.id).padStart(6, "0")}`}
+                </Text>
               </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Documento</Text>
+              <Text style={styles.infoValue}>
+                {item.documentNumber || "Sin documento"}
+              </Text>
             </View>
 
             <View style={styles.infoRow}>
@@ -324,7 +335,7 @@ export const CustomersScreen = () => {
     <View style={styles.headerContent}>
       <View style={styles.heroCard}>
         <View style={styles.heroIcon}>
-          <Text style={styles.heroIconText}>🤝</Text>
+          <Ionicons name="people-outline" size={iconSize.xl} color="#2f5ae0" />
         </View>
         <View style={styles.heroTextContainer}>
           <Text style={styles.heroTitle}>Directorio de clientes</Text>

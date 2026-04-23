@@ -6,7 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -54,7 +54,7 @@ export const AddAccountPayableScreen = ({ navigation }) => {
   const formatLocalDate = (date) => {
     const pad = (value) => String(value).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-      date.getDate()
+      date.getDate(),
     )}`;
   };
 
@@ -75,8 +75,8 @@ export const AddAccountPayableScreen = ({ navigation }) => {
     formData.baseCurrency === "USD"
       ? baseAmountValue
       : currentRate > 0
-      ? baseAmountValue / currentRate
-      : null;
+        ? baseAmountValue / currentRate
+        : null;
   const computedVES =
     formData.baseCurrency === "USD"
       ? currentRate > 0
@@ -184,7 +184,7 @@ export const AddAccountPayableScreen = ({ navigation }) => {
     setLoading(true);
     try {
       let supplier = await getSupplierByDocument(
-        formData.documentNumber.trim()
+        formData.documentNumber.trim(),
       );
 
       if (!supplier) {
@@ -201,7 +201,7 @@ export const AddAccountPayableScreen = ({ navigation }) => {
         amount: computedVES ?? 0,
         baseCurrency: formData.baseCurrency,
         baseAmountUSD:
-          formData.baseCurrency === "USD" ? computedUSD ?? 0 : null,
+          formData.baseCurrency === "USD" ? (computedUSD ?? 0) : null,
         exchangeRateAtCreation:
           formData.baseCurrency === "USD" ? currentRate : null,
         description: formData.description.trim(),
@@ -449,19 +449,33 @@ export const AddAccountPayableScreen = ({ navigation }) => {
 
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.actionButton, styles.secondaryButton]}
+                style={[
+                  styles.actionButton,
+                  styles.secondaryButton,
+                  loading && styles.buttonDisabled,
+                ]}
                 onPress={() => navigation.goBack()}
                 activeOpacity={0.85}
+                disabled={loading}
               >
                 <Text style={styles.secondaryText}>Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, styles.primaryButton]}
+                style={[
+                  styles.actionButton,
+                  styles.primaryButton,
+                  loading && styles.buttonDisabled,
+                ]}
                 onPress={handleSave}
                 activeOpacity={0.85}
+                disabled={loading}
               >
-                <Text style={styles.primaryText}>Guardar cuenta</Text>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.primaryText}>Guardar cuenta</Text>
+                )}
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -738,6 +752,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#c3cad5",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   primaryText: {
     color: "#fff",

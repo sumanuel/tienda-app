@@ -6,7 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -30,6 +30,7 @@ import PhoneInput from "../../components/common/PhoneInput";
 export const AddCustomerScreen = ({ navigation }) => {
   const { addCustomer } = useCustomers();
   const { showAlert, CustomAlert } = useCustomAlert();
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     documentNumber: "",
@@ -40,6 +41,8 @@ export const AddCustomerScreen = ({ navigation }) => {
   });
 
   const handleSave = async () => {
+    if (loading) return;
+
     if (!formData.documentNumber.trim()) {
       showAlert({
         title: "Error",
@@ -58,6 +61,7 @@ export const AddCustomerScreen = ({ navigation }) => {
     }
 
     try {
+      setLoading(true);
       await addCustomer(formData);
       showAlert({
         title: "Éxito",
@@ -71,6 +75,8 @@ export const AddCustomerScreen = ({ navigation }) => {
         message: error?.message || "No se pudo guardar el cliente",
         type: "error",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -93,9 +99,6 @@ export const AddCustomerScreen = ({ navigation }) => {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>🧑‍💼</Text>
-              </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Nuevo cliente</Text>
                 <Text style={styles.heroSubtitle}>
@@ -191,19 +194,33 @@ export const AddCustomerScreen = ({ navigation }) => {
 
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.actionButton, styles.secondaryButton]}
+                style={[
+                  styles.actionButton,
+                  styles.secondaryButton,
+                  loading && styles.buttonDisabled,
+                ]}
                 onPress={() => navigation.goBack()}
                 activeOpacity={0.85}
+                disabled={loading}
               >
                 <Text style={styles.secondaryButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, styles.primaryButton]}
+                style={[
+                  styles.actionButton,
+                  styles.primaryButton,
+                  loading && styles.buttonDisabled,
+                ]}
                 onPress={handleSave}
                 activeOpacity={0.85}
+                disabled={loading}
               >
-                <Text style={styles.primaryButtonText}>Guardar cliente</Text>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Guardar cliente</Text>
+                )}
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -337,6 +354,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#c3cad5",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   secondaryButtonText: {
     color: "#4c5767",

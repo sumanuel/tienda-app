@@ -1,10 +1,35 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
+import {
+  collection,
+  getDoc,
+  getDocs,
+  setDoc,
+  writeBatch,
+} from "firebase/firestore";
 import { db, initAllTables } from "../database/db";
+import { auth, firestore } from "../firebase/firebase";
 import { ensureSettingsDefaults } from "../database/settings";
+import {
+  getStoreCollectionRef,
+  getStoreNestedDocRef,
+} from "../store/storeRefs";
 
 const BACKUP_DIR = `${FileSystem.documentDirectory}backups/`;
+const CLOUD_BACKUP_COLLECTIONS = [
+  "products",
+  "customers",
+  "suppliers",
+  "sales",
+  "accounts_receivable",
+  "accounts_payable",
+  "account_payments",
+  "inventory_movements",
+  "exchange_rates",
+  "rate_notifications",
+  "mobile_payments",
+];
 
 const nowStamp = () => {
   const d = new Date();
@@ -101,6 +126,83 @@ const toDeleteOrder = (tables) => {
   return [...toInsertOrder(tables)].reverse();
 };
 
+const getCloudBackupPayload = async () => {
+  const user = auth.currentUser;
+  if (!user) return null;
+
+  const settingsSnapshot = await getDoc(
+    getStoreNestedDocRef(["settings", "app_settings"]),
+  );
+
+  const collections = {};
+  for (const collectionName of CLOUD_BACKUP_COLLECTIONS) {
+    const snapshot = await getDocs(getStoreCollectionRef(collectionName));
+    collections[collectionName] = snapshot.docs.map((item) => item.data());
+  }
+
+  return {
+    settings: settingsSnapshot.exists() ? settingsSnapshot.data() || {} : null,
+    collections,
+  };
+};
+
+const restoreCloudBackupPayload = async (cloudPayload) => {
+  const user = auth.currentUser;
+  if (!user || !cloudPayload || typeof cloudPayload !== "object") {
+    return { restoredCollections: 0 };
+  }
+
+  let restoredCollections = 0;
+
+  if (cloudPayload.settings && typeof cloudPayload.settings === "object") {
+    await setDoc(
+      getStoreNestedDocRef(["settings", "app_settings"]),
+      cloudPayload.settings,
+      { merge: false },
+    );
+  }
+
+  const collections = cloudPayload.collections || {};
+  for (const collectionName of Object.keys(collections)) {
+    const rows = Array.isArray(collections[collectionName])
+      ? collections[collectionName]
+      : [];
+    const collectionRef = getStoreCollectionRef(collectionName);
+    const existingSnapshot = await getDocs(collectionRef);
+
+    const deleteChunks = [];
+    for (let index = 0; index < existingSnapshot.docs.length; index += 300) {
+      deleteChunks.push(existingSnapshot.docs.slice(index, index + 300));
+    }
+
+    for (const chunk of deleteChunks) {
+      const deleteBatch = writeBatch(firestore);
+      chunk.forEach((item) => deleteBatch.delete(item.ref));
+      await deleteBatch.commit();
+    }
+
+    for (let index = 0; index < rows.length; index += 300) {
+      const batch = writeBatch(firestore);
+      rows.slice(index, index + 300).forEach((row, rowIndex) => {
+        const rowId =
+          row?.id != null
+            ? String(row.id)
+            : row?.documentNumber
+              ? String(row.documentNumber)
+              : row?.reference
+                ? String(row.reference)
+                : `${collectionName}-${index + rowIndex + 1}`;
+        batch.set(doc(collectionRef, rowId), row || {}, { merge: false });
+      });
+      await batch.commit();
+    }
+
+    restoredCollections += 1;
+  }
+
+  return { restoredCollections };
+};
+
 export const exportDatabaseBackup = async () => {
   await initAllTables();
   await ensureBackupDir();
@@ -119,8 +221,10 @@ export const exportDatabaseBackup = async () => {
       app: "tienda-app",
       schemaVersion: 1,
       createdAt: new Date().toISOString(),
+      hasCloudData: Boolean(auth.currentUser),
     },
     tables: data,
+    cloud: await getCloudBackupPayload(),
   };
 
   const fileName = `tienda-backup-${nowStamp()}.json`;
@@ -236,5 +340,7 @@ export const importDatabaseBackupFromUri = async (uri) => {
   await ensureGenericCustomerAfterImport();
   await ensureSettingsDefaults();
 
-  return { importedTables: tables.length };
+  const cloudResult = await restoreCloudBackupPayload(parsed.cloud);
+
+  return { importedTables: tables.length, ...cloudResult };
 };

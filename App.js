@@ -23,11 +23,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
 import * as NavigationBar from "expo-navigation-bar";
+import { getCloudAccessState } from "./src/services/firebase/cloudAccess";
+import {
+  clearOnboardingState,
+  getOnboardingState,
+  saveOnboardingState,
+} from "./src/services/onboarding/onboardingState";
 
 // Context
 import { ExchangeRateProvider } from "./src/contexts/ExchangeRateContext";
 import { RateNotificationsProvider } from "./src/contexts/RateNotificationsContext";
+import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
 
 // Hooks and Utils
 import { useExchangeRate } from "./src/contexts/ExchangeRateContext";
@@ -82,14 +90,20 @@ import AddInventoryExitScreen from "./src/screens/main/AddInventoryExitScreen";
 import InventoryMovementsScreen from "./src/screens/main/InventoryMovementsScreen";
 import InventoryMovementsDetailScreen from "./src/screens/main/InventoryMovementsDetailScreen";
 import AboutScreen from "./src/screens/main/AboutScreen";
+import StoreManagementScreen from "./src/screens/main/StoreManagementScreen";
 import OnboardingScreen from "./src/screens/main/OnboardingScreen";
+import AuthScreen from "./src/screens/auth/AuthScreen";
+import VerifyEmailScreen from "./src/screens/auth/VerifyEmailScreen";
 import MobilePaymentsScreen from "./src/screens/main/MobilePaymentsScreen";
 import RateNotificationsScreen from "./src/screens/main/RateNotificationsScreen";
 import DailyExternalRatePrompt from "./src/components/exchange/DailyExternalRatePrompt";
 import StoreUpdatePrompt from "./src/components/storeUpdate/StoreUpdatePrompt";
 
 // Database initialization
-import { initAllTables } from "./src/services/database/db";
+import {
+  initAllTables,
+  migrateLegacyDatabaseToCurrentStoreIfNeeded,
+} from "./src/services/database/db";
 import {
   getSettings,
   initSettingsTable,
@@ -103,6 +117,28 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const navigationRef = createNavigationContainerRef();
+
+const canManageBusinessSetup = (membership) => {
+  const role = String(membership?.role || "")
+    .trim()
+    .toLowerCase();
+  return role === "owner" || role === "admin";
+};
+
+function TabBarIcon({ name, color, size, containerWidth, containerHeight }) {
+  return (
+    <View
+      style={{
+        height: containerHeight,
+        justifyContent: "center",
+        alignItems: "center",
+        width: containerWidth,
+      }}
+    >
+      <Ionicons name={name} size={size} color={color} />
+    </View>
+  );
+}
 
 /**
  * Tabs de navegación principal
@@ -265,25 +301,13 @@ function MainTabs() {
           options={{
             tabBarLabel: "Inicio",
             tabBarIcon: ({ color }) => (
-              <View
-                style={{
-                  height: tabIconContainerHeight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: tabIconContainerWidth,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: tabIconFontSize,
-                    lineHeight: tabIconLineHeight,
-                    includeFontPadding: false,
-                    color,
-                  }}
-                >
-                  🏠
-                </Text>
-              </View>
+              <TabBarIcon
+                name="home-outline"
+                color={color}
+                size={tabIconFontSize}
+                containerWidth={tabIconContainerWidth}
+                containerHeight={tabIconContainerHeight}
+              />
             ),
             headerShown: false,
           }}
@@ -294,25 +318,13 @@ function MainTabs() {
           options={({ navigation }) => ({
             tabBarLabel: "Cuentas",
             tabBarIcon: ({ color }) => (
-              <View
-                style={{
-                  height: tabIconContainerHeight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: tabIconContainerWidth,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: tabIconFontSize,
-                    lineHeight: tabIconLineHeight,
-                    includeFontPadding: false,
-                    color,
-                  }}
-                >
-                  💼
-                </Text>
-              </View>
+              <TabBarIcon
+                name="wallet-outline"
+                color={color}
+                size={tabIconFontSize}
+                containerWidth={tabIconContainerWidth}
+                containerHeight={tabIconContainerHeight}
+              />
             ),
             title: "Punto de venta",
             headerLeft: () => (
@@ -340,25 +352,13 @@ function MainTabs() {
           options={({ navigation }) => ({
             tabBarLabel: "Ficha",
             tabBarIcon: ({ color }) => (
-              <View
-                style={{
-                  height: tabIconContainerHeight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: tabIconContainerWidth,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: tabIconFontSize,
-                    lineHeight: tabIconLineHeight,
-                    includeFontPadding: false,
-                    color,
-                  }}
-                >
-                  📂
-                </Text>
-              </View>
+              <TabBarIcon
+                name="folder-open-outline"
+                color={color}
+                size={tabIconFontSize}
+                containerWidth={tabIconContainerWidth}
+                containerHeight={tabIconContainerHeight}
+              />
             ),
             title: "Historial de ventas",
             headerLeft: () => (
@@ -390,25 +390,13 @@ function MainTabs() {
           options={{
             tabBarLabel: "Ajustes",
             tabBarIcon: ({ color }) => (
-              <View
-                style={{
-                  height: tabIconContainerHeight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: tabIconContainerWidth,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: tabIconFontSize,
-                    lineHeight: tabIconLineHeight,
-                    includeFontPadding: false,
-                    color,
-                  }}
-                >
-                  ⚙️
-                </Text>
-              </View>
+              <TabBarIcon
+                name="settings-outline"
+                color={color}
+                size={tabIconFontSize}
+                containerWidth={tabIconContainerWidth}
+                containerHeight={tabIconContainerHeight}
+              />
             ),
             title: "Configuraciones",
           }}
@@ -423,19 +411,19 @@ function MainTabs() {
         items={[
           {
             key: "accountsReceivable",
-            icon: "📈",
+            iconName: "cash-outline",
             label: "Cuentas por Cobrar",
             onPress: () => handleNavigate("AccountsReceivable"),
           },
           {
             key: "accountsPayable",
-            icon: "📉",
+            iconName: "card-outline",
             label: "Cuentas por Pagar",
             onPress: () => handleNavigate("AccountsPayable"),
           },
           {
             key: "capital",
-            icon: "🏦",
+            iconName: "cash-outline",
             label: "Capital",
             onPress: () => handleNavigate("Capital"),
           },
@@ -451,37 +439,37 @@ function MainTabs() {
         items={[
           {
             key: "products",
-            icon: "📦",
+            iconName: "cube-outline",
             label: "Productos",
             onPress: handleProductsPress,
           },
           {
             key: "qr",
-            icon: "📱",
+            iconName: "qr-code-outline",
             label: "QR",
             onPress: handleQRPress,
           },
           {
             key: "mobilePayments",
-            icon: "📲",
+            iconName: "phone-portrait-outline",
             label: "Pago movil",
             onPress: () => handleNavigate("MobilePayments"),
           },
           {
             key: "suppliers",
-            icon: "🏢",
+            iconName: "people-outline",
             label: "Proveedores",
             onPress: () => handleNavigate("Suppliers"),
           },
           {
             key: "customers",
-            icon: "👥",
+            iconName: "person-outline",
             label: "Clientes",
             onPress: () => handleNavigate("Customers"),
           },
           {
             key: "cancelledSales",
-            icon: "🚫",
+            iconName: "document-text-outline",
             label: "Anuladas",
             onPress: () => handleNavigate("CancelledSales"),
           },
@@ -536,7 +524,15 @@ const QuickActionMenu = ({
               onPress={item.onPress}
             >
               <View style={tabStyles.menuIcon}>
-                <Text style={tabStyles.menuIconText}>{item.icon}</Text>
+                {item.iconName ? (
+                  <Ionicons
+                    name={item.iconName}
+                    size={rf(18)}
+                    color="#2f6f48"
+                  />
+                ) : typeof item.icon === "string" ? (
+                  <Text style={tabStyles.menuIconText}>{item.icon}</Text>
+                ) : null}
               </View>
               <Text style={tabStyles.menuLabel}>{item.label}</Text>
             </TouchableOpacity>
@@ -609,10 +605,27 @@ const tabStyles = StyleSheet.create({
 /**
  * Componente principal de la aplicación
  */
-export default function App() {
+function AppContent() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingInitialStep, setOnboardingInitialStep] = useState("slides");
+  const initializingRef = useRef(false);
+  const initializedKeyRef = useRef("");
+  const {
+    user,
+    authLoading,
+    emailVerified,
+    storeLoading,
+    activeStoreId,
+    memberships,
+    requiresStoreSetup,
+  } = useAuth();
+
+  const activeMembership = memberships.find(
+    (item) => item.storeId === activeStoreId,
+  );
+  const canManageActiveStoreBusiness =
+    !activeStoreId || canManageBusinessSetup(activeMembership);
 
   const applyImmersiveMode = useCallback(async () => {
     try {
@@ -648,17 +661,12 @@ export default function App() {
     return () => sub.remove();
   }, [applyImmersiveMode]);
 
-  useEffect(() => {
-    initializeApp();
-  }, []);
-
   /**
    * Resetea el onboarding para mostrarlo nuevamente
    */
   const resetOnboarding = async () => {
     try {
-      await AsyncStorage.removeItem("onboardingCompleted");
-      await AsyncStorage.removeItem("onboardingSlidesSeen");
+      await clearOnboardingState(user?.uid);
       setShowOnboarding(true);
       setOnboardingInitialStep("slides");
     } catch (error) {
@@ -675,18 +683,34 @@ export default function App() {
    * Inicializa la aplicación y la base de datos
    */
   const initializeApp = async () => {
+    const initializationKey = `${String(user?.uid || "anon")}:${String(activeStoreId || "no-store")}:${requiresStoreSetup ? "needs-store" : "ready"}`;
+
+    if (
+      initializingRef.current &&
+      initializedKeyRef.current === initializationKey
+    ) {
+      return;
+    }
+
+    initializingRef.current = true;
+    initializedKeyRef.current = initializationKey;
+
     try {
+      setIsReady(false);
+
       // Inicializar todas las tablas en una sola transacción
       await initAllTables();
+
+      await migrateLegacyDatabaseToCurrentStoreIfNeeded();
 
       // Inicializar settings con valores por defecto
       await initSettingsTable();
 
       // Verificar si el usuario ya completó el onboarding y si ya vio las slides
-      const [onboardingCompleted, onboardingSlidesSeen] = await Promise.all([
-        AsyncStorage.getItem("onboardingCompleted"),
-        AsyncStorage.getItem("onboardingSlidesSeen"),
-      ]);
+      const onboardingState = await getOnboardingState(user?.uid);
+      const resolvedOnboardingCompleted = onboardingState.completed;
+      const resolvedOnboardingSlidesSeen = onboardingState.slidesSeen;
+      const cloudAccessState = getCloudAccessState();
 
       // Si aún no llenó datos del negocio, pedirlos al entrar.
       let isBusinessConfigured = false;
@@ -729,33 +753,67 @@ export default function App() {
         console.warn("Error loading settings for onboarding check:", error);
       }
 
-      const needsBusinessSetup = !isBusinessConfigured;
+      const needsBusinessSetup =
+        canManageActiveStoreBusiness &&
+        !isBusinessConfigured &&
+        !cloudAccessState.disabled;
+      const needsInitialStoreSetup =
+        Boolean(user) &&
+        Boolean(requiresStoreSetup) &&
+        !activeStoreId &&
+        !cloudAccessState.disabled;
 
       // Si el usuario ya tiene negocio configurado y una tasa guardada,
       // consideramos onboarding completo (migración para usuarios antiguos).
       const inferredOnboardingCompleted =
-        !needsBusinessSetup && Boolean(hasRate);
+        !needsBusinessSetup && !needsInitialStoreSetup && Boolean(hasRate);
 
-      if (!onboardingCompleted && inferredOnboardingCompleted) {
+      if (!resolvedOnboardingCompleted && inferredOnboardingCompleted) {
         try {
-          await AsyncStorage.setItem("onboardingCompleted", "true");
-          await AsyncStorage.setItem("onboardingSlidesSeen", "true");
+          await saveOnboardingState(user?.uid, {
+            completed: true,
+            slidesSeen: true,
+          });
         } catch (error) {
           console.warn("Error migrating onboarding flags:", error);
         }
       }
 
+      if (
+        onboardingState.hasCloudCompleted ||
+        onboardingState.hasCloudSlidesSeen ||
+        onboardingState.hasLegacyCompleted ||
+        onboardingState.hasLegacySlidesSeen ||
+        onboardingState.hasLocalCompleted ||
+        onboardingState.hasLocalSlidesSeen
+      ) {
+        try {
+          await saveOnboardingState(user?.uid, {
+            completed: resolvedOnboardingCompleted,
+            slidesSeen: resolvedOnboardingSlidesSeen,
+          });
+        } catch (error) {
+          console.warn("Error synchronizing onboarding flags:", error);
+        }
+      }
+
       const shouldShowOnboarding =
+        needsInitialStoreSetup ||
         needsBusinessSetup ||
-        (!onboardingCompleted && !inferredOnboardingCompleted);
-      const isFirstRun = !onboardingCompleted && !onboardingSlidesSeen;
-      const initialStep = isFirstRun
-        ? "slides"
-        : needsBusinessSetup
-          ? "business"
-          : !onboardingCompleted && onboardingSlidesSeen
+        (!resolvedOnboardingCompleted && !inferredOnboardingCompleted);
+      const isFirstRun =
+        !resolvedOnboardingCompleted && !resolvedOnboardingSlidesSeen;
+      const initialStep = needsInitialStoreSetup
+        ? isFirstRun
+          ? "slides"
+          : "business"
+        : isFirstRun
+          ? "slides"
+          : needsBusinessSetup
             ? "business"
-            : "slides";
+            : !resolvedOnboardingCompleted && resolvedOnboardingSlidesSeen
+              ? "business"
+              : "slides";
 
       setOnboardingInitialStep(initialStep);
       setShowOnboarding(shouldShowOnboarding);
@@ -785,15 +843,50 @@ export default function App() {
     } catch (error) {
       console.error("Error initializing app:", error);
       setIsReady(true); // Continuar aunque haya error
+    } finally {
+      initializingRef.current = false;
     }
   };
 
-  if (!isReady) {
+  useEffect(() => {
+    if (authLoading || storeLoading) {
+      return;
+    }
+
+    initializeApp();
+  }, [
+    authLoading,
+    storeLoading,
+    user?.uid,
+    activeStoreId,
+    requiresStoreSetup,
+    canManageActiveStoreBusiness,
+  ]);
+
+  if (!isReady || authLoading || storeLoading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <StatusBar hidden translucent />
         <ActivityIndicator size="large" color="#4CAF50" />
       </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <StatusBar hidden translucent />
+        <AuthScreen />
+      </>
+    );
+  }
+
+  if (!emailVerified) {
+    return (
+      <>
+        <StatusBar hidden translucent />
+        <VerifyEmailScreen />
+      </>
     );
   }
 
@@ -804,6 +897,7 @@ export default function App() {
         <StatusBar hidden translucent />
         <OnboardingScreen
           initialStep={onboardingInitialStep}
+          requireInitialStoreSetup={requiresStoreSetup && !activeStoreId}
           onComplete={() => setShowOnboarding(false)}
         />
       </>
@@ -1079,6 +1173,21 @@ export default function App() {
                   component={CancelledSalesScreen}
                   options={{
                     title: "Ventas Anuladas",
+                    headerStyle: {
+                      backgroundColor: "#4CAF50",
+                    },
+                    headerTintColor: "#fff",
+                    headerTitleStyle: {
+                      fontWeight: "bold",
+                      fontSize: rf(18),
+                    },
+                  }}
+                />
+                <Stack.Screen
+                  name="StoreManagement"
+                  component={StoreManagementScreen}
+                  options={{
+                    title: "Tiendas y colaboradores",
                     headerStyle: {
                       backgroundColor: "#4CAF50",
                     },
@@ -1395,5 +1504,13 @@ export default function App() {
         </ExchangeRateProvider>
       </TourGuideProvider>
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

@@ -74,7 +74,7 @@ export const RecordPaymentScreen = () => {
   const formatLocalDate = (date) => {
     const pad = (value) => String(value).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-      date.getDate()
+      date.getDate(),
     )}`;
   };
 
@@ -89,6 +89,8 @@ export const RecordPaymentScreen = () => {
   };
 
   const handleRecordPayment = async () => {
+    if (loading) return;
+
     if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
       Alert.alert("Error", "Ingrese un monto válido");
       return;
@@ -147,7 +149,7 @@ export const RecordPaymentScreen = () => {
       </View>
 
       <View style={styles.formCard}>
-        <Text style={styles.sectionTitle}>💰 Monto del Pago</Text>
+        <Text style={styles.sectionTitle}>Monto del Pago</Text>
         <TextInput
           style={styles.amountInput}
           value={paymentAmount}
@@ -157,7 +159,7 @@ export const RecordPaymentScreen = () => {
           selectTextOnFocus
         />
 
-        <Text style={styles.sectionTitle}>💳 Método de Pago</Text>
+        <Text style={styles.sectionTitle}>Método de Pago</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -171,7 +173,6 @@ export const RecordPaymentScreen = () => {
             ]}
             onPress={() => setPaymentMethod("cash")}
           >
-            <Text style={styles.paymentButtonIcon}>💵</Text>
             <Text
               style={[
                 styles.paymentButtonText,
@@ -188,7 +189,6 @@ export const RecordPaymentScreen = () => {
             ]}
             onPress={() => setPaymentMethod("card")}
           >
-            <Text style={styles.paymentButtonIcon}>💳</Text>
             <Text
               style={[
                 styles.paymentButtonText,
@@ -205,7 +205,6 @@ export const RecordPaymentScreen = () => {
             ]}
             onPress={() => setPaymentMethod("transfer")}
           >
-            <Text style={styles.paymentButtonIcon}>🏦</Text>
             <Text
               style={[
                 styles.paymentButtonText,
@@ -222,7 +221,6 @@ export const RecordPaymentScreen = () => {
             ]}
             onPress={() => setPaymentMethod("pago_movil")}
           >
-            <Text style={styles.paymentButtonIcon}>📱</Text>
             <Text
               style={[
                 styles.paymentButtonText,
@@ -245,7 +243,7 @@ export const RecordPaymentScreen = () => {
           />
         )}
 
-        <Text style={styles.sectionTitle}>📅 Fecha del Pago</Text>
+        <Text style={styles.sectionTitle}>Fecha del Pago</Text>
         <TouchableOpacity
           style={styles.input}
           onPress={openDatePicker}
@@ -276,7 +274,7 @@ export const RecordPaymentScreen = () => {
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>📝 Notas (Opcional)</Text>
+        <Text style={styles.sectionTitle}>Notas (Opcional)</Text>
         <TextInput
           style={[styles.input, styles.notesInput]}
           value={notes}

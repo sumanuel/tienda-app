@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -29,6 +30,7 @@ import {
 export const AddSupplierScreen = ({ navigation }) => {
   const { addSupplier } = useSuppliers();
   const { showAlert, CustomAlert } = useCustomAlert();
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     documentNumber: "",
@@ -41,6 +43,8 @@ export const AddSupplierScreen = ({ navigation }) => {
   });
 
   const handleSave = async () => {
+    if (loading) return;
+
     if (!formData.documentNumber.trim()) {
       showAlert({
         title: "Error",
@@ -59,6 +63,7 @@ export const AddSupplierScreen = ({ navigation }) => {
     }
 
     try {
+      setLoading(true);
       await addSupplier(formData);
       showAlert({
         title: "Éxito",
@@ -72,6 +77,8 @@ export const AddSupplierScreen = ({ navigation }) => {
         message: error?.message || "No se pudo guardar el proveedor",
         type: "error",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -94,9 +101,6 @@ export const AddSupplierScreen = ({ navigation }) => {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>🏭</Text>
-              </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Nuevo proveedor</Text>
                 <Text style={styles.heroSubtitle}>
@@ -230,19 +234,35 @@ export const AddSupplierScreen = ({ navigation }) => {
 
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.actionButton, styles.secondaryButton]}
+                style={[
+                  styles.actionButton,
+                  styles.secondaryButton,
+                  loading && styles.buttonDisabled,
+                ]}
                 onPress={() => navigation.goBack()}
                 activeOpacity={0.85}
+                disabled={loading}
               >
                 <Text style={styles.secondaryButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, styles.primaryButton]}
+                style={[
+                  styles.actionButton,
+                  styles.primaryButton,
+                  loading && styles.buttonDisabled,
+                ]}
                 onPress={handleSave}
                 activeOpacity={0.85}
+                disabled={loading}
               >
-                <Text style={styles.primaryButtonText}>Guardar proveedor</Text>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>
+                    Guardar proveedor
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -384,6 +404,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#c3cad5",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   secondaryButtonText: {
     color: "#4c5767",

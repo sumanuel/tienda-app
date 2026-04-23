@@ -11,6 +11,7 @@ import {
   Platform,
   SafeAreaView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -53,7 +54,7 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
   const formatLocalDate = (date) => {
     const pad = (value) => String(value).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-      date.getDate()
+      date.getDate(),
     )}`;
   };
 
@@ -113,8 +114,8 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
     formData.baseCurrency === "USD"
       ? baseAmountValue
       : currentRate > 0
-      ? baseAmountValue / currentRate
-      : null;
+        ? baseAmountValue / currentRate
+        : null;
   const computedVES =
     formData.baseCurrency === "USD"
       ? currentRate > 0
@@ -216,7 +217,7 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
         amount: computedVES ?? 0,
         baseCurrency: formData.baseCurrency,
         baseAmountUSD:
-          formData.baseCurrency === "USD" ? computedUSD ?? 0 : null,
+          formData.baseCurrency === "USD" ? (computedUSD ?? 0) : null,
         exchangeRateAtCreation:
           formData.baseCurrency === "USD" ? currentRate : null,
       });
@@ -256,7 +257,11 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
           >
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>💳</Text>
+                <Ionicons
+                  name="card-outline"
+                  size={iconSize.lg}
+                  color="#2f5ae0"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Editar cuenta por cobrar</Text>

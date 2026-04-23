@@ -11,6 +11,7 @@ import {
   Platform,
   Modal,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTourGuideController } from "rn-tourguide";
 import { useSales } from "../../hooks/useSales";
@@ -62,6 +63,9 @@ export const SalesScreen = () => {
     }
     return sale?.total || 0;
   };
+
+  const getSaleDisplayNumber = (sale) =>
+    sale?.saleNumber || `VTA-${String(sale?.id || 0).padStart(6, "0")}`;
 
   const [activeTab, setActiveTab] = useState("today");
   const [startDate, setStartDate] = useState(() => {
@@ -228,7 +232,7 @@ export const SalesScreen = () => {
   const handleCancelSale = (sale) => {
     showAlert({
       title: "Anular venta",
-      message: `¿Anular la venta #${sale.id}? Esta acción no se puede deshacer.`,
+      message: `¿Anular la venta ${getSaleDisplayNumber(sale)}? Esta acción no se puede deshacer.`,
       type: "warning",
       buttons: [
         { text: "Cancelar", style: "cancel" },
@@ -245,7 +249,7 @@ export const SalesScreen = () => {
             } catch (error) {
               showAlert({
                 title: "Error",
-                message: "No se pudo anular la venta",
+                message: error?.message || "No se pudo anular la venta",
                 type: "error",
               });
             }
@@ -352,10 +356,10 @@ export const SalesScreen = () => {
     >
       <View style={styles.saleHeader}>
         <View style={styles.saleIcon}>
-          <Text style={styles.saleIconText}>🧾</Text>
+          <Ionicons name="receipt-outline" size={iconSize.lg} color="#2f5ae0" />
         </View>
         <View style={styles.saleInfo}>
-          <Text style={styles.saleNumber}>Venta #{item.id}</Text>
+          <Text style={styles.saleNumber}>{getSaleDisplayNumber(item)}</Text>
           <Text style={styles.saleDate}>
             {new Date(item.createdAt).toLocaleDateString()} ·{" "}
             {new Date(item.createdAt).toLocaleTimeString([], {
@@ -390,7 +394,7 @@ export const SalesScreen = () => {
           onPress={() => handleCancelSale(item)}
           activeOpacity={0.7}
         >
-          <Text style={styles.cancelIcon}>🚫</Text>
+          <Ionicons name="ban-outline" size={rf(18)} color="#d64545" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -417,7 +421,11 @@ export const SalesScreen = () => {
             <View style={styles.headerContent}>
               <View style={styles.heroCard}>
                 <View style={styles.heroIcon}>
-                  <Text style={styles.heroIconText}>📈</Text>
+                  <Ionicons
+                    name="bar-chart-outline"
+                    size={iconSize.xl}
+                    color="#2f5ae0"
+                  />
                 </View>
                 <View style={styles.heroCopy}>
                   <Text style={styles.heroTitle}>
@@ -479,7 +487,11 @@ export const SalesScreen = () => {
                         onPress={() => setShowStartPicker(true)}
                         activeOpacity={0.85}
                       >
-                        <Text style={styles.dateCalendarIcon}>📅</Text>
+                        <Ionicons
+                          name="calendar-outline"
+                          size={rf(16)}
+                          color="#2f5ae0"
+                        />
                         <Text style={styles.dateValue}>
                           {formatDate(startDate)}
                         </Text>
@@ -504,7 +516,11 @@ export const SalesScreen = () => {
                         onPress={() => setShowEndPicker(true)}
                         activeOpacity={0.85}
                       >
-                        <Text style={styles.dateCalendarIcon}>📅</Text>
+                        <Ionicons
+                          name="calendar-outline"
+                          size={rf(16)}
+                          color="#2f5ae0"
+                        />
                         <Text style={styles.dateValue}>
                           {formatDate(endDate)}
                         </Text>
@@ -552,7 +568,11 @@ export const SalesScreen = () => {
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>🧾</Text>
+              <Ionicons
+                name="receipt-outline"
+                size={iconSize.xxl}
+                color="#8ca0b8"
+              />
               <Text style={styles.emptyTitle}>
                 {activeTab === "today"
                   ? "No hay ventas registradas hoy"

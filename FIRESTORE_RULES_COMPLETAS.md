@@ -1,0 +1,217 @@
+Reglas sugeridas para Firestore con multi-tenant por tienda
+
+```txt
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function authEmail() {
+      return isSignedIn() && request.auth.token.email != null
+        ? request.auth.token.email
+        : null;
+    }
+
+    function membership(storeId) {
+      return get(/databases/$(database)/documents/stores/$(storeId)/members/$(request.auth.uid));
+    }
+
+    function inviteForCurrentUser(storeId) {
+      return get(/databases/$(database)/documents/stores/$(storeId)/invites/$(authEmail()));
+    }
+
+    function isStoreMember(storeId) {
+      return isSignedIn() && membership(storeId).exists();
+    }
+
+    function storeRole(storeId) {
+      return isStoreMember(storeId) ? membership(storeId).data.role : null;
+    }
+
+    function canManageStore(storeId) {
+      return isStoreMember(storeId)
+        && (storeRole(storeId) == 'owner' || storeRole(storeId) == 'admin');
+    }
+
+    function canWriteCatalog(storeId) {
+      return isStoreMember(storeId)
+        && (
+          storeRole(storeId) == 'owner'
+          || storeRole(storeId) == 'admin'
+          || storeRole(storeId) == 'inventory'
+        );
+    }
+
+    function canWriteSales(storeId) {
+      return isStoreMember(storeId)
+        && (
+          storeRole(storeId) == 'owner'
+          || storeRole(storeId) == 'admin'
+          || storeRole(storeId) == 'seller'
+        );
+    }
+
+    function canReadInviteByEmail() {
+      return authEmail() != null
+        && resource.data.emailNormalized == authEmail();
+    }
+
+    function isOwnerBootstrap(storeId, memberUserId) {
+      return isSignedIn()
+        && memberUserId == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == 'owner'
+        && get(/databases/$(database)/documents/stores/$(storeId)).data.ownerUserId == request.auth.uid;
+    }
+
+    function isInvitedUserJoiningStore(storeId, memberUserId) {
+      return isSignedIn()
+        && authEmail() != null
+        && memberUserId == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && inviteForCurrentUser(storeId).exists()
+        && inviteForCurrentUser(storeId).data.status == 'pending'
+        && inviteForCurrentUser(storeId).data.emailNormalized == authEmail()
+        && request.resource.data.role == inviteForCurrentUser(storeId).data.role;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isSelf(userId);
+
+      match /memberships/{storeId} {
+        allow read: if isSelf(userId);
+        allow create, update: if isSelf(userId);
+        allow delete: if false;
+      }
+    }
+
+    match /stores/{storeId} {
+      allow read: if isStoreMember(storeId);
+      allow create: if isSignedIn() && request.resource.data.ownerUserId == request.auth.uid;
+      allow update: if canManageStore(storeId);
+      allow delete: if storeRole(storeId) == 'owner';
+
+      match /members/{memberUserId} {
+        allow read: if isStoreMember(storeId);
+        allow create: if canManageStore(storeId)
+          || isOwnerBootstrap(storeId, memberUserId)
+          || isInvitedUserJoiningStore(storeId, memberUserId);
+        allow update: if canManageStore(storeId);
+        allow delete: if storeRole(storeId) == 'owner';
+      }
+
+      match /invites/{inviteId} {
+        allow read: if canManageStore(storeId) || canReadInviteByEmail();
+        allow create: if canManageStore(storeId);
+        allow update: if canManageStore(storeId)
+          || (
+            authEmail() != null
+            && resource.data.emailNormalized == authEmail()
+            && request.resource.data.status == 'accepted'
+          );
+        allow delete: if canManageStore(storeId);
+      }
+
+      match /products/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canWriteCatalog(storeId);
+      }
+
+      match /inventory_movements/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canWriteCatalog(storeId);
+      }
+
+      match /customers/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canWriteSales(storeId) || canManageStore(storeId);
+      }
+
+      match /suppliers/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canWriteCatalog(storeId) || canManageStore(storeId);
+      }
+
+      match /sales/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canWriteSales(storeId);
+      }
+
+      match /accounts_receivable/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canWriteSales(storeId) || canManageStore(storeId);
+      }
+
+      match /accounts_payable/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canWriteCatalog(storeId) || canManageStore(storeId);
+      }
+
+      match /account_payments/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canWriteSales(storeId) || canWriteCatalog(storeId) || canManageStore(storeId);
+      }
+
+      match /settings/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canManageStore(storeId);
+      }
+
+      match /exchange_rates/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canManageStore(storeId);
+      }
+
+      match /rate_notifications/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canManageStore(storeId);
+      }
+
+      match /mobile_payments/{docId} {
+        allow read: if isStoreMember(storeId);
+        allow write: if canWriteSales(storeId) || canManageStore(storeId);
+      }
+
+      match /tables/{tableName} {
+        allow read, write: if canManageStore(storeId);
+
+        match /rows/{rowId} {
+          allow read, write: if canManageStore(storeId);
+        }
+      }
+
+      match /cloud_snapshots/{datasetName} {
+        allow read, write: if canManageStore(storeId);
+
+        match /rows/{rowId} {
+          allow read, write: if canManageStore(storeId);
+        }
+      }
+
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+
+    match /{path=**}/invites/{inviteId} {
+      allow read: if canReadInviteByEmail();
+    }
+  }
+}
+```
+
+Notas
+
+- Estas reglas ya no asumen un modelo por users/{uid} para la data del negocio; ahora todo vive bajo stores/{storeId}.
+- El usuario sigue conservando su documento users/{uid} y su subcolección users/{uid}/memberships para perfil y pertenencias.
+- Las invitaciones se guardan en stores/{storeId}/invites usando emailNormalized como id del documento; eso permite validar por reglas cuándo el invitado puede unirse a la tienda.
+- La causa del permission-denied al crear tienda es que la versión anterior de las reglas permitía crear stores/{storeId}, pero no crear el primer documento stores/{storeId}/members/{uid} con role owner.
+- La lectura de invitaciones pendientes desde collectionGroup requiere una regla que también cubra /{path=\*\*}/invites/{inviteId}; de lo contrario, la pantalla de Tiendas puede fallar incluso cuando el usuario solo quiere revisar si tiene invitaciones.
+- Ajusta los permisos por rol si quieres que seller o inventory tengan más o menos alcance.
+- Para usar estas reglas, debes publicarlas manualmente en tu proyecto Firebase, porque este repositorio no tiene un archivo firestore.rules ni un firebase.json enlazado a despliegue.

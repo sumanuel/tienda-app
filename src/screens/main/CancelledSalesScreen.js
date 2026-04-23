@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -44,6 +45,9 @@ export const CancelledSalesScreen = () => {
     return sale?.total || 0;
   };
 
+  const getSaleDisplayNumber = (sale) =>
+    sale?.saleNumber || `VTA-${String(sale?.id || 0).padStart(6, "0")}`;
+
   const loadCancelledSales = async () => {
     try {
       setLoading(true);
@@ -53,7 +57,7 @@ export const CancelledSalesScreen = () => {
                 (SELECT ROUND(SUM(si.quantity * COALESCE(si.priceUSD, 0)), 6) FROM sale_items si WHERE si.saleId = s.id) as totalUSD
          FROM sales s
          WHERE s.status = 'cancelled'
-         ORDER BY s.createdAt DESC;`
+         ORDER BY s.createdAt DESC;`,
       );
       setCancelledSales(result);
     } catch (error) {
@@ -91,11 +95,10 @@ export const CancelledSalesScreen = () => {
       activeOpacity={0.85}
     >
       <View style={styles.saleHeader}>
-        <View style={styles.saleIcon}>
-          <Text style={styles.saleIconText}>🚫</Text>
-        </View>
         <View style={styles.saleInfo}>
-          <Text style={styles.saleNumber}>Venta #{item.id} (Anulada)</Text>
+          <Text style={styles.saleNumber}>
+            {getSaleDisplayNumber(item)} (Anulada)
+          </Text>
           <Text style={styles.saleDate}>
             {new Date(item.createdAt).toLocaleDateString()} ·{" "}
             {new Date(item.createdAt).toLocaleTimeString([], {
@@ -150,7 +153,11 @@ export const CancelledSalesScreen = () => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>🚫</Text>
+                <Ionicons
+                  name="receipt-outline"
+                  size={iconSize.xl}
+                  color="#d64545"
+                />
               </View>
               <View style={styles.heroCopy}>
                 <Text style={styles.heroTitle}>
@@ -166,7 +173,6 @@ export const CancelledSalesScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyIcon}>✅</Text>
               <Text style={styles.emptyTitle}>No hay ventas anuladas</Text>
               <Text style={styles.emptySubtitle}>
                 Las ventas anuladas aparecerán aquí.

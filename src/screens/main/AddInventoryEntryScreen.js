@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTourGuideController } from "rn-tourguide";
 import {
   updateProduct,
@@ -186,6 +187,8 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
   }, [cost, additionalCost, costCurrency, margin, appliedRate]);
 
   const handleSave = async () => {
+    if (loading) return;
+
     const qty = parseInt(quantity);
     if (!qty || qty <= 0) {
       Alert.alert("Error", "Ingresa una cantidad válida mayor a 0");
@@ -309,7 +312,11 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>📦</Text>
+                <Ionicons
+                  name="arrow-down-circle-outline"
+                  size={iconSize.xl}
+                  color="#2e7d32"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>
@@ -530,9 +537,14 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
               text={"Guarda la entrada de inventario y actualiza el stock."}
               shape="rectangle"
               borderRadius={borderRadius.lg}
+              style={styles.actionWrapper}
             >
               <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
+                style={[
+                  styles.button,
+                  styles.saveButton,
+                  (loading || !quantity.trim()) && styles.buttonDisabled,
+                ]}
                 onPress={handleSave}
                 disabled={loading || !quantity.trim()}
               >
@@ -632,6 +644,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.md,
   },
+  actionWrapper: {
+    flex: 1,
+  },
   button: {
     flex: 1,
     borderRadius: borderRadius.md,
@@ -648,6 +663,9 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: "#4CAF50",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   saveButtonText: {
     color: "#fff",

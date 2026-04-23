@@ -6,24 +6,65 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import CountryPicker, {
-  getCallingCode,
-} from "react-native-country-picker-modal";
+import { CountryPicker, countryCodes } from "react-native-country-codes-picker";
 import * as Localization from "expo-localization";
-import { borderRadius, hs, rf, s, spacing, vs } from "../../utils/responsive";
+import { borderRadius, hs, rf, vs } from "../../utils/responsive";
+
+const DEFAULT_COUNTRY_CODE = "VE";
+const DEFAULT_CALLING_CODE = "58";
 
 const getDeviceRegion = () => {
   const region =
     Localization.getLocales?.()?.[0]?.regionCode || Localization.region;
   if (typeof region === "string" && region.trim())
     return region.trim().toUpperCase();
-  return "VE";
+  return DEFAULT_COUNTRY_CODE;
+};
+
+const normalizeDialCode = (value) =>
+  (value || "").toString().replace(/[^\d]/g, "").trim();
+
+const findCountryByCode = (countryCode) => {
+  const normalizedCode = (countryCode || "").toString().trim().toUpperCase();
+  if (!normalizedCode) return null;
+
+  return (
+    countryCodes.find((country) => country?.code === normalizedCode) || null
+  );
+};
+
+const findCountryByCallingCode = (value) => {
+  const normalizedDialCode = normalizeDialCode(value);
+  if (!normalizedDialCode) return null;
+
+  return (
+    countryCodes.find(
+      (country) => normalizeDialCode(country?.dial_code) === normalizedDialCode,
+    ) || null
+  );
+};
+
+const getDefaultCountry = () => {
+  const deviceCountry = findCountryByCode(getDeviceRegion());
+  if (deviceCountry) return deviceCountry;
+
+  return (
+    findCountryByCallingCode(DEFAULT_CALLING_CODE) || {
+      code: DEFAULT_COUNTRY_CODE,
+      dial_code: `+${DEFAULT_CALLING_CODE}`,
+      flag: "🇻🇪",
+      name: { es: "Venezuela", en: "Venezuela" },
+    }
+  );
 };
 
 const parsePhoneValue = (value, fallbackCallingCode) => {
   const raw = (value || "").toString().trim();
   if (!raw) {
-    return { callingCode: fallbackCallingCode || "58", nationalNumber: "" };
+    return {
+      callingCode: fallbackCallingCode || DEFAULT_CALLING_CODE,
+      nationalNumber: "",
+    };
   }
 
   // Soporta formatos tipo: "+58 4121234567" o "+584121234567"
@@ -36,7 +77,7 @@ const parsePhoneValue = (value, fallbackCallingCode) => {
 
   // Sin prefijo internacional: asumir el del dispositivo
   return {
-    callingCode: fallbackCallingCode || "58",
+    callingCode: fallbackCallingCode || DEFAULT_CALLING_CODE,
     nationalNumber: raw,
   };
 };
@@ -47,33 +88,22 @@ export const PhoneInput = ({
   placeholder = "Ej: 4121234567",
   disabled = false,
 }) => {
-  const [countryCode, setCountryCode] = useState(getDeviceRegion());
-  const [callingCode, setCallingCode] = useState("58");
+  const [selectedCountry, setSelectedCountry] = useState(getDefaultCountry);
+  const [callingCode, setCallingCode] = useState(() => {
+    const defaultCountry = getDefaultCountry();
+    return normalizeDialCode(defaultCountry?.dial_code) || DEFAULT_CALLING_CODE;
+  });
   const [nationalNumber, setNationalNumber] = useState("");
   const [pickerVisible, setPickerVisible] = useState(false);
 
   const lastEmittedValueRef = useRef(null);
 
   useEffect(() => {
-    let mounted = true;
-
-    const init = async () => {
-      try {
-        const region = getDeviceRegion();
-        const cc = await getCallingCode(region);
-        if (!mounted) return;
-        setCountryCode(region);
-        setCallingCode(String(cc || "58"));
-      } catch {
-        // Si falla, quedamos con VE / 58
-      }
-    };
-
-    init();
-
-    return () => {
-      mounted = false;
-    };
+    const defaultCountry = getDefaultCountry();
+    setSelectedCountry(defaultCountry);
+    setCallingCode(
+      normalizeDialCode(defaultCountry?.dial_code) || DEFAULT_CALLING_CODE,
+    );
   }, []);
 
   useEffect(() => {
@@ -84,7 +114,16 @@ export const PhoneInput = ({
       return;
     }
 
-    setCallingCode(String(parsed.callingCode || callingCode || "58"));
+    const nextCallingCode = String(
+      parsed.callingCode || callingCode || DEFAULT_CALLING_CODE,
+    );
+    const resolvedCountry =
+      findCountryByCallingCode(nextCallingCode) ||
+      selectedCountry ||
+      getDefaultCountry();
+
+    setCallingCode(nextCallingCode);
+    setSelectedCountry(resolvedCountry);
     setNationalNumber(parsed.nationalNumber || "");
   }, [value]);
 
@@ -105,10 +144,9 @@ export const PhoneInput = ({
   };
 
   const onSelectCountry = (country) => {
-    const nextCountryCode = country?.cca2;
-    const nextCallingCode = country?.callingCode?.[0];
+    const nextCallingCode = normalizeDialCode(country?.dial_code);
 
-    if (nextCountryCode) setCountryCode(nextCountryCode);
+    if (country) setSelectedCountry(country);
     if (nextCallingCode) {
       setCallingCode(String(nextCallingCode));
       emit(String(nextCallingCode), nationalNumber);
@@ -125,18 +163,21 @@ export const PhoneInput = ({
         activeOpacity={0.85}
         disabled={disabled}
       >
-        <CountryPicker
-          countryCode={countryCode}
-          withFlag
-          withCallingCode={false}
-          withEmoji
-          withFilter
-          visible={pickerVisible}
-          onClose={() => setPickerVisible(false)}
-          onSelect={onSelectCountry}
-        />
+        <Text style={styles.flagText}>{selectedCountry?.flag || "🌐"}</Text>
         <Text style={styles.prefixText}>{`+${callingCode}`}</Text>
       </TouchableOpacity>
+
+      <CountryPicker
+        show={pickerVisible}
+        lang="es"
+        initialState={`+${callingCode}`}
+        inputPlaceholder="Buscar pais o codigo"
+        searchMessage="No se encontraron paises"
+        enableModalAvoiding
+        onBackdropPress={() => setPickerVisible(false)}
+        pickerButtonOnPress={onSelectCountry}
+        style={pickerStyles}
+      />
 
       <TextInput
         style={styles.input}
@@ -177,6 +218,9 @@ const styles = StyleSheet.create({
     gap: hs(8),
     minWidth: hs(92),
   },
+  flagText: {
+    fontSize: rf(18),
+  },
   prefixText: {
     fontSize: rf(14),
     fontWeight: "700",
@@ -190,5 +234,61 @@ const styles = StyleSheet.create({
     color: "#1f2633",
   },
 });
+
+const pickerStyles = {
+  modal: {
+    height: "72%",
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+  },
+  backdrop: {
+    backgroundColor: "rgba(15, 23, 42, 0.35)",
+  },
+  textInput: {
+    height: vs(48),
+    marginHorizontal: hs(16),
+    marginTop: vs(14),
+    marginBottom: vs(8),
+    paddingHorizontal: hs(14),
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: "#d9e0eb",
+    color: "#1f2633",
+    backgroundColor: "#f8f9fc",
+    fontSize: rf(14),
+  },
+  line: {
+    marginHorizontal: hs(16),
+    backgroundColor: "#e6ebf2",
+  },
+  itemsList: {
+    paddingHorizontal: hs(8),
+  },
+  countryButtonStyles: {
+    borderRadius: borderRadius.sm,
+    backgroundColor: "#f8f9fc",
+    marginHorizontal: hs(8),
+    marginVertical: vs(3),
+    paddingVertical: vs(12),
+    paddingHorizontal: hs(16),
+  },
+  flag: {
+    fontSize: rf(18),
+  },
+  dialCode: {
+    fontSize: rf(14),
+    fontWeight: "700",
+    color: "#1f2633",
+  },
+  countryName: {
+    fontSize: rf(14),
+    color: "#4b5565",
+  },
+  searchMessageText: {
+    color: "#6b7280",
+    fontSize: rf(14),
+  },
+};
 
 export default PhoneInput;

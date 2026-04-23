@@ -1,14 +1,372 @@
 import * as SQLite from "expo-sqlite";
 
+const LEGACY_DB_NAME = "tienda.db";
+const TABLE_MIGRATION_ORDER = [
+  "products",
+  "inventory_movements",
+  "sales",
+  "sale_items",
+  "customers",
+  "suppliers",
+  "accounts_receivable",
+  "accounts_payable",
+  "account_payments",
+  "exchange_rates",
+  "settings",
+  "mobile_payments",
+  "rate_notifications",
+];
+
+let currentDbName = LEGACY_DB_NAME;
+let currentDbPromise = null;
+const initializedDatabases = new Set();
+
+const openDatabase = async (name) => SQLite.openDatabaseAsync(name);
+
+const isRecoverableDatabaseError = (error) => {
+  const message = String(error?.message || "");
+  return (
+    message.includes("NativeDatabase.prepareAsync") ||
+    message.includes("NativeDatabase.execAsync") ||
+    message.includes("NativeDatabase.runAsync") ||
+    message.includes("java.lang.NullPointerException")
+  );
+};
+
+const ensureCurrentDb = async () => {
+  if (!currentDbPromise) {
+    currentDbPromise = openDatabase(currentDbName);
+  }
+
+  return await currentDbPromise;
+};
+
+const closeDatabaseQuietly = async (databasePromise) => {
+  if (!databasePromise) return;
+
+  try {
+    const database = await databasePromise;
+    if (database?.closeAsync) {
+      await database.closeAsync();
+    }
+  } catch (_) {
+    // noop
+  }
+};
+
+const reopenCurrentDatabase = async () => {
+  await closeDatabaseQuietly(currentDbPromise);
+  currentDbPromise = openDatabase(currentDbName);
+  return await currentDbPromise;
+};
+
+const callDatabaseMethod = async (property, args) => {
+  const invoke = async () => {
+    const database = await ensureCurrentDb();
+    const value = database[property];
+
+    if (typeof value !== "function") {
+      return value;
+    }
+
+    return await value.apply(database, args);
+  };
+
+  const retryInvoke = async () => {
+    console.warn(
+      `SQLite handle recovery triggered for ${String(property)} on ${currentDbName}.`,
+    );
+    await reopenCurrentDatabase();
+    return await invoke();
+  };
+
+  try {
+    return await invoke();
+  } catch (error) {
+    if (!isRecoverableDatabaseError(error)) {
+      throw error;
+    }
+
+    return await retryInvoke();
+  }
+};
+
+const sanitizeDatabaseSegment = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "default";
+
+const buildStoreDatabaseName = ({ userId, storeId }) => {
+  const normalizedUserId = String(userId || "").trim();
+  const normalizedStoreId = String(storeId || "").trim();
+
+  if (!normalizedUserId || !normalizedStoreId) {
+    return LEGACY_DB_NAME;
+  }
+
+  return `tienda-${sanitizeDatabaseSegment(normalizedUserId)}-${sanitizeDatabaseSegment(normalizedStoreId)}.db`;
+};
+
+const getNonEmptyUserTables = async (database) => {
+  const rows = await database.getAllAsync(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;",
+  );
+
+  const nonEmptyTables = [];
+  for (const row of rows) {
+    const tableName = row?.name;
+    if (!tableName) continue;
+
+    try {
+      const countRow = await database.getFirstAsync(
+        `SELECT COUNT(*) AS total FROM ${tableName};`,
+      );
+      if (Number(countRow?.total) > 0) {
+        nonEmptyTables.push(tableName);
+      }
+    } catch (_) {
+      // Ignorar tablas que no se puedan contar por compatibilidad.
+    }
+  }
+
+  return nonEmptyTables;
+};
+
+const getTableRowCount = async (database, tableName) => {
+  try {
+    const countRow = await database.getFirstAsync(
+      `SELECT COUNT(*) AS total FROM ${tableName};`,
+    );
+    return Number(countRow?.total) || 0;
+  } catch (_) {
+    return 0;
+  }
+};
+
+const copyLegacyRowsToCurrentDatabase = async (
+  sourceDb,
+  targetDb,
+  tableName,
+) => {
+  const rows = await sourceDb.getAllAsync(`SELECT * FROM ${tableName};`);
+  if (!rows.length) return;
+
+  const columns = await targetDb.getAllAsync(
+    `PRAGMA table_info(${tableName});`,
+  );
+  const validColumns = new Set((columns || []).map((column) => column?.name));
+
+  for (const row of rows) {
+    const rowEntries = Object.entries(row || {}).filter(([columnName]) =>
+      validColumns.has(columnName),
+    );
+
+    if (!rowEntries.length) continue;
+
+    const columnNames = rowEntries.map(([columnName]) => columnName);
+    const placeholders = columnNames.map(() => "?").join(", ");
+    const values = rowEntries.map(([, value]) => value);
+
+    await targetDb.runAsync(
+      `INSERT OR REPLACE INTO ${tableName} (${columnNames.join(", ")}) VALUES (${placeholders});`,
+      values,
+    );
+  }
+};
+
 /**
  * Instancia única de la base de datos
  * Todos los servicios deben importar esta instancia
  * para evitar múltiples conexiones y bloqueos
  */
-export const db = SQLite.openDatabaseSync("tienda.db");
+export const db = new Proxy(
+  {},
+  {
+    get(_, property) {
+      if (typeof property !== "string") {
+        return undefined;
+      }
 
-// Flag para saber si las tablas ya fueron inicializadas
-let tablesInitialized = false;
+      return (...args) => callDatabaseMethod(property, args);
+    },
+  },
+);
+
+export const getCurrentDatabaseName = () => currentDbName;
+
+export const configureStoreDatabase = async ({ userId, storeId } = {}) => {
+  const nextDbName = buildStoreDatabaseName({ userId, storeId });
+  const hasChanged = nextDbName !== currentDbName;
+
+  if (hasChanged) {
+    await closeDatabaseQuietly(currentDbPromise);
+    currentDbName = nextDbName;
+    currentDbPromise = openDatabase(nextDbName);
+  }
+
+  return {
+    changed: hasChanged,
+    dbName: currentDbName,
+  };
+};
+
+export const resetDatabaseContext = async () => {
+  await closeDatabaseQuietly(currentDbPromise);
+  currentDbName = LEGACY_DB_NAME;
+  currentDbPromise = openDatabase(LEGACY_DB_NAME);
+  return { dbName: currentDbName };
+};
+
+export const migrateLegacyDatabaseToCurrentStoreIfNeeded = async () => {
+  if (currentDbName === LEGACY_DB_NAME) {
+    return { migrated: false, reason: "legacy-active" };
+  }
+
+  const sourceDb = await openDatabase(LEGACY_DB_NAME);
+  const sourceTables = await getNonEmptyUserTables(sourceDb);
+
+  if (!sourceTables.length) {
+    return { migrated: false, reason: "legacy-empty" };
+  }
+
+  const tableOrder = [
+    ...TABLE_MIGRATION_ORDER.filter((tableName) =>
+      sourceTables.includes(tableName),
+    ),
+    ...sourceTables.filter(
+      (tableName) => !TABLE_MIGRATION_ORDER.includes(tableName),
+    ),
+  ];
+
+  const targetDb = await ensureCurrentDb();
+  const migratedTables = [];
+  const skippedTables = [];
+
+  await targetDb.execAsync("PRAGMA foreign_keys = OFF;");
+  try {
+    for (const tableName of tableOrder) {
+      const [sourceCount, targetCount] = await Promise.all([
+        getTableRowCount(sourceDb, tableName),
+        getTableRowCount(targetDb, tableName),
+      ]);
+
+      if (sourceCount <= 0) {
+        skippedTables.push({ tableName, reason: "source-empty" });
+        continue;
+      }
+
+      if (targetCount > 0) {
+        skippedTables.push({ tableName, reason: "target-has-data" });
+        continue;
+      }
+
+      await copyLegacyRowsToCurrentDatabase(sourceDb, targetDb, tableName);
+      migratedTables.push({ tableName, rows: sourceCount });
+    }
+  } finally {
+    await targetDb.execAsync("PRAGMA foreign_keys = ON;");
+  }
+
+  initializedDatabases.delete(currentDbName);
+  if (!migratedTables.length) {
+    return {
+      migrated: false,
+      reason: skippedTables.length ? "target-has-data" : "no-tables-copied",
+      skippedTables,
+    };
+  }
+
+  return {
+    migrated: true,
+    tables: migratedTables.length,
+    migratedTables,
+    skippedTables,
+  };
+};
+
+const LOCAL_CONSECUTIVE_COLUMNS = [
+  {
+    tableName: "products",
+    columnName: "productNumber",
+    prefix: "PRD",
+    digits: 6,
+  },
+  {
+    tableName: "inventory_movements",
+    columnName: "movementNumber",
+    prefix: "MOV",
+    digits: 6,
+  },
+  {
+    tableName: "sales",
+    columnName: "saleNumber",
+    prefix: "VTA",
+    digits: 6,
+  },
+  {
+    tableName: "customers",
+    columnName: "customerNumber",
+    prefix: "CLI",
+    digits: 6,
+  },
+  {
+    tableName: "suppliers",
+    columnName: "supplierNumber",
+    prefix: "PRV",
+    digits: 6,
+  },
+  {
+    tableName: "accounts_receivable",
+    columnName: "receivableNumber",
+    prefix: "CXC",
+    digits: 6,
+  },
+  {
+    tableName: "accounts_payable",
+    columnName: "payableNumber",
+    prefix: "CXP",
+    digits: 6,
+  },
+];
+
+const buildLocalConsecutiveValue = (prefix, digits) => {
+  return `'${prefix}-' || printf('%0${digits}d', id)`;
+};
+
+const ensureLocalConsecutiveColumn = async ({
+  tableName,
+  columnName,
+  prefix,
+  digits,
+}) => {
+  const table = await db.getFirstAsync(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name = ?;",
+    [tableName],
+  );
+
+  if (!table?.name) {
+    return;
+  }
+
+  const columns = await db.getAllAsync(`PRAGMA table_info(${tableName});`);
+  const hasColumn = (columns || []).some(
+    (column) => column?.name === columnName,
+  );
+
+  if (!hasColumn) {
+    await db.execAsync(
+      `ALTER TABLE ${tableName} ADD COLUMN ${columnName} TEXT;`,
+    );
+  }
+
+  await db.runAsync(
+    `UPDATE ${tableName}
+     SET ${columnName} = ${buildLocalConsecutiveValue(prefix, digits)}
+     WHERE ${columnName} IS NULL OR TRIM(${columnName}) = '';`,
+  );
+};
 
 /**
  * Inicializa todas las tablas de la base de datos
@@ -17,7 +375,7 @@ let tablesInitialized = false;
  */
 export const initAllTables = async () => {
   try {
-    if (tablesInitialized) {
+    if (initializedDatabases.has(currentDbName)) {
       console.log("Tables already initialized, skipping table creation...");
       // Aún así, intentar ejecutar migraciones por si faltan columnas/tablas
       await runMigrations();
@@ -33,6 +391,7 @@ export const initAllTables = async () => {
         -- Tabla de productos
         CREATE TABLE IF NOT EXISTS products (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          productNumber TEXT,
           name TEXT NOT NULL,
           barcode TEXT UNIQUE,
           category TEXT,
@@ -53,6 +412,7 @@ export const initAllTables = async () => {
         -- Tabla de movimientos de inventario
         CREATE TABLE IF NOT EXISTS inventory_movements (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          movementNumber TEXT,
           productId INTEGER NOT NULL,
           type TEXT NOT NULL,
           quantity REAL NOT NULL,
@@ -66,6 +426,7 @@ export const initAllTables = async () => {
         -- Tabla de ventas (schema actual)
         CREATE TABLE IF NOT EXISTS sales (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          saleNumber TEXT,
           customerId INTEGER,
           subtotal REAL DEFAULT 0,
           tax REAL DEFAULT 0,
@@ -97,6 +458,7 @@ export const initAllTables = async () => {
         -- Tabla de clientes
         CREATE TABLE IF NOT EXISTS customers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customerNumber TEXT,
           name TEXT NOT NULL,
           email TEXT,
           phone TEXT,
@@ -112,6 +474,7 @@ export const initAllTables = async () => {
         -- Tabla de proveedores
         CREATE TABLE IF NOT EXISTS suppliers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          supplierNumber TEXT,
           documentNumber TEXT NOT NULL,
           name TEXT NOT NULL,
           email TEXT,
@@ -127,6 +490,7 @@ export const initAllTables = async () => {
         -- Tabla de cuentas por cobrar
         CREATE TABLE IF NOT EXISTS accounts_receivable (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          receivableNumber TEXT,
           customerId INTEGER,
           customerName TEXT NOT NULL,
           documentNumber TEXT,
@@ -148,6 +512,7 @@ export const initAllTables = async () => {
         -- Tabla de cuentas por pagar
         CREATE TABLE IF NOT EXISTS accounts_payable (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          payableNumber TEXT,
           supplierId INTEGER,
           supplierName TEXT NOT NULL,
           amount REAL NOT NULL,
@@ -243,7 +608,7 @@ export const initAllTables = async () => {
     // Ejecutar migraciones DESPUÉS de que exista el schema base
     await runMigrations();
 
-    tablesInitialized = true;
+    initializedDatabases.add(currentDbName);
     console.log("All tables created successfully");
   } catch (error) {
     console.error("Error creating tables:", error);
@@ -310,6 +675,17 @@ const runMigrations = async () => {
         "Warning running products additionalCost migration:",
         productsMigrationError,
       );
+    }
+
+    for (const definition of LOCAL_CONSECUTIVE_COLUMNS) {
+      try {
+        await ensureLocalConsecutiveColumn(definition);
+      } catch (consecutiveMigrationError) {
+        console.warn(
+          `Warning running consecutive migration for ${definition.tableName}.${definition.columnName}:`,
+          consecutiveMigrationError,
+        );
+      }
     }
 
     // Asegurar tabla de notificaciones
@@ -762,6 +1138,7 @@ const runMigrations = async () => {
       await db.execAsync(`
         CREATE TABLE inventory_movements (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          movementNumber TEXT,
           productId INTEGER NOT NULL,
           type TEXT NOT NULL CHECK(type IN ('entry', 'exit')),
           quantity INTEGER NOT NULL,

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -165,9 +166,14 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
         style={[styles.movementCard, isExit ? styles.movementCardExit : null]}
       >
         <View style={styles.movementHeader}>
-          <Text style={styles.movementDate}>
-            {dt.toLocaleDateString()} {dt.toLocaleTimeString()}
-          </Text>
+          <View>
+            <Text style={styles.movementDate}>
+              {item.movementNumber || `MOV-${String(item.id).padStart(6, "0")}`}
+            </Text>
+            <Text style={styles.movementDate}>
+              {dt.toLocaleDateString()} {dt.toLocaleTimeString()}
+            </Text>
+          </View>
           <View
             style={[
               styles.movementBadge,
@@ -214,7 +220,11 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
 
     return (
       <View style={styles.emptyMovements}>
-        <Text style={styles.emptyEmoji}>📋</Text>
+        <Ionicons
+          name="document-text-outline"
+          size={iconSize.xxl}
+          color="#8ca0b8"
+        />
         <Text style={styles.emptyTitle}>Sin movimientos registrados</Text>
         <Text style={styles.emptySubtitle}>
           El inventario actual ({product.stock} unidades) se considera como
@@ -231,7 +241,11 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>📦</Text>
+                <Ionicons
+                  name="cube-outline"
+                  size={iconSize.xl}
+                  color="#c9861a"
+                />
               </View>
               <View style={styles.heroTextContainer}>
                 <Text style={styles.heroTitle}>Movimientos de inventario</Text>
@@ -261,8 +275,15 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
                   </Text>
                 </View>
                 <Text style={styles.productCode}>
-                  Código: {product.barcode}
+                  Código:{" "}
+                  {product.productNumber ||
+                    `PRD-${String(product.id).padStart(6, "0")}`}
                 </Text>
+                {!!product.barcode && (
+                  <Text style={styles.productCode}>
+                    Barcode: {product.barcode}
+                  </Text>
+                )}
               </View>
             </View>
           )}
@@ -274,11 +295,13 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
             "Aquí verás el historial de entradas y salidas, con su fecha y cómo cambió el stock."
           }
           borderRadius={borderRadius.lg}
+          style={styles.listWrapper}
         >
           <FlatList
             data={movements}
             renderItem={renderMovement}
             keyExtractor={(item) => item.id.toString()}
+            style={styles.list}
             ListEmptyComponent={renderEmpty}
             contentContainerStyle={[
               styles.listContent,
@@ -319,6 +342,12 @@ const styles = StyleSheet.create({
   topContent: {
     paddingHorizontal: hs(spacing.md),
     paddingTop: vs(spacing.md),
+  },
+  listWrapper: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
   },
   listContent: {
     paddingHorizontal: hs(spacing.md),

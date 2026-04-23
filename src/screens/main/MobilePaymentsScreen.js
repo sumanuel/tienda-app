@@ -134,6 +134,8 @@ export const MobilePaymentsScreen = () => {
   }, [saving]);
 
   const handleSave = useCallback(async () => {
+    if (saving) return;
+
     const reference = formReference.trim();
     const customerName = formCustomer.trim();
     const amount = parseCurrency(formAmount);
@@ -282,7 +284,11 @@ export const MobilePaymentsScreen = () => {
         <View style={styles.headerContent}>
           <View style={styles.heroCard}>
             <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>📲</Text>
+              <Ionicons
+                name="phone-portrait-outline"
+                size={iconSize.xl}
+                color="#2f5ae0"
+              />
             </View>
             <View style={styles.heroTextContainer}>
               <Text style={styles.heroTitle}>Pago movil</Text>
@@ -348,6 +354,13 @@ export const MobilePaymentsScreen = () => {
             ]}
             ListEmptyComponent={
               <View style={styles.emptyState}>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons
+                    name="phone-portrait-outline"
+                    size={rf(26)}
+                    color="#8ca0b8"
+                  />
+                </View>
                 <Text style={styles.emptyTitle}>
                   {activeTab === "pending"
                     ? "Sin pendientes"
@@ -552,6 +565,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: spacing.xl,
     marginTop: vs(24),
+  },
+  emptyIconWrap: {
+    width: s(54),
+    height: s(54),
+    borderRadius: borderRadius.md,
+    backgroundColor: "#f3f8ff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.md,
   },
   emptyTitle: {
     fontSize: rf(18),

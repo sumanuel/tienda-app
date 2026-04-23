@@ -8,6 +8,7 @@ import {
   Alert,
   Linking,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   deleteRateNotification,
@@ -85,11 +86,23 @@ const RateNotificationsScreen = () => {
   const getTypeMeta = (type) => {
     switch (type) {
       case "store_update":
-        return { icon: "⬆️", label: "Actualización" };
+        return {
+          iconName: "arrow-up-circle-outline",
+          iconColor: "#2e7d32",
+          label: "Actualización",
+        };
       case "exchange_rate":
-        return { icon: "💱", label: "Tasa" };
+        return {
+          iconName: "swap-horizontal-outline",
+          iconColor: "#2f5ae0",
+          label: "Tasa",
+        };
       default:
-        return { icon: "🔔", label: "Aviso" };
+        return {
+          iconName: "notifications-outline",
+          iconColor: "#6b778a",
+          label: "Aviso",
+        };
     }
   };
 
@@ -116,7 +129,11 @@ const RateNotificationsScreen = () => {
     >
       <View style={styles.cardHeader}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerIcon}>{getTypeMeta(item.type).icon}</Text>
+          <Ionicons
+            name={getTypeMeta(item.type).iconName}
+            size={rf(18)}
+            color={getTypeMeta(item.type).iconColor}
+          />
           <View style={styles.headerTextBlock}>
             <Text style={styles.typeLabel}>{getTypeMeta(item.type).label}</Text>
             <Text style={styles.date}>{formatDateTime(item.createdAt)}</Text>
@@ -129,7 +146,7 @@ const RateNotificationsScreen = () => {
             handleDelete(item.id);
           }}
         >
-          <Text style={styles.deleteText}>🗑️</Text>
+          <Ionicons name="trash-outline" size={rf(18)} color="#d64545" />
         </TouchableOpacity>
       </View>
       <Text style={styles.message}>{item.message}</Text>

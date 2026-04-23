@@ -14,6 +14,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
@@ -284,7 +285,13 @@ export const AccountsPayableScreen = ({ navigation }) => {
           onPress={() => openEditScreen(item)}
         >
           <View style={styles.cardHeader}>
-            <Text style={styles.supplierName}>{item.supplierName}</Text>
+            <View>
+              <Text style={styles.supplierName}>{item.supplierName}</Text>
+              <Text style={styles.metaText}>
+                {item.payableNumber ||
+                  `CXP-${String(item.id).padStart(6, "0")}`}
+              </Text>
+            </View>
             <View
               style={[
                 styles.statusBadge,
@@ -382,7 +389,11 @@ export const AccountsPayableScreen = ({ navigation }) => {
                         ]}
                         onPress={() => openPaymentHistoryScreen(item)}
                       >
-                        <Text style={styles.iconButtonText}>📋</Text>
+                        <Ionicons
+                          name="document-text-outline"
+                          size={rf(16)}
+                          color="#2f5ae0"
+                        />
                       </TouchableOpacity>
                     )}
 
@@ -395,7 +406,11 @@ export const AccountsPayableScreen = ({ navigation }) => {
                       ]}
                       onPress={() => handleDelete(item)}
                     >
-                      <Text style={styles.iconButtonText}>🗑️</Text>
+                      <Ionicons
+                        name="trash-outline"
+                        size={rf(16)}
+                        color="#d64545"
+                      />
                     </TouchableOpacity>
                   </View>
                 </>
@@ -427,7 +442,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
         <View>
           <View style={styles.summaryHeader}>
             <View style={styles.summaryIcon}>
-              <Text style={styles.summaryIconText}>📤</Text>
+              <Ionicons name="card-outline" size={rf(22)} color="#d64545" />
             </View>
             <View>
               <Text style={styles.summaryTitle}>
@@ -486,7 +501,13 @@ export const AccountsPayableScreen = ({ navigation }) => {
   const renderEmpty = () => (
     <View style={styles.emptyState}>
       <View style={styles.emptyCard}>
-        <Text style={styles.emptyIcon}>🗒️</Text>
+        <View style={styles.emptyIconWrap}>
+          <Ionicons
+            name="document-text-outline"
+            size={rf(26)}
+            color="#8ca0b8"
+          />
+        </View>
         <Text style={styles.emptyTitle}>
           {searchQuery ? "Sin resultados" : "Aún no tienes cuentas"}
         </Text>
@@ -779,7 +800,9 @@ const styles = StyleSheet.create({
     marginLeft: "auto",
   },
   iconButtonText: {
-    fontSize: rf(20),
+    fontSize: rf(10),
+    fontWeight: "700",
+    color: "#7d3a44",
   },
   emptyState: {
     paddingTop: vs(40),
@@ -797,6 +820,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: s(12),
     elevation: 3,
+  },
+  emptyIconWrap: {
+    width: s(54),
+    height: s(54),
+    borderRadius: borderRadius.md,
+    backgroundColor: "#fdf2f2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.md,
   },
   emptyIcon: {
     fontSize: rf(32),

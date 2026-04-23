@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -21,6 +22,22 @@ import {
   borderRadius,
   iconSize,
 } from "../../utils/responsive";
+
+const parseProductOrderValue = (product) => {
+  const productNumber = String(product?.productNumber || "").trim();
+  const productNumberMatch = productNumber.match(/(\d+)$/);
+  if (productNumberMatch) {
+    return Number(productNumberMatch[1]) || 0;
+  }
+
+  const barcode = String(product?.barcode || "").trim();
+  const barcodeMatch = barcode.match(/(\d+)$/);
+  if (barcodeMatch) {
+    return Number(barcodeMatch[1]) || 0;
+  }
+
+  return Number(product?.id) || 0;
+};
 
 export const InventoryMovementsScreen = ({ navigation }) => {
   const { canStart, start, TourGuideZone } =
@@ -78,13 +95,28 @@ export const InventoryMovementsScreen = ({ navigation }) => {
 
   const filteredProducts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return products;
+    const filtered = !query
+      ? products
+      : products.filter((p) => {
+          const nameMatch = (p.name || "").toLowerCase().includes(query);
+          const barcodeMatch = (p.barcode || "").toLowerCase().includes(query);
+          const productNumberMatch = (p.productNumber || "")
+            .toLowerCase()
+            .includes(query);
+          const categoryMatch = (p.category || "")
+            .toLowerCase()
+            .includes(query);
+          return (
+            nameMatch || barcodeMatch || productNumberMatch || categoryMatch
+          );
+        });
 
-    return products.filter((p) => {
-      const nameMatch = (p.name || "").toLowerCase().includes(query);
-      const barcodeMatch = (p.barcode || "").toLowerCase().includes(query);
-      const categoryMatch = (p.category || "").toLowerCase().includes(query);
-      return nameMatch || barcodeMatch || categoryMatch;
+    return [...filtered].sort((a, b) => {
+      const codeDiff = parseProductOrderValue(a) - parseProductOrderValue(b);
+      if (codeDiff !== 0) return codeDiff;
+      return String(a.name || "").localeCompare(String(b.name || ""), "es", {
+        sensitivity: "base",
+      });
     });
   }, [products, searchQuery]);
 
@@ -97,13 +129,19 @@ export const InventoryMovementsScreen = ({ navigation }) => {
       >
         <View style={styles.productOptionRow}>
           <Text style={styles.productOptionName} numberOfLines={1}>
-            {item.name}
+            {String(item.name || "").toUpperCase()}
           </Text>
           <Text style={styles.productOptionStock}>{item.stock} u.</Text>
         </View>
         <Text style={styles.productOptionCode} numberOfLines={1}>
-          Código: {item.barcode || "—"}
+          Código:{" "}
+          {item.productNumber || `PRD-${String(item.id).padStart(6, "0")}`}
         </Text>
+        {!!item.barcode && (
+          <Text style={styles.productOptionCategory} numberOfLines={1}>
+            Barcode: {item.barcode}
+          </Text>
+        )}
         {!!item.category && (
           <Text style={styles.productOptionCategory} numberOfLines={1}>
             {item.category}
@@ -131,7 +169,7 @@ export const InventoryMovementsScreen = ({ navigation }) => {
     if (!searchQuery.trim()) {
       return (
         <View style={styles.emptyMovements}>
-          <Text style={styles.emptyEmoji}>🔎</Text>
+          <Ionicons name="search-outline" size={iconSize.xxl} color="#8ca0b8" />
           <Text style={styles.emptyTitle}>Busca un producto</Text>
           <Text style={styles.emptySubtitle}>
             Escribe el nombre, categoría o código para mostrar resultados.
@@ -142,7 +180,7 @@ export const InventoryMovementsScreen = ({ navigation }) => {
 
     return (
       <View style={styles.emptyMovements}>
-        <Text style={styles.emptyEmoji}>📦</Text>
+        <Ionicons name="cube-outline" size={iconSize.xxl} color="#8ca0b8" />
         <Text style={styles.emptyTitle}>Sin resultados</Text>
         <Text style={styles.emptySubtitle}>
           Intenta con otra búsqueda o limpia el filtro.
@@ -157,7 +195,11 @@ export const InventoryMovementsScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <View style={styles.heroCard}>
             <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>📦</Text>
+              <Ionicons
+                name="cube-outline"
+                size={iconSize.xl}
+                color="#c9861a"
+              />
             </View>
             <View style={styles.heroTextContainer}>
               <Text style={styles.heroTitle}>Movimientos de inventario</Text>
@@ -346,16 +388,13 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   heroIcon: {
-    width: s(50),
-    height: s(50),
-    borderRadius: borderRadius.md,
+    width: s(60),
+    height: s(60),
+    borderRadius: borderRadius.lg,
     backgroundColor: "#f3f8ff",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: hs(spacing.md),
-  },
-  heroIconText: {
-    fontSize: rf(24),
+    marginRight: hs(18),
   },
   heroTextContainer: {
     flex: 1,

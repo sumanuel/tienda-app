@@ -1,4 +1,65 @@
 import { db } from "./db";
+import { getDoc, setDoc } from "firebase/firestore";
+import { auth } from "../firebase/firebase";
+import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
+import {
+  getStoreDocRef,
+  getStoreNestedDocRef,
+  getUserMembershipDocRef,
+} from "../store/storeRefs";
+import { getActiveStoreId } from "../store/storeSession";
+
+const isCloudSettingsEnabled = () =>
+  Boolean(auth.currentUser?.uid) && Boolean(getActiveStoreId());
+
+const getSettingsDocRef = () =>
+  getStoreNestedDocRef(["settings", "app_settings"]);
+
+const canManageCloudStoreSettings = async () => {
+  if (!isCloudSettingsEnabled()) {
+    return false;
+  }
+
+  try {
+    const membershipSnapshot = await getDoc(
+      getUserMembershipDocRef(auth.currentUser?.uid),
+    );
+
+    if (!membershipSnapshot.exists()) {
+      return false;
+    }
+
+    const role = String(membershipSnapshot.data()?.role || "")
+      .trim()
+      .toLowerCase();
+
+    return role === "owner" || role === "admin";
+  } catch (error) {
+    console.warn("Error resolving settings permissions:", error);
+    return false;
+  }
+};
+
+const persistSettingsLocally = async (settings) => {
+  const settingsJson = JSON.stringify(settings);
+  await db.runAsync(
+    `INSERT OR REPLACE INTO settings (key, value, updatedAt) 
+     VALUES ('app_settings', ?, datetime('now'));`,
+    [settingsJson],
+  );
+  return true;
+};
+
+const pickTextValue = (...values) => {
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+};
 
 const isPlainObject = (value) => {
   return (
@@ -53,6 +114,18 @@ const stableStringify = (value) => {
  */
 export const initSettingsTable = async () => {
   try {
+    if (isCloudSettingsEnabled()) {
+      const existing = await getDoc(getSettingsDocRef());
+      const canManageSettings = await canManageCloudStoreSettings();
+
+      if (!existing.exists() && canManageSettings) {
+        await setDoc(getSettingsDocRef(), getDefaultSettings(), {
+          merge: true,
+        });
+      }
+      return;
+    }
+
     // Verificar si ya existen configuraciones
     const existing = await db.getFirstAsync(
       "SELECT value FROM settings WHERE key = 'app_settings';",
@@ -80,6 +153,66 @@ export const initSettingsTable = async () => {
  */
 export const getSettings = async () => {
   try {
+    if (isCloudSettingsEnabled()) {
+      const canManageSettings = await canManageCloudStoreSettings();
+      const [snapshot, storeSnapshot] = await Promise.all([
+        getDoc(getSettingsDocRef()),
+        getDoc(getStoreDocRef()),
+      ]);
+      const parsed = snapshot.exists() ? snapshot.data() || {} : {};
+      const storeData = storeSnapshot.exists()
+        ? storeSnapshot.data() || {}
+        : {};
+      const defaults = getDefaultSettings();
+      const merged = deepMergeDefaults(defaults, parsed);
+
+      merged.business = {
+        ...(merged.business || {}),
+        name: pickTextValue(
+          storeData?.name,
+          merged?.business?.name,
+          defaults.business.name,
+        ),
+        rif: pickTextValue(storeData?.rif, merged?.business?.rif),
+        address: pickTextValue(storeData?.address, merged?.business?.address),
+        phone: pickTextValue(storeData?.phone, merged?.business?.phone),
+        email: pickTextValue(
+          storeData?.email,
+          merged?.business?.email,
+        ).toLowerCase(),
+      };
+
+      try {
+        const name = String(merged?.business?.name || "").trim();
+        const isConfigured = Boolean(merged?.business?.isConfigured);
+        const nameIsDefault = name.toLowerCase() === "mi tienda";
+        const hasAnyExtraData = [
+          merged?.business?.rif,
+          merged?.business?.address,
+          merged?.business?.phone,
+          merged?.business?.email,
+        ].some((v) => String(v || "").trim().length > 0);
+
+        if (!isConfigured && ((name && !nameIsDefault) || hasAnyExtraData)) {
+          merged.business = {
+            ...(merged.business || {}),
+            isConfigured: true,
+          };
+        }
+      } catch (_) {
+        // noop
+      }
+
+      if (
+        canManageSettings &&
+        stableStringify(parsed) !== stableStringify(merged)
+      ) {
+        await saveSettings(merged);
+      }
+
+      return merged;
+    }
+
     const result = await db.getFirstAsync(
       "SELECT value FROM settings WHERE key = 'app_settings';",
     );
@@ -122,7 +255,21 @@ export const getSettings = async () => {
 
     return getDefaultSettings();
   } catch (error) {
-    console.error("Error getting settings:", error);
+    console.error("Error getting settings from cloud/local sources:", error);
+
+    const result = await db.getFirstAsync(
+      "SELECT value FROM settings WHERE key = 'app_settings';",
+    );
+
+    if (result?.value) {
+      try {
+        const parsed = JSON.parse(result.value);
+        return deepMergeDefaults(getDefaultSettings(), parsed);
+      } catch (parseError) {
+        console.warn("Error parsing local settings fallback:", parseError);
+      }
+    }
+
     return getDefaultSettings();
   }
 };
@@ -142,16 +289,61 @@ export const ensureSettingsDefaults = async () => {
  */
 export const saveSettings = async (settings) => {
   try {
-    const settingsJson = JSON.stringify(settings);
-    await db.runAsync(
-      `INSERT OR REPLACE INTO settings (key, value, updatedAt) 
-       VALUES ('app_settings', ?, datetime('now'));`,
-      [settingsJson],
-    );
+    if (!isCloudSettingsEnabled()) {
+      assertSharedStoreCloudWriteAvailable();
+    }
+
+    if (isCloudSettingsEnabled()) {
+      const canManageSettings = await canManageCloudStoreSettings();
+
+      if (!canManageSettings) {
+        throw new Error(
+          "Solo el propietario o un administrador puede cambiar los datos de esta tienda.",
+        );
+      }
+    }
+
+    await persistSettingsLocally(settings);
+
+    if (isCloudSettingsEnabled()) {
+      await setDoc(getSettingsDocRef(), settings, { merge: true });
+
+      const businessName = String(settings?.business?.name || "").trim();
+      if (businessName) {
+        await setDoc(
+          getStoreDocRef(),
+          {
+            name: businessName,
+            rif: String(settings?.business?.rif || "")
+              .trim()
+              .toUpperCase(),
+            address: String(settings?.business?.address || "").trim(),
+            phone: String(settings?.business?.phone || "").trim(),
+            email: String(settings?.business?.email || "")
+              .trim()
+              .toLowerCase(),
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+
+        await setDoc(
+          getUserMembershipDocRef(auth.currentUser?.uid),
+          {
+            storeName: businessName,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+      }
+
+      return true;
+    }
+
     return true;
   } catch (error) {
     console.error("Error saving settings:", error);
-    return false;
+    throw error;
   }
 };
 
@@ -166,7 +358,7 @@ export const updateSetting = async (key, value) => {
     return true;
   } catch (error) {
     console.error("Error updating setting:", error);
-    return false;
+    throw error;
   }
 };
 
@@ -196,6 +388,7 @@ const getDefaultSettings = () => ({
       USD2: 350,
     },
     iva: 16,
+    applyIvaOnSales: false,
   },
   exchange: {
     autoUpdate: true,
@@ -239,7 +432,7 @@ export const resetSettings = async () => {
     return true;
   } catch (error) {
     console.error("Error resetting settings:", error);
-    return false;
+    throw error;
   }
 };
 
