@@ -2032,7 +2032,7 @@ const styles = StyleSheet.create({
     fontSize: rf(14),
   },
   checkoutButton: {
-    flex: 1.4,
+    flex: 1,
     backgroundColor: "#1f9254",
     borderRadius: borderRadius.md,
     alignItems: "center",

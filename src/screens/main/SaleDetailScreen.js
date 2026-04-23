@@ -312,6 +312,33 @@ export const SaleDetailScreen = () => {
                   </Text>
                 </View>
               </View>
+
+              <View style={styles.totalsDivider} />
+
+              <View style={styles.totalsSummary}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalRowLabel}>Subtotal</Text>
+                  <Text style={styles.totalRowValue}>
+                    {formatCurrency(Number(sale.subtotal) || 0, "VES")}
+                  </Text>
+                </View>
+
+                {(Number(sale.tax) || 0) > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalRowLabel}>IVA</Text>
+                    <Text style={styles.totalRowValue}>
+                      {formatCurrency(Number(sale.tax) || 0, "VES")}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalRowLabelStrong}>Total</Text>
+                  <Text style={styles.totalRowValueStrong}>
+                    {formatCurrency(Number(sale.total) || 0, "VES")}
+                  </Text>
+                </View>
+              </View>
             </View>
 
             <View style={styles.productsCard}>
@@ -501,6 +528,39 @@ const styles = StyleSheet.create({
     width: 1,
     height: s(32),
     backgroundColor: "#e4e9f2",
+  },
+  totalsDivider: {
+    height: 1,
+    backgroundColor: "#e4e9f2",
+  },
+  totalsSummary: {
+    gap: s(10),
+  },
+  totalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: s(12),
+  },
+  totalRowLabel: {
+    fontSize: rf(13),
+    color: "#6f7c8c",
+    fontWeight: "600",
+  },
+  totalRowValue: {
+    fontSize: rf(13),
+    color: "#1f2633",
+    fontWeight: "700",
+  },
+  totalRowLabelStrong: {
+    fontSize: rf(14),
+    color: "#1f2633",
+    fontWeight: "700",
+  },
+  totalRowValueStrong: {
+    fontSize: rf(15),
+    color: "#2f5ae0",
+    fontWeight: "700",
   },
   productsCard: {
     backgroundColor: "#fff",
