@@ -1022,8 +1022,8 @@ export const POSScreen = ({ navigation }) => {
                     </Text>
                     <Text style={styles.heroHelper}>
                       {cart.length > 0
-                        ? `${cart.length} producto(s) listos para cobrar`
-                        : "Busca y agrega productos para iniciar una venta"}
+                        ? `${cart.length} listo(s) para cobrar`
+                        : "Agrega productos para vender"}
                     </Text>
                   </View>
 
@@ -1592,107 +1592,117 @@ const styles = StyleSheet.create({
     color: "#4c5767",
   },
   listHeader: {
-    gap: vs(12),
+    gap: vs(16),
     paddingTop: 0,
     paddingBottom: 0,
     alignItems: "stretch",
   },
   heroCard: {
-    backgroundColor: POS_COLORS.accent,
+    backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.xl,
     borderCurve: "continuous",
-    padding: spacing.md,
+    padding: spacing.lg,
     width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.12,
-    shadowRadius: s(18),
-    elevation: 8,
-    gap: vs(14),
+    gap: vs(16),
+    ...SHADOWS.card,
   },
-  heroHeader: {
+  heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    gap: hs(12),
   },
-  heroIcon: {
-    width: s(64),
-    height: s(64),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
+  heroBadge: {
+    width: s(44),
+    height: s(44),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: POS_COLORS.accentSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: hs(16),
-  },
-  heroIconText: {
-    fontSize: iconSize.xl,
   },
   heroCopy: {
-    flex: 1,
-    minWidth: 0,
+    gap: vs(6),
+  },
+  heroEyebrow: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: POS_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: s(0.8),
   },
   heroTitle: {
     fontSize: rf(22),
     fontWeight: "800",
-    color: "#ffffff",
+    color: POS_COLORS.text,
   },
   heroSubtitle: {
     fontSize: rf(14),
-    color: "rgba(255, 255, 255, 0.82)",
+    color: POS_COLORS.muted,
     lineHeight: vs(20),
-    marginTop: vs(6),
   },
-  heroStatsRow: {
+  heroPanel: {
     flexDirection: "row",
-    gap: hs(10),
-  },
-  heroStatPill: {
-    flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    borderRadius: borderRadius.md,
+    alignItems: "stretch",
+    backgroundColor: POS_COLORS.accent,
+    borderRadius: borderRadius.lg,
     borderCurve: "continuous",
-    paddingVertical: vs(10),
-    paddingHorizontal: hs(12),
+    padding: spacing.md,
+    gap: hs(14),
+  },
+  heroRateBlock: {
+    flex: 1,
     gap: vs(4),
   },
-  heroStatLabel: {
+  heroLabel: {
     fontSize: rf(11),
-    fontWeight: "600",
+    fontWeight: "700",
     color: "rgba(255, 255, 255, 0.74)",
     textTransform: "uppercase",
+    letterSpacing: s(0.8),
   },
-  heroStatValue: {
+  heroRateValue: {
+    fontSize: rf(22),
+    fontWeight: "800",
+    color: "#ffffff",
+  },
+  heroHelper: {
+    fontSize: rf(12),
+    color: "rgba(255, 255, 255, 0.82)",
+    lineHeight: vs(18),
+  },
+  heroDivider: {
+    width: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+  },
+  heroSummaryList: {
+    flex: 1,
+    gap: vs(10),
+    justifyContent: "center",
+  },
+  heroSummaryItem: {
+    gap: vs(2),
+  },
+  heroSummaryValue: {
     fontSize: rf(16),
     fontWeight: "800",
     color: "#ffffff",
   },
-  heroAction: {
-    alignSelf: "flex-start",
-    marginTop: vs(4),
-    backgroundColor: "#1f9254",
-    borderRadius: borderRadius.md,
-    paddingHorizontal: hs(20),
-    paddingVertical: vs(12),
-  },
-  heroActionDisabled: {
-    backgroundColor: "#d5dbe7",
-  },
-  heroActionText: {
-    color: "#fff",
+  heroSummaryLabel: {
+    fontSize: rf(11),
     fontWeight: "600",
-    fontSize: rf(13),
+    color: "rgba(255, 255, 255, 0.74)",
+    textTransform: "uppercase",
+    letterSpacing: s(0.6),
   },
   searchCard: {
     backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.xl,
     borderCurve: "continuous",
-    padding: spacing.md,
+    padding: spacing.lg,
     gap: vs(12),
     width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(12),
-    elevation: 5,
+    ...SHADOWS.soft,
   },
   searchCardContent: {
     gap: vs(12),
