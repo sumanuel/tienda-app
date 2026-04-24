@@ -20,7 +20,6 @@ import {
   EmptyStateCard,
   FloatingActionButton,
   InfoPill,
-  ScreenHero,
   SurfaceCard,
   SHADOWS,
   UI_COLORS,
@@ -306,25 +305,27 @@ export const CustomersScreen = () => {
               />
             </View>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Documento</Text>
-              <Text style={styles.infoValue}>
-                {item.documentNumber || "Sin documento"}
-              </Text>
-            </View>
+            <View style={styles.metaGrid}>
+              <View style={styles.metaCard}>
+                <Text style={styles.metaLabel}>Documento</Text>
+                <Text style={styles.metaValue}>
+                  {item.documentNumber || "Sin documento"}
+                </Text>
+              </View>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Contacto</Text>
-              <Text style={styles.infoValue}>
-                {hasPhone ? item.phone : "Sin teléfono"}
-              </Text>
-            </View>
+              <View style={styles.metaCard}>
+                <Text style={styles.metaLabel}>Contacto</Text>
+                <Text style={styles.metaValue}>
+                  {hasPhone ? item.phone : "Sin teléfono"}
+                </Text>
+              </View>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>
-                {hasEmail ? item.email : "No registrado"}
-              </Text>
+              <View style={[styles.metaCard, styles.metaCardWide]}>
+                <Text style={styles.metaLabel}>Email</Text>
+                <Text style={styles.metaValue}>
+                  {hasEmail ? item.email : "No registrado"}
+                </Text>
+              </View>
             </View>
           </Pressable>
 
@@ -347,20 +348,38 @@ export const CustomersScreen = () => {
 
   const header = (
     <View style={styles.headerContent}>
-      <ScreenHero
-        iconName="people-outline"
-        iconColor={UI_COLORS.info}
-        eyebrow="Clientes"
-        title="Directorio de clientes"
-        subtitle="Busca, actualiza y mantiene a mano la información de cada cliente."
-        pills={[
-          { text: `${customers.length} registrados`, tone: "accent" },
-          {
-            text: `${sortedCustomers.filter((item) => item.documentNumber === "1").length} genérico`,
-            tone: "warning",
-          },
-        ]}
-      />
+      <SurfaceCard style={styles.heroCard}>
+        <View style={styles.heroTopRow}>
+          <View style={[styles.heroBadge, styles.heroBadgeInfo]}>
+            <Ionicons
+              name="people-outline"
+              size={rf(22)}
+              color={UI_COLORS.info}
+            />
+          </View>
+          <InfoPill text={`${customers.length} registrados`} tone="accent" />
+        </View>
+
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroEyebrow}>Clientes</Text>
+          <Text style={styles.heroTitle}>Directorio de clientes</Text>
+          <Text style={styles.heroSubtitle}>
+            Busca, actualiza y mantén visible la información clave de cada
+            comprador.
+          </Text>
+        </View>
+
+        <View style={styles.heroPillRow}>
+          <InfoPill
+            text={`${sortedCustomers.filter((item) => item.documentNumber === "1").length} genérico`}
+            tone="warning"
+          />
+          <InfoPill
+            text={`${sortedCustomers.filter((item) => item.phone || item.email).length} con contacto`}
+            tone="info"
+          />
+        </View>
+      </SurfaceCard>
 
       <TourGuideZone
         zone={TOUR_ZONE_BASE + 1}
@@ -503,6 +522,51 @@ const styles = StyleSheet.create({
     gap: vs(16),
     marginBottom: vs(8),
   },
+  heroCard: {
+    gap: vs(14),
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: hs(12),
+  },
+  heroBadge: {
+    width: s(48),
+    height: s(48),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroBadgeInfo: {
+    backgroundColor: UI_COLORS.infoSoft,
+  },
+  heroCopy: {
+    gap: vs(6),
+  },
+  heroEyebrow: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: s(0.8),
+  },
+  heroTitle: {
+    fontSize: rf(22),
+    fontWeight: "800",
+    color: UI_COLORS.text,
+  },
+  heroSubtitle: {
+    fontSize: rf(14),
+    color: UI_COLORS.muted,
+    lineHeight: vs(20),
+  },
+  heroPillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: hs(10),
+  },
   searchCard: {
     gap: vs(14),
   },
@@ -565,22 +629,35 @@ const styles = StyleSheet.create({
     color: UI_COLORS.muted,
     fontStyle: "italic",
   },
-  infoRow: {
+  metaGrid: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexWrap: "wrap",
     gap: hs(12),
   },
-  infoLabel: {
-    fontSize: rf(13),
+  metaCard: {
+    minWidth: s(126),
+    flex: 1,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(10),
+    gap: vs(4),
+  },
+  metaCardWide: {
+    minWidth: "100%",
+  },
+  metaLabel: {
+    fontSize: rf(11),
     fontWeight: "700",
     color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: s(0.6),
   },
-  infoValue: {
+  metaValue: {
     fontSize: rf(13),
     color: UI_COLORS.text,
-    flex: 1,
-    textAlign: "right",
+    fontWeight: "600",
   },
   deleteButton: {
     width: s(44),

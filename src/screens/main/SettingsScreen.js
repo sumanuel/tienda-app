@@ -36,7 +36,7 @@ import {
   iconSize,
 } from "../../utils/responsive";
 import {
-  ScreenHero,
+  InfoPill,
   SurfaceCard,
   SHADOWS,
   UI_COLORS,
@@ -54,18 +54,20 @@ const SettingsLinkCard = ({
     onPress={onPress}
     style={({ pressed }) => [styles.formCard, pressed && styles.cardPressed]}
   >
-    <View style={styles.cardHeader}>
-      <View style={styles.cardIcon}>
+    <View style={styles.cardTopRow}>
+      <View style={[styles.cardIcon, { backgroundColor: `${iconColor}14` }]}>
         <Ionicons name={iconName} size={iconSize.md} color={iconColor} />
       </View>
+      <View style={styles.cardActionPill}>
+        <Text style={styles.cardActionText}>{actionLabel}</Text>
+        <Ionicons name="chevron-forward" size={rf(16)} color={UI_COLORS.info} />
+      </View>
+    </View>
+    <View style={styles.cardHeader}>
       <View style={styles.cardInfo}>
         <Text style={styles.cardTitle}>{title}</Text>
         <Text style={styles.cardSubtitle}>{subtitle}</Text>
       </View>
-    </View>
-    <View style={styles.cardAction}>
-      <Text style={styles.cardActionText}>{actionLabel}</Text>
-      <Ionicons name="chevron-forward" size={rf(18)} color={UI_COLORS.info} />
     </View>
   </Pressable>
 );
@@ -322,20 +324,40 @@ export const SettingsScreen = () => {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <ScreenHero
-            iconName="settings-outline"
-            iconColor={UI_COLORS.info}
-            eyebrow="Ajustes"
-            title="Configuración"
-            subtitle="Controla respaldo, negocio y acceso desde un solo lugar."
-            pills={[
-              {
-                text: `${memberships.length} tienda(s)`,
-                tone: "accent",
-                iconName: "storefront-outline",
-              },
-            ]}
-          />
+          <SurfaceCard style={styles.heroCard}>
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroBadge}>
+                <Ionicons
+                  name="settings-outline"
+                  size={rf(22)}
+                  color={UI_COLORS.info}
+                />
+              </View>
+              <InfoPill
+                text={`${memberships.length} tienda(s)`}
+                tone="accent"
+                iconName="storefront-outline"
+              />
+            </View>
+
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroEyebrow}>Ajustes</Text>
+              <Text style={styles.heroTitle}>Configuración</Text>
+              <Text style={styles.heroSubtitle}>
+                Controla respaldo, negocio y acceso desde un solo lugar.
+              </Text>
+            </View>
+
+            <View style={styles.heroPillRow}>
+              <InfoPill
+                text={
+                  memberships.find((item) => item.storeId === activeStoreId)
+                    ?.storeName || "Sin contexto"
+                }
+                tone="info"
+              />
+            </View>
+          </SurfaceCard>
 
           <SettingsLinkCard
             iconName="storefront-outline"
@@ -498,6 +520,49 @@ const styles = StyleSheet.create({
     paddingBottom: vs(120),
     gap: spacing.md,
   },
+  heroCard: {
+    gap: spacing.lg,
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  heroBadge: {
+    width: s(48),
+    height: s(48),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.infoSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroCopy: {
+    gap: spacing.xs,
+  },
+  heroEyebrow: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    fontSize: rf(22),
+    fontWeight: "800",
+    color: UI_COLORS.text,
+  },
+  heroSubtitle: {
+    fontSize: rf(14),
+    color: UI_COLORS.muted,
+    lineHeight: vs(20),
+  },
+  heroPillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
   loadingContainer: {
     flex: 1,
     backgroundColor: UI_COLORS.page,
@@ -608,17 +673,22 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     ...SHADOWS.soft,
   },
+  cardTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: spacing.md,
+  },
   cardHeader: {
     flexDirection: "row",
-    gap: spacing.lg,
-    alignItems: "center",
+    gap: spacing.md,
+    alignItems: "flex-start",
   },
   cardIcon: {
     width: s(48),
     height: s(48),
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
-    backgroundColor: UI_COLORS.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -639,10 +709,15 @@ const styles = StyleSheet.create({
     color: UI_COLORS.muted,
     lineHeight: vs(18),
   },
-  cardAction: {
+  cardActionPill: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: UI_COLORS.infoSoft,
+    borderRadius: s(999),
+    borderCurve: "continuous",
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(7),
   },
   cardActionText: {
     fontSize: rf(13),

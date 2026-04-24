@@ -23,7 +23,6 @@ import {
   EmptyStateCard,
   FloatingActionButton,
   InfoPill,
-  ScreenHero,
   SurfaceCard,
   SHADOWS,
   UI_COLORS,
@@ -294,17 +293,46 @@ export const ProductsScreen = ({ navigation }) => {
 
   const header = (
     <View style={styles.headerContent}>
-      <ScreenHero
-        iconName="cube-outline"
-        iconColor={UI_COLORS.warning}
-        eyebrow="Inventario"
-        title="Catálogo de productos"
-        subtitle="Edita precios, revisa existencias y encuentra productos rápido."
-        pills={[
-          { text: `${metrics.totalProducts} productos`, tone: "accent" },
-          { text: `${metrics.lowStock} con bajo stock`, tone: "warning" },
-        ]}
-      />
+      <SurfaceCard style={styles.heroCard}>
+        <View style={styles.heroTopRow}>
+          <View style={[styles.heroBadge, styles.heroBadgeWarning]}>
+            <Ionicons
+              name="cube-outline"
+              size={rf(22)}
+              color={UI_COLORS.warning}
+            />
+          </View>
+          <InfoPill
+            text={
+              metrics.lowStock > 0
+                ? `${metrics.lowStock} en alerta`
+                : "Inventario estable"
+            }
+            tone={metrics.lowStock > 0 ? "warning" : "accent"}
+          />
+        </View>
+
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroEyebrow}>Inventario</Text>
+          <Text style={styles.heroTitle}>Catálogo de productos</Text>
+          <Text style={styles.heroSubtitle}>
+            Edita precios, revisa existencias y ubica productos sin perder el
+            foco del inventario.
+          </Text>
+        </View>
+
+        <View style={styles.heroPillRow}>
+          <InfoPill text={`${metrics.totalProducts} productos`} tone="accent" />
+          <InfoPill
+            text={
+              metrics.rateUsed
+                ? `Tasa ${metrics.rateUsed.toFixed(2)}`
+                : "Sin tasa"
+            }
+            tone="info"
+          />
+        </View>
+      </SurfaceCard>
 
       <TourGuideZone
         zone={TOUR_ZONE_BASE + 1}
@@ -387,6 +415,51 @@ const styles = StyleSheet.create({
   headerContent: {
     gap: vs(16),
     marginBottom: vs(8),
+  },
+  heroCard: {
+    gap: vs(14),
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: hs(12),
+  },
+  heroBadge: {
+    width: s(48),
+    height: s(48),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroBadgeWarning: {
+    backgroundColor: UI_COLORS.warningSoft,
+  },
+  heroCopy: {
+    gap: vs(6),
+  },
+  heroEyebrow: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: s(0.8),
+  },
+  heroTitle: {
+    fontSize: rf(22),
+    fontWeight: "800",
+    color: UI_COLORS.text,
+  },
+  heroSubtitle: {
+    fontSize: rf(14),
+    color: UI_COLORS.muted,
+    lineHeight: vs(20),
+  },
+  heroPillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: hs(10),
   },
   searchCard: {
     gap: vs(14),
