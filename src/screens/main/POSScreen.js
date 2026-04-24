@@ -864,9 +864,6 @@ export const POSScreen = ({ navigation }) => {
           <Text style={styles.productPrice}>
             VES. {computedPriceVES.toFixed(2)}
           </Text>
-          <Text style={styles.productPriceSecondary}>
-            USD. {item.priceUSD.toFixed(2)}
-          </Text>
         </View>
 
         <View style={styles.productFooter}>
@@ -1012,39 +1009,6 @@ export const POSScreen = ({ navigation }) => {
                     Gestiona tus ventas, clientes y cobros con una lectura más
                     clara del flujo actual.
                   </Text>
-                </View>
-
-                <View style={styles.heroPanel}>
-                  <View style={styles.heroRateBlock}>
-                    <Text style={styles.heroLabel}>Tasa activa</Text>
-                    <Text style={styles.heroRateValue}>
-                      {exchangeRate > 0 ? exchangeRate.toFixed(2) : "Pendiente"}
-                    </Text>
-                    <Text style={styles.heroHelper}>
-                      {cart.length > 0
-                        ? `${cart.length} listo(s) para cobrar`
-                        : "Agrega productos para vender"}
-                    </Text>
-                  </View>
-
-                  <View style={styles.heroDivider} />
-
-                  <View style={styles.heroSummaryList}>
-                    <View style={styles.heroSummaryItem}>
-                      <Text style={styles.heroSummaryValue}>
-                        {products.length}
-                      </Text>
-                      <Text style={styles.heroSummaryLabel}>
-                        Productos disponibles
-                      </Text>
-                    </View>
-                    <View style={styles.heroSummaryItem}>
-                      <Text style={styles.heroSummaryValue}>
-                        VES. {total.toFixed(2)}
-                      </Text>
-                      <Text style={styles.heroSummaryLabel}>Total actual</Text>
-                    </View>
-                  </View>
                 </View>
               </View>
 
