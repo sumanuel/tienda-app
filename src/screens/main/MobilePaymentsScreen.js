@@ -491,13 +491,13 @@ const styles = StyleSheet.create({
   headerContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: vs(16),
-    paddingBottom: vs(4),
+    paddingBottom: vs(2),
   },
   tabs: {
     flexDirection: "row",
     paddingHorizontal: spacing.lg,
-    paddingTop: vs(12),
-    paddingBottom: vs(10),
+    paddingTop: vs(10),
+    paddingBottom: vs(8),
     gap: hs(10),
   },
   tabButton: {
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
-    paddingVertical: vs(12),
+    paddingVertical: vs(11),
     alignItems: "center",
     borderWidth: 1,
     borderColor: UI_COLORS.border,
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.lg,
-    paddingTop: vs(8),
+    paddingTop: vs(6),
   },
   emptyListContent: {
     flexGrow: 1,
@@ -542,11 +542,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   emptyState: {
-    marginTop: vs(24),
+    marginTop: vs(20),
   },
   paymentCard: {
-    padding: spacing.lg,
-    marginBottom: vs(12),
+    padding: spacing.md,
+    marginBottom: vs(10),
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
@@ -554,14 +554,15 @@ const styles = StyleSheet.create({
   },
   paymentInfo: {
     flex: 1,
-    paddingRight: hs(12),
-    gap: vs(4),
+    paddingRight: hs(10),
+    gap: vs(3),
   },
   paymentTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: hs(10),
+    marginBottom: vs(2),
   },
   paymentReference: {
     fontSize: rf(12),
@@ -569,12 +570,12 @@ const styles = StyleSheet.create({
     color: UI_COLORS.muted,
   },
   paymentCustomer: {
-    fontSize: rf(15),
+    fontSize: rf(14),
     fontWeight: "700",
     color: UI_COLORS.text,
   },
   paymentAmount: {
-    fontSize: rf(18),
+    fontSize: rf(17),
     fontWeight: "800",
     color: UI_COLORS.accent,
   },
@@ -593,10 +594,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: hs(6),
     backgroundColor: UI_COLORS.info,
-    paddingVertical: vs(10),
+    paddingVertical: vs(9),
     paddingHorizontal: hs(12),
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
+    marginTop: vs(2),
   },
   verifyButtonText: {
     color: "#ffffff",
@@ -616,13 +618,13 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     maxWidth: s(460),
-    gap: vs(4),
+    gap: vs(2),
   },
   modalTitle: {
-    fontSize: rf(16),
-    fontWeight: "700",
+    fontSize: rf(17),
+    fontWeight: "800",
     color: UI_COLORS.text,
-    marginBottom: vs(14),
+    marginBottom: vs(12),
     textAlign: "center",
   },
   fieldLabel: {
@@ -638,19 +640,19 @@ const styles = StyleSheet.create({
     borderColor: UI_COLORS.border,
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
-    paddingVertical: vs(12),
-    paddingHorizontal: hs(12),
+    paddingVertical: vs(13),
+    paddingHorizontal: hs(14),
     fontSize: rf(14),
     color: UI_COLORS.text,
     backgroundColor: UI_COLORS.surfaceAlt,
-    marginBottom: vs(12),
+    marginBottom: vs(10),
   },
   checkboxRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: hs(10),
-    paddingVertical: vs(8),
-    marginBottom: vs(8),
+    paddingVertical: vs(7),
+    marginBottom: vs(6),
   },
   checkboxText: {
     fontSize: rf(13),
@@ -660,11 +662,11 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: "row",
     gap: hs(12),
-    marginTop: vs(14),
+    marginTop: vs(12),
   },
   modalButton: {
     flex: 1,
-    paddingVertical: vs(14),
+    paddingVertical: vs(13),
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
     alignItems: "center",

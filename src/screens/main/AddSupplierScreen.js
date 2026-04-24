@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,14 +15,12 @@ import { useSuppliers } from "../../hooks/useSuppliers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import PhoneInput from "../../components/common/PhoneInput";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  ScreenHero,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
+import { rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 /**
  * Pantalla para agregar nuevo proveedor
@@ -100,15 +98,14 @@ export const AddSupplierScreen = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.heroCard}>
-              <View style={styles.heroTextContainer}>
-                <Text style={styles.heroTitle}>Nuevo proveedor</Text>
-                <Text style={styles.heroSubtitle}>
-                  Registra tus aliados comerciales con los datos necesarios para
-                  compras ágiles.
-                </Text>
-              </View>
-            </View>
+            <ScreenHero
+              iconName="business-outline"
+              iconColor={UI_COLORS.info}
+              eyebrow="Compras"
+              title="Nuevo proveedor"
+              subtitle="Registra aliados comerciales con los datos necesarios para compras y pagos ágiles."
+              style={styles.heroCard}
+            />
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Identidad del proveedor</Text>
@@ -118,7 +115,7 @@ export const AddSupplierScreen = ({ navigation }) => {
               </Text>
             </View>
 
-            <View style={styles.card}>
+            <SurfaceCard style={styles.card}>
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>RIF/Cédula *</Text>
                 <TextInput
@@ -143,7 +140,7 @@ export const AddSupplierScreen = ({ navigation }) => {
                   onChangeText={(value) => updateFormData("name", value)}
                 />
               </View>
-            </View>
+            </SurfaceCard>
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Contacto directo</Text>
@@ -153,7 +150,7 @@ export const AddSupplierScreen = ({ navigation }) => {
               </Text>
             </View>
 
-            <View style={styles.card}>
+            <SurfaceCard style={styles.card}>
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Persona de contacto</Text>
                 <TextInput
@@ -189,7 +186,7 @@ export const AddSupplierScreen = ({ navigation }) => {
                   />
                 </View>
               </View>
-            </View>
+            </SurfaceCard>
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Información adicional</Text>
@@ -199,7 +196,7 @@ export const AddSupplierScreen = ({ navigation }) => {
               </Text>
             </View>
 
-            <View style={styles.card}>
+            <SurfaceCard style={styles.card}>
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Dirección</Text>
                 <TextInput
@@ -230,30 +227,30 @@ export const AddSupplierScreen = ({ navigation }) => {
                 Documenta los términos pactados para evitar retrasos y conservar
                 historial.
               </Text>
-            </View>
+            </SurfaceCard>
 
             <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[
+              <Pressable
+                style={({ pressed }) => [
                   styles.actionButton,
                   styles.secondaryButton,
                   loading && styles.buttonDisabled,
+                  pressed && styles.cardPressed,
                 ]}
                 onPress={() => navigation.goBack()}
-                activeOpacity={0.85}
                 disabled={loading}
               >
                 <Text style={styles.secondaryButtonText}>Cancelar</Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
-                style={[
+              <Pressable
+                style={({ pressed }) => [
                   styles.actionButton,
                   styles.primaryButton,
                   loading && styles.buttonDisabled,
+                  pressed && styles.cardPressed,
                 ]}
                 onPress={handleSave}
-                activeOpacity={0.85}
                 disabled={loading}
               >
                 {loading ? (
@@ -263,7 +260,7 @@ export const AddSupplierScreen = ({ navigation }) => {
                     Guardar proveedor
                   </Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -276,7 +273,7 @@ export const AddSupplierScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   flex: {
     flex: 1,
@@ -284,146 +281,109 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: hs(16),
     paddingTop: vs(16),
-    paddingBottom: vs(60),
-    gap: vs(24),
+    paddingBottom: vs(72),
+    gap: vs(18),
   },
   heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 8,
-  },
-  heroIcon: {
-    width: s(60),
-    height: s(60),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#fff5f3",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: hs(18),
-  },
-  heroIconText: {
-    fontSize: iconSize.xl,
-  },
-  heroTextContainer: {
-    flex: 1,
-    gap: vs(6),
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: vs(20),
+    marginBottom: vs(2),
   },
   sectionHeader: {
     gap: vs(4),
     paddingHorizontal: hs(4),
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1f2633",
+    fontSize: rf(16),
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   sectionHint: {
-    fontSize: 12,
-    color: "#6f7c8c",
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 4,
-    gap: 20,
+    padding: spacing.lg,
+    gap: vs(18),
+    ...SHADOWS.soft,
   },
   fieldGroup: {
-    gap: 8,
+    gap: vs(7),
   },
   fieldLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#8492a6",
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#d9e0eb",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: "#1f2633",
-    backgroundColor: "#f8f9fc",
+    borderColor: UI_COLORS.border,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(14),
+    paddingVertical: vs(13),
+    fontSize: rf(15),
+    color: UI_COLORS.text,
+    backgroundColor: UI_COLORS.surfaceAlt,
   },
   textArea: {
-    minHeight: 90,
+    minHeight: vs(92),
     textAlignVertical: "top",
   },
   dualRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: hs(12),
   },
   dualField: {
     flex: 1,
-    gap: 8,
+    gap: vs(7),
   },
   helperText: {
-    fontSize: 12,
-    color: "#5a2e2e",
-    backgroundColor: "#fff4f2",
-    padding: 12,
-    borderRadius: 12,
-    lineHeight: 18,
+    fontSize: rf(12),
+    color: UI_COLORS.danger,
+    backgroundColor: UI_COLORS.dangerSoft,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    lineHeight: vs(18),
   },
   buttonRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: hs(12),
+    paddingTop: vs(4),
   },
   actionButton: {
     flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: vs(15),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
   },
   secondaryButton: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
-    borderColor: "#c3cad5",
+    borderColor: UI_COLORS.border,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   secondaryButtonText: {
-    color: "#4c5767",
-    fontWeight: "600",
-    fontSize: 15,
+    color: UI_COLORS.info,
+    fontWeight: "700",
+    fontSize: rf(14),
   },
   primaryButton: {
-    backgroundColor: "#ef5350",
-    shadowColor: "#ef5350",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 8,
-    elevation: 6,
+    backgroundColor: UI_COLORS.accent,
   },
   primaryButtonText: {
     color: "#fff",
     fontWeight: "700",
-    fontSize: 15,
+    fontSize: rf(14),
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });

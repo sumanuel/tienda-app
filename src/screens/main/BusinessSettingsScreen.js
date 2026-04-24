@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   SafeAreaView,
   ActivityIndicator,
@@ -15,14 +15,12 @@ import { getSettings, saveSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import PhoneInput from "../../components/common/PhoneInput";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  ScreenHero,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
+import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 export const BusinessSettingsScreen = () => {
   const navigation = useNavigation();
@@ -114,7 +112,7 @@ export const BusinessSettingsScreen = () => {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2f5ae0" />
+        <ActivityIndicator size="large" color={UI_COLORS.info} />
         <Text style={styles.loadingText}>Cargando datos del negocio...</Text>
       </SafeAreaView>
     );
@@ -126,23 +124,16 @@ export const BusinessSettingsScreen = () => {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
-          <View style={styles.heroIcon}>
-            <Ionicons
-              name="business-outline"
-              size={iconSize.lg}
-              color="#2f5ae0"
-            />
-          </View>
-          <View style={styles.heroInfo}>
-            <Text style={styles.heroTitle}>Datos del Negocio</Text>
-            <Text style={styles.heroSubtitle}>
-              Información que aparece en documentos y reportes.
-            </Text>
-          </View>
-        </View>
+        <ScreenHero
+          iconName="business-outline"
+          iconColor={UI_COLORS.info}
+          eyebrow="Sistema"
+          title="Datos del negocio"
+          subtitle="Información que se refleja en documentos, reportes y configuración general."
+          style={styles.heroCard}
+        />
 
-        <View style={styles.formCard}>
+        <SurfaceCard style={styles.formCard}>
           <Text style={styles.sectionTitle}>Información General</Text>
 
           <View style={styles.inputGroup}>
@@ -201,32 +192,35 @@ export const BusinessSettingsScreen = () => {
           </View>
 
           <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                styles.cancelButton,
+                pressed && styles.cardPressed,
+              ]}
               onPress={() => navigation.goBack()}
-              activeOpacity={0.8}
             >
               <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={[
+            <Pressable
+              style={({ pressed }) => [
                 styles.button,
                 styles.saveButton,
                 saving && styles.buttonDisabled,
+                pressed && styles.cardPressed,
               ]}
               onPress={handleSave}
               disabled={saving}
-              activeOpacity={0.8}
             >
               {saving ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <Text style={styles.saveButtonText}>Guardar Cambios</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
-        </View>
+        </SurfaceCard>
       </ScrollView>
       <CustomAlert />
     </SafeAreaView>
@@ -236,11 +230,11 @@ export const BusinessSettingsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.lg,
@@ -248,81 +242,46 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: rf(14),
     fontWeight: "600",
-    color: "#4c5767",
+    color: UI_COLORS.muted,
   },
   content: {
     padding: spacing.lg,
     paddingBottom: vs(100),
+    gap: spacing.lg,
   },
   heroCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    flexDirection: "row",
-    gap: spacing.lg,
-    marginBottom: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: vs(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(20),
-    elevation: 6,
-  },
-  heroIcon: {
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: borderRadius.xl,
-    backgroundColor: "#f3f8ff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroIconText: {
-    fontSize: rf(28),
-  },
-  heroInfo: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#6f7c8c",
-    lineHeight: rf(20),
+    marginBottom: vs(2),
   },
   formCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
     padding: spacing.xl,
-    gap: spacing.xxl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: vs(8) },
-    shadowOpacity: 0.06,
-    shadowRadius: s(14),
-    elevation: 6,
+    gap: spacing.xl,
+    ...SHADOWS.soft,
   },
   sectionTitle: {
     fontSize: rf(18),
     fontWeight: "700",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   inputGroup: {
     gap: spacing.sm,
   },
   inputLabel: {
-    fontSize: rf(14),
-    fontWeight: "600",
-    color: "#2f3a4c",
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   input: {
-    backgroundColor: "#f3f5fa",
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
     borderRadius: borderRadius.md,
-    paddingVertical: vs(12),
+    borderCurve: "continuous",
+    paddingVertical: vs(13),
     paddingHorizontal: hs(16),
     fontSize: rf(15),
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   buttonRow: {
     flexDirection: "row",
@@ -331,30 +290,35 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    borderRadius: s(14),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: vs(14),
     alignItems: "center",
   },
   cancelButton: {
-    backgroundColor: "#f3f5fa",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderWidth: 1,
-    borderColor: "#d5dbe7",
+    borderColor: UI_COLORS.border,
   },
   cancelButtonText: {
-    fontSize: rf(15),
-    fontWeight: "600",
-    color: "#2f5ae0",
+    fontSize: rf(14),
+    fontWeight: "700",
+    color: UI_COLORS.info,
   },
   saveButton: {
-    backgroundColor: "#1f9254",
+    backgroundColor: UI_COLORS.accent,
   },
   saveButtonText: {
-    fontSize: rf(15),
+    fontSize: rf(14),
     fontWeight: "700",
     color: "#fff",
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 
