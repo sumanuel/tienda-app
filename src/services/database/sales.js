@@ -168,6 +168,57 @@ const normalizeExistingCloudSales = async (existingSnapshot) => {
   );
 };
 
+const mergeMissingLocalSalesIntoCloud = async () => {
+  const collectionRef = getSalesCollectionRef();
+  const existingSnapshot = await getDocs(collectionRef);
+  const existingIds = new Set(
+    existingSnapshot.docs.map(
+      (item) => Number(item.data()?.id) || Number(item.id) || 0,
+    ),
+  );
+
+  const salesRows = await db.getAllAsync(
+    "SELECT * FROM sales ORDER BY createdAt DESC;",
+  );
+
+  const missingRows = [];
+  for (const saleRow of salesRows) {
+    const normalizedId = Number(saleRow?.id) || 0;
+    if (normalizedId <= 0 || existingIds.has(normalizedId)) {
+      continue;
+    }
+
+    const saleItems = await db.getAllAsync(
+      "SELECT * FROM sale_items WHERE saleId = ?;",
+      [saleRow.id],
+    );
+    missingRows.push(
+      normalizeSaleRecord({
+        ...saleRow,
+        items: saleItems,
+      }),
+    );
+  }
+
+  if (missingRows.length > 0) {
+    const batch = writeBatch(firestore);
+    missingRows.forEach((row) => {
+      batch.set(doc(collectionRef, String(row.id)), row, { merge: true });
+    });
+    await batch.commit();
+  }
+
+  await setDoc(
+    getStoreDocRef(),
+    {
+      counters: {
+        sale: existingIds.size + missingRows.length,
+      },
+    },
+    { merge: true },
+  );
+};
+
 const ensureCloudSalesSeeded = async () => {
   if (!isCloudSalesEnabled()) return;
 
@@ -178,6 +229,7 @@ const ensureCloudSalesSeeded = async () => {
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
     await normalizeExistingCloudSales(existingSnapshot);
+    await mergeMissingLocalSalesIntoCloud();
     cloudSalesSeeded.add(seedKey);
     return;
   }

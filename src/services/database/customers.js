@@ -200,6 +200,42 @@ const normalizeExistingCloudCustomers = async (existingSnapshot) => {
   );
 };
 
+const mergeMissingLocalCustomersIntoCloud = async () => {
+  const collectionRef = getCustomersCollectionRef();
+  const existingSnapshot = await getDocs(collectionRef);
+  const existingIds = new Set(
+    existingSnapshot.docs.map(
+      (item) => Number(item.data()?.id) || Number(item.id) || 0,
+    ),
+  );
+
+  const rows = await db.getAllAsync(
+    "SELECT * FROM customers WHERE active = 1 ORDER BY name;",
+  );
+
+  const missingRows = rows
+    .map((row) => normalizeCustomerRecord(row))
+    .filter((row) => row.id > 0 && !existingIds.has(Number(row.id)));
+
+  if (missingRows.length > 0) {
+    const batch = writeBatch(firestore);
+    missingRows.forEach((row) => {
+      batch.set(doc(collectionRef, String(row.id)), row, { merge: true });
+    });
+    await batch.commit();
+  }
+
+  await setDoc(
+    getStoreDocRef(),
+    {
+      counters: {
+        customer: existingIds.size + missingRows.length,
+      },
+    },
+    { merge: true },
+  );
+};
+
 const ensureCloudCustomersSeeded = async () => {
   if (!isCloudCustomersEnabled()) return;
 
@@ -210,6 +246,7 @@ const ensureCloudCustomersSeeded = async () => {
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
     await normalizeExistingCloudCustomers(existingSnapshot);
+    await mergeMissingLocalCustomersIntoCloud();
     cloudCustomersSeeded.add(seedKey);
     return;
   }
