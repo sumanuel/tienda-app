@@ -170,6 +170,42 @@ const normalizeExistingCloudSuppliers = async (existingSnapshot) => {
   );
 };
 
+const mergeMissingLocalSuppliersIntoCloud = async () => {
+  const collectionRef = getSuppliersCollectionRef();
+  const existingSnapshot = await getDocs(collectionRef);
+  const existingIds = new Set(
+    existingSnapshot.docs.map(
+      (item) => Number(item.data()?.id) || Number(item.id) || 0,
+    ),
+  );
+
+  const rows = await db.getAllAsync(
+    "SELECT * FROM suppliers WHERE active = 1 ORDER BY name;",
+  );
+
+  const missingRows = rows
+    .map((row) => normalizeSupplierRecord(row))
+    .filter((row) => row.id > 0 && !existingIds.has(Number(row.id)));
+
+  if (missingRows.length > 0) {
+    const batch = writeBatch(firestore);
+    missingRows.forEach((row) => {
+      batch.set(doc(collectionRef, String(row.id)), row, { merge: true });
+    });
+    await batch.commit();
+  }
+
+  await setDoc(
+    getStoreDocRef(),
+    {
+      counters: {
+        supplier: existingIds.size + missingRows.length,
+      },
+    },
+    { merge: true },
+  );
+};
+
 const ensureCloudSuppliersSeeded = async () => {
   if (!isCloudSuppliersEnabled()) return;
 
@@ -180,6 +216,7 @@ const ensureCloudSuppliersSeeded = async () => {
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
     await normalizeExistingCloudSuppliers(existingSnapshot);
+    await mergeMissingLocalSuppliersIntoCloud();
     cloudSuppliersSeeded.add(seedKey);
     return;
   }

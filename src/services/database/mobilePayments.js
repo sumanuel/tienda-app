@@ -44,6 +44,32 @@ const getCloudMobilePayments = async () => {
   return snapshot.docs.map((item) => normalizeMobilePaymentRecord(item.data()));
 };
 
+const mergeMissingLocalMobilePaymentsIntoCloud = async () => {
+  const collectionRef = getMobilePaymentsCollectionRef();
+  const existingSnapshot = await getDocs(collectionRef);
+  const existingIds = new Set(
+    existingSnapshot.docs.map(
+      (item) => Number(item.data()?.id) || Number(item.id) || 0,
+    ),
+  );
+
+  const rows = await db.getAllAsync(
+    "SELECT * FROM mobile_payments ORDER BY createdAt DESC, id DESC;",
+  );
+
+  const missingRows = rows
+    .map((row) => normalizeMobilePaymentRecord(row))
+    .filter((row) => row.id > 0 && !existingIds.has(Number(row.id)));
+
+  if (missingRows.length > 0) {
+    const batch = writeBatch(firestore);
+    missingRows.forEach((row) => {
+      batch.set(doc(collectionRef, String(row.id)), row, { merge: true });
+    });
+    await batch.commit();
+  }
+};
+
 const ensureCloudMobilePaymentsSeeded = async () => {
   if (!isCloudMobilePaymentsEnabled()) return;
 
@@ -53,6 +79,7 @@ const ensureCloudMobilePaymentsSeeded = async () => {
   const collectionRef = getMobilePaymentsCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
   if (!existingSnapshot.empty) {
+    await mergeMissingLocalMobilePaymentsIntoCloud();
     cloudMobilePaymentsSeeded.add(seedKey);
     return;
   }
