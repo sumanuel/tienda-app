@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,6 +29,27 @@ import {
 import RateDisplay from "../../components/exchange/RateDisplay";
 import { useRateNotifications } from "../../contexts/RateNotificationsContext";
 
+const DASHBOARD_COLORS = {
+  page: "#f4f7fb",
+  heroTop: "#1f7a59",
+  heroBottom: "#2f9e71",
+  surface: "#ffffff",
+  surfaceAlt: "#f7faf8",
+  border: "#d9e5dd",
+  text: "#163126",
+  muted: "#5f7268",
+  accent: "#1f7a59",
+  accentSoft: "#e8f5ef",
+  accentStrong: "#0f5a3f",
+  infoSoft: "#edf5ff",
+  infoStrong: "#245fd1",
+  warningSoft: "#fff4df",
+  warningStrong: "#bb7a14",
+  dangerSoft: "#ffe8e6",
+  dangerStrong: "#cf4f43",
+  shadow: "rgba(22, 49, 38, 0.12)",
+};
+
 /**
  * Pantalla principal del Dashboard
  */
@@ -36,6 +57,84 @@ const DashboardStatIcon = ({ name, backgroundColor, color }) => (
   <View style={[styles.statIconContainer, { backgroundColor }]}>
     <Ionicons name={name} size={rf(26)} color={color} />
   </View>
+);
+
+const DashboardAction = ({
+  onPress,
+  icon,
+  title,
+  subtitle,
+  tone = "default",
+}) => {
+  const iconStyle =
+    tone === "accent"
+      ? styles.actionIconAccent
+      : tone === "soft"
+        ? styles.actionIconSoft
+        : styles.actionIcon;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionCard,
+        pressed && styles.cardPressed,
+      ]}
+    >
+      <View style={[styles.actionIconBase, iconStyle]}>
+        <Ionicons
+          name={icon}
+          size={rf(18)}
+          color={DASHBOARD_COLORS.accentStrong}
+        />
+      </View>
+      <View style={styles.actionContent}>
+        <Text style={styles.actionTitle}>{title}</Text>
+        <Text style={styles.actionSubtitle}>{subtitle}</Text>
+      </View>
+      <Ionicons
+        name="chevron-forward"
+        size={rf(18)}
+        color={DASHBOARD_COLORS.muted}
+      />
+    </Pressable>
+  );
+};
+
+const StatCard = ({
+  onPress,
+  icon,
+  iconBackground,
+  iconColor,
+  label,
+  value,
+  helper,
+  emphasis = "default",
+}) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [
+      styles.statCard,
+      emphasis === "accent" && styles.statCardAccent,
+      pressed && styles.cardPressed,
+    ]}
+  >
+    <View style={styles.statHeaderRow}>
+      <DashboardStatIcon
+        name={icon}
+        backgroundColor={iconBackground}
+        color={iconColor}
+      />
+      <Ionicons
+        name="arrow-forward-outline"
+        size={rf(16)}
+        color={DASHBOARD_COLORS.muted}
+      />
+    </View>
+    <Text style={styles.statLabel}>{label}</Text>
+    <Text style={styles.statValue}>{value}</Text>
+    {helper ? <Text style={styles.statHelper}>{helper}</Text> : null}
+  </Pressable>
 );
 
 export const DashboardScreen = ({ navigation }) => {
@@ -136,6 +235,29 @@ export const DashboardScreen = ({ navigation }) => {
     return now.toLocaleString("es-VE", options);
   };
 
+  const balanceDateLabel = new Date().toLocaleDateString("es-VE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const exchangeRateLabel = rate ? `${rate.toFixed(2)} VES` : "Pendiente";
+  const exchangeRateHelper = rateLoading
+    ? "Actualizando referencia"
+    : lastUpdate
+      ? `Actualizada ${new Date(lastUpdate).toLocaleDateString("es-VE")}`
+      : "Configura la tasa para vender";
+
+  const pendingReceivable = formatCurrency(
+    receivableStats?.pending || 0,
+    "VES",
+  );
+  const pendingPayable = formatCurrency(payableStats?.pending || 0, "VES");
+  const inventorySummary = `${inventoryStats?.totalProducts || 0} productos`;
+  const salesSummary = `${todayStats?.count || 0} ${
+    todayStats?.count === 1 ? "venta" : "ventas"
+  } hoy`;
+
   return (
     <>
       <ScrollView
@@ -145,80 +267,128 @@ export const DashboardScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Header con información del negocio */}
         <View style={styles.header}>
-          <Text style={styles.businessName}>{businessName.toUpperCase()}</Text>
-          <Text style={styles.lastSession}>Última Sesión: {formatDate()}</Text>
+          <View style={styles.headerTopRow}>
+            <View style={styles.headerTextBlock}>
+              <Text style={styles.headerEyebrow}>Panel de control</Text>
+              <Text style={styles.businessName}>{businessName}</Text>
+              <Text style={styles.lastSession}>
+                Última sesión: {formatDate()}
+              </Text>
+            </View>
+
+            <View style={styles.headerActionsStack}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.iconPill,
+                  pressed && styles.iconPillPressed,
+                ]}
+                onPress={() => navigation.navigate("RateNotifications")}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={rf(18)}
+                  color="#ffffff"
+                />
+                {(notificationCount || 0) > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {(notificationCount || 0) > 99
+                        ? "99+"
+                        : notificationCount}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.iconPill,
+                  pressed && styles.iconPillPressed,
+                ]}
+                onPress={() => {
+                  if (global.resetOnboarding) {
+                    global.resetOnboarding();
+                  }
+                }}
+              >
+                <Ionicons
+                  name="help-circle-outline"
+                  size={rf(18)}
+                  color="#ffffff"
+                />
+              </Pressable>
+            </View>
+          </View>
+
           <View style={styles.currencyButtons}>
-            <TouchableOpacity style={styles.currencyButtonActive}>
-              <Text style={styles.currencyButtonTextActive}>VES</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.currencyButton}
+            <View style={styles.currencyButtonActive}>
+              <Text style={styles.currencyButtonTextActive}>
+                Operando en VES
+              </Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.currencyButton,
+                pressed && styles.iconPillPressed,
+              ]}
               onPress={() => navigation.navigate("ExchangeRate")}
             >
-              <Text style={styles.currencyButtonText}>USD ($)</Text>
-            </TouchableOpacity>
+              <Text style={styles.currencyButtonText}>
+                Ver tasa y referencia
+              </Text>
+            </Pressable>
+          </View>
 
-            <TouchableOpacity
-              style={styles.notificationButton}
-              onPress={() => navigation.navigate("RateNotifications")}
-            >
-              <Ionicons
-                name="notifications-outline"
-                size={rf(18)}
-                color="#ffffff"
-              />
-              {(notificationCount || 0) > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>
-                    {(notificationCount || 0) > 99 ? "99+" : notificationCount}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.helpButton}
-              onPress={() => {
-                if (global.resetOnboarding) {
-                  global.resetOnboarding();
-                }
-              }}
-            >
-              <Ionicons
-                name="help-circle-outline"
-                size={rf(18)}
-                color="#ffffff"
-              />
-            </TouchableOpacity>
+          <View style={styles.heroPanel}>
+            <View style={styles.heroRateBlock}>
+              <Text style={styles.heroLabel}>Tasa activa</Text>
+              <Text style={styles.heroRateValue}>{exchangeRateLabel}</Text>
+              <Text style={styles.heroHelper}>{exchangeRateHelper}</Text>
+            </View>
+
+            <View style={styles.heroDivider} />
+
+            <View style={styles.heroSummaryList}>
+              <View style={styles.heroSummaryItem}>
+                <Text style={styles.heroSummaryValue}>{salesSummary}</Text>
+                <Text style={styles.heroSummaryLabel}>Movimiento del día</Text>
+              </View>
+              <View style={styles.heroSummaryItem}>
+                <Text style={styles.heroSummaryValue}>{inventorySummary}</Text>
+                <Text style={styles.heroSummaryLabel}>
+                  Inventario registrado
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Tarjeta Principal - Balance del Día */}
         <View style={styles.mainCard}>
           <View style={styles.mainCardHeader}>
             <View>
               <Text style={styles.mainCardTitle}>Balance del Día</Text>
               <Text style={styles.accountNumber}>
-                Ventas •{" "}
-                {new Date().toLocaleDateString("es-VE", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })}
+                Ventas del {balanceDateLabel}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate("Sales")}>
+            <Pressable
+              onPress={() => navigation.navigate("Sales")}
+              style={({ pressed }) => [
+                styles.roundIconButton,
+                pressed && styles.cardPressed,
+              ]}
+            >
               <Ionicons
                 name="bar-chart-outline"
                 size={iconSize.lg}
-                color="#2f5ae0"
+                color={DASHBOARD_COLORS.infoStrong}
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <View style={styles.balanceSection}>
-            <Text style={styles.balanceLabel}>TOTAL DE VENTAS</Text>
+            <Text style={styles.balanceLabel}>TOTAL VENDIDO</Text>
             <Text style={styles.balanceAmount}>
               {formatCurrency(todayStats?.total || 0, "VES")}
             </Text>
@@ -230,110 +400,143 @@ export const DashboardScreen = ({ navigation }) => {
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.viewDetailsButton}
+          <View style={styles.balanceHighlights}>
+            <View style={styles.highlightPill}>
+              <Text style={styles.highlightPillLabel}>Clientes</Text>
+              <Text style={styles.highlightPillValue}>
+                {customers?.length || 0}
+              </Text>
+            </View>
+            <View style={styles.highlightPill}>
+              <Text style={styles.highlightPillLabel}>Proveedores</Text>
+              <Text style={styles.highlightPillValue}>
+                {suppliers?.length || 0}
+              </Text>
+            </View>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.viewDetailsButton,
+              pressed && styles.viewDetailsButtonPressed,
+            ]}
             onPress={() => navigation.navigate("Sales")}
           >
             <Text style={styles.viewDetailsButtonText}>
-              VER TODAS LAS VENTAS
+              Ver historial completo
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
-        {/* Sección de Estadísticas */}
-        <Text style={styles.sectionTitle}>Resumen General</Text>
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionTitle}>Accesos clave</Text>
+          <Text style={styles.sectionSubtitle}>
+            Tareas frecuentes para operar la tienda con menos pasos.
+          </Text>
+        </View>
+
+        <View style={styles.actionsColumn}>
+          <DashboardAction
+            icon="cart-outline"
+            title="Registrar nueva venta"
+            subtitle="Abre el punto de venta con la tasa activa"
+            tone="accent"
+            onPress={() => {
+              if (!requireExchangeRate("realizar ventas")) return;
+              navigation.navigate("POS");
+            }}
+          />
+          <DashboardAction
+            icon="cube-outline"
+            title="Revisar inventario"
+            subtitle="Consulta stock, entradas y movimientos recientes"
+            tone="soft"
+            onPress={() => {
+              if (!requireExchangeRate("consultar inventario")) return;
+              navigation.navigate("InventoryMovements");
+            }}
+          />
+        </View>
+
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionTitle}>Resumen operativo</Text>
+          <Text style={styles.sectionSubtitle}>
+            Indicadores claros para ventas, cuentas y control comercial.
+          </Text>
+        </View>
 
         <View style={styles.statsGrid}>
           <View style={styles.statsRow}>
-            {/* Tasa de Cambio */}
-            <TouchableOpacity
-              style={styles.statCard}
+            <StatCard
+              icon="swap-horizontal-outline"
+              iconBackground={DASHBOARD_COLORS.infoSoft}
+              iconColor={DASHBOARD_COLORS.infoStrong}
+              label="Tasa de cambio"
+              value={exchangeRateLabel}
+              helper={exchangeRateHelper}
+              emphasis="accent"
               onPress={() => navigation.navigate("ExchangeRate")}
-            >
-              <DashboardStatIcon
-                name="swap-horizontal-outline"
-                backgroundColor="#eef6ff"
-                color="#2f80ed"
-              />
-              <Text style={styles.statLabel}>Tasa de Cambio</Text>
-              <Text style={styles.statValue}>
-                {rate ? `${rate.toFixed(2)} VES.` : "Cargando..."}
-              </Text>
-            </TouchableOpacity>
+            />
 
-            {/* Nueva Venta */}
-            <TouchableOpacity
-              style={styles.statCard}
+            <StatCard
+              icon="cart-outline"
+              iconBackground={DASHBOARD_COLORS.accentSoft}
+              iconColor={DASHBOARD_COLORS.accent}
+              label="Nueva venta"
+              value="Iniciar ahora"
+              helper="Acceso directo al punto de venta"
               onPress={() => {
                 if (!requireExchangeRate("realizar ventas")) return;
                 navigation.navigate("POS");
               }}
-            >
-              <DashboardStatIcon
-                name="cart-outline"
-                backgroundColor="#edf9ee"
-                color="#34a853"
-              />
-              <Text style={styles.statLabel}>Nueva Venta</Text>
-              <Text style={styles.statValue}>Iniciar</Text>
-            </TouchableOpacity>
+            />
           </View>
 
           <View style={styles.statsRow}>
-            {/* Cuentas por Cobrar */}
-            <TouchableOpacity
-              style={styles.statCard}
+            <StatCard
+              icon="cash-outline"
+              iconBackground={DASHBOARD_COLORS.accentSoft}
+              iconColor={DASHBOARD_COLORS.accent}
+              label="Por cobrar"
+              value={pendingReceivable}
+              helper={
+                (receivableStats?.overdue || 0) > 0
+                  ? `${(receivableStats?.overdue || 0).toFixed(2)} vencidas`
+                  : "Sin vencimientos críticos"
+              }
               onPress={() => {
                 if (!requireExchangeRate("gestionar cuentas por cobrar"))
                   return;
                 navigation.navigate("AccountsReceivable");
               }}
-            >
-              <DashboardStatIcon
-                name="cash-outline"
-                backgroundColor="#eaf7f0"
-                color="#169c5a"
-              />
-              <Text style={styles.statLabel}>Por Cobrar</Text>
-              <Text style={styles.statValue}>
-                {formatCurrency(receivableStats?.pending || 0, "VES")}
-              </Text>
-              {(receivableStats?.overdue || 0) > 0 && (
-                <Text style={styles.statWarning}>
-                  {(receivableStats?.overdue || 0).toFixed(2)} vencidas
-                </Text>
-              )}
-            </TouchableOpacity>
+            />
 
-            {/* Cuentas por Pagar */}
-            <TouchableOpacity
-              style={styles.statCard}
+            <StatCard
+              icon="card-outline"
+              iconBackground={DASHBOARD_COLORS.dangerSoft}
+              iconColor={DASHBOARD_COLORS.dangerStrong}
+              label="Por pagar"
+              value={pendingPayable}
+              helper={
+                (payableStats?.overdue || 0) > 0
+                  ? `${(payableStats?.overdue || 0).toFixed(2)} vencidas`
+                  : "Pagos al día"
+              }
               onPress={() => {
                 if (!requireExchangeRate("gestionar cuentas por pagar")) return;
                 navigation.navigate("AccountsPayable");
               }}
-            >
-              <DashboardStatIcon
-                name="card-outline"
-                backgroundColor="#fff1f1"
-                color="#d64545"
-              />
-              <Text style={styles.statLabel}>Por Pagar</Text>
-              <Text style={styles.statValue}>
-                {formatCurrency(payableStats?.pending || 0, "VES")}
-              </Text>
-              {(payableStats?.overdue || 0) > 0 && (
-                <Text style={styles.statWarning}>
-                  {(payableStats?.overdue || 0).toFixed(2)} vencidas
-                </Text>
-              )}
-            </TouchableOpacity>
+            />
           </View>
 
           <View style={styles.statsRow}>
-            {/* Movimientos de inventario */}
-            <TouchableOpacity
-              style={[styles.statCard, styles.statCardHalf]}
+            <StatCard
+              icon="cube-outline"
+              iconBackground={DASHBOARD_COLORS.warningSoft}
+              iconColor={DASHBOARD_COLORS.warningStrong}
+              label="Movimientos de inventario"
+              value="Ver actividad"
+              helper="Entradas, salidas y ajustes recientes"
               onPress={() => {
                 if (
                   !requireExchangeRate("consultar movimientos de inventario")
@@ -342,15 +545,17 @@ export const DashboardScreen = ({ navigation }) => {
                 }
                 navigation.navigate("InventoryMovements");
               }}
-            >
-              <DashboardStatIcon
-                name="cube-outline"
-                backgroundColor="#fff6e8"
-                color="#c9861a"
-              />
-              <Text style={styles.statLabel}>Movimientos de inventario</Text>
-              <Text style={styles.statValue}>Ver</Text>
-            </TouchableOpacity>
+            />
+
+            <StatCard
+              icon="people-outline"
+              iconBackground={DASHBOARD_COLORS.surfaceAlt}
+              iconColor={DASHBOARD_COLORS.accentStrong}
+              label="Red comercial"
+              value={`${customers?.length || 0} clientes`}
+              helper={`${suppliers?.length || 0} proveedores registrados`}
+              onPress={() => navigation.navigate("Customers")}
+            />
           </View>
         </View>
       </ScrollView>
@@ -362,90 +567,102 @@ export const DashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: DASHBOARD_COLORS.page,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: vs(120),
+    gap: vs(18),
   },
-
-  // Header styles
   header: {
-    backgroundColor: "#4CAF50",
-    borderBottomLeftRadius: s(24),
-    borderBottomRightRadius: s(24),
+    backgroundColor: DASHBOARD_COLORS.heroTop,
+    borderBottomLeftRadius: borderRadius.xl,
+    borderBottomRightRadius: borderRadius.xl,
+    borderCurve: "continuous",
     padding: spacing.lg,
     paddingTop: vs(50),
     paddingBottom: vs(24),
-    elevation: 4,
+    gap: spacing.lg,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: s(8),
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: s(18),
+    elevation: 4,
+  },
+  headerTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.md,
+  },
+  headerTextBlock: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  headerEyebrow: {
+    fontSize: rf(12),
+    color: "rgba(255, 255, 255, 0.72)",
+    fontWeight: "600",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
   },
   businessName: {
-    fontSize: rf(18),
-    fontWeight: "700",
+    fontSize: rf(24),
+    fontWeight: "800",
     color: "#ffffff",
-    letterSpacing: 0.5,
   },
   lastSession: {
     fontSize: rf(12),
-    color: "#ffffff",
-    opacity: 0.9,
-    marginTop: vs(4),
-    marginBottom: vs(16),
+    color: "rgba(255, 255, 255, 0.86)",
+  },
+  headerActionsStack: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
   },
   currencyButtons: {
     flexDirection: "row",
-    gap: hs(12),
+    flexWrap: "wrap",
+    gap: hs(10),
     alignItems: "center",
   },
   currencyButtonActive: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
     paddingVertical: vs(8),
-    paddingHorizontal: hs(20),
+    paddingHorizontal: hs(16),
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
   },
   currencyButtonTextActive: {
-    color: "#4CAF50",
+    color: "#ffffff",
     fontWeight: "600",
     fontSize: rf(13),
   },
   currencyButton: {
-    backgroundColor: "transparent",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     paddingVertical: vs(8),
-    paddingHorizontal: hs(20),
+    paddingHorizontal: hs(16),
     borderRadius: borderRadius.xl,
     borderWidth: 1,
-    borderColor: "#ffffff",
+    borderCurve: "continuous",
+    borderColor: "rgba(255, 255, 255, 0.18)",
   },
   currencyButtonText: {
     color: "#ffffff",
     fontWeight: "600",
     fontSize: rf(13),
   },
-  helpButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingVertical: vs(8),
-    paddingHorizontal: hs(12),
-    borderRadius: borderRadius.xl,
-  },
-  helpButtonText: {
-    color: "#ffffff",
-    fontSize: rf(16),
-  },
-
-  notificationButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingVertical: vs(8),
-    paddingHorizontal: hs(12),
-    borderRadius: borderRadius.xl,
-    marginLeft: "auto",
+  iconPill: {
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    width: s(42),
+    height: s(42),
+    borderRadius: s(21),
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
     position: "relative",
   },
-  notificationButtonText: {
-    color: "#ffffff",
-    fontSize: rf(16),
+  iconPillPressed: {
+    opacity: 0.82,
   },
   badge: {
     position: "absolute",
@@ -454,98 +671,234 @@ const styles = StyleSheet.create({
     minWidth: hs(18),
     height: vs(18),
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     paddingHorizontal: hs(5),
     backgroundColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
   },
   badgeText: {
-    color: "#4CAF50",
+    color: DASHBOARD_COLORS.accent,
     fontSize: rf(10),
     fontWeight: "800",
   },
-
-  // Main Card styles
-  mainCard: {
+  heroPanel: {
     backgroundColor: "#ffffff",
     borderRadius: borderRadius.lg,
-    margin: spacing.lg,
-    marginTop: vs(20),
+    borderCurve: "continuous",
     padding: spacing.lg,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: s(8),
+    gap: spacing.md,
+    shadowColor: DASHBOARD_COLORS.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: s(22),
+    elevation: 5,
+  },
+  heroRateBlock: {
+    gap: spacing.xs,
+  },
+  heroLabel: {
+    fontSize: rf(12),
+    color: DASHBOARD_COLORS.muted,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  heroRateValue: {
+    fontSize: rf(28),
+    fontWeight: "800",
+    color: DASHBOARD_COLORS.text,
+  },
+  heroHelper: {
+    fontSize: rf(12),
+    color: DASHBOARD_COLORS.muted,
+  },
+  heroDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: DASHBOARD_COLORS.border,
+  },
+  heroSummaryList: {
+    flexDirection: "row",
+    gap: spacing.md,
+    flexWrap: "wrap",
+  },
+  heroSummaryItem: {
+    flex: 1,
+    minWidth: hs(120),
+    backgroundColor: DASHBOARD_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  heroSummaryValue: {
+    fontSize: rf(15),
+    fontWeight: "700",
+    color: DASHBOARD_COLORS.text,
+  },
+  heroSummaryLabel: {
+    fontSize: rf(12),
+    color: DASHBOARD_COLORS.muted,
+  },
+  mainCard: {
+    backgroundColor: DASHBOARD_COLORS.surface,
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
+    margin: spacing.lg,
+    padding: spacing.lg,
+    gap: spacing.lg,
+    shadowColor: DASHBOARD_COLORS.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: s(22),
+    elevation: 5,
   },
   mainCardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: vs(20),
+    alignItems: "center",
+    gap: spacing.md,
   },
   mainCardTitle: {
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#333",
+    fontWeight: "700",
+    color: DASHBOARD_COLORS.text,
   },
   accountNumber: {
     fontSize: rf(12),
-    color: "#666",
+    color: DASHBOARD_COLORS.muted,
     marginTop: vs(4),
   },
-  shareIcon: {
-    fontSize: iconSize.lg,
+  roundIconButton: {
+    width: s(48),
+    height: s(48),
+    borderRadius: s(24),
+    borderCurve: "continuous",
+    backgroundColor: DASHBOARD_COLORS.infoSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
   balanceSection: {
     alignItems: "center",
     paddingVertical: spacing.xl,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
+    backgroundColor: DASHBOARD_COLORS.surfaceAlt,
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
+    gap: spacing.xs,
   },
   balanceLabel: {
     fontSize: rf(11),
     fontWeight: "600",
-    color: "#999",
+    color: DASHBOARD_COLORS.muted,
     letterSpacing: 1,
-    marginBottom: spacing.xs,
   },
   balanceAmount: {
     fontSize: rf(36),
-    fontWeight: "700",
-    color: "#333",
-    marginBottom: spacing.xs,
+    fontWeight: "800",
+    color: DASHBOARD_COLORS.text,
   },
   salesCount: {
     fontSize: rf(13),
-    color: "#666",
+    color: DASHBOARD_COLORS.muted,
+  },
+  balanceHighlights: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  highlightPill: {
+    flex: 1,
+    backgroundColor: DASHBOARD_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  highlightPillLabel: {
+    fontSize: rf(12),
+    color: DASHBOARD_COLORS.muted,
+    fontWeight: "600",
+  },
+  highlightPillValue: {
+    fontSize: rf(20),
+    color: DASHBOARD_COLORS.text,
+    fontWeight: "800",
   },
   viewDetailsButton: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: DASHBOARD_COLORS.accent,
     paddingVertical: spacing.lg,
-    borderRadius: borderRadius.sm,
-    marginTop: spacing.xl,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
+  },
+  viewDetailsButtonPressed: {
+    opacity: 0.88,
   },
   viewDetailsButtonText: {
     fontSize: rf(13),
-    fontWeight: "600",
-    color: "#4CAF50",
-    letterSpacing: 0.5,
+    fontWeight: "700",
+    color: "#ffffff",
   },
-
-  // Section Title
+  sectionHeading: {
+    paddingHorizontal: hs(16),
+    gap: spacing.xs,
+  },
   sectionTitle: {
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#333",
-    marginLeft: hs(16),
-    marginTop: vs(8),
-    marginBottom: vs(12),
+    fontWeight: "700",
+    color: DASHBOARD_COLORS.text,
   },
-
-  // Stats Grid
+  sectionSubtitle: {
+    fontSize: rf(12),
+    color: DASHBOARD_COLORS.muted,
+  },
+  actionsColumn: {
+    paddingHorizontal: hs(16),
+    gap: spacing.md,
+  },
+  actionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: DASHBOARD_COLORS.surface,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
+    shadowColor: DASHBOARD_COLORS.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: s(18),
+    elevation: 4,
+  },
+  actionIconBase: {
+    width: s(46),
+    height: s(46),
+    borderRadius: s(23),
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionIcon: {
+    backgroundColor: DASHBOARD_COLORS.surfaceAlt,
+  },
+  actionIconAccent: {
+    backgroundColor: DASHBOARD_COLORS.accentSoft,
+  },
+  actionIconSoft: {
+    backgroundColor: DASHBOARD_COLORS.warningSoft,
+  },
+  actionContent: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  actionTitle: {
+    fontSize: rf(15),
+    fontWeight: "700",
+    color: DASHBOARD_COLORS.text,
+  },
+  actionSubtitle: {
+    fontSize: rf(12),
+    color: DASHBOARD_COLORS.muted,
+  },
   statsGrid: {
     flexDirection: "column",
     gap: vs(16),
@@ -558,74 +911,52 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: "#ffffff",
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: s(4),
+    backgroundColor: DASHBOARD_COLORS.surface,
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
+    padding: spacing.lg,
+    gap: spacing.sm,
+    shadowColor: DASHBOARD_COLORS.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: s(18),
+    elevation: 4,
   },
-  statCardHalf: {
-    flex: undefined,
-    width: "47%",
+  statCardAccent: {
+    borderWidth: 1,
+    borderColor: DASHBOARD_COLORS.border,
+  },
+  statHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   statIconContainer: {
     width: s(54),
     height: s(54),
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: vs(8),
   },
   statLabel: {
     fontSize: rf(12),
-    color: "#666",
-    marginBottom: vs(4),
-    fontWeight: "500",
+    color: DASHBOARD_COLORS.muted,
+    fontWeight: "600",
   },
   statValue: {
-    fontSize: rf(16),
-    fontWeight: "700",
-    color: "#333",
+    fontSize: rf(18),
+    fontWeight: "800",
+    color: DASHBOARD_COLORS.text,
   },
-  statWarning: {
+  statHelper: {
     fontSize: rf(11),
-    color: "#ff9800",
-    marginTop: vs(4),
-    fontWeight: "500",
+    color: DASHBOARD_COLORS.muted,
+    lineHeight: rf(16),
   },
-
-  // Quick Actions
-  quickActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: hs(8),
-    marginBottom: vs(20),
-  },
-  quickActionCard: {
-    width: "47%",
-    backgroundColor: "#ffffff",
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    margin: s(8),
-    alignItems: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: s(4),
-  },
-  quickActionIcon: {
-    fontSize: iconSize.xl,
-    marginBottom: vs(8),
-  },
-  quickActionText: {
-    fontSize: rf(13),
-    fontWeight: "600",
-    color: "#333",
-    textAlign: "center",
+  cardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
   },
 });
 

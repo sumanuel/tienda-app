@@ -14,7 +14,7 @@ import {
   StatusBar as RNStatusBar,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Modal,
   StyleSheet,
   useWindowDimensions,
@@ -117,6 +117,17 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const navigationRef = createNavigationContainerRef();
+
+const NAV_COLORS = {
+  accent: "#1f7a59",
+  accentStrong: "#15533d",
+  text: "#183127",
+  muted: "#6d7d73",
+  surface: "#ffffff",
+  surfaceAlt: "#f2f6f3",
+  border: "#dce7df",
+  overlay: "rgba(10, 24, 19, 0.24)",
+};
 
 const canManageBusinessSetup = (membership) => {
   const role = String(membership?.role || "")
@@ -260,12 +271,25 @@ function MainTabs() {
     <>
       <Tab.Navigator
         screenOptions={{
-          tabBarActiveTintColor: "#4CAF50",
-          tabBarInactiveTintColor: "#999",
+          tabBarActiveTintColor: NAV_COLORS.accent,
+          tabBarInactiveTintColor: NAV_COLORS.muted,
           tabBarStyle: {
+            position: "absolute",
+            left: hs(14),
+            right: hs(14),
+            bottom: vs(10),
             paddingBottom: tabBarBottomPadding,
             height: tabBarHeight,
             paddingTop: isTablet ? 10 : 6,
+            borderTopWidth: 0,
+            borderRadius: borderRadius.xl,
+            borderCurve: "continuous",
+            backgroundColor: NAV_COLORS.surface,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.12,
+            shadowRadius: s(18),
+            elevation: 10,
           },
           tabBarLabelPosition: "below-icon",
           tabBarLabelStyle: {
@@ -283,15 +307,24 @@ function MainTabs() {
             paddingVertical: isTablet ? 8 : 4,
             justifyContent: "center",
             alignItems: "center",
+            borderRadius: borderRadius.lg,
+            borderCurve: "continuous",
           },
           headerShown: true,
           headerStyle: {
-            backgroundColor: "#4CAF50",
+            backgroundColor: NAV_COLORS.surface,
+            shadowColor: "transparent",
+            elevation: 0,
           },
-          headerTintColor: "#fff",
+          headerTintColor: NAV_COLORS.text,
           headerTitleStyle: {
-            fontWeight: "bold",
+            fontWeight: "700",
             fontSize: rf(18),
+            color: NAV_COLORS.text,
+          },
+          headerShadowVisible: false,
+          sceneStyle: {
+            backgroundColor: "#f4f7fb",
           },
         }}
       >
@@ -328,18 +361,25 @@ function MainTabs() {
             ),
             title: "Punto de venta",
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   setShowAccountsMenu(false);
                   setShowFichaMenu(false);
                   navigation.navigate("Dashboard");
                 }}
-                style={{ paddingHorizontal: hs(14), paddingVertical: vs(6) }}
+                style={({ pressed }) => [
+                  tabStyles.headerBackButton,
+                  pressed && tabStyles.menuItemPressed,
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Volver"
               >
-                <Text style={{ color: "#fff", fontSize: rf(22) }}>←</Text>
-              </TouchableOpacity>
+                <Ionicons
+                  name="chevron-back"
+                  size={rf(20)}
+                  color={NAV_COLORS.text}
+                />
+              </Pressable>
             ),
           })}
           listeners={{
@@ -362,18 +402,25 @@ function MainTabs() {
             ),
             title: "Historial de ventas",
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   setShowAccountsMenu(false);
                   setShowFichaMenu(false);
                   navigation.navigate("Dashboard");
                 }}
-                style={{ paddingHorizontal: hs(14), paddingVertical: vs(6) }}
+                style={({ pressed }) => [
+                  tabStyles.headerBackButton,
+                  pressed && tabStyles.menuItemPressed,
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Volver"
               >
-                <Text style={{ color: "#fff", fontSize: rf(22) }}>←</Text>
-              </TouchableOpacity>
+                <Ionicons
+                  name="chevron-back"
+                  size={rf(20)}
+                  color={NAV_COLORS.text}
+                />
+              </Pressable>
             ),
           })}
           listeners={{
@@ -495,11 +542,7 @@ const QuickActionMenu = ({
     onRequestClose={onClose}
   >
     <View style={tabStyles.modalContainer}>
-      <TouchableOpacity
-        style={tabStyles.backdrop}
-        activeOpacity={1}
-        onPress={onClose}
-      />
+      <Pressable style={tabStyles.backdrop} onPress={onClose} />
       <View
         style={[
           tabStyles.menuWrapper,
@@ -517,10 +560,13 @@ const QuickActionMenu = ({
       >
         <View style={tabStyles.menuCard}>
           {items.map((item, index) => (
-            <TouchableOpacity
+            <Pressable
               key={item.key}
-              style={[tabStyles.menuItem, index > 0 && tabStyles.menuDivider]}
-              activeOpacity={0.85}
+              style={({ pressed }) => [
+                tabStyles.menuItem,
+                index > 0 && tabStyles.menuDivider,
+                pressed && tabStyles.menuItemPressed,
+              ]}
               onPress={item.onPress}
             >
               <View style={tabStyles.menuIcon}>
@@ -528,14 +574,19 @@ const QuickActionMenu = ({
                   <Ionicons
                     name={item.iconName}
                     size={rf(18)}
-                    color="#2f6f48"
+                    color={NAV_COLORS.accent}
                   />
                 ) : typeof item.icon === "string" ? (
                   <Text style={tabStyles.menuIconText}>{item.icon}</Text>
                 ) : null}
               </View>
               <Text style={tabStyles.menuLabel}>{item.label}</Text>
-            </TouchableOpacity>
+              <Ionicons
+                name="chevron-forward"
+                size={rf(16)}
+                color={NAV_COLORS.muted}
+              />
+            </Pressable>
           ))}
         </View>
       </View>
@@ -555,50 +606,65 @@ const tabStyles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    backgroundColor: NAV_COLORS.overlay,
   },
   menuWrapper: {
     paddingHorizontal: 24,
     alignItems: "center",
-    alignItems: "center",
   },
   menuCard: {
     width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
+    backgroundColor: NAV_COLORS.surface,
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.12,
-    shadowRadius: s(14),
-    elevation: 6,
+    shadowOffset: { width: 0, height: s(10) },
+    shadowOpacity: 0.14,
+    shadowRadius: s(20),
+    elevation: 8,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: spacing.xs,
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  menuItemPressed: {
+    opacity: 0.82,
   },
   menuDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#e5eaf0",
+    borderTopColor: NAV_COLORS.border,
   },
   menuIcon: {
     width: iconSize.md,
     height: iconSize.md,
     borderRadius: borderRadius.sm,
-    backgroundColor: "#ecf4ef",
+    borderCurve: "continuous",
+    backgroundColor: NAV_COLORS.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: spacing.sm,
   },
   menuIconText: {
     fontSize: rf(16),
   },
   menuLabel: {
+    flex: 1,
     fontSize: rf(14),
     fontWeight: "600",
-    color: "#2f3a4c",
+    color: NAV_COLORS.text,
+  },
+  headerBackButton: {
+    marginLeft: hs(12),
+    width: s(38),
+    height: s(38),
+    borderRadius: s(19),
+    borderCurve: "continuous",
+    backgroundColor: NAV_COLORS.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 
