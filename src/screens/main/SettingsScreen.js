@@ -327,13 +327,8 @@ export const SettingsScreen = () => {
             iconColor={UI_COLORS.info}
             eyebrow="Ajustes"
             title="Configuración"
-            subtitle="Gestiona los parámetros, respaldo y acceso de tu negocio desde un solo lugar."
+            subtitle="Controla respaldo, negocio y acceso desde un solo lugar."
             pills={[
-              {
-                text: user?.email || "Sin cuenta",
-                tone: "info",
-                iconName: "mail-outline",
-              },
               {
                 text: `${memberships.length} tienda(s)`,
                 tone: "accent",
@@ -383,9 +378,7 @@ export const SettingsScreen = () => {
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle}>Sistema</Text>
-                <Text style={styles.cardSubtitle}>
-                  Exportación y acceso a la cuenta
-                </Text>
+                <Text style={styles.cardSubtitle}>Exportación y sesión</Text>
               </View>
             </View>
 
@@ -503,7 +496,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: vs(120),
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   loadingContainer: {
     flex: 1,
@@ -612,17 +605,17 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     borderCurve: "continuous",
     padding: spacing.lg,
-    gap: spacing.xl,
-    ...SHADOWS.card,
+    gap: spacing.lg,
+    ...SHADOWS.soft,
   },
   cardHeader: {
     flexDirection: "row",
-    gap: spacing.xl,
+    gap: spacing.lg,
     alignItems: "center",
   },
   cardIcon: {
-    width: iconSize.lg,
-    height: iconSize.lg,
+    width: s(48),
+    height: s(48),
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
     backgroundColor: UI_COLORS.surfaceAlt,
@@ -637,13 +630,14 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   cardTitle: {
-    fontSize: rf(18),
+    fontSize: rf(16),
     fontWeight: "800",
     color: UI_COLORS.text,
   },
   cardSubtitle: {
-    fontSize: rf(14),
+    fontSize: rf(13),
     color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   cardAction: {
     flexDirection: "row",
@@ -651,7 +645,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cardActionText: {
-    fontSize: rf(14),
+    fontSize: rf(13),
     fontWeight: "700",
     color: UI_COLORS.info,
   },

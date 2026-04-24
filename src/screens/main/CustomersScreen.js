@@ -20,7 +20,6 @@ import {
   EmptyStateCard,
   FloatingActionButton,
   InfoPill,
-  MetricCard,
   ScreenHero,
   SurfaceCard,
   SHADOWS,
@@ -353,7 +352,7 @@ export const CustomersScreen = () => {
         iconColor={UI_COLORS.info}
         eyebrow="Clientes"
         title="Directorio de clientes"
-        subtitle="Centraliza la información de contacto y fortalece la relación con tus compradores."
+        subtitle="Busca, actualiza y mantiene a mano la información de cada cliente."
         pills={[
           { text: `${customers.length} registrados`, tone: "accent" },
           {
@@ -362,21 +361,6 @@ export const CustomersScreen = () => {
           },
         ]}
       />
-
-      <View style={styles.metricRow}>
-        <MetricCard
-          label="Con documento"
-          value={`${sortedCustomers.filter((item) => item.documentNumber).length}`}
-          hint="Clientes identificados"
-          tone="info"
-        />
-        <MetricCard
-          label="Con contacto"
-          value={`${sortedCustomers.filter((item) => item.phone || item.email).length}`}
-          hint="Teléfono o correo disponible"
-          tone="accent"
-        />
-      </View>
 
       <TourGuideZone
         zone={TOUR_ZONE_BASE + 1}
@@ -387,7 +371,12 @@ export const CustomersScreen = () => {
         style={styles.searchCard}
       >
         <SurfaceCard style={styles.searchSurface}>
-          <Text style={styles.searchTitle}>Buscar cliente</Text>
+          <View style={styles.searchTitleBlock}>
+            <Text style={styles.searchTitle}>Buscar cliente</Text>
+            <Text style={styles.searchHint}>
+              Filtra por nombre, cédula o dato de contacto.
+            </Text>
+          </View>
           <TextInput
             style={styles.searchInput}
             placeholder="Nombre, cédula o contacto"
@@ -511,12 +500,8 @@ const styles = StyleSheet.create({
     paddingBottom: vs(120),
   },
   headerContent: {
-    gap: vs(18),
+    gap: vs(16),
     marginBottom: vs(8),
-  },
-  metricRow: {
-    flexDirection: "row",
-    gap: hs(16),
   },
   searchCard: {
     gap: vs(14),
@@ -525,10 +510,18 @@ const styles = StyleSheet.create({
     gap: vs(14),
     ...SHADOWS.soft,
   },
+  searchTitleBlock: {
+    gap: vs(4),
+  },
   searchTitle: {
     fontSize: rf(16),
     fontWeight: "700",
     color: UI_COLORS.text,
+  },
+  searchHint: {
+    fontSize: rf(13),
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   searchInput: {
     backgroundColor: UI_COLORS.surfaceAlt,

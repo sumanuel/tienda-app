@@ -23,7 +23,6 @@ import {
   EmptyStateCard,
   FloatingActionButton,
   InfoPill,
-  MetricCard,
   ScreenHero,
   SurfaceCard,
   SHADOWS,
@@ -193,28 +192,16 @@ export const ProductsScreen = ({ navigation }) => {
 
   const metrics = useMemo(() => {
     const totalProducts = products.length;
-    const totalCategories = new Set(
-      products.map((product) => product.category || "General"),
-    ).size;
     const lowStockThreshold = 5;
     const lowStock = products.filter(
       (product) => (product.stock || 0) <= lowStockThreshold,
     ).length;
-    const totalInventoryUSD = products.reduce((sum, product) => {
-      const price = product.priceUSD || 0;
-      const stock = product.stock || 0;
-      return sum + price * stock;
-    }, 0);
     const rateFromSettings = settings?.pricing?.currencies?.USD;
     const appliedRate = exchangeRate || rateFromSettings || 0;
-    const totalInventoryVES = totalInventoryUSD * appliedRate;
 
     return {
       totalProducts,
-      totalCategories,
       lowStock,
-      totalInventoryUSD,
-      totalInventoryVES,
       rateUsed: appliedRate,
     };
   }, [products, settings, exchangeRate]);
@@ -312,28 +299,12 @@ export const ProductsScreen = ({ navigation }) => {
         iconColor={UI_COLORS.warning}
         eyebrow="Inventario"
         title="Catálogo de productos"
-        subtitle="Administra precios y existencias con un vistazo claro a tu inventario."
+        subtitle="Edita precios, revisa existencias y encuentra productos rápido."
         pills={[
           { text: `${metrics.totalProducts} productos`, tone: "accent" },
           { text: `${metrics.lowStock} con bajo stock`, tone: "warning" },
         ]}
       />
-
-      <View style={styles.metricRow}>
-        <MetricCard
-          label="Inventario USD"
-          value={formatCurrency(metrics.totalInventoryUSD, "USD", false)}
-          hint="Valor estimado en dólares"
-          tone="info"
-        />
-
-        <MetricCard
-          label="Inventario en VES"
-          value={formatCurrency(metrics.totalInventoryVES, "VES", false)}
-          hint="Estimado con tasa vigente"
-          tone="accent"
-        />
-      </View>
 
       <TourGuideZone
         zone={TOUR_ZONE_BASE + 1}
@@ -348,16 +319,9 @@ export const ProductsScreen = ({ navigation }) => {
             <View style={styles.searchTitleBlock}>
               <Text style={styles.searchTitle}>Buscar producto</Text>
               <Text style={styles.searchHint}>
-                Filtra por nombre, categoría o referencia para editar más
-                rápido.
+                Filtra por nombre, categoría o referencia.
               </Text>
             </View>
-            {metrics.rateUsed ? (
-              <InfoPill
-                text={`Tasa ${metrics.rateUsed.toFixed(2)}`}
-                tone="info"
-              />
-            ) : null}
           </View>
           <TextInput
             style={styles.searchInput}
@@ -421,12 +385,8 @@ const styles = StyleSheet.create({
     paddingBottom: vs(120),
   },
   headerContent: {
-    gap: vs(18),
+    gap: vs(16),
     marginBottom: vs(8),
-  },
-  metricRow: {
-    flexDirection: "row",
-    gap: hs(16),
   },
   searchCard: {
     gap: vs(14),
