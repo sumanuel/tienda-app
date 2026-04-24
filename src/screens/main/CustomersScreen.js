@@ -305,19 +305,21 @@ export const CustomersScreen = () => {
               />
             </View>
 
-            <View style={styles.metaGrid}>
-              <View style={styles.metaCard}>
-                <Text style={styles.metaLabel}>Documento</Text>
-                <Text style={styles.metaValue}>
-                  {item.documentNumber || "Sin documento"}
-                </Text>
-              </View>
+            <View style={styles.metaStack}>
+              <View style={styles.metaRow}>
+                <View style={[styles.metaCard, styles.metaCardHalf]}>
+                  <Text style={styles.metaLabel}>Documento</Text>
+                  <Text style={styles.metaValue}>
+                    {item.documentNumber || "Sin documento"}
+                  </Text>
+                </View>
 
-              <View style={styles.metaCard}>
-                <Text style={styles.metaLabel}>Contacto</Text>
-                <Text style={styles.metaValue}>
-                  {hasPhone ? item.phone : "Sin teléfono"}
-                </Text>
+                <View style={[styles.metaCard, styles.metaCardHalf]}>
+                  <Text style={styles.metaLabel}>Contacto</Text>
+                  <Text style={styles.metaValue}>
+                    {hasPhone ? item.phone : "Sin teléfono"}
+                  </Text>
+                </View>
               </View>
 
               <View style={[styles.metaCard, styles.metaCardWide]}>
@@ -553,7 +555,7 @@ const styles = StyleSheet.create({
     letterSpacing: s(0.8),
   },
   heroTitle: {
-    fontSize: rf(22),
+    fontSize: rf(20),
     fontWeight: "800",
     color: UI_COLORS.text,
   },
@@ -583,7 +585,7 @@ const styles = StyleSheet.create({
     color: UI_COLORS.text,
   },
   searchHint: {
-    fontSize: rf(13),
+    fontSize: rf(12),
     color: UI_COLORS.muted,
     lineHeight: vs(18),
   },
@@ -621,22 +623,22 @@ const styles = StyleSheet.create({
   },
   customerName: {
     flex: 1,
-    fontSize: rf(16),
-    fontWeight: "800",
+    fontSize: rf(15),
+    fontWeight: "700",
     color: UI_COLORS.text,
   },
   genericCustomerName: {
     color: UI_COLORS.muted,
     fontStyle: "italic",
   },
-  metaGrid: {
+  metaStack: {
+    gap: hs(12),
+  },
+  metaRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: hs(12),
   },
   metaCard: {
-    minWidth: s(126),
-    flex: 1,
     backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
@@ -644,8 +646,12 @@ const styles = StyleSheet.create({
     paddingVertical: vs(10),
     gap: vs(4),
   },
+  metaCardHalf: {
+    flex: 1,
+    minWidth: 0,
+  },
   metaCardWide: {
-    minWidth: "100%",
+    width: "100%",
   },
   metaLabel: {
     fontSize: rf(11),
@@ -655,7 +661,7 @@ const styles = StyleSheet.create({
     letterSpacing: s(0.6),
   },
   metaValue: {
-    fontSize: rf(13),
+    fontSize: rf(12),
     color: UI_COLORS.text,
     fontWeight: "600",
   },

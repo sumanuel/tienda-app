@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   heroTitle: {
-    fontSize: rf(22),
+    fontSize: rf(20),
     fontWeight: "800",
     color: UI_COLORS.text,
   },
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     color: UI_COLORS.text,
   },
   inputLabel: {
-    fontSize: rf(13),
+    fontSize: rf(12),
     fontWeight: "600",
     color: "#7a8796",
     textTransform: "uppercase",
@@ -600,11 +600,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   detailLabel: {
-    fontSize: rf(14),
+    fontSize: rf(12),
     color: "#6f7c8c",
   },
   detailValue: {
-    fontSize: rf(15),
+    fontSize: rf(14),
     fontWeight: "600",
     color: UI_COLORS.text,
     textAlign: "right",
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: "#fff",
     fontWeight: "700",
-    fontSize: rf(15),
+    fontSize: rf(13),
     letterSpacing: 0.4,
   },
   buttonDisabled: {
@@ -642,12 +642,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   cloudStatusTitle: {
-    fontSize: rf(14),
+    fontSize: rf(12),
     fontWeight: "700",
     color: "#1f2633",
   },
   cloudStatusSubtitle: {
-    fontSize: rf(13),
+    fontSize: rf(12),
     color: "#5b6472",
   },
   secondaryButtonOutline: {
@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.surfaceAlt,
   },
   secondaryButtonOutlineText: {
-    fontSize: rf(14),
+    fontSize: rf(13),
     fontWeight: "700",
     color: UI_COLORS.info,
   },
@@ -700,12 +700,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   cardTitle: {
-    fontSize: rf(16),
-    fontWeight: "800",
+    fontSize: rf(15),
+    fontWeight: "700",
     color: UI_COLORS.text,
   },
   cardSubtitle: {
-    fontSize: rf(13),
+    fontSize: rf(12),
     color: UI_COLORS.muted,
     lineHeight: vs(18),
   },
@@ -720,7 +720,7 @@ const styles = StyleSheet.create({
     paddingVertical: vs(7),
   },
   cardActionText: {
-    fontSize: rf(13),
+    fontSize: rf(12),
     fontWeight: "700",
     color: UI_COLORS.info,
   },
@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   secondaryButtonText: {
-    fontSize: rf(14),
+    fontSize: rf(13),
     fontWeight: "700",
     color: UI_COLORS.info,
   },
@@ -769,8 +769,8 @@ const styles = StyleSheet.create({
     borderBottomColor: UI_COLORS.border,
   },
   modalTitle: {
-    fontSize: rf(18),
-    fontWeight: "800",
+    fontSize: rf(16),
+    fontWeight: "700",
     color: UI_COLORS.text,
   },
   modalCloseButton: {
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButtonText: {
-    fontSize: rf(15),
+    fontSize: rf(13),
     fontWeight: "700",
     color: UI_COLORS.muted,
   },

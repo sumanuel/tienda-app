@@ -16,7 +16,6 @@ import { getAllSales } from "../../services/database/sales";
 import { getSettings } from "../../services/database/settings";
 import { countProductInventoryMovements } from "../../services/database/products";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
-import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
@@ -447,7 +446,7 @@ const styles = StyleSheet.create({
     letterSpacing: s(0.8),
   },
   heroTitle: {
-    fontSize: rf(22),
+    fontSize: rf(20),
     fontWeight: "800",
     color: UI_COLORS.text,
   },
@@ -484,7 +483,7 @@ const styles = StyleSheet.create({
     color: UI_COLORS.text,
   },
   searchHint: {
-    fontSize: rf(13),
+    fontSize: rf(12),
     color: UI_COLORS.muted,
     lineHeight: vs(18),
   },
@@ -551,13 +550,13 @@ const styles = StyleSheet.create({
     letterSpacing: s(0.6),
   },
   metaValue: {
-    fontSize: rf(13),
+    fontSize: rf(12),
     fontWeight: "700",
     color: UI_COLORS.text,
   },
   productName: {
-    fontSize: rf(18),
-    fontWeight: "800",
+    fontSize: rf(15),
+    fontWeight: "700",
     color: UI_COLORS.text,
   },
   priceRow: {
@@ -570,7 +569,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     paddingHorizontal: hs(14),
     paddingVertical: vs(10),
-    minWidth: s(110),
+    flex: 1,
+    minWidth: 0,
     justifyContent: "center",
   },
   priceTagLabel: {
@@ -590,8 +590,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     paddingHorizontal: hs(14),
     paddingVertical: vs(10),
-    minWidth: s(110),
     flex: 1,
+    minWidth: 0,
     justifyContent: "center",
   },
   priceTagSecondaryLabel: {
@@ -614,12 +614,12 @@ const styles = StyleSheet.create({
   },
   productFootnote: {
     flex: 1,
-    fontSize: rf(12),
+    fontSize: rf(11),
     color: UI_COLORS.muted,
     lineHeight: vs(18),
   },
   productStock: {
-    fontSize: rf(12),
+    fontSize: rf(11),
     fontWeight: "700",
     color: UI_COLORS.info,
     backgroundColor: UI_COLORS.infoSoft,
