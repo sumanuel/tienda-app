@@ -5,7 +5,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   TextInput,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -15,6 +15,14 @@ import { useSuppliers } from "../../hooks/useSuppliers";
 import { getAllAccountsPayable } from "../../services/database/accounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
+import {
+  EmptyStateCard,
+  FloatingActionButton,
+  InfoPill,
+  SurfaceCard,
+  SHADOWS,
+  UI_COLORS,
+} from "../../components/common/AppUI";
 import {
   s,
   rf,
@@ -155,59 +163,67 @@ export const SuppliersScreen = () => {
 
       return (
         <View style={styles.card}>
-          <TouchableOpacity
-            style={styles.cardBody}
+          <Pressable
+            style={({ pressed }) => [
+              styles.cardBody,
+              pressed && styles.cardPressed,
+            ]}
             onPress={() =>
               navigation.navigate("EditSupplier", { supplier: item })
             }
-            activeOpacity={0.85}
           >
             <View style={styles.cardHeader}>
-              <Text style={styles.supplierName}>{item.name}</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {item.supplierNumber ||
-                    `PRV-${String(item.id).padStart(6, "0")}`}
+              <View style={styles.supplierHeaderCopy}>
+                <InfoPill
+                  text={item.contactPerson || "Sin contacto"}
+                  tone="info"
+                />
+                <Text style={styles.supplierName}>{item.name}</Text>
+              </View>
+              <InfoPill
+                text={
+                  item.supplierNumber ||
+                  `PRV-${String(item.id).padStart(6, "0")}`
+                }
+                tone="warning"
+              />
+            </View>
+
+            <View style={styles.metaStack}>
+              <View style={styles.metaRow}>
+                <View style={[styles.metaCard, styles.metaCardHalf]}>
+                  <Text style={styles.metaLabel}>Documento</Text>
+                  <Text style={styles.metaValue}>
+                    {item.documentNumber || "Sin documento"}
+                  </Text>
+                </View>
+
+                <View style={[styles.metaCard, styles.metaCardHalf]}>
+                  <Text style={styles.metaLabel}>Teléfono</Text>
+                  <Text style={styles.metaValue}>
+                    {item.phone || "Sin registro"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.metaCard, styles.metaCardWide]}>
+                <Text style={styles.metaLabel}>Términos</Text>
+                <Text style={styles.metaValue}>
+                  {hasTerms ? item.paymentTerms : "No definidos"}
                 </Text>
               </View>
             </View>
+          </Pressable>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Documento</Text>
-              <Text style={styles.infoValue}>
-                {item.documentNumber || "Sin documento"}
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Contacto</Text>
-              <Text style={styles.infoValue}>
-                {hasContact ? item.contactPerson : "No asignado"}
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Teléfono</Text>
-              <Text style={styles.infoValue}>
-                {item.phone || "Sin registro"}
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Términos</Text>
-              <Text style={styles.infoValue}>
-                {hasTerms ? item.paymentTerms : "No definidos"}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.deleteButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.deleteButton,
+              pressed && styles.cardPressed,
+            ]}
             onPress={() => confirmDeleteSupplier(item)}
-            activeOpacity={0.85}
           >
-            <Text style={styles.deleteButtonText}>✕</Text>
-          </TouchableOpacity>
+            <Ionicons name="close" size={rf(16)} color={UI_COLORS.danger} />
+          </Pressable>
         </View>
       );
     },
@@ -216,22 +232,27 @@ export const SuppliersScreen = () => {
 
   const header = (
     <View style={styles.headerContent}>
-      <View style={styles.heroCard}>
-        <View style={styles.heroIcon}>
-          <Ionicons
-            name="business-outline"
-            size={iconSize.xl}
-            color="#2f5ae0"
-          />
+      <SurfaceCard style={styles.heroCard}>
+        <View style={styles.heroTopRow}>
+          <View style={styles.heroBadge}>
+            <Ionicons
+              name="business-outline"
+              size={rf(22)}
+              color={UI_COLORS.info}
+            />
+          </View>
+          <InfoPill text={`${suppliers.length} proveedores`} tone="accent" />
         </View>
-        <View style={styles.heroTextContainer}>
+
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroEyebrow}>Compras</Text>
           <Text style={styles.heroTitle}>Proveedores y aliados</Text>
           <Text style={styles.heroSubtitle}>
-            Organiza tus proveedores clave, términos de pago y contactos
-            directos.
+            Organiza contactos, documentos y términos de pago con una lectura
+            más clara.
           </Text>
         </View>
-      </View>
+      </SurfaceCard>
 
       <TourGuideZone
         zone={TOUR_ZONE_BASE + 1}
@@ -241,8 +262,13 @@ export const SuppliersScreen = () => {
         borderRadius={borderRadius.lg}
         style={styles.searchCard}
       >
-        <View>
-          <Text style={styles.searchTitle}>Buscar proveedor</Text>
+        <SurfaceCard style={styles.searchSurface}>
+          <View style={styles.searchTitleBlock}>
+            <Text style={styles.searchTitle}>Buscar proveedor</Text>
+            <Text style={styles.searchHint}>
+              Filtra por nombre, RIF o contacto principal.
+            </Text>
+          </View>
           <TextInput
             style={styles.searchInput}
             placeholder="Nombre, RIF o contacto"
@@ -250,23 +276,21 @@ export const SuppliersScreen = () => {
             onChangeText={handleSearch}
             placeholderTextColor="#9aa2b1"
           />
-        </View>
+        </SurfaceCard>
       </TourGuideZone>
     </View>
   );
 
   const renderEmpty = () => (
-    <View style={styles.emptyCard}>
-      <Text style={styles.emptyTitle}>
-        {searchQuery
+    <EmptyStateCard
+      style={styles.emptyCard}
+      title={
+        searchQuery
           ? "No se encontraron proveedores"
-          : "Aún no hay proveedores registrados"}
-      </Text>
-      <Text style={styles.emptySubtitle}>
-        Registra proveedores para vincularlos con tus compras y cuentas por
-        pagar.
-      </Text>
-    </View>
+          : "Aún no hay proveedores registrados"
+      }
+      subtitle="Registra proveedores para vincularlos con tus compras y cuentas por pagar."
+    />
   );
 
   if (loading) {
@@ -281,9 +305,15 @@ export const SuppliersScreen = () => {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>Error: {error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.retryButton,
+            pressed && styles.cardPressed,
+          ]}
+          onPress={refresh}
+        >
           <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -309,13 +339,12 @@ export const SuppliersScreen = () => {
         text={"Presiona '+' para registrar un nuevo proveedor."}
         shape="circle"
       >
-        <TouchableOpacity
-          style={[styles.fab, { bottom: fabBottom }]}
+        <FloatingActionButton
+          style={styles.fab}
+          bottom={fabBottom}
           onPress={() => navigation.navigate("AddSupplier")}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
+          iconName="add"
+        />
       </TourGuideZone>
       <CustomAlert />
     </View>
@@ -324,259 +353,196 @@ export const SuppliersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   loadingText: {
     fontSize: rf(16),
-    color: "#4c5767",
+    color: UI_COLORS.muted,
   },
   list: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingHorizontal: hs(16),
+    paddingTop: vs(16),
     paddingBottom: vs(120),
   },
   headerContent: {
-    gap: spacing.lg,
-    marginBottom: spacing.sm,
+    gap: vs(16),
+    marginBottom: vs(8),
   },
   heroCard: {
+    gap: vs(14),
+  },
+  heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 8,
+    justifyContent: "space-between",
+    gap: hs(12),
   },
-  heroIcon: {
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: borderRadius.xl,
-    backgroundColor: "#fff5f3",
+  heroBadge: {
+    width: s(48),
+    height: s(48),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.infoSoft,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: spacing.lg,
   },
-  heroIconText: {
-    fontSize: rf(30),
+  heroCopy: {
+    gap: vs(6),
   },
-  heroTextContainer: {
-    flex: 1,
-    gap: spacing.sm,
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: vs(20),
-  },
-  metricRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  metricCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
-    gap: spacing.sm,
-  },
-  metricLabel: {
+  heroEyebrow: {
     fontSize: rf(12),
-    fontWeight: "600",
-    color: "#7a8796",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: s(0.8),
   },
-  metricValue: {
-    fontSize: rf(22),
-    fontWeight: "700",
-    color: "#1f2633",
+  heroTitle: {
+    fontSize: rf(20),
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
-  metricHint: {
-    fontSize: rf(12),
-    color: "#6f7c8c",
+  heroSubtitle: {
+    fontSize: rf(14),
+    color: UI_COLORS.muted,
+    lineHeight: vs(20),
   },
   searchCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(8),
-    elevation: 4,
-    gap: spacing.md,
+    gap: vs(14),
+  },
+  searchSurface: {
+    gap: vs(14),
+    ...SHADOWS.soft,
+  },
+  searchTitleBlock: {
+    gap: vs(4),
   },
   searchTitle: {
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#1f2633",
+    fontWeight: "700",
+    color: UI_COLORS.text,
+  },
+  searchHint: {
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   searchInput: {
-    backgroundColor: "#f3f5fa",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
+    borderCurve: "continuous",
+    paddingVertical: vs(12),
+    paddingHorizontal: hs(16),
     fontSize: rf(15),
-    color: "#1f2633",
+    color: UI_COLORS.text,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
   },
   card: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
-    gap: spacing.md,
-    marginBottom: spacing.md,
+    gap: hs(16),
+    marginBottom: vs(12),
+    ...SHADOWS.soft,
   },
   cardBody: {
     flex: 1,
-    gap: spacing.md,
+    gap: vs(12),
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: spacing.md,
+    alignItems: "flex-start",
+    gap: hs(12),
+  },
+  supplierHeaderCopy: {
+    flex: 1,
+    gap: vs(8),
   },
   supplierName: {
     flex: 1,
-    fontSize: rf(16),
+    fontSize: rf(15),
     fontWeight: "700",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
-  badge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    backgroundColor: "#fff5f3",
+  metaStack: {
+    gap: hs(12),
   },
-  badgeText: {
-    fontSize: rf(12),
-    fontWeight: "600",
-    color: "#d55335",
-  },
-  infoRow: {
+  metaRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: spacing.md,
+    gap: hs(12),
   },
-  infoLabel: {
-    fontSize: rf(13),
-    fontWeight: "600",
-    color: "#7a8796",
+  metaCard: {
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(10),
+    gap: vs(4),
   },
-  infoValue: {
-    fontSize: rf(13),
-    color: "#4c5767",
+  metaCardHalf: {
     flex: 1,
-    textAlign: "right",
+    minWidth: 0,
+  },
+  metaCardWide: {
+    width: "100%",
+  },
+  metaLabel: {
+    fontSize: rf(11),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: s(0.6),
+  },
+  metaValue: {
+    fontSize: rf(12),
+    color: UI_COLORS.text,
+    fontWeight: "600",
   },
   deleteButton: {
-    width: iconSize.lg,
-    height: iconSize.lg,
+    width: s(44),
+    height: s(44),
     borderRadius: borderRadius.md,
-    backgroundColor: "#fff0f0",
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.dangerSoft,
     justifyContent: "center",
     alignItems: "center",
-  },
-  deleteButtonText: {
-    fontSize: rf(18),
-    fontWeight: "700",
-    color: "#d62828",
   },
   fab: {
-    position: "absolute",
-    bottom: vs(20),
     right: hs(20),
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: s(28),
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.3,
-    shadowRadius: s(8),
-    elevation: 8,
-  },
-  fabIcon: {
-    fontSize: rf(28),
-    color: "#fff",
-    fontWeight: "700",
   },
   emptyCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    alignItems: "center",
-    gap: spacing.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
     marginTop: vs(40),
-  },
-  emptyTitle: {
-    fontSize: rf(17),
-    fontWeight: "700",
-    color: "#1f2633",
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    fontSize: rf(13),
-    color: "#6f7c8c",
-    textAlign: "center",
-    lineHeight: vs(20),
   },
   errorText: {
     fontSize: rf(16),
-    color: "#ef4444",
+    color: UI_COLORS.danger,
     textAlign: "center",
     marginBottom: spacing.md,
   },
   retryButton: {
-    backgroundColor: "#3b82f6",
+    backgroundColor: UI_COLORS.info,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
-    shadowColor: "#3b82f6",
-    shadowOffset: { width: 0, height: s(2) },
-    shadowOpacity: 0.3,
-    shadowRadius: s(4),
-    elevation: 4,
+    borderCurve: "continuous",
   },
   retryButtonText: {
     color: "#fff",
     fontWeight: "700",
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

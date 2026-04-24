@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -14,6 +14,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import {
+  EmptyStateCard,
+  FloatingActionButton,
+  InfoPill,
+  ScreenHero,
+  SurfaceCard,
+  SHADOWS,
+  UI_COLORS,
+} from "../../components/common/AppUI";
 import {
   getMobilePaymentsByVerified,
   insertMobilePayment,
@@ -245,9 +254,15 @@ export const MobilePaymentsScreen = () => {
     const amount = Number(item?.amount) || 0;
 
     return (
-      <View style={styles.paymentCard}>
+      <SurfaceCard style={styles.paymentCard}>
         <View style={styles.paymentInfo}>
-          <Text style={styles.paymentReference}>Ref: {item.reference}</Text>
+          <View style={styles.paymentTopRow}>
+            <InfoPill
+              text={activeTab === "pending" ? "Pendiente" : "Verificado"}
+              tone={activeTab === "pending" ? "warning" : "accent"}
+            />
+            <Text style={styles.paymentReference}>Ref: {item.reference}</Text>
+          </View>
           <Text style={styles.paymentCustomer}>{item.customerName}</Text>
           <Text style={styles.paymentAmount}>
             {formatCurrency(amount, "VES")}
@@ -265,16 +280,18 @@ export const MobilePaymentsScreen = () => {
         </View>
 
         {activeTab === "pending" ? (
-          <TouchableOpacity
-            style={styles.verifyButton}
-            activeOpacity={0.85}
+          <Pressable
+            style={({ pressed }) => [
+              styles.verifyButton,
+              pressed && styles.cardPressed,
+            ]}
             onPress={() => confirmVerify(item)}
           >
             <Ionicons name="checkmark" size={rf(18)} color="#fff" />
             <Text style={styles.verifyButtonText}>Verificar</Text>
-          </TouchableOpacity>
+          </Pressable>
         ) : null}
-      </View>
+      </SurfaceCard>
     );
   };
 
@@ -282,30 +299,32 @@ export const MobilePaymentsScreen = () => {
     <>
       <View style={styles.container}>
         <View style={styles.headerContent}>
-          <View style={styles.heroCard}>
-            <View style={styles.heroIcon}>
-              <Ionicons
-                name="phone-portrait-outline"
-                size={iconSize.xl}
-                color="#2f5ae0"
-              />
-            </View>
-            <View style={styles.heroTextContainer}>
-              <Text style={styles.heroTitle}>Pago movil</Text>
-              <Text style={styles.heroSubtitle}>
-                Registra pagos pendientes y confirma verificados con fecha.
-              </Text>
-            </View>
-          </View>
+          <ScreenHero
+            iconName="phone-portrait-outline"
+            iconColor={UI_COLORS.info}
+            eyebrow="Cobros"
+            title="Pago móvil"
+            subtitle="Registra movimientos pendientes y confirma pagos verificados con trazabilidad clara."
+            pills={[
+              {
+                text: `${pendingPayments.length} pendientes`,
+                tone: pendingPayments.length > 0 ? "warning" : "neutral",
+              },
+              {
+                text: `${verifiedPayments.length} verificados`,
+                tone: "accent",
+              },
+            ]}
+          />
         </View>
 
         <View style={styles.tabs}>
-          <TouchableOpacity
-            style={[
+          <Pressable
+            style={({ pressed }) => [
               styles.tabButton,
               activeTab === "pending" && styles.tabActive,
+              pressed && styles.cardPressed,
             ]}
-            activeOpacity={0.85}
             onPress={() => setActiveTab("pending")}
           >
             <Text
@@ -316,14 +335,14 @@ export const MobilePaymentsScreen = () => {
             >
               Pendientes
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
-            style={[
+          <Pressable
+            style={({ pressed }) => [
               styles.tabButton,
               activeTab === "verified" && styles.tabActive,
+              pressed && styles.cardPressed,
             ]}
-            activeOpacity={0.85}
             onPress={() => setActiveTab("verified")}
           >
             <Text
@@ -334,7 +353,7 @@ export const MobilePaymentsScreen = () => {
             >
               Verificados
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {loading ? (
@@ -353,36 +372,27 @@ export const MobilePaymentsScreen = () => {
               data.length === 0 && styles.emptyListContent,
             ]}
             ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <View style={styles.emptyIconWrap}>
-                  <Ionicons
-                    name="phone-portrait-outline"
-                    size={rf(26)}
-                    color="#8ca0b8"
-                  />
-                </View>
-                <Text style={styles.emptyTitle}>
-                  {activeTab === "pending"
-                    ? "Sin pendientes"
-                    : "Sin verificados"}
-                </Text>
-                <Text style={styles.emptySubtitle}>
-                  {activeTab === "pending"
+              <EmptyStateCard
+                style={styles.emptyState}
+                title={
+                  activeTab === "pending" ? "Sin pendientes" : "Sin verificados"
+                }
+                subtitle={
+                  activeTab === "pending"
                     ? "Agrega un pago móvil para verlo aquí"
-                    : "Verifica un pago pendiente para verlo aquí"}
-                </Text>
-              </View>
+                    : "Verifica un pago pendiente para verlo aquí"
+                }
+              />
             }
           />
         )}
 
-        <TouchableOpacity
-          style={[styles.fab, { bottom: fabBottom }]}
-          activeOpacity={0.9}
+        <FloatingActionButton
+          style={styles.fab}
+          bottom={fabBottom}
           onPress={openAddModal}
-        >
-          <Text style={styles.fabText}>+</Text>
-        </TouchableOpacity>
+          iconName="add"
+        />
 
         <Modal
           visible={modalVisible}
@@ -391,7 +401,7 @@ export const MobilePaymentsScreen = () => {
           onRequestClose={closeAddModal}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
+            <SurfaceCard style={styles.modalCard}>
               <Text style={styles.modalTitle}>Nuevo pago movil</Text>
 
               <Text style={styles.fieldLabel}>Referencia</Text>
@@ -420,9 +430,11 @@ export const MobilePaymentsScreen = () => {
                 keyboardType="decimal-pad"
               />
 
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                activeOpacity={0.85}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.checkboxRow,
+                  pressed && styles.cardPressed,
+                ]}
                 onPress={() => setFormVerified((prev) => !prev)}
               >
                 <Ionicons
@@ -431,21 +443,27 @@ export const MobilePaymentsScreen = () => {
                   color={formVerified ? "#4CAF50" : "#94a3b8"}
                 />
                 <Text style={styles.checkboxText}>Marcar como verificado</Text>
-              </TouchableOpacity>
+              </Pressable>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalCancel]}
-                  activeOpacity={0.85}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.modalButton,
+                    styles.modalCancel,
+                    pressed && styles.cardPressed,
+                  ]}
                   onPress={closeAddModal}
                   disabled={saving}
                 >
                   <Text style={styles.modalCancelText}>Cancelar</Text>
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalSave]}
-                  activeOpacity={0.85}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.modalButton,
+                    styles.modalSave,
+                    pressed && styles.cardPressed,
+                  ]}
                   onPress={handleSave}
                   disabled={saving}
                 >
@@ -454,9 +472,9 @@ export const MobilePaymentsScreen = () => {
                   ) : (
                     <Text style={styles.modalSaveText}>Guardar</Text>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               </View>
-            </View>
+            </SurfaceCard>
           </View>
         </Modal>
       </View>
@@ -468,50 +486,12 @@ export const MobilePaymentsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f6f8fb",
+    backgroundColor: UI_COLORS.page,
   },
   headerContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: vs(16),
     paddingBottom: vs(4),
-  },
-  heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 8,
-  },
-  heroIcon: {
-    width: s(56),
-    height: s(56),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: hs(16),
-  },
-  heroIconText: {
-    fontSize: rf(26),
-  },
-  heroTextContainer: {
-    flex: 1,
-    gap: vs(6),
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "800",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(13),
-    color: "#5b6472",
-    lineHeight: vs(18),
   },
   tabs: {
     flexDirection: "row",
@@ -522,21 +502,22 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     paddingVertical: vs(12),
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#e6edf6",
+    borderColor: UI_COLORS.border,
   },
   tabActive: {
-    backgroundColor: "#4CAF50",
-    borderColor: "#4CAF50",
+    backgroundColor: UI_COLORS.accent,
+    borderColor: UI_COLORS.accent,
   },
   tabText: {
-    fontSize: rf(14),
+    fontSize: rf(13),
     fontWeight: "700",
-    color: "#2f3a4c",
+    color: UI_COLORS.text,
   },
   tabTextActive: {
     color: "#ffffff",
@@ -557,90 +538,65 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: vs(10),
     fontSize: rf(14),
-    color: "#556270",
+    color: UI_COLORS.muted,
     fontWeight: "600",
   },
   emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.xl,
     marginTop: vs(24),
   },
-  emptyIconWrap: {
-    width: s(54),
-    height: s(54),
-    borderRadius: borderRadius.md,
-    backgroundColor: "#f3f8ff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
-  },
-  emptyTitle: {
-    fontSize: rf(18),
-    fontWeight: "800",
-    color: "#1f2633",
-  },
-  emptySubtitle: {
-    marginTop: vs(8),
-    fontSize: rf(14),
-    color: "#667085",
-    textAlign: "center",
-  },
   paymentCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: borderRadius.lg,
     padding: spacing.lg,
     marginBottom: vs(12),
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: s(8),
-    elevation: 2,
+    alignItems: "flex-start",
+    ...SHADOWS.soft,
   },
   paymentInfo: {
     flex: 1,
     paddingRight: hs(12),
+    gap: vs(4),
+  },
+  paymentTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: hs(10),
   },
   paymentReference: {
     fontSize: rf(12),
     fontWeight: "700",
-    color: "#2f3a4c",
-    marginBottom: vs(4),
+    color: UI_COLORS.muted,
   },
   paymentCustomer: {
     fontSize: rf(15),
-    fontWeight: "800",
-    color: "#111827",
-    marginBottom: vs(6),
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   paymentAmount: {
-    fontSize: rf(14),
-    fontWeight: "700",
-    color: "#4CAF50",
+    fontSize: rf(18),
+    fontWeight: "800",
+    color: UI_COLORS.accent,
   },
   paymentVerifiedAt: {
-    marginTop: vs(4),
     fontSize: rf(12),
-    color: "#667085",
+    color: UI_COLORS.muted,
     fontWeight: "600",
   },
   paymentCreatedAt: {
-    marginTop: vs(6),
     fontSize: rf(12),
-    color: "#667085",
+    color: UI_COLORS.muted,
     fontWeight: "600",
   },
   verifyButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: hs(6),
-    backgroundColor: "#2f5ae0",
+    backgroundColor: UI_COLORS.info,
     paddingVertical: vs(10),
     paddingHorizontal: hs(12),
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
   },
   verifyButtonText: {
     color: "#ffffff",
@@ -648,25 +604,7 @@ const styles = StyleSheet.create({
     fontSize: rf(13),
   },
   fab: {
-    position: "absolute",
     right: spacing.lg,
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: iconSize.xl / 2,
-    backgroundColor: "#4CAF50",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.18,
-    shadowRadius: s(14),
-    elevation: 8,
-  },
-  fabText: {
-    color: "#ffffff",
-    fontSize: rf(30),
-    fontWeight: "900",
-    marginTop: vs(-2),
   },
   modalOverlay: {
     flex: 1,
@@ -678,37 +616,33 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     maxWidth: s(460),
-    backgroundColor: "#ffffff",
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(14) },
-    shadowOpacity: 0.2,
-    shadowRadius: s(20),
-    elevation: 12,
+    gap: vs(4),
   },
   modalTitle: {
-    fontSize: rf(18),
-    fontWeight: "900",
-    color: "#111827",
+    fontSize: rf(16),
+    fontWeight: "700",
+    color: UI_COLORS.text,
     marginBottom: vs(14),
     textAlign: "center",
   },
   fieldLabel: {
-    fontSize: rf(13),
-    fontWeight: "800",
-    color: "#344054",
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     marginBottom: vs(6),
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#dbe3ee",
-    borderRadius: borderRadius.lg,
+    borderColor: UI_COLORS.border,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: vs(12),
     paddingHorizontal: hs(12),
     fontSize: rf(14),
-    color: "#111827",
-    backgroundColor: "#ffffff",
+    color: UI_COLORS.text,
+    backgroundColor: UI_COLORS.surfaceAlt,
     marginBottom: vs(12),
   },
   checkboxRow: {
@@ -719,9 +653,9 @@ const styles = StyleSheet.create({
     marginBottom: vs(8),
   },
   checkboxText: {
-    fontSize: rf(14),
+    fontSize: rf(13),
     fontWeight: "700",
-    color: "#2f3a4c",
+    color: UI_COLORS.text,
   },
   modalActions: {
     flexDirection: "row",
@@ -731,27 +665,32 @@ const styles = StyleSheet.create({
   modalButton: {
     flex: 1,
     paddingVertical: vs(14),
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
   },
   modalCancel: {
-    backgroundColor: "#f8f9fc",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderWidth: 1,
-    borderColor: "#d9e0eb",
+    borderColor: UI_COLORS.border,
   },
   modalCancelText: {
-    color: "#2f5ae0",
-    fontWeight: "800",
-    fontSize: rf(14),
+    color: UI_COLORS.info,
+    fontWeight: "700",
+    fontSize: rf(13),
   },
   modalSave: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: UI_COLORS.accent,
   },
   modalSaveText: {
     color: "#ffffff",
-    fontWeight: "900",
-    fontSize: rf(14),
+    fontWeight: "700",
+    fontSize: rf(13),
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

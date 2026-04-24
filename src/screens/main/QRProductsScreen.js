@@ -5,7 +5,7 @@ import {
   FlatList,
   StyleSheet,
   SafeAreaView,
-  TouchableOpacity,
+  Pressable,
   TextInput,
 } from "react-native";
 import { useProducts } from "../../hooks/useProducts";
@@ -13,6 +13,12 @@ import QRCode from "react-native-qrcode-svg";
 import { printAsync } from "expo-print";
 import qrcode from "qrcode";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import {
+  InfoPill,
+  SHADOWS,
+  SurfaceCard,
+  UI_COLORS,
+} from "../../components/common/AppUI";
 import {
   s,
   rf,
@@ -143,16 +149,20 @@ export const QRProductsScreen = ({ navigation }) => {
   };
   const renderProduct = ({ item }) => {
     return (
-      <View style={styles.productCard}>
+      <SurfaceCard style={styles.productCard}>
         <View style={styles.productInfo}>
-          <Text style={styles.productName}>{item.name}</Text>
+          <InfoPill
+            text={item.category || "General"}
+            tone="info"
+            style={styles.productCategoryPill}
+          />
+          <Text style={styles.productName}>{item.name.toUpperCase()}</Text>
           <Text style={styles.productBarcode}>Código: {item.barcode}</Text>
-          <Text style={styles.productCategory}>{item.category}</Text>
         </View>
         <View style={styles.qrContainer}>
           <QRCode value={item.barcode} size={iconSize.lg} />
         </View>
-      </View>
+      </SurfaceCard>
     );
   };
 
@@ -167,55 +177,77 @@ export const QRProductsScreen = ({ navigation }) => {
   return (
     <>
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>← Volver</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Imprimir Códigos QR</Text>
-          <View style={{ width: 80 }} />
-        </View>
-
-        <View style={styles.searchContainer}>
-          <View style={styles.rangeContainer}>
-            <TextInput
-              style={styles.rangeInput}
-              placeholder="Desde"
-              value={startRange}
-              onChangeText={setStartRange}
-              keyboardType="numeric"
-            />
-            <Text style={styles.rangeSeparator}>a</Text>
-            <TextInput
-              style={styles.rangeInput}
-              placeholder="Hasta"
-              value={endRange}
-              onChangeText={setEndRange}
-              keyboardType="numeric"
-            />
-          </View>
-        </View>
-        <View style={styles.instructionsContainer}>
-          <Text style={styles.instructionsText}>
-            Filtra los productos por rango y presiona "Generar QR" para generar
-            códigos QR de todos los productos visibles. Fácil y rápido.
-          </Text>
-        </View>
-        <View style={styles.printContainer}>
-          <TouchableOpacity style={styles.printButton} onPress={printSelected}>
-            <Text style={styles.printButtonText}>
-              Generar QR ({filteredProducts.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
         <FlatList
           data={filteredProducts}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderProduct}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.headerContent}>
+              <SurfaceCard style={styles.heroCard}>
+                <View style={styles.heroTopRow}>
+                  <View style={styles.heroBadge}>
+                    <Text style={styles.heroBadgeText}>QR</Text>
+                  </View>
+                  <InfoPill
+                    text={`${filteredProducts.length} visibles`}
+                    tone="accent"
+                  />
+                </View>
+
+                <View style={styles.heroCopy}>
+                  <Text style={styles.heroEyebrow}>Etiquetas</Text>
+                  <Text style={styles.heroTitle}>Imprimir códigos QR</Text>
+                  <Text style={styles.heroSubtitle}>
+                    Filtra por rango y genera en lote los códigos de los
+                    productos visibles.
+                  </Text>
+                </View>
+              </SurfaceCard>
+
+              <SurfaceCard style={styles.searchSurface}>
+                <View style={styles.searchTitleBlock}>
+                  <Text style={styles.searchTitle}>Rango de productos</Text>
+                  <Text style={styles.searchHint}>
+                    Define desde qué código hasta cuál quieres generar.
+                  </Text>
+                </View>
+
+                <View style={styles.rangeContainer}>
+                  <TextInput
+                    style={styles.rangeInput}
+                    placeholder="Desde"
+                    value={startRange}
+                    onChangeText={setStartRange}
+                    keyboardType="numeric"
+                    placeholderTextColor="#9aa2b1"
+                  />
+                  <Text style={styles.rangeSeparator}>a</Text>
+                  <TextInput
+                    style={styles.rangeInput}
+                    placeholder="Hasta"
+                    value={endRange}
+                    onChangeText={setEndRange}
+                    keyboardType="numeric"
+                    placeholderTextColor="#9aa2b1"
+                  />
+                </View>
+              </SurfaceCard>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.printButton,
+                  pressed && styles.cardPressed,
+                ]}
+                onPress={printSelected}
+              >
+                <Text style={styles.printButtonText}>
+                  Generar QR ({filteredProducts.length})
+                </Text>
+              </Pressable>
+            </View>
+          }
         />
       </SafeAreaView>
       <CustomAlert />
@@ -226,127 +258,143 @@ export const QRProductsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: UI_COLORS.page,
   },
-  header: {
+  headerContent: {
+    gap: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  heroCard: {
+    gap: spacing.lg,
+  },
+  heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: hs(16),
-    paddingVertical: vs(12),
-    backgroundColor: "#4CAF50",
+    gap: spacing.md,
   },
-  backButton: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: hs(12),
-    paddingVertical: vs(6),
+  heroBadge: {
+    width: s(48),
+    height: s(48),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  backButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  title: {
-    fontSize: rf(18),
-    fontWeight: "bold",
-    color: "#fff",
+  heroBadgeText: {
+    fontSize: rf(13),
+    fontWeight: "800",
+    color: UI_COLORS.accent,
   },
   listContainer: {
     padding: spacing.md,
+    paddingBottom: vs(120),
+  },
+  heroCopy: {
+    gap: spacing.xs,
+  },
+  heroEyebrow: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    fontSize: rf(20),
+    fontWeight: "800",
+    color: UI_COLORS.text,
+  },
+  heroSubtitle: {
+    fontSize: rf(14),
+    color: UI_COLORS.muted,
+    lineHeight: vs(20),
   },
   productCard: {
     flexDirection: "row",
-    backgroundColor: "#fff",
+    alignItems: "center",
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    gap: spacing.md,
     marginBottom: spacing.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: s(4),
-    elevation: 3,
+    ...SHADOWS.soft,
   },
   productInfo: {
     flex: 1,
-    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  productCategoryPill: {
+    alignSelf: "flex-start",
   },
   productName: {
-    fontSize: rf(16),
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: spacing.xs,
+    fontSize: rf(15),
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   productBarcode: {
-    fontSize: rf(14),
-    color: "#666",
-    marginBottom: spacing.xs,
-  },
-  productCategory: {
     fontSize: rf(12),
-    color: "#999",
-    fontStyle: "italic",
+    color: UI_COLORS.muted,
   },
   qrContainer: {
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: hs(16),
+    paddingLeft: hs(8),
   },
-  searchContainer: {
-    paddingHorizontal: hs(16),
-    paddingVertical: vs(12),
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+  searchSurface: {
+    gap: spacing.md,
+    ...SHADOWS.soft,
   },
-  instructionsContainer: {
-    paddingHorizontal: hs(16),
-    paddingVertical: vs(8),
-    backgroundColor: "#f0f8ff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+  searchTitleBlock: {
+    gap: spacing.xs,
   },
-  instructionsText: {
-    fontSize: rf(14),
-    color: "#333",
-    textAlign: "center",
+  searchTitle: {
+    fontSize: rf(16),
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
-  printContainer: {
-    paddingHorizontal: hs(16),
-    paddingVertical: vs(12),
-    backgroundColor: "#fff",
+  searchHint: {
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   rangeContainer: {
     flexDirection: "row",
     alignItems: "center",
+    gap: hs(8),
   },
   rangeInput: {
     flex: 1,
-    height: vs(40),
+    height: vs(46),
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: borderRadius.sm,
+    borderColor: UI_COLORS.border,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingHorizontal: hs(12),
-    fontSize: rf(16),
-    backgroundColor: "#f9f9f9",
+    fontSize: rf(15),
+    backgroundColor: UI_COLORS.surfaceAlt,
+    color: UI_COLORS.text,
   },
   rangeSeparator: {
-    marginHorizontal: hs(8),
-    fontSize: rf(16),
-    fontWeight: "bold",
-    color: "#666",
+    fontSize: rf(14),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
   },
   printButton: {
-    backgroundColor: "#4CAF50",
-    borderRadius: borderRadius.sm,
-    paddingVertical: vs(12),
+    backgroundColor: UI_COLORS.accent,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingVertical: vs(14),
     paddingHorizontal: hs(16),
-    marginTop: vs(12),
     alignItems: "center",
   },
   printButtonText: {
     color: "#fff",
-    fontSize: rf(16),
-    fontWeight: "bold",
+    fontSize: rf(13),
+    fontWeight: "700",
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 
