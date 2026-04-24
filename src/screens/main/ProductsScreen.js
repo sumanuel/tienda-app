@@ -232,29 +232,23 @@ export const ProductsScreen = ({ navigation }) => {
       <Pressable
         style={({ pressed }) => [
           styles.productCard,
-          lowStock && styles.productCardDisabled,
+          lowStock && styles.productCardLowStock,
           pressed && styles.cardPressed,
         ]}
         onPress={() => handleEditProduct(item)}
       >
-        <View style={styles.productHeader}>
-          <View style={styles.productLeft}>
-            <Text style={styles.productName} numberOfLines={2}>
-              {item.name.toUpperCase()}
-            </Text>
-            <Text style={styles.productCode}>
-              Código:{" "}
-              {item.productNumber || `PRD-${String(item.id).padStart(6, "0")}`}
-            </Text>
-            {!!item.barcode && (
-              <Text style={styles.productCode}>Barcode: {item.barcode}</Text>
-            )}
-          </View>
-          <View style={styles.productRight}>
+        <View style={styles.productTopRow}>
+          <View style={styles.productTopCopy}>
             <InfoPill
               text={item.category || "General"}
               tone={lowStock ? "warning" : "info"}
+              style={styles.productCategoryPill}
             />
+            <Text style={styles.productName} numberOfLines={2}>
+              {item.name.toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.productActionsColumn}>
             <Pressable
               style={({ pressed }) => [
                 styles.deleteButton,
@@ -266,9 +260,40 @@ export const ProductsScreen = ({ navigation }) => {
             </Pressable>
           </View>
         </View>
+
+        <View style={styles.productMetaRow}>
+          <View style={styles.metaBadge}>
+            <Text style={styles.metaLabel}>Código</Text>
+            <Text style={styles.metaValue}>
+              {item.productNumber || `PRD-${String(item.id).padStart(6, "0")}`}
+            </Text>
+          </View>
+          {!!item.barcode && (
+            <View style={styles.metaBadge}>
+              <Text style={styles.metaLabel}>Barcode</Text>
+              <Text style={styles.metaValue}>{item.barcode}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.priceRow}>
+          <View style={styles.priceTag}>
+            <Text style={styles.priceTagLabel}>VES</Text>
+            <Text style={styles.priceTagValue}>{priceVES.toFixed(2)}</Text>
+          </View>
+          <View style={styles.priceTagSecondary}>
+            <Text style={styles.priceTagSecondaryLabel}>USD</Text>
+            <Text style={styles.priceTagSecondaryValue}>
+              {priceUSD.toFixed(2)}
+            </Text>
+          </View>
+        </View>
+
         <View style={styles.productFooter}>
-          <Text style={styles.productPrice}>
-            VES. {priceVES.toFixed(2)} / USD. {priceUSD.toFixed(2)}
+          <Text style={styles.productFootnote}>
+            {lowStock
+              ? `Atención: stock bajo${minStock ? `, mínimo ${minStock}` : ""}`
+              : `${stock} unidad(es) disponibles para vender`}
           </Text>
           <Text
             style={[styles.productStock, lowStock && styles.productStockLow]}
@@ -320,7 +345,13 @@ export const ProductsScreen = ({ navigation }) => {
       >
         <SurfaceCard style={styles.searchSurface}>
           <View style={styles.searchHeader}>
-            <Text style={styles.searchTitle}>Buscar producto</Text>
+            <View style={styles.searchTitleBlock}>
+              <Text style={styles.searchTitle}>Buscar producto</Text>
+              <Text style={styles.searchHint}>
+                Filtra por nombre, categoría o referencia para editar más
+                rápido.
+              </Text>
+            </View>
             {metrics.rateUsed ? (
               <InfoPill
                 text={`Tasa ${metrics.rateUsed.toFixed(2)}`}
@@ -406,14 +437,23 @@ const styles = StyleSheet.create({
   },
   searchHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: hs(12),
+  },
+  searchTitleBlock: {
+    flex: 1,
+    gap: vs(4),
   },
   searchTitle: {
     fontSize: rf(16),
     fontWeight: "700",
     color: UI_COLORS.text,
+  },
+  searchHint: {
+    fontSize: rf(13),
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   searchInput: {
     backgroundColor: UI_COLORS.surfaceAlt,
@@ -427,44 +467,65 @@ const styles = StyleSheet.create({
     borderColor: UI_COLORS.border,
   },
   productCard: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.lg,
     ...SHADOWS.soft,
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(12),
-    elevation: 5,
-  },
-  productCardDisabled: {
-    opacity: 0.45,
-  },
-  productBody: {
-    flex: 1,
+    padding: spacing.md,
     gap: vs(12),
+    marginBottom: vs(12),
   },
-  productHeader: {
+  productCardLowStock: {
+    borderWidth: 1,
+    borderColor: UI_COLORS.warningSoft,
+    backgroundColor: "#fffdfa",
+  },
+  productTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     gap: hs(12),
   },
-  productLeft: {
+  productTopCopy: {
     flex: 1,
-    gap: vs(4),
+    gap: vs(12),
   },
-  productRight: {
+  productActionsColumn: {
     alignItems: "flex-end",
+    gap: vs(8),
+  },
+  productCategoryPill: {
+    alignSelf: "flex-start",
+  },
+  productMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: hs(12),
+  },
+  metaBadge: {
+    minWidth: s(124),
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(10),
     gap: vs(4),
   },
-  productName: {
-    fontSize: rf(14),
-    fontWeight: "800",
+  metaLabel: {
+    fontSize: rf(11),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: s(0.6),
+  },
+  metaValue: {
+    fontSize: rf(13),
+    fontWeight: "700",
     color: UI_COLORS.text,
   },
-  productCode: {
-    fontSize: rf(12),
-    color: UI_COLORS.muted,
-    fontStyle: "italic",
+  productName: {
+    fontSize: rf(18),
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   priceRow: {
     flexDirection: "row",
@@ -472,7 +533,7 @@ const styles = StyleSheet.create({
     gap: hs(12),
   },
   priceTag: {
-    backgroundColor: "#d4edda",
+    backgroundColor: UI_COLORS.accentSoft,
     borderRadius: borderRadius.sm,
     paddingHorizontal: hs(14),
     paddingVertical: vs(10),
@@ -480,21 +541,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   priceTagLabel: {
-    fontSize: rf(14),
+    fontSize: rf(12),
     fontWeight: "700",
-    color: "#155724",
+    color: UI_COLORS.accentStrong,
     textTransform: "uppercase",
     letterSpacing: s(0.6),
-    textAlign: "center",
   },
   priceTagValue: {
-    fontSize: rf(14),
-    fontWeight: "700",
-    color: "#155724",
-    textAlign: "center",
+    fontSize: rf(20),
+    fontWeight: "800",
+    color: UI_COLORS.accent,
   },
   priceTagSecondary: {
-    backgroundColor: "#f8f9fa",
+    backgroundColor: UI_COLORS.infoSoft,
     borderRadius: borderRadius.sm,
     paddingHorizontal: hs(14),
     paddingVertical: vs(10),
@@ -503,33 +562,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   priceTagSecondaryLabel: {
-    fontSize: rf(14),
+    fontSize: rf(12),
     fontWeight: "700",
-    color: "#6c757d",
+    color: UI_COLORS.info,
     textTransform: "uppercase",
     letterSpacing: s(0.6),
-    textAlign: "center",
   },
   priceTagSecondaryValue: {
-    fontSize: rf(14),
-    fontWeight: "700",
-    color: "#495057",
-    textAlign: "center",
-  },
-  priceSecondary: {
-    fontSize: rf(13),
-    color: "#4c5767",
-    flex: 1,
+    fontSize: rf(18),
+    fontWeight: "800",
+    color: UI_COLORS.info,
   },
   productFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: hs(12),
   },
-  productPrice: {
-    fontSize: rf(15),
-    fontWeight: "800",
-    color: UI_COLORS.accent,
+  productFootnote: {
+    flex: 1,
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   productStock: {
     fontSize: rf(12),
@@ -546,8 +600,8 @@ const styles = StyleSheet.create({
     color: UI_COLORS.danger,
   },
   deleteButton: {
-    width: s(28),
-    height: s(28),
+    width: s(34),
+    height: s(34),
     borderRadius: borderRadius.sm,
     borderCurve: "continuous",
     backgroundColor: UI_COLORS.danger,

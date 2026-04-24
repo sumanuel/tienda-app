@@ -27,7 +27,7 @@ import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
-import { SHADOWS, UI_COLORS } from "../../components/common/AppUI";
+import { InfoPill, SHADOWS, UI_COLORS } from "../../components/common/AppUI";
 import { getSettings } from "../../services/database/settings";
 import {
   updateProductStock,
@@ -819,6 +819,7 @@ export const POSScreen = ({ navigation }) => {
   const renderProduct = ({ item, index }) => {
     const stockValue = Number(item.stock) || 0;
     const isOutOfStock = stockValue === 0;
+    const computedPriceVES = item.priceVES || item.priceUSD * exchangeRate;
     const card = (
       <Pressable
         style={({ pressed }) => [
@@ -829,26 +830,50 @@ export const POSScreen = ({ navigation }) => {
         onPress={() => addToCart(item)}
         disabled={isOutOfStock}
       >
-        <View style={styles.productHeader}>
-          <View style={styles.productLeft}>
+        <View style={styles.productTopRow}>
+          <View style={styles.productTopCopy}>
+            <InfoPill
+              text={item.category || "General"}
+              tone={isOutOfStock ? "danger" : "info"}
+              style={styles.productCategoryPill}
+            />
             <Text style={styles.productName} numberOfLines={2}>
               {item.name.toUpperCase()}
             </Text>
             <Text style={styles.productBarcode}>Código: {item.barcode}</Text>
           </View>
-          <View style={styles.productRight}>
-            <Text style={styles.productCategory}>{item.category}</Text>
+          <View style={styles.productStatusColumn}>
+            {!isOutOfStock && (
+              <Text style={styles.productTapHint}>Tocar para vender</Text>
+            )}
             {isOutOfStock && (
               <View style={styles.outOfStockBadge}>
                 <Text style={styles.outOfStockText}>Sin Stock</Text>
               </View>
             )}
+            {!isOutOfStock && (
+              <Text style={styles.productMiniPrice}>
+                USD. {item.priceUSD.toFixed(2)}
+              </Text>
+            )}
           </View>
         </View>
-        <View style={styles.productFooter}>
+
+        <View style={styles.productPricePanel}>
+          <Text style={styles.productPriceEyebrow}>Precio actual</Text>
           <Text style={styles.productPrice}>
-            VES. {(item.priceVES || item.priceUSD * exchangeRate).toFixed(2)} /
+            VES. {computedPriceVES.toFixed(2)}
+          </Text>
+          <Text style={styles.productPriceSecondary}>
             USD. {item.priceUSD.toFixed(2)}
+          </Text>
+        </View>
+
+        <View style={styles.productFooter}>
+          <Text style={styles.productFootnote}>
+            {isOutOfStock
+              ? "Repón existencias para volver a venderlo"
+              : "Disponible para venta inmediata"}
           </Text>
           <Text
             style={[
@@ -962,29 +987,63 @@ export const POSScreen = ({ navigation }) => {
           ListHeaderComponent={
             <View style={styles.listHeader}>
               <View style={styles.heroCard}>
-                <View style={styles.heroHeader}>
-                  <View style={styles.heroCopy}>
-                    <Text style={styles.heroTitle}>Punto de venta</Text>
-                    <Text style={styles.heroSubtitle}>
-                      Gestiona tus ventas, clientes y cobros en un solo flujo.
-                    </Text>
+                <View style={styles.heroTopRow}>
+                  <View style={styles.heroBadge}>
+                    <Ionicons
+                      name="flash-outline"
+                      size={rf(18)}
+                      color={POS_COLORS.accent}
+                    />
                   </View>
+                  <InfoPill
+                    text={
+                      cart.length > 0
+                        ? `${cart.length} en carrito`
+                        : "Listo para vender"
+                    }
+                    tone={cart.length > 0 ? "accent" : "info"}
+                  />
                 </View>
 
-                <View style={styles.heroStatsRow}>
-                  <View style={styles.heroStatPill}>
-                    <Text style={styles.heroStatLabel}>Productos</Text>
-                    <Text style={styles.heroStatValue}>{products.length}</Text>
-                  </View>
-                  <View style={styles.heroStatPill}>
-                    <Text style={styles.heroStatLabel}>Tasa</Text>
-                    <Text style={styles.heroStatValue}>
-                      {exchangeRate > 0 ? exchangeRate.toFixed(2) : "-"}
+                <View style={styles.heroCopy}>
+                  <Text style={styles.heroEyebrow}>Ventas rápidas</Text>
+                  <Text style={styles.heroTitle}>Punto de venta</Text>
+                  <Text style={styles.heroSubtitle}>
+                    Gestiona tus ventas, clientes y cobros con una lectura más
+                    clara del flujo actual.
+                  </Text>
+                </View>
+
+                <View style={styles.heroPanel}>
+                  <View style={styles.heroRateBlock}>
+                    <Text style={styles.heroLabel}>Tasa activa</Text>
+                    <Text style={styles.heroRateValue}>
+                      {exchangeRate > 0 ? exchangeRate.toFixed(2) : "Pendiente"}
+                    </Text>
+                    <Text style={styles.heroHelper}>
+                      {cart.length > 0
+                        ? `${cart.length} producto(s) listos para cobrar`
+                        : "Busca y agrega productos para iniciar una venta"}
                     </Text>
                   </View>
-                  <View style={styles.heroStatPill}>
-                    <Text style={styles.heroStatLabel}>Carrito</Text>
-                    <Text style={styles.heroStatValue}>{cart.length}</Text>
+
+                  <View style={styles.heroDivider} />
+
+                  <View style={styles.heroSummaryList}>
+                    <View style={styles.heroSummaryItem}>
+                      <Text style={styles.heroSummaryValue}>
+                        {products.length}
+                      </Text>
+                      <Text style={styles.heroSummaryLabel}>
+                        Productos disponibles
+                      </Text>
+                    </View>
+                    <View style={styles.heroSummaryItem}>
+                      <Text style={styles.heroSummaryValue}>
+                        VES. {total.toFixed(2)}
+                      </Text>
+                      <Text style={styles.heroSummaryLabel}>Total actual</Text>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -998,7 +1057,13 @@ export const POSScreen = ({ navigation }) => {
               >
                 <View style={styles.searchCardContent}>
                   <View style={styles.searchHeaderRow}>
-                    <Text style={styles.searchLabel}>Buscar productos</Text>
+                    <View style={styles.searchCopy}>
+                      <Text style={styles.searchLabel}>Buscar productos</Text>
+                      <Text style={styles.searchHint}>
+                        Escribe el nombre o usa el lector QR para una venta más
+                        rápida.
+                      </Text>
+                    </View>
                     <Pressable
                       onPress={openQRScanner}
                       style={({ pressed }) => [
@@ -1066,7 +1131,6 @@ export const POSScreen = ({ navigation }) => {
             </Pressable>
           </TourGuideZone>
         </View>
-
         {/* Modal del carrito */}
         <Modal
           visible={showCart}
@@ -1091,7 +1155,7 @@ export const POSScreen = ({ navigation }) => {
                   onPress={() => setShowCart(false)}
                 >
                   <Ionicons
-                    name="chevron-back"
+                    name="chevron-back-outline"
                     size={rf(18)}
                     color={POS_COLORS.text}
                   />
@@ -1639,12 +1703,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: hs(12),
   },
+  searchCopy: {
+    flex: 1,
+    gap: vs(4),
+  },
   searchLabel: {
-    fontSize: rf(12),
-    fontWeight: "600",
+    fontSize: rf(13),
+    fontWeight: "700",
     color: POS_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: s(0.6),
+  },
+  searchHint: {
+    fontSize: rf(13),
+    color: POS_COLORS.text,
+    lineHeight: vs(18),
   },
   searchScanButton: {
     width: s(42),
@@ -1659,7 +1732,7 @@ const styles = StyleSheet.create({
     backgroundColor: POS_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
-    paddingVertical: vs(14),
+    paddingVertical: vs(15),
     paddingHorizontal: hs(16),
     fontSize: rf(14),
     fontWeight: "500",
@@ -1679,34 +1752,43 @@ const styles = StyleSheet.create({
     backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
-    padding: spacing.sm,
-    gap: vs(8),
+    padding: spacing.md,
+    gap: vs(12),
     flex: 1,
-    marginBottom: vs(8),
+    marginBottom: vs(10),
     ...SHADOWS.soft,
   },
   productCardDisabled: {
-    opacity: 0.58,
+    opacity: 0.76,
   },
-  productHeader: {
+  productTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     gap: hs(12),
   },
-  productLeft: {
+  productTopCopy: {
     flex: 1,
-    gap: vs(4),
+    gap: vs(8),
   },
-  productRight: {
+  productStatusColumn: {
     alignItems: "flex-end",
-    gap: vs(4),
+    gap: vs(8),
+  },
+  productCategoryPill: {
+    alignSelf: "flex-start",
   },
   productName: {
-    flex: 1,
-    fontSize: rf(14),
-    fontWeight: "700",
+    fontSize: rf(17),
+    fontWeight: "800",
     color: POS_COLORS.text,
+  },
+  productTapHint: {
+    fontSize: rf(11),
+    fontWeight: "700",
+    color: POS_COLORS.accent,
+    textTransform: "uppercase",
+    letterSpacing: s(0.7),
   },
   outOfStockBadge: {
     backgroundColor: POS_COLORS.danger,
@@ -1720,25 +1802,52 @@ const styles = StyleSheet.create({
     fontSize: rf(11),
     fontWeight: "700",
   },
-  productCategory: {
+  productMiniPrice: {
     fontSize: rf(12),
+    fontWeight: "700",
     color: POS_COLORS.muted,
-    fontStyle: "italic",
   },
   productBarcode: {
     fontSize: rf(12),
     color: POS_COLORS.muted,
     fontWeight: "500",
   },
+  productPricePanel: {
+    backgroundColor: POS_COLORS.accentSoft,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(14),
+    paddingVertical: vs(12),
+    gap: vs(2),
+  },
+  productPriceEyebrow: {
+    fontSize: rf(11),
+    fontWeight: "700",
+    color: POS_COLORS.accentStrong,
+    textTransform: "uppercase",
+    letterSpacing: s(0.7),
+  },
   productFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: hs(12),
   },
   productPrice: {
-    fontSize: rf(15),
+    fontSize: rf(19),
     fontWeight: "800",
     color: POS_COLORS.accent,
+  },
+  productPriceSecondary: {
+    fontSize: rf(13),
+    color: POS_COLORS.accentStrong,
+    fontWeight: "600",
+  },
+  productFootnote: {
+    flex: 1,
+    fontSize: rf(12),
+    color: POS_COLORS.muted,
+    lineHeight: vs(18),
   },
   productStock: {
     fontSize: rf(12),
