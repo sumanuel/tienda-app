@@ -5,7 +5,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   TextInput,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -19,6 +19,16 @@ import { useExchangeRate } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
+import {
+  EmptyStateCard,
+  FloatingActionButton,
+  InfoPill,
+  MetricCard,
+  ScreenHero,
+  SurfaceCard,
+  SHADOWS,
+  UI_COLORS,
+} from "../../components/common/AppUI";
 import {
   s,
   rf,
@@ -219,10 +229,13 @@ export const ProductsScreen = ({ navigation }) => {
     const lowStock = minStock ? stock <= minStock : stock <= 5;
 
     return (
-      <TouchableOpacity
-        style={[styles.productCard, lowStock && styles.productCardDisabled]}
+      <Pressable
+        style={({ pressed }) => [
+          styles.productCard,
+          lowStock && styles.productCardDisabled,
+          pressed && styles.cardPressed,
+        ]}
         onPress={() => handleEditProduct(item)}
-        activeOpacity={0.85}
       >
         <View style={styles.productHeader}>
           <View style={styles.productLeft}>
@@ -238,15 +251,19 @@ export const ProductsScreen = ({ navigation }) => {
             )}
           </View>
           <View style={styles.productRight}>
-            <Text style={styles.productCategory}>
-              {item.category || "General"}
-            </Text>
-            <TouchableOpacity
-              style={styles.deleteButton}
+            <InfoPill
+              text={item.category || "General"}
+              tone={lowStock ? "warning" : "info"}
+            />
+            <Pressable
+              style={({ pressed }) => [
+                styles.deleteButton,
+                pressed && styles.cardPressed,
+              ]}
               onPress={() => handleDeleteProduct(item)}
             >
-              <Text style={styles.deleteButtonText}>✕</Text>
-            </TouchableOpacity>
+              <Ionicons name="close" size={rf(14)} color="#ffffff" />
+            </Pressable>
           </View>
         </View>
         <View style={styles.productFooter}>
@@ -259,41 +276,38 @@ export const ProductsScreen = ({ navigation }) => {
             Stock: {stock}
           </Text>
         </View>
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
   const header = (
     <View style={styles.headerContent}>
-      <View style={styles.heroCard}>
-        <View style={styles.heroIcon}>
-          <Ionicons name="cube-outline" size={iconSize.xl} color="#c9861a" />
-        </View>
-        <View style={styles.heroTextContainer}>
-          <Text style={styles.heroTitle}>Catálogo de productos</Text>
-          <Text style={styles.heroSubtitle}>
-            Administra precios y existencias con un vistazo claro a tu
-            inventario.
-          </Text>
-        </View>
-      </View>
+      <ScreenHero
+        iconName="cube-outline"
+        iconColor={UI_COLORS.warning}
+        eyebrow="Inventario"
+        title="Catálogo de productos"
+        subtitle="Administra precios y existencias con un vistazo claro a tu inventario."
+        pills={[
+          { text: `${metrics.totalProducts} productos`, tone: "accent" },
+          { text: `${metrics.lowStock} con bajo stock`, tone: "warning" },
+        ]}
+      />
 
       <View style={styles.metricRow}>
-        <View style={[styles.metricCard, styles.metricCardHighlight]}>
-          <Text style={styles.metricLabel}>Inventario USD</Text>
-          <Text style={styles.metricValue}>
-            {formatCurrency(metrics.totalInventoryUSD, "USD", false)}
-          </Text>
-          <Text style={styles.metricHint}>Valor estimado en dólares</Text>
-        </View>
+        <MetricCard
+          label="Inventario USD"
+          value={formatCurrency(metrics.totalInventoryUSD, "USD", false)}
+          hint="Valor estimado en dólares"
+          tone="info"
+        />
 
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Inventario en VES</Text>
-          <Text style={styles.metricValue}>
-            {formatCurrency(metrics.totalInventoryVES, "VES", false)}
-          </Text>
-          <Text style={styles.metricHint}>Estimado con tasa vigente</Text>
-        </View>
+        <MetricCard
+          label="Inventario en VES"
+          value={formatCurrency(metrics.totalInventoryVES, "VES", false)}
+          hint="Estimado con tasa vigente"
+          tone="accent"
+        />
       </View>
 
       <TourGuideZone
@@ -304,25 +318,24 @@ export const ProductsScreen = ({ navigation }) => {
         borderRadius={borderRadius.lg}
         style={styles.searchCard}
       >
-        <View>
+        <SurfaceCard style={styles.searchSurface}>
           <View style={styles.searchHeader}>
             <Text style={styles.searchTitle}>Buscar producto</Text>
             {metrics.rateUsed ? (
-              <Text style={styles.rateBadge}>
-                Tasa {metrics.rateUsed.toFixed(2)}
-              </Text>
+              <InfoPill
+                text={`Tasa ${metrics.rateUsed.toFixed(2)}`}
+                tone="info"
+              />
             ) : null}
           </View>
-          <View style={styles.tourFlex}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Nombre, categoría o referencia"
-              value={searchQuery}
-              onChangeText={handleSearch}
-              placeholderTextColor="#9aa2b1"
-            />
-          </View>
-        </View>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Nombre, categoría o referencia"
+            value={searchQuery}
+            onChangeText={handleSearch}
+            placeholderTextColor="#9aa2b1"
+          />
+        </SurfaceCard>
       </TourGuideZone>
     </View>
   );
@@ -340,13 +353,10 @@ export const ProductsScreen = ({ navigation }) => {
           ]}
           ListHeaderComponent={header}
           ListEmptyComponent={
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Aún no hay productos</Text>
-              <Text style={styles.emptySubtitle}>
-                Registra tu primer producto para visualizar métricas y control
-                de inventario.
-              </Text>
-            </View>
+            <EmptyStateCard
+              title="Aún no hay productos"
+              subtitle="Registra tu primer producto para visualizar métricas y control de inventario."
+            />
           }
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -357,13 +367,11 @@ export const ProductsScreen = ({ navigation }) => {
           text={"Presiona '+' para registrar un nuevo producto."}
           shape="circle"
         >
-          <TouchableOpacity
-            style={[styles.fab, { bottom: fabBottom }]}
+          <FloatingActionButton
             onPress={() => navigation.navigate("AddProduct")}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.fabIcon}>+</Text>
-          </TouchableOpacity>
+            bottom={fabBottom}
+            iconName="add"
+          />
         </TourGuideZone>
       </View>
       <CustomAlert />
@@ -374,7 +382,7 @@ export const ProductsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   list: {
     paddingHorizontal: hs(16),
@@ -382,132 +390,46 @@ const styles = StyleSheet.create({
     paddingBottom: vs(120),
   },
   headerContent: {
-    gap: vs(12),
+    gap: vs(18),
     marginBottom: vs(8),
-  },
-  heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 8,
-  },
-  heroIcon: {
-    width: s(60),
-    height: s(60),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: hs(18),
-  },
-  heroIconText: {
-    fontSize: iconSize.lg,
-  },
-  heroTextContainer: {
-    flex: 1,
-    tourFlex: {
-      flex: 1,
-    },
-    gap: vs(6),
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: vs(20),
   },
   metricRow: {
     flexDirection: "row",
     gap: hs(16),
   },
-  metricCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.md,
-    paddingVertical: vs(18),
-    paddingHorizontal: hs(20),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
-    gap: vs(4),
-  },
-  metricCardHighlight: {
-    backgroundColor: "#f3f8ff",
-  },
-  metricLabel: {
-    fontSize: rf(12),
-    fontWeight: "600",
-    color: "#7a8796",
-    textTransform: "uppercase",
-    letterSpacing: s(0.8),
-  },
-  metricValue: {
-    fontSize: rf(16),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  metricHint: {
-    fontSize: rf(12),
-    color: "#6f7c8c",
-  },
   searchCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.sm,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(8),
-    elevation: 4,
     gap: vs(14),
+  },
+  searchSurface: {
+    gap: vs(14),
+    ...SHADOWS.soft,
   },
   searchHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    gap: hs(12),
   },
   searchTitle: {
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#1f2633",
-  },
-  rateBadge: {
-    fontSize: rf(12),
-    color: "#2f5ae0",
-    fontWeight: "600",
-    backgroundColor: "#e8eeff",
-    paddingHorizontal: hs(12),
-    paddingVertical: vs(6),
-    borderRadius: borderRadius.sm,
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   searchInput: {
-    backgroundColor: "#f3f5fa",
-    borderRadius: borderRadius.sm,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: vs(12),
     paddingHorizontal: hs(16),
     fontSize: rf(15),
-    color: "#1f2633",
+    color: UI_COLORS.text,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
   },
   productCard: {
     backgroundColor: "#fff",
     borderRadius: borderRadius.lg,
-    padding: spacing.sm,
-    gap: vs(8),
-    flex: 1,
-    marginBottom: vs(8),
-    shadowColor: "#000",
+    ...SHADOWS.soft,
     shadowOffset: { width: 0, height: s(6) },
     shadowOpacity: 0.05,
     shadowRadius: s(12),
@@ -536,17 +458,12 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: rf(14),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   productCode: {
     fontSize: rf(12),
-    color: "#6f7c8c",
-    fontStyle: "italic",
-  },
-  productCategory: {
-    fontSize: rf(12),
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
     fontStyle: "italic",
   },
   priceRow: {
@@ -611,102 +528,35 @@ const styles = StyleSheet.create({
   },
   productPrice: {
     fontSize: rf(15),
-    fontWeight: "700",
-    color: "#1f9254",
+    fontWeight: "800",
+    color: UI_COLORS.accent,
   },
   productStock: {
     fontSize: rf(12),
-    fontWeight: "600",
-    color: "#2f5ae0",
-    backgroundColor: "#e8f1ff",
+    fontWeight: "700",
+    color: UI_COLORS.info,
+    backgroundColor: UI_COLORS.infoSoft,
     paddingHorizontal: hs(10),
     paddingVertical: vs(5),
     borderRadius: borderRadius.sm,
+    borderCurve: "continuous",
   },
   productStockLow: {
-    backgroundColor: "#ffe8ec",
-    color: "#d6455d",
-  },
-  stockBadge: {
-    paddingHorizontal: hs(14),
-    paddingVertical: vs(6),
-    borderRadius: borderRadius.sm,
-    backgroundColor: "#edf8f1",
-  },
-  stockBadgeAlert: {
-    backgroundColor: "#fff2f0",
-  },
-  stockBadgeText: {
-    fontSize: rf(12),
-    fontWeight: "600",
-    color: "#2fb176",
-  },
-  stockBadgeTextAlert: {
-    color: "#ef5350",
-  },
-  marginText: {
-    fontSize: rf(12),
-    fontWeight: "600",
-    color: "#6f7c8c",
+    backgroundColor: UI_COLORS.dangerSoft,
+    color: UI_COLORS.danger,
   },
   deleteButton: {
-    width: s(24),
-    height: s(24),
+    width: s(28),
+    height: s(28),
     borderRadius: borderRadius.sm,
-    backgroundColor: "#f66570",
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.danger,
     justifyContent: "center",
     alignItems: "center",
   },
-  deleteButtonText: {
-    fontSize: rf(14),
-    fontWeight: "700",
-    color: "#fff",
-  },
-  fab: {
-    position: "absolute",
-    bottom: vs(20),
-    right: hs(20),
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: s(28),
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.3,
-    shadowRadius: s(8),
-    elevation: 8,
-  },
-  fabIcon: {
-    fontSize: rf(28),
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  emptyCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: vs(40),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
-    gap: vs(12),
-  },
-  emptyTitle: {
-    fontSize: rf(17),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  emptySubtitle: {
-    fontSize: rf(13),
-    color: "#6f7c8c",
-    textAlign: "center",
-    lineHeight: vs(20),
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

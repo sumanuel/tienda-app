@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   SafeAreaView,
   ActivityIndicator,
@@ -35,6 +35,40 @@ import {
   borderRadius,
   iconSize,
 } from "../../utils/responsive";
+import {
+  ScreenHero,
+  SurfaceCard,
+  SHADOWS,
+  UI_COLORS,
+} from "../../components/common/AppUI";
+
+const SettingsLinkCard = ({
+  iconName,
+  iconColor,
+  title,
+  subtitle,
+  actionLabel,
+  onPress,
+}) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [styles.formCard, pressed && styles.cardPressed]}
+  >
+    <View style={styles.cardHeader}>
+      <View style={styles.cardIcon}>
+        <Ionicons name={iconName} size={iconSize.md} color={iconColor} />
+      </View>
+      <View style={styles.cardInfo}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.cardSubtitle}>{subtitle}</Text>
+      </View>
+    </View>
+    <View style={styles.cardAction}>
+      <Text style={styles.cardActionText}>{actionLabel}</Text>
+      <Ionicons name="chevron-forward" size={rf(18)} color={UI_COLORS.info} />
+    </View>
+  </Pressable>
+);
 
 export const SettingsScreen = () => {
   const navigation = useNavigation();
@@ -288,112 +322,63 @@ export const SettingsScreen = () => {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.heroCard}>
-            <View style={styles.heroIcon}>
-              <Ionicons
-                name="settings-outline"
-                size={iconSize.lg}
-                color="#2f5ae0"
-              />
-            </View>
-            <View style={styles.heroInfo}>
-              <Text style={styles.heroTitle}>Configuración</Text>
-              <Text style={styles.heroSubtitle}>
-                Gestiona los parámetros y datos de tu negocio.
-              </Text>
-              <Text style={styles.accountPill}>
-                {user?.email || "Sin cuenta"}
-              </Text>
-            </View>
-          </View>
+          <ScreenHero
+            iconName="settings-outline"
+            iconColor={UI_COLORS.info}
+            eyebrow="Ajustes"
+            title="Configuración"
+            subtitle="Gestiona los parámetros, respaldo y acceso de tu negocio desde un solo lugar."
+            pills={[
+              {
+                text: user?.email || "Sin cuenta",
+                tone: "info",
+                iconName: "mail-outline",
+              },
+              {
+                text: `${memberships.length} tienda(s)`,
+                tone: "accent",
+                iconName: "storefront-outline",
+              },
+            ]}
+          />
 
-          <TouchableOpacity
-            style={styles.formCard}
+          <SettingsLinkCard
+            iconName="storefront-outline"
+            iconColor={UI_COLORS.info}
+            title="Tiendas y colaboradores"
+            subtitle={`${memberships.length} tienda(s) · activa ${
+              memberships.find((item) => item.storeId === activeStoreId)
+                ?.storeName || "sin contexto"
+            }`}
+            actionLabel="Gestionar"
             onPress={() => navigation.navigate("StoreManagement")}
-            activeOpacity={0.8}
-          >
-            <View style={styles.cardHeader}>
-              <View style={styles.cardIcon}>
-                <Ionicons
-                  name="storefront-outline"
-                  size={iconSize.md}
-                  color="#2f5ae0"
-                />
-              </View>
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardTitle}>Tiendas y colaboradores</Text>
-                <Text style={styles.cardSubtitle}>
-                  {memberships.length} tienda(s) · activa{" "}
-                  {memberships.find((item) => item.storeId === activeStoreId)
-                    ?.storeName || "sin contexto"}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.cardAction}>
-              <Text style={styles.cardActionText}>Gestionar</Text>
-              <Text style={styles.cardArrow}>›</Text>
-            </View>
-          </TouchableOpacity>
+          />
 
-          <TouchableOpacity
-            style={styles.formCard}
+          <SettingsLinkCard
+            iconName="business-outline"
+            iconColor={UI_COLORS.info}
+            title="Datos del Negocio"
+            subtitle="Información fiscal y de contacto"
+            actionLabel="Configurar"
             onPress={() => navigation.navigate("BusinessSettings")}
-            activeOpacity={0.8}
-          >
-            <View style={styles.cardHeader}>
-              <View style={styles.cardIcon}>
-                <Ionicons
-                  name="business-outline"
-                  size={iconSize.md}
-                  color="#2f5ae0"
-                />
-              </View>
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardTitle}>Datos del Negocio</Text>
-                <Text style={styles.cardSubtitle}>
-                  Información fiscal y de contacto
-                </Text>
-              </View>
-            </View>
-            <View style={styles.cardAction}>
-              <Text style={styles.cardActionText}>Configurar</Text>
-              <Text style={styles.cardArrow}>›</Text>
-            </View>
-          </TouchableOpacity>
+          />
 
-          <TouchableOpacity
-            style={styles.formCard}
+          <SettingsLinkCard
+            iconName="cash-outline"
+            iconColor={UI_COLORS.accent}
+            title="Margen de ganancias"
+            subtitle="Márgenes y control de stocks"
+            actionLabel="Configurar"
             onPress={() => navigation.navigate("PricingSettings")}
-            activeOpacity={0.8}
-          >
-            <View style={styles.cardHeader}>
-              <View style={styles.cardIcon}>
-                <Ionicons
-                  name="cash-outline"
-                  size={iconSize.md}
-                  color="#169c5a"
-                />
-              </View>
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardTitle}>Margen de ganancias</Text>
-                <Text style={styles.cardSubtitle}>
-                  Márgenes y control de stocks
-                </Text>
-              </View>
-            </View>
-            <View style={styles.cardAction}>
-              <Text style={styles.cardActionText}>Configurar</Text>
-              <Text style={styles.cardArrow}>›</Text>
-            </View>
-          </TouchableOpacity>
+          />
 
-          <View style={styles.formCard}>
+          <SurfaceCard style={styles.formCard}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
                 <Ionicons
                   name="options-outline"
                   size={iconSize.md}
-                  color="#2f5ae0"
+                  color={UI_COLORS.info}
                 />
               </View>
               <View style={styles.cardInfo}>
@@ -405,14 +390,14 @@ export const SettingsScreen = () => {
             </View>
 
             <View style={styles.quickActions}>
-              <TouchableOpacity
-                style={[
+              <Pressable
+                style={({ pressed }) => [
                   styles.secondaryButtonOutline,
                   excelBusy && styles.buttonDisabled,
+                  pressed && styles.cardPressed,
                 ]}
                 onPress={handleExportExcel}
                 disabled={excelBusy}
-                activeOpacity={0.85}
               >
                 {excelBusy ? (
                   <ActivityIndicator />
@@ -421,46 +406,29 @@ export const SettingsScreen = () => {
                     Exportar Excel
                   </Text>
                 )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
                   styles.secondaryButton,
                   excelBusy && styles.buttonDisabled,
+                  pressed && styles.cardPressed,
                 ]}
                 onPress={handleSignOut}
                 disabled={excelBusy}
-                activeOpacity={0.85}
               >
                 <Text style={styles.secondaryButtonText}>Cerrar sesión</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
-          </View>
+          </SurfaceCard>
 
-          <TouchableOpacity
-            style={styles.formCard}
+          <SettingsLinkCard
+            iconName="information-circle-outline"
+            iconColor={UI_COLORS.info}
+            title="Acerca de"
+            subtitle="Información de la aplicación"
+            actionLabel="Ver"
             onPress={() => navigation.navigate("About")}
-            activeOpacity={0.8}
-          >
-            <View style={styles.cardHeader}>
-              <View style={styles.cardIcon}>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={iconSize.md}
-                  color="#2f5ae0"
-                />
-              </View>
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardTitle}>Acerca de</Text>
-                <Text style={styles.cardSubtitle}>
-                  Información de la aplicación
-                </Text>
-              </View>
-            </View>
-            <View style={styles.cardAction}>
-              <Text style={styles.cardActionText}>Ver</Text>
-              <Text style={styles.cardArrow}>›</Text>
-            </View>
-          </TouchableOpacity>
+          />
 
           {/* Modal de edición de inventario */}
           {editingSection === "inventory" && (
@@ -468,13 +436,15 @@ export const SettingsScreen = () => {
               <View style={styles.modalContent}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Configurar Inventario</Text>
-                  <TouchableOpacity
-                    style={styles.modalCloseButton}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.modalCloseButton,
+                      pressed && styles.cardPressed,
+                    ]}
                     onPress={cancelEditing}
-                    activeOpacity={0.8}
                   >
                     <Text style={styles.modalCloseText}>✕</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
 
                 <View style={styles.modalBody}>
@@ -489,28 +459,30 @@ export const SettingsScreen = () => {
                 </View>
 
                 <View style={styles.modalFooter}>
-                  <TouchableOpacity
-                    style={styles.cancelButton}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.cancelButton,
+                      pressed && styles.cardPressed,
+                    ]}
                     onPress={cancelEditing}
-                    activeOpacity={0.8}
                   >
                     <Text style={styles.cancelButtonText}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [
                       styles.primaryButton,
                       savingSection === "inventory" && styles.buttonDisabled,
+                      pressed && styles.cardPressed,
                     ]}
                     onPress={handleSaveInventory}
                     disabled={savingSection === "inventory"}
-                    activeOpacity={0.85}
                   >
                     {savingSection === "inventory" ? (
                       <ActivityIndicator color="#fff" />
                     ) : (
                       <Text style={styles.primaryButtonText}>Guardar</Text>
                     )}
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               </View>
             </View>
@@ -525,7 +497,7 @@ export const SettingsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   content: {
     paddingHorizontal: spacing.lg,
@@ -535,7 +507,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.lg,
@@ -545,64 +517,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#4c5767",
   },
-  heroCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
-    padding: spacing.lg,
-    flexDirection: "row",
-    gap: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 8,
-  },
-  heroIcon: {
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroIconText: {
-    fontSize: iconSize.lg,
-  },
-  heroInfo: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  heroTitle: {
-    fontSize: rf(22),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: rf(20),
-  },
-  accountPill: {
-    alignSelf: "flex-start",
-    marginTop: vs(4),
-    backgroundColor: "#edf3ff",
-    color: "#2f5ae0",
-    fontSize: rf(12),
-    fontWeight: "700",
-    paddingHorizontal: hs(10),
-    paddingVertical: vs(6),
-    borderRadius: s(999),
-  },
   formArea: {
     gap: spacing.lg,
   },
   input: {
-    backgroundColor: "#f3f5fa",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
     fontSize: rf(15),
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   inputLabel: {
     fontSize: rf(13),
@@ -623,15 +548,16 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: rf(15),
     fontWeight: "600",
-    color: "#1f2633",
+    color: UI_COLORS.text,
     textAlign: "right",
     flexShrink: 1,
     marginLeft: spacing.lg,
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: "#1f9254",
+    backgroundColor: UI_COLORS.accent,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     paddingVertical: spacing.lg,
     alignItems: "center",
   },
@@ -649,10 +575,11 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   cloudStatusBox: {
-    backgroundColor: "#f7fbff",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderWidth: 1,
-    borderColor: "#d9e8ff",
+    borderColor: UI_COLORS.border,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: spacing.md,
     gap: spacing.xs,
   },
@@ -668,26 +595,25 @@ const styles = StyleSheet.create({
   secondaryButtonOutline: {
     flex: 1,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "#d5dbe7",
+    borderColor: UI_COLORS.border,
     paddingVertical: spacing.lg,
     alignItems: "center",
+    backgroundColor: UI_COLORS.surfaceAlt,
   },
   secondaryButtonOutlineText: {
     fontSize: rf(14),
-    fontWeight: "600",
-    color: "#2f5ae0",
+    fontWeight: "700",
+    color: UI_COLORS.info,
   },
   formCard: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     padding: spacing.lg,
     gap: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(8) },
-    shadowOpacity: 0.06,
-    shadowRadius: s(14),
-    elevation: 6,
+    ...SHADOWS.card,
   },
   cardHeader: {
     flexDirection: "row",
@@ -698,7 +624,8 @@ const styles = StyleSheet.create({
     width: iconSize.lg,
     height: iconSize.lg,
     borderRadius: borderRadius.md,
-    backgroundColor: "#f3f8ff",
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -711,33 +638,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: rf(18),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  cardTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  infoIcon: {
-    width: iconSize.sm,
-    height: iconSize.sm,
-    borderRadius: borderRadius.sm,
-    backgroundColor: "#2196F3",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  infoIconText: {
-    fontSize: rf(12),
-    color: "#fff",
-    fontWeight: "bold",
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   cardSubtitle: {
     fontSize: rf(14),
-    color: "#6f7c8c",
-  },
-  cardContent: {
-    gap: spacing.lg,
+    color: UI_COLORS.muted,
   },
   cardAction: {
     flexDirection: "row",
@@ -746,36 +652,21 @@ const styles = StyleSheet.create({
   },
   cardActionText: {
     fontSize: rf(14),
-    fontWeight: "600",
-    color: "#2f5ae0",
-  },
-  cardArrow: {
-    fontSize: rf(20),
-    color: "#2f5ae0",
-    fontWeight: "300",
-  },
-  cardButton: {
-    backgroundColor: "#f0f3fa",
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.lg,
-    alignItems: "center",
-  },
-  cardButtonText: {
-    fontSize: rf(14),
-    fontWeight: "600",
-    color: "#2f5ae0",
+    fontWeight: "700",
+    color: UI_COLORS.info,
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: "#f0f3fa",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: spacing.lg,
     alignItems: "center",
   },
   secondaryButtonText: {
     fontSize: rf(14),
-    fontWeight: "600",
-    color: "#2f5ae0",
+    fontWeight: "700",
+    color: UI_COLORS.info,
   },
   modalOverlay: {
     position: "absolute",
@@ -789,8 +680,9 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     width: "90%",
     maxHeight: "80%",
     shadowColor: "#000",
@@ -805,24 +697,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: "#e4e9f2",
+    borderBottomColor: UI_COLORS.border,
   },
   modalTitle: {
     fontSize: rf(18),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   modalCloseButton: {
     width: iconSize.md,
     height: iconSize.md,
     borderRadius: borderRadius.sm,
-    backgroundColor: "#f3f5fa",
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
   modalCloseText: {
     fontSize: rf(16),
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
     fontWeight: "600",
   },
   modalBody: {
@@ -834,19 +727,24 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     padding: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: "#e4e9f2",
+    borderTopColor: UI_COLORS.border,
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: "#f3f5fa",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: spacing.lg,
     alignItems: "center",
   },
   cancelButtonText: {
     fontSize: rf(15),
-    fontWeight: "600",
-    color: "#6f7c8c",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

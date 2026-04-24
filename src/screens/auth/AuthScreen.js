@@ -3,16 +3,31 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { borderRadius, hs, rf, s, spacing, vs } from "../../utils/responsive";
+
+const AUTH_COLORS = {
+  page: "#f4f7fb",
+  surface: "#ffffff",
+  surfaceAlt: "#f6faf7",
+  accent: "#1f7a59",
+  accentStrong: "#0f5a3f",
+  accentSoft: "#e8f5ef",
+  text: "#193227",
+  muted: "#66766d",
+  border: "#d8e4db",
+  danger: "#cf4f43",
+  info: "#245fd1",
+};
 
 const mapAuthError = (error) => {
   const code = error?.code || "";
@@ -144,16 +159,45 @@ const AuthScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.heroCard}>
+            <Text style={styles.heroEyebrow}>Acceso seguro</Text>
             <Text style={styles.heroTitle}>T-Suma Cloud</Text>
             <Text style={styles.heroSubtitle}>{helperText}</Text>
+
+            <View style={styles.heroHighlights}>
+              <View style={styles.heroHighlightPill}>
+                <Ionicons
+                  name="cloud-done-outline"
+                  size={rf(16)}
+                  color={AUTH_COLORS.accentStrong}
+                />
+                <Text style={styles.heroHighlightText}>Sincronización</Text>
+              </View>
+              <View style={styles.heroHighlightPill}>
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={rf(16)}
+                  color={AUTH_COLORS.accentStrong}
+                />
+                <Text style={styles.heroHighlightText}>Seguridad</Text>
+              </View>
+              <View style={styles.heroHighlightPill}>
+                <Ionicons
+                  name="storefront-outline"
+                  size={rf(16)}
+                  color={AUTH_COLORS.accentStrong}
+                />
+                <Text style={styles.heroHighlightText}>Tu tienda</Text>
+              </View>
+            </View>
           </View>
 
           <View style={styles.formCard}>
             <View style={styles.modeSwitch}>
-              <TouchableOpacity
-                style={[
+              <Pressable
+                style={({ pressed }) => [
                   styles.modeButton,
                   !isRegister && styles.modeButtonActive,
+                  pressed && styles.pressed,
                 ]}
                 onPress={() => {
                   setMode("login");
@@ -169,11 +213,12 @@ const AuthScreen = () => {
                 >
                   Iniciar sesión
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
                   styles.modeButton,
                   isRegister && styles.modeButtonActive,
+                  pressed && styles.pressed,
                 ]}
                 onPress={() => {
                   setMode("register");
@@ -189,7 +234,7 @@ const AuthScreen = () => {
                 >
                   Registrarme
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {isRegister && (
@@ -271,10 +316,11 @@ const AuthScreen = () => {
             )}
             {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-            <TouchableOpacity
-              style={[
+            <Pressable
+              style={({ pressed }) => [
                 styles.submitButton,
                 loading && styles.submitButtonDisabled,
+                pressed && styles.pressed,
               ]}
               onPress={submit}
               disabled={loading}
@@ -286,16 +332,24 @@ const AuthScreen = () => {
                   {isRegister ? "Crear cuenta" : "Entrar"}
                 </Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
 
             {!isRegister && (
-              <TouchableOpacity
-                style={styles.linkButton}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.linkButton,
+                  pressed && styles.linkButtonPressed,
+                ]}
                 onPress={handlePasswordReset}
               >
                 <Text style={styles.linkButtonText}>Recuperar contraseña</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
+
+            <Text style={styles.securityHint}>
+              Al continuar, tus datos locales se vinculan con tu espacio seguro
+              en la nube.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -306,7 +360,7 @@ const AuthScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#edf3f8",
+    backgroundColor: AUTH_COLORS.page,
   },
   keyboardContainer: {
     flex: 1,
@@ -319,8 +373,9 @@ const styles = StyleSheet.create({
     gap: vs(18),
   },
   heroCard: {
-    backgroundColor: "#2f5ae0",
+    backgroundColor: AUTH_COLORS.accent,
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     padding: spacing.xl,
     gap: vs(10),
     shadowColor: "#000",
@@ -329,40 +384,76 @@ const styles = StyleSheet.create({
     shadowRadius: s(18),
     elevation: 10,
   },
+  heroEyebrow: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: rf(12),
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
   heroTitle: {
     color: "#fff",
     fontSize: rf(24),
     fontWeight: "800",
   },
   heroSubtitle: {
-    color: "#e7eeff",
+    color: "rgba(255,255,255,0.84)",
     fontSize: rf(14),
     lineHeight: vs(20),
   },
-  formCard: {
-    backgroundColor: "#fff",
+  heroHighlights: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: hs(10),
+    marginTop: vs(8),
+  },
+  heroHighlightPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: hs(6),
+    backgroundColor: "rgba(255,255,255,0.14)",
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(8),
+  },
+  heroHighlightText: {
+    color: "#ffffff",
+    fontSize: rf(12),
+    fontWeight: "700",
+  },
+  formCard: {
+    backgroundColor: AUTH_COLORS.surface,
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     padding: spacing.lg,
     gap: vs(10),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: s(8) },
+    shadowOpacity: 0.08,
+    shadowRadius: s(18),
+    elevation: 8,
   },
   modeSwitch: {
     flexDirection: "row",
-    backgroundColor: "#eef2f9",
+    backgroundColor: AUTH_COLORS.surfaceAlt,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: s(4),
     marginBottom: vs(8),
   },
   modeButton: {
     flex: 1,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: vs(12),
     alignItems: "center",
   },
   modeButtonActive: {
-    backgroundColor: "#2f5ae0",
+    backgroundColor: AUTH_COLORS.accent,
   },
   modeButtonText: {
-    color: "#58708f",
+    color: AUTH_COLORS.muted,
     fontSize: rf(14),
     fontWeight: "700",
   },
@@ -370,37 +461,39 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   label: {
-    color: "#506074",
+    color: AUTH_COLORS.text,
     fontSize: rf(13),
     fontWeight: "700",
     marginTop: vs(4),
   },
   input: {
     borderWidth: 1,
-    borderColor: "#d8e0ec",
+    borderColor: AUTH_COLORS.border,
     borderRadius: borderRadius.md,
-    backgroundColor: "#f8fbff",
+    borderCurve: "continuous",
+    backgroundColor: AUTH_COLORS.surfaceAlt,
     paddingHorizontal: hs(14),
     paddingVertical: vs(14),
     fontSize: rf(15),
-    color: "#1f2633",
+    color: AUTH_COLORS.text,
   },
   errorText: {
-    color: "#d6455d",
+    color: AUTH_COLORS.danger,
     fontSize: rf(13),
     fontWeight: "600",
     marginTop: vs(4),
   },
   infoText: {
-    color: "#1f9254",
+    color: AUTH_COLORS.accent,
     fontSize: rf(13),
     fontWeight: "600",
     marginTop: vs(4),
   },
   submitButton: {
     marginTop: vs(12),
-    backgroundColor: "#1f9254",
+    backgroundColor: AUTH_COLORS.accent,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: vs(15),
@@ -417,10 +510,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: vs(8),
   },
+  linkButtonPressed: {
+    opacity: 0.75,
+  },
   linkButtonText: {
-    color: "#2f5ae0",
+    color: AUTH_COLORS.info,
     fontSize: rf(13),
     fontWeight: "700",
+  },
+  securityHint: {
+    marginTop: vs(4),
+    color: AUTH_COLORS.muted,
+    fontSize: rf(12),
+    lineHeight: vs(18),
+    textAlign: "center",
+  },
+  pressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
   },
 });
 

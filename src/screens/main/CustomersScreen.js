@@ -5,7 +5,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   TextInput,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -16,6 +16,16 @@ import { getAllSales } from "../../services/database/sales";
 import { getAllAccountsReceivable } from "../../services/database/accounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
+import {
+  EmptyStateCard,
+  FloatingActionButton,
+  InfoPill,
+  MetricCard,
+  ScreenHero,
+  SurfaceCard,
+  SHADOWS,
+  UI_COLORS,
+} from "../../components/common/AppUI";
 import {
   s,
   rf,
@@ -267,14 +277,16 @@ export const CustomersScreen = () => {
 
       return (
         <View style={styles.card}>
-          <TouchableOpacity
-            style={styles.cardBody}
+          <Pressable
+            style={({ pressed }) => [
+              styles.cardBody,
+              pressed && !isGeneric && styles.cardPressed,
+            ]}
             onPress={
               isGeneric
                 ? undefined
                 : () => navigation.navigate("EditCustomer", { customer: item })
             }
-            activeOpacity={isGeneric ? 1 : 0.85}
           >
             <View style={styles.cardHeader}>
               <Text
@@ -286,12 +298,13 @@ export const CustomersScreen = () => {
                 {item.name}
                 {isGeneric && " (ventas rápidas)"}
               </Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {item.customerNumber ||
-                    `CLI-${String(item.id).padStart(6, "0")}`}
-                </Text>
-              </View>
+              <InfoPill
+                text={
+                  item.customerNumber ||
+                  `CLI-${String(item.id).padStart(6, "0")}`
+                }
+                tone={isGeneric ? "warning" : "info"}
+              />
             </View>
 
             <View style={styles.infoRow}>
@@ -314,16 +327,18 @@ export const CustomersScreen = () => {
                 {hasEmail ? item.email : "No registrado"}
               </Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
 
           {!isGeneric && (
-            <TouchableOpacity
-              style={styles.deleteButton}
+            <Pressable
+              style={({ pressed }) => [
+                styles.deleteButton,
+                pressed && styles.cardPressed,
+              ]}
               onPress={() => confirmDeleteCustomer(item)}
-              activeOpacity={0.85}
             >
-              <Text style={styles.deleteButtonText}>✕</Text>
-            </TouchableOpacity>
+              <Ionicons name="close" size={rf(16)} color={UI_COLORS.danger} />
+            </Pressable>
           )}
         </View>
       );
@@ -333,17 +348,34 @@ export const CustomersScreen = () => {
 
   const header = (
     <View style={styles.headerContent}>
-      <View style={styles.heroCard}>
-        <View style={styles.heroIcon}>
-          <Ionicons name="people-outline" size={iconSize.xl} color="#2f5ae0" />
-        </View>
-        <View style={styles.heroTextContainer}>
-          <Text style={styles.heroTitle}>Directorio de clientes</Text>
-          <Text style={styles.heroSubtitle}>
-            Centraliza la información de contacto y fortalece la relación con
-            tus compradores.
-          </Text>
-        </View>
+      <ScreenHero
+        iconName="people-outline"
+        iconColor={UI_COLORS.info}
+        eyebrow="Clientes"
+        title="Directorio de clientes"
+        subtitle="Centraliza la información de contacto y fortalece la relación con tus compradores."
+        pills={[
+          { text: `${customers.length} registrados`, tone: "accent" },
+          {
+            text: `${sortedCustomers.filter((item) => item.documentNumber === "1").length} genérico`,
+            tone: "warning",
+          },
+        ]}
+      />
+
+      <View style={styles.metricRow}>
+        <MetricCard
+          label="Con documento"
+          value={`${sortedCustomers.filter((item) => item.documentNumber).length}`}
+          hint="Clientes identificados"
+          tone="info"
+        />
+        <MetricCard
+          label="Con contacto"
+          value={`${sortedCustomers.filter((item) => item.phone || item.email).length}`}
+          hint="Teléfono o correo disponible"
+          tone="accent"
+        />
       </View>
 
       <TourGuideZone
@@ -354,7 +386,7 @@ export const CustomersScreen = () => {
         borderRadius={borderRadius.lg}
         style={styles.searchCard}
       >
-        <View>
+        <SurfaceCard style={styles.searchSurface}>
           <Text style={styles.searchTitle}>Buscar cliente</Text>
           <TextInput
             style={styles.searchInput}
@@ -363,7 +395,7 @@ export const CustomersScreen = () => {
             onChangeText={handleSearch}
             placeholderTextColor="#9aa2b1"
           />
-        </View>
+        </SurfaceCard>
       </TourGuideZone>
 
       {/* <View style={styles.actionsCard}>
@@ -391,17 +423,14 @@ export const CustomersScreen = () => {
   );
 
   const renderEmpty = () => (
-    <View style={styles.emptyCard}>
-      <Text style={styles.emptyTitle}>
-        {searchQuery
+    <EmptyStateCard
+      title={
+        searchQuery
           ? "No se encontraron clientes"
-          : "Aún no hay clientes registrados"}
-      </Text>
-      <Text style={styles.emptySubtitle}>
-        Registra nuevos clientes para guardar sus datos y asociar cuentas por
-        cobrar.
-      </Text>
-    </View>
+          : "Aún no hay clientes registrados"
+      }
+      subtitle="Registra nuevos clientes para guardar sus datos y asociar cuentas por cobrar."
+    />
   );
 
   if (loading) {
@@ -416,9 +445,15 @@ export const CustomersScreen = () => {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>Error: {error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.retryButton,
+            pressed && styles.cardPressed,
+          ]}
+          onPress={refresh}
+        >
           <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -444,13 +479,11 @@ export const CustomersScreen = () => {
         text={"Presiona '+' para registrar un nuevo cliente."}
         shape="circle"
       >
-        <TouchableOpacity
-          style={[styles.fab, { bottom: fabBottom }]}
+        <FloatingActionButton
           onPress={() => navigation.navigate("AddCustomer")}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
+          bottom={fabBottom}
+          iconName="add"
+        />
       </TourGuideZone>
       <CustomAlert />
     </View>
@@ -460,13 +493,13 @@ export const CustomersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   loadingText: {
     fontSize: rf(16),
@@ -481,112 +514,41 @@ const styles = StyleSheet.create({
     gap: vs(18),
     marginBottom: vs(8),
   },
-  heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 8,
-  },
-  heroIcon: {
-    width: s(60),
-    height: s(60),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: hs(18),
-  },
-  heroIconText: {
-    fontSize: iconSize.xl,
-  },
-  heroTextContainer: {
-    flex: 1,
-    gap: vs(6),
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: vs(20),
-  },
   metricRow: {
     flexDirection: "row",
     gap: hs(16),
   },
-  metricCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.md,
-    paddingVertical: vs(18),
-    paddingHorizontal: hs(20),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
-    gap: vs(4),
-  },
-  metricLabel: {
-    fontSize: rf(12),
-    fontWeight: "600",
-    color: "#7a8796",
-    textTransform: "uppercase",
-    letterSpacing: s(0.8),
-  },
-  metricValue: {
-    fontSize: rf(22),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  metricHint: {
-    fontSize: rf(12),
-    color: "#6f7c8c",
-  },
   searchCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(8),
-    elevation: 4,
     gap: vs(14),
+  },
+  searchSurface: {
+    gap: vs(14),
+    ...SHADOWS.soft,
   },
   searchTitle: {
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#1f2633",
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   searchInput: {
-    backgroundColor: "#f3f5fa",
-    borderRadius: borderRadius.sm,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: vs(12),
     paddingHorizontal: hs(16),
     fontSize: rf(15),
-    color: "#1f2633",
+    color: UI_COLORS.text,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
   },
   card: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
+    ...SHADOWS.soft,
     gap: hs(16),
     marginBottom: vs(12),
   },
@@ -603,23 +565,12 @@ const styles = StyleSheet.create({
   customerName: {
     flex: 1,
     fontSize: rf(16),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   genericCustomerName: {
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
     fontStyle: "italic",
-  },
-  badge: {
-    paddingHorizontal: hs(12),
-    paddingVertical: vs(6),
-    borderRadius: borderRadius.sm,
-    backgroundColor: "#f3f8ff",
-  },
-  badgeText: {
-    fontSize: rf(12),
-    fontWeight: "600",
-    color: "#2f5ae0",
   },
   infoRow: {
     flexDirection: "row",
@@ -629,12 +580,12 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: rf(13),
-    fontWeight: "600",
-    color: "#7a8796",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
   },
   infoValue: {
     fontSize: rf(13),
-    color: "#4c5767",
+    color: UI_COLORS.text,
     flex: 1,
     textAlign: "right",
   },
@@ -642,73 +593,24 @@ const styles = StyleSheet.create({
     width: s(44),
     height: s(44),
     borderRadius: borderRadius.md,
-    backgroundColor: "#fff0f0",
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.dangerSoft,
     justifyContent: "center",
     alignItems: "center",
-  },
-  deleteButtonText: {
-    fontSize: rf(18),
-    fontWeight: "700",
-    color: "#d62828",
-  },
-  fab: {
-    position: "absolute",
-    bottom: vs(20),
-    right: hs(20),
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: s(28),
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.3,
-    shadowRadius: s(8),
-    elevation: 8,
-  },
-  fabIcon: {
-    fontSize: rf(28),
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  emptyCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    alignItems: "center",
-    gap: vs(12),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
-    marginTop: vs(40),
-  },
-  emptyTitle: {
-    fontSize: rf(17),
-    fontWeight: "700",
-    color: "#1f2633",
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    fontSize: rf(13),
-    color: "#6f7c8c",
-    textAlign: "center",
-    lineHeight: vs(20),
   },
   errorText: {
     fontSize: rf(16),
-    color: "#ef4444",
+    color: UI_COLORS.danger,
     textAlign: "center",
     marginBottom: vs(16),
   },
   retryButton: {
-    backgroundColor: "#3b82f6",
+    backgroundColor: UI_COLORS.info,
     paddingHorizontal: hs(20),
     paddingVertical: vs(12),
-    borderRadius: borderRadius.sm,
-    shadowColor: "#3b82f6",
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    shadowColor: UI_COLORS.info,
     shadowOffset: { width: 0, height: s(2) },
     shadowOpacity: 0.3,
     shadowRadius: s(4),
@@ -717,6 +619,10 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: "#fff",
     fontWeight: "700",
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
   /* actionsCard: {
     backgroundColor: "#fff",

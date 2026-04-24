@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   TextInput,
   Modal,
@@ -27,6 +27,7 @@ import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
+import { SHADOWS, UI_COLORS } from "../../components/common/AppUI";
 import { getSettings } from "../../services/database/settings";
 import {
   updateProductStock,
@@ -47,6 +48,8 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const TOUR_ZONE_BASE = 0;
 const CART_TOUR_ZONE_BASE = 0;
+
+const POS_COLORS = UI_COLORS;
 
 /**
  * Pantalla de punto de venta (POS)
@@ -817,8 +820,12 @@ export const POSScreen = ({ navigation }) => {
     const stockValue = Number(item.stock) || 0;
     const isOutOfStock = stockValue === 0;
     const card = (
-      <TouchableOpacity
-        style={[styles.productCard, isOutOfStock && styles.productCardDisabled]}
+      <Pressable
+        style={({ pressed }) => [
+          styles.productCard,
+          isOutOfStock && styles.productCardDisabled,
+          pressed && !isOutOfStock && styles.cardPressed,
+        ]}
         onPress={() => addToCart(item)}
         disabled={isOutOfStock}
       >
@@ -852,7 +859,7 @@ export const POSScreen = ({ navigation }) => {
             Stock: {stockValue}
           </Text>
         </View>
-      </TouchableOpacity>
+      </Pressable>
     );
 
     if (index !== 0) return card;
@@ -888,14 +895,17 @@ export const POSScreen = ({ navigation }) => {
 
       <View style={styles.cartItemRight}>
         <View style={styles.quantityControls}>
-          <TouchableOpacity
-            style={styles.quantityButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.quantityButton,
+              pressed && styles.cardPressed,
+            ]}
             onPress={() =>
               updateQuantity(item.id, (Number(item.quantity) || 0) - 1)
             }
           >
             <Text style={styles.quantityButtonText}>-</Text>
-          </TouchableOpacity>
+          </Pressable>
           <TextInput
             style={styles.quantityInput}
             value={quantityDrafts[item.id] ?? formatQuantity(item.quantity)}
@@ -905,21 +915,27 @@ export const POSScreen = ({ navigation }) => {
             returnKeyType="done"
             maxLength={8}
           />
-          <TouchableOpacity
-            style={styles.quantityButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.quantityButton,
+              pressed && styles.cardPressed,
+            ]}
             onPress={() =>
               updateQuantity(item.id, (Number(item.quantity) || 0) + 1)
             }
           >
             <Text style={styles.quantityButtonText}>+</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
-        <TouchableOpacity
-          style={styles.removeButton}
+        <Pressable
+          style={({ pressed }) => [
+            styles.removeButton,
+            pressed && styles.cardPressed,
+          ]}
           onPress={() => removeFromCart(item.id)}
         >
           <Text style={styles.removeButtonText}>Eliminar</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
@@ -954,6 +970,23 @@ export const POSScreen = ({ navigation }) => {
                     </Text>
                   </View>
                 </View>
+
+                <View style={styles.heroStatsRow}>
+                  <View style={styles.heroStatPill}>
+                    <Text style={styles.heroStatLabel}>Productos</Text>
+                    <Text style={styles.heroStatValue}>{products.length}</Text>
+                  </View>
+                  <View style={styles.heroStatPill}>
+                    <Text style={styles.heroStatLabel}>Tasa</Text>
+                    <Text style={styles.heroStatValue}>
+                      {exchangeRate > 0 ? exchangeRate.toFixed(2) : "-"}
+                    </Text>
+                  </View>
+                  <View style={styles.heroStatPill}>
+                    <Text style={styles.heroStatLabel}>Carrito</Text>
+                    <Text style={styles.heroStatValue}>{cart.length}</Text>
+                  </View>
+                </View>
               </View>
 
               <TourGuideZone
@@ -963,8 +996,23 @@ export const POSScreen = ({ navigation }) => {
                 borderRadius={borderRadius.lg}
                 style={styles.searchCard}
               >
-                <View>
-                  <Text style={styles.searchLabel}>Buscar productos</Text>
+                <View style={styles.searchCardContent}>
+                  <View style={styles.searchHeaderRow}>
+                    <Text style={styles.searchLabel}>Buscar productos</Text>
+                    <Pressable
+                      onPress={openQRScanner}
+                      style={({ pressed }) => [
+                        styles.searchScanButton,
+                        pressed && styles.cardPressed,
+                      ]}
+                    >
+                      <Ionicons
+                        name="qr-code-outline"
+                        size={rf(18)}
+                        color={POS_COLORS.info}
+                      />
+                    </Pressable>
+                  </View>
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Escribe para filtrar por nombre"
@@ -999,15 +1047,23 @@ export const POSScreen = ({ navigation }) => {
             text={"Presiona 'Ver carrito' para cobrar y completar la venta."}
             borderRadius={borderRadius.lg}
           >
-            <TouchableOpacity
-              style={styles.cartSummaryButton}
+            <Pressable
+              style={({ pressed }) => [
+                styles.cartSummaryButton,
+                pressed && styles.cardPressed,
+              ]}
               onPress={() => setShowCart(true)}
-              activeOpacity={0.85}
             >
+              <View style={styles.cartSummaryInfo}>
+                <Text style={styles.cartSummaryLabel}>Carrito activo</Text>
+                <Text style={styles.cartSummaryTotal}>
+                  VES. {total.toFixed(2)}
+                </Text>
+              </View>
               <Text style={styles.cartSummaryButtonText}>
                 Ver carrito ({cart.length})
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </TourGuideZone>
         </View>
 
@@ -1027,20 +1083,34 @@ export const POSScreen = ({ navigation }) => {
             <CartTourBootstrapper />
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <TouchableOpacity
-                  style={styles.backButton}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.backButton,
+                    pressed && styles.cardPressed,
+                  ]}
                   onPress={() => setShowCart(false)}
                 >
-                  <Text style={styles.backButtonText}>← Volver</Text>
-                </TouchableOpacity>
+                  <Ionicons
+                    name="chevron-back"
+                    size={rf(18)}
+                    color={POS_COLORS.text}
+                  />
+                  <Text style={styles.backButtonText}>Volver</Text>
+                </Pressable>
                 <Text style={styles.modalTitle}>Carrito de Compras</Text>
-                <TouchableOpacity
-                  style={styles.qrButton}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.qrButton,
+                    pressed && styles.cardPressed,
+                  ]}
                   onPress={openQRScanner}
-                  activeOpacity={0.85}
                 >
-                  <Ionicons name="qr-code-outline" size={rf(24)} color="#fff" />
-                </TouchableOpacity>
+                  <Ionicons
+                    name="qr-code-outline"
+                    size={rf(22)}
+                    color={POS_COLORS.info}
+                  />
+                </Pressable>
               </View>
 
               <ScrollView style={styles.modalContent} ref={scrollViewRef}>
@@ -1111,7 +1181,7 @@ export const POSScreen = ({ navigation }) => {
                       style={styles.paymentButtonsScroll}
                       contentContainerStyle={styles.paymentButtons}
                     >
-                      <TouchableOpacity
+                      <Pressable
                         style={[
                           styles.paymentButton,
                           paymentMethod === "cash" &&
@@ -1136,8 +1206,8 @@ export const POSScreen = ({ navigation }) => {
                         >
                           Efectivo
                         </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </Pressable>
+                      <Pressable
                         style={[
                           styles.paymentButton,
                           paymentMethod === "card" &&
@@ -1162,8 +1232,8 @@ export const POSScreen = ({ navigation }) => {
                         >
                           Tarjeta
                         </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </Pressable>
+                      <Pressable
                         style={[
                           styles.paymentButton,
                           paymentMethod === "transfer" &&
@@ -1188,8 +1258,8 @@ export const POSScreen = ({ navigation }) => {
                         >
                           Transferencia
                         </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </Pressable>
+                      <Pressable
                         style={[
                           styles.paymentButton,
                           paymentMethod === "pago_movil" &&
@@ -1216,7 +1286,7 @@ export const POSScreen = ({ navigation }) => {
                         >
                           Pago Móvil
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                       <TourGuideZone
                         tourKey="pos_cart_v2"
                         zone={CART_TOUR_ZONE_BASE + 2}
@@ -1225,7 +1295,7 @@ export const POSScreen = ({ navigation }) => {
                         }
                         borderRadius={borderRadius.lg}
                       >
-                        <TouchableOpacity
+                        <Pressable
                           style={[
                             styles.paymentButton,
                             paymentMethod === "por_cobrar" &&
@@ -1252,7 +1322,7 @@ export const POSScreen = ({ navigation }) => {
                           >
                             Por Cobrar
                           </Text>
-                        </TouchableOpacity>
+                        </Pressable>
                       </TourGuideZone>
                     </ScrollView>
 
@@ -1300,7 +1370,7 @@ export const POSScreen = ({ navigation }) => {
                 </View>
 
                 <View style={styles.actionButtons}>
-                  <TouchableOpacity
+                  <Pressable
                     style={[
                       styles.clearButton,
                       cart.length === 0 && styles.buttonDisabled,
@@ -1309,7 +1379,7 @@ export const POSScreen = ({ navigation }) => {
                     disabled={cart.length === 0}
                   >
                     <Text style={styles.clearButtonText}>Limpiar</Text>
-                  </TouchableOpacity>
+                  </Pressable>
 
                   <TourGuideZone
                     tourKey="pos_cart_v2"
@@ -1320,7 +1390,7 @@ export const POSScreen = ({ navigation }) => {
                     borderRadius={borderRadius.lg}
                     style={styles.checkoutTourZone}
                   >
-                    <TouchableOpacity
+                    <Pressable
                       style={[
                         styles.checkoutButton,
                         (cart.length === 0 || processingSale) &&
@@ -1334,7 +1404,7 @@ export const POSScreen = ({ navigation }) => {
                       ) : (
                         <Text style={styles.checkoutText}>Completar Venta</Text>
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                   </TourGuideZone>
                 </View>
               </View>
@@ -1369,12 +1439,15 @@ export const POSScreen = ({ navigation }) => {
             </View>
             <View style={styles.viewfinderBottom} />
           </View>
-          <TouchableOpacity
-            style={styles.closeScannerButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.closeScannerButton,
+              pressed && styles.cardPressed,
+            ]}
             onPress={() => setScanning(false)}
           >
             <Text style={styles.closeScannerText}>Cerrar</Text>
-          </TouchableOpacity>
+          </Pressable>
         </Modal>
 
         {/* Modal para crear nuevo cliente */}
@@ -1402,14 +1475,14 @@ export const POSScreen = ({ navigation }) => {
               />
 
               <View style={styles.newCustomerButtons}>
-                <TouchableOpacity
+                <Pressable
                   style={[styles.modalButton, styles.cancelButton]}
                   onPress={cancelNewCustomer}
                 >
                   <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity
+                <Pressable
                   style={[
                     styles.modalButton,
                     styles.saveButton,
@@ -1423,7 +1496,7 @@ export const POSScreen = ({ navigation }) => {
                   ) : (
                     <Text style={styles.saveButtonText}>Crear y Vender</Text>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -1437,14 +1510,14 @@ export const POSScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: POS_COLORS.page,
   },
   flatList: {
     paddingHorizontal: hs(16),
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: POS_COLORS.page,
     alignItems: "center",
     justifyContent: "center",
     gap: vs(16),
@@ -1461,20 +1534,21 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
   },
   heroCard: {
-    backgroundColor: "#fff",
+    backgroundColor: POS_COLORS.accent,
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     padding: spacing.md,
     width: "100%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.12,
     shadowRadius: s(18),
     elevation: 8,
+    gap: vs(14),
   },
   heroHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: vs(18),
   },
   heroIcon: {
     width: s(64),
@@ -1494,14 +1568,38 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontSize: rf(22),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: "#ffffff",
   },
   heroSubtitle: {
     fontSize: rf(14),
-    color: "#5b6472",
+    color: "rgba(255, 255, 255, 0.82)",
     lineHeight: vs(20),
     marginTop: vs(6),
+  },
+  heroStatsRow: {
+    flexDirection: "row",
+    gap: hs(10),
+  },
+  heroStatPill: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingVertical: vs(10),
+    paddingHorizontal: hs(12),
+    gap: vs(4),
+  },
+  heroStatLabel: {
+    fontSize: rf(11),
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.74)",
+    textTransform: "uppercase",
+  },
+  heroStatValue: {
+    fontSize: rf(16),
+    fontWeight: "800",
+    color: "#ffffff",
   },
   heroAction: {
     alignSelf: "flex-start",
@@ -1520,8 +1618,9 @@ const styles = StyleSheet.create({
     fontSize: rf(13),
   },
   searchCard: {
-    backgroundColor: "#fff",
+    backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     padding: spacing.md,
     gap: vs(12),
     width: "100%",
@@ -1531,21 +1630,42 @@ const styles = StyleSheet.create({
     shadowRadius: s(12),
     elevation: 5,
   },
+  searchCardContent: {
+    gap: vs(12),
+  },
+  searchHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: hs(12),
+  },
   searchLabel: {
     fontSize: rf(12),
     fontWeight: "600",
-    color: "#7a8796",
+    color: POS_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: s(0.6),
   },
+  searchScanButton: {
+    width: s(42),
+    height: s(42),
+    borderRadius: s(21),
+    borderCurve: "continuous",
+    backgroundColor: POS_COLORS.infoSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   searchInput: {
-    backgroundColor: "#f3f5fa",
+    backgroundColor: POS_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: vs(14),
     paddingHorizontal: hs(16),
     fontSize: rf(14),
     fontWeight: "500",
-    color: "#1f2633",
+    color: POS_COLORS.text,
+    borderWidth: 1,
+    borderColor: POS_COLORS.border,
   },
   productsContent: {
     paddingTop: vs(8),
@@ -1553,23 +1673,20 @@ const styles = StyleSheet.create({
     gap: vs(10),
   },
   productsContentWithSummary: {
-    paddingBottom: vs(240),
+    paddingBottom: vs(228),
   },
   productCard: {
-    backgroundColor: "#fff",
+    backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: spacing.sm,
     gap: vs(8),
     flex: 1,
     marginBottom: vs(8),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(12),
-    elevation: 5,
+    ...SHADOWS.soft,
   },
   productCardDisabled: {
-    opacity: 0.45,
+    opacity: 0.58,
   },
   productHeader: {
     flexDirection: "row",
@@ -1589,11 +1706,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: rf(14),
     fontWeight: "700",
-    color: "#1f2633",
+    color: POS_COLORS.text,
   },
   outOfStockBadge: {
-    backgroundColor: "#f66570",
+    backgroundColor: POS_COLORS.danger,
     borderRadius: borderRadius.sm,
+    borderCurve: "continuous",
     paddingHorizontal: hs(10),
     paddingVertical: vs(4),
   },
@@ -1604,12 +1722,12 @@ const styles = StyleSheet.create({
   },
   productCategory: {
     fontSize: rf(12),
-    color: "#6f7c8c",
+    color: POS_COLORS.muted,
     fontStyle: "italic",
   },
   productBarcode: {
     fontSize: rf(12),
-    color: "#7a8796",
+    color: POS_COLORS.muted,
     fontWeight: "500",
   },
   productFooter: {
@@ -1619,21 +1737,22 @@ const styles = StyleSheet.create({
   },
   productPrice: {
     fontSize: rf(15),
-    fontWeight: "700",
-    color: "#1f9254",
+    fontWeight: "800",
+    color: POS_COLORS.accent,
   },
   productStock: {
     fontSize: rf(12),
     fontWeight: "600",
-    color: "#2f5ae0",
-    backgroundColor: "#e8f1ff",
+    color: POS_COLORS.info,
+    backgroundColor: POS_COLORS.infoSoft,
     paddingHorizontal: hs(10),
     paddingVertical: vs(5),
     borderRadius: borderRadius.sm,
+    borderCurve: "continuous",
   },
   productStockLow: {
-    backgroundColor: "#ffe8ec",
-    color: "#d6455d",
+    backgroundColor: POS_COLORS.dangerSoft,
+    color: POS_COLORS.danger,
   },
   emptyContainer: {
     alignItems: "center",
@@ -1647,26 +1766,21 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: rf(18),
     fontWeight: "700",
-    color: "#1f2633",
+    color: POS_COLORS.text,
     textAlign: "center",
   },
   emptySubtext: {
     fontSize: rf(14),
-    color: "#6f7c8c",
+    color: POS_COLORS.muted,
     textAlign: "center",
     lineHeight: vs(20),
   },
   cartSummary: {
     position: "absolute",
-    left: hs(24),
-    right: 0,
-    bottom: vs(24),
+    left: hs(16),
+    right: hs(16),
+    bottom: vs(18),
     backgroundColor: "transparent",
-    paddingVertical: vs(18),
-    paddingRight: 0,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
   },
   cartSummaryInfo: {
     gap: vs(4),
@@ -1680,26 +1794,34 @@ const styles = StyleSheet.create({
   },
   cartSummaryTotal: {
     fontSize: rf(22),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: "#ffffff",
   },
   cartSummaryButton: {
-    backgroundColor: "#2f5ae0",
-    borderRadius: borderRadius.md,
-    paddingHorizontal: hs(20),
-    paddingVertical: vs(12),
+    backgroundColor: POS_COLORS.text,
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(18),
+    paddingVertical: vs(14),
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: hs(12),
+    ...SHADOWS.card,
   },
   cartSummaryButtonText: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: rf(14),
   },
   qrButton: {
-    backgroundColor: "#2f5ae0",
+    backgroundColor: POS_COLORS.infoSoft,
     borderRadius: borderRadius.md,
-    paddingHorizontal: hs(12),
-    paddingVertical: vs(12),
-    marginRight: hs(8),
+    borderCurve: "continuous",
+    width: s(44),
+    height: s(44),
+    alignItems: "center",
+    justifyContent: "center",
   },
   qrButtonText: {
     color: "#fff",
@@ -1708,78 +1830,77 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: POS_COLORS.page,
   },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: hs(16),
-    paddingTop: vs(20),
-    paddingBottom: vs(16),
+    paddingTop: vs(16),
+    paddingBottom: vs(12),
   },
   backButton: {
-    backgroundColor: "#f0f3fa",
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: hs(16),
+    backgroundColor: POS_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(14),
     paddingVertical: vs(10),
+    flexDirection: "row",
+    alignItems: "center",
+    gap: hs(6),
   },
   backButtonText: {
-    color: "#2f5ae0",
+    color: POS_COLORS.text,
     fontWeight: "700",
     fontSize: rf(14),
   },
   modalTitle: {
     fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: POS_COLORS.text,
   },
   modalContent: {
     flex: 1,
     paddingHorizontal: hs(16),
-    paddingBottom: vs(40),
+    paddingBottom: vs(28),
   },
   customerSection: {
-    backgroundColor: "#fff",
+    backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: spacing.md,
     marginBottom: vs(12),
     gap: vs(14),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(12),
-    elevation: 5,
+    ...SHADOWS.soft,
   },
   sectionTitle: {
     fontSize: rf(14),
     fontWeight: "700",
-    color: "#1f2633",
+    color: POS_COLORS.text,
   },
   customerInput: {
-    backgroundColor: "#f3f5fa",
+    backgroundColor: POS_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: vs(14),
     paddingHorizontal: hs(16),
     fontSize: rf(14),
-    color: "#1f2633",
+    color: POS_COLORS.text,
   },
   genericCustomerText: {
     fontSize: rf(12),
-    color: "#1f9254",
+    color: POS_COLORS.accent,
     fontStyle: "italic",
   },
   cartItemsSection: {
-    backgroundColor: "#fff",
+    backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: spacing.lg,
     marginBottom: vs(8),
     gap: vs(16),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(12),
-    elevation: 5,
+    ...SHADOWS.soft,
   },
   emptyCartContainer: {
     alignItems: "center",
@@ -1792,17 +1913,18 @@ const styles = StyleSheet.create({
   emptyCartText: {
     fontSize: rf(16),
     fontWeight: "700",
-    color: "#1f2633",
+    color: POS_COLORS.text,
   },
   emptyCartSubtext: {
     fontSize: rf(14),
-    color: "#6f7c8c",
+    color: POS_COLORS.muted,
   },
   cartItem: {
     flexDirection: "row",
     justifyContent: "space-between",
-    backgroundColor: "#f3f5fa",
+    backgroundColor: POS_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     padding: spacing.md,
     gap: hs(12),
   },
@@ -1813,16 +1935,16 @@ const styles = StyleSheet.create({
   cartItemName: {
     fontSize: rf(15),
     fontWeight: "700",
-    color: "#1f2633",
+    color: POS_COLORS.text,
   },
   cartItemPrice: {
     fontSize: rf(13),
-    color: "#6f7c8c",
+    color: POS_COLORS.muted,
   },
   cartItemSubtotal: {
     fontSize: rf(13),
     fontWeight: "600",
-    color: "#1f9254",
+    color: POS_COLORS.accent,
   },
   cartItemRight: {
     alignItems: "flex-end",
@@ -1831,13 +1953,14 @@ const styles = StyleSheet.create({
   quantityControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: hs(10),
   },
   quantityButton: {
-    width: s(34),
-    height: s(34),
+    width: s(36),
+    height: s(36),
     borderRadius: borderRadius.sm,
-    backgroundColor: "#2f5ae0",
+    borderCurve: "continuous",
+    backgroundColor: POS_COLORS.info,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1862,52 +1985,53 @@ const styles = StyleSheet.create({
     paddingVertical: vs(6),
     paddingHorizontal: hs(10),
     borderRadius: borderRadius.sm,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "#d5dbe7",
+    borderColor: POS_COLORS.border,
     backgroundColor: "#fff",
   },
   removeButton: {
     paddingVertical: vs(6),
     paddingHorizontal: hs(10),
-    backgroundColor: "#ffecef",
+    backgroundColor: POS_COLORS.dangerSoft,
     borderRadius: borderRadius.sm,
+    borderCurve: "continuous",
   },
   removeButtonText: {
     fontSize: rf(12),
     fontWeight: "600",
-    color: "#d6455d",
+    color: POS_COLORS.danger,
   },
   paymentSection: {
-    backgroundColor: "#fff",
+    backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: spacing.lg,
     marginBottom: vs(20),
     gap: vs(18),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(12),
-    elevation: 5,
+    ...SHADOWS.soft,
   },
   paymentButtonsScroll: {
     marginHorizontal: hs(-4),
   },
   paymentButtons: {
-    gap: vs(8),
+    gap: hs(10),
     paddingVertical: vs(4),
   },
   paymentButton: {
-    backgroundColor: "#f7fafc",
+    backgroundColor: POS_COLORS.surfaceAlt,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: borderRadius.sm,
-    padding: spacing.sm,
+    borderColor: POS_COLORS.border,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingVertical: vs(10),
+    paddingHorizontal: hs(12),
     alignItems: "center",
-    minWidth: s(80),
+    minWidth: s(92),
   },
   paymentButtonActive: {
-    backgroundColor: "#2f5ae0",
-    borderColor: "#2f5ae0",
+    backgroundColor: POS_COLORS.info,
+    borderColor: POS_COLORS.info,
   },
   paymentButtonIcon: {
     fontSize: rf(16),
@@ -1915,8 +2039,8 @@ const styles = StyleSheet.create({
   },
   paymentButtonText: {
     fontSize: rf(12),
-    fontWeight: "500",
-    color: "#4a5568",
+    fontWeight: "600",
+    color: POS_COLORS.muted,
   },
   paymentButtonTextActive: {
     color: "#fff",
@@ -1959,20 +2083,23 @@ const styles = StyleSheet.create({
   },
   simpleReferenceInput: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: POS_COLORS.border,
     borderRadius: borderRadius.sm,
-    padding: spacing.sm,
+    borderCurve: "continuous",
+    paddingVertical: vs(12),
+    paddingHorizontal: hs(14),
     fontSize: rf(16),
-    backgroundColor: "#f7fafc",
-    color: "#2d3748",
+    backgroundColor: POS_COLORS.surfaceAlt,
+    color: POS_COLORS.text,
     marginTop: vs(8),
   },
   modalFooter: {
-    backgroundColor: "#fff",
-    paddingHorizontal: hs(24),
-    paddingVertical: vs(12),
+    backgroundColor: POS_COLORS.surface,
+    paddingHorizontal: hs(18),
+    paddingVertical: vs(10),
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
+    borderCurve: "continuous",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: s(-6) },
     shadowOpacity: 0.08,
@@ -1983,7 +2110,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: vs(16),
+    marginBottom: vs(12),
+    backgroundColor: POS_COLORS.surfaceAlt,
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
+    paddingVertical: vs(10),
+    paddingHorizontal: hs(12),
   },
   totalVES: {
     alignItems: "center",
@@ -1994,27 +2126,27 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: rf(12),
     fontWeight: "600",
-    color: "#7a8796",
+    color: POS_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   totalMetaLabel: {
     fontSize: rf(11),
     fontWeight: "600",
-    color: "#7a8796",
+    color: POS_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
   totalMetaValue: {
     fontSize: rf(15),
     fontWeight: "700",
-    color: "#1f2633",
+    color: POS_COLORS.text,
     marginBottom: vs(4),
   },
   totalAmount: {
     fontSize: rf(18),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: POS_COLORS.text,
   },
   actionButtons: {
     flexDirection: "row",
@@ -2025,9 +2157,12 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     flex: 1,
-    backgroundColor: "#f0b429",
+    backgroundColor: POS_COLORS.warning,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: vs(52),
     paddingVertical: vs(14),
   },
   clearButtonText: {
@@ -2037,9 +2172,12 @@ const styles = StyleSheet.create({
   },
   checkoutButton: {
     flex: 1,
-    backgroundColor: "#1f9254",
+    backgroundColor: POS_COLORS.accent,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: vs(52),
     paddingVertical: vs(14),
   },
   checkoutText: {
@@ -2058,8 +2196,9 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   newCustomerModalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     width: "100%",
     maxWidth: s(420),
     padding: spacing.xl,
@@ -2072,25 +2211,33 @@ const styles = StyleSheet.create({
   },
   newCustomerInfo: {
     fontSize: rf(14),
-    color: "#5b6472",
+    color: POS_COLORS.muted,
     lineHeight: vs(20),
     textAlign: "center",
   },
   newCustomerInput: {
-    backgroundColor: "#f3f5fa",
+    backgroundColor: POS_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: vs(14),
     paddingHorizontal: hs(16),
     fontSize: rf(16),
-    color: "#1f2633",
+    color: POS_COLORS.text,
+  },
+  cardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
   },
   newCustomerButtons: {
     flexDirection: "row",
-    gap: hs(12),
+    gap: hs(10),
   },
   modalButton: {
     flex: 1,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    minHeight: vs(50),
+    justifyContent: "center",
     paddingVertical: vs(14),
     alignItems: "center",
   },
@@ -2112,10 +2259,11 @@ const styles = StyleSheet.create({
   },
   closeScannerButton: {
     position: "absolute",
-    top: vs(50),
+    top: vs(42),
     right: hs(20),
     backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     paddingHorizontal: hs(20),
     paddingVertical: vs(10),
   },
