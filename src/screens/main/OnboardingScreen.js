@@ -29,6 +29,13 @@ import {
 } from "../../services/store/storeCollaborationService";
 import { saveOnboardingState } from "../../services/onboarding/onboardingState";
 import {
+  InfoPill,
+  ScreenHero,
+  SurfaceCard,
+  SHADOWS,
+  UI_COLORS,
+} from "../../components/common/AppUI";
+import {
   s,
   rf,
   vs,
@@ -42,6 +49,7 @@ const { width, height } = Dimensions.get("window");
 const slides = [
   {
     id: 1,
+    eyebrow: "Primeros pasos",
     title: "¡Bienvenido a T-Suma!",
     description:
       "Tu sistema completo de punto de venta para gestionar tu negocio de manera eficiente.",
@@ -49,6 +57,7 @@ const slides = [
   },
   {
     id: 2,
+    eyebrow: "Inventario",
     title: "Gestión de Productos",
     description:
       "Administra tu inventario, precios y stock. Escanea códigos QR para ventas rápidas.",
@@ -56,6 +65,7 @@ const slides = [
   },
   {
     id: 3,
+    eyebrow: "Ventas",
     title: "Ventas y Clientes",
     description:
       "Registra ventas, administra clientes y controla cuentas por cobrar y pagar.",
@@ -63,6 +73,7 @@ const slides = [
   },
   {
     id: 4,
+    eyebrow: "Control",
     title: "Reportes y Respaldos",
     description:
       "Visualiza estadísticas de ventas, genera respaldos automáticos y mantén tus datos seguros.",
@@ -434,29 +445,40 @@ export const OnboardingScreen = ({
           >
             {slides.map((slide) => (
               <View key={slide.id} style={styles.slide}>
-                <View style={styles.iconContainer}>
-                  <Ionicons
-                    name={slide.iconName}
-                    size={iconSize.xxl}
-                    color="#ffffff"
-                  />
-                </View>
+                <SurfaceCard style={styles.slideCard}>
+                  <View style={styles.slideCardTopRow}>
+                    <View style={styles.iconContainer}>
+                      <Ionicons
+                        name={slide.iconName}
+                        size={iconSize.xxl}
+                        color={UI_COLORS.info}
+                      />
+                    </View>
+                    <InfoPill
+                      text={`0${slide.id}/0${slides.length}`}
+                      tone="info"
+                    />
+                  </View>
 
-                <View style={styles.textContainer}>
-                  <Text style={styles.title}>{slide.title}</Text>
-                  {slide.id === 3 ? (
-                    <Text style={styles.description}>
-                      Registra ventas, administra clientes y controla cuentas
-                      por cobrar y pagar.{" "}
-                      <Text style={styles.boldText}>
-                        La tasa de cambio actualiza automáticamente los precios
-                        de productos y saldos de cuentas.
+                  <View style={styles.textContainer}>
+                    <Text style={styles.slideEyebrow}>{slide.eyebrow}</Text>
+                    <Text style={styles.title}>{slide.title}</Text>
+                    {slide.id === 3 ? (
+                      <Text style={styles.description}>
+                        Registra ventas, administra clientes y controla cuentas
+                        por cobrar y pagar.{" "}
+                        <Text style={styles.boldText}>
+                          La tasa de cambio actualiza automáticamente los
+                          precios de productos y saldos de cuentas.
+                        </Text>
                       </Text>
-                    </Text>
-                  ) : (
-                    <Text style={styles.description}>{slide.description}</Text>
-                  )}
-                </View>
+                    ) : (
+                      <Text style={styles.description}>
+                        {slide.description}
+                      </Text>
+                    )}
+                  </View>
+                </SurfaceCard>
               </View>
             ))}
           </ScrollView>
@@ -495,25 +517,37 @@ export const OnboardingScreen = ({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.formHeader}>
-              <Text style={styles.formTitle}>
-                {step === "business"
+            <ScreenHero
+              iconName={
+                step === "business"
+                  ? requireInitialStoreSetup
+                    ? "storefront-outline"
+                    : "business-outline"
+                  : "swap-horizontal-outline"
+              }
+              iconColor={
+                step === "business" ? UI_COLORS.info : UI_COLORS.accent
+              }
+              eyebrow={step === "business" ? "Configuración" : "Moneda"}
+              title={
+                step === "business"
                   ? requireInitialStoreSetup
                     ? "Crea tu tienda inicial"
                     : "Datos del negocio"
-                  : "Moneda y tasa"}
-              </Text>
-              <Text style={styles.formSubtitle}>
-                {step === "business"
+                  : "Moneda y tasa"
+              }
+              subtitle={
+                step === "business"
                   ? requireInitialStoreSetup
-                    ? "Usaremos estos datos para crear tu primera tienda en Firebase y dejarla activa."
-                    : "Configura la información básica para tus comprobantes y reportes."
-                  : "La app trabaja con una tasa USD → VES para cálculos y reportes."}
-              </Text>
-            </View>
+                    ? "Usaremos estos datos para crear tu primera tienda y dejarla lista para operar."
+                    : "Configura la información base para comprobantes, reportes y contacto comercial."
+                  : "Define la tasa y el IVA inicial con una lectura más clara y operativa."
+              }
+              style={styles.formHero}
+            />
 
             {step === "business" ? (
-              <View style={styles.formCard}>
+              <SurfaceCard style={styles.formCard}>
                 {requireInitialStoreSetup && pendingInvites.length > 0 && (
                   <View style={styles.invitesCard}>
                     <Text style={styles.invitesTitle}>
@@ -527,7 +561,7 @@ export const OnboardingScreen = ({
                       <View key={invite.id} style={styles.inviteRow}>
                         <View style={styles.inviteInfo}>
                           <Text style={styles.inviteName}>
-                            {invite.storeName}
+                            {String(invite.storeName || "").toUpperCase()}
                           </Text>
                           <Text style={styles.inviteRole}>{invite.role}</Text>
                         </View>
@@ -556,8 +590,12 @@ export const OnboardingScreen = ({
                     placeholderTextColor="#9aa2b1"
                     value={business.name}
                     onChangeText={(text) =>
-                      setBusiness((prev) => ({ ...prev, name: text }))
+                      setBusiness((prev) => ({
+                        ...prev,
+                        name: text.toUpperCase(),
+                      }))
                     }
+                    autoCapitalize="characters"
                   />
                 </View>
 
@@ -615,9 +653,9 @@ export const OnboardingScreen = ({
                     autoCapitalize="none"
                   />
                 </View>
-              </View>
+              </SurfaceCard>
             ) : (
-              <View style={styles.formCard}>
+              <SurfaceCard style={styles.formCard}>
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>Moneda a usar</Text>
                   <View style={styles.currencyRow}>
@@ -706,7 +744,7 @@ export const OnboardingScreen = ({
                   Podrás modificar la tasa y el IVA luego en “Margen de
                   ganancias”.
                 </Text>
-              </View>
+              </SurfaceCard>
             )}
 
             <View style={styles.formButtonsRow}>
@@ -775,22 +813,27 @@ export const OnboardingScreen = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#4CAF50",
+    backgroundColor: UI_COLORS.page,
   },
   skipContainer: {
     flexDirection: "row",
     justifyContent: "flex-end",
     paddingHorizontal: hs(20),
-    paddingTop: vs(10),
+    paddingTop: vs(12),
   },
   skipButton: {
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    borderRadius: s(999),
     paddingVertical: vs(8),
     paddingHorizontal: hs(16),
+    ...SHADOWS.soft,
   },
   skipText: {
-    color: "#fff",
-    fontSize: rf(16),
-    fontWeight: "600",
+    color: UI_COLORS.text,
+    fontSize: rf(14),
+    fontWeight: "700",
   },
   scrollView: {
     flex: 1,
@@ -800,77 +843,94 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: hs(40),
+    paddingHorizontal: hs(18),
+    paddingBottom: vs(8),
+  },
+  slideCard: {
+    width: "100%",
+    maxWidth: s(370),
+    gap: spacing.lg,
+    padding: spacing.xl,
+  },
+  slideCardTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.md,
   },
   iconContainer: {
     width: s(120),
     height: s(120),
     borderRadius: s(60),
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: UI_COLORS.infoSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: vs(40),
+    ...SHADOWS.soft,
   },
   icon: {
     fontSize: iconSize.xxl,
   },
   textContainer: {
-    alignItems: "center",
-    maxWidth: s(300),
+    alignItems: "flex-start",
+    gap: vs(8),
+  },
+  slideEyebrow: {
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
   title: {
-    fontSize: rf(28),
-    fontWeight: "bold",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: vs(20),
+    fontSize: rf(26),
+    fontWeight: "800",
+    color: UI_COLORS.text,
+    lineHeight: vs(34),
   },
   description: {
     fontSize: rf(16),
-    color: "rgba(255, 255, 255, 0.9)",
-    textAlign: "center",
+    color: UI_COLORS.muted,
     lineHeight: vs(24),
   },
   boldText: {
     fontSize: rf(16),
-    color: "#fff",
-    fontStyle: "italic",
+    color: UI_COLORS.info,
     fontWeight: "bold",
-    textAlign: "center",
     lineHeight: vs(24),
   },
   footer: {
     paddingHorizontal: hs(20),
-    paddingBottom: vs(40),
-    paddingTop: vs(20),
+    paddingBottom: vs(32),
+    paddingTop: vs(16),
   },
   indicatorContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginBottom: vs(30),
+    marginBottom: vs(22),
   },
   indicator: {
     width: s(10),
     height: s(10),
     borderRadius: s(5),
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: UI_COLORS.border,
     marginHorizontal: hs(5),
   },
   activeIndicator: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.info,
     width: s(20),
   },
   nextButton: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.accent,
     paddingVertical: vs(15),
     paddingHorizontal: hs(30),
     borderRadius: borderRadius.xl,
     alignItems: "center",
+    ...SHADOWS.soft,
   },
   nextButtonText: {
-    color: "#4CAF50",
-    fontSize: rf(18),
-    fontWeight: "bold",
+    color: "#ffffff",
+    fontSize: rf(16),
+    fontWeight: "800",
   },
 
   formWrapper: {
@@ -878,45 +938,33 @@ const styles = StyleSheet.create({
   },
   formContent: {
     paddingHorizontal: hs(20),
+    paddingTop: vs(6),
     paddingBottom: vs(28),
     gap: vs(16),
   },
-  formHeader: {
-    paddingTop: vs(12),
-    gap: vs(8),
-  },
-  formTitle: {
-    fontSize: rf(22),
-    fontWeight: "800",
-    color: "#fff",
-  },
-  formSubtitle: {
-    fontSize: rf(13),
-    color: "rgba(255, 255, 255, 0.9)",
-    lineHeight: vs(18),
+  formHero: {
+    marginTop: vs(4),
   },
   formCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
     gap: vs(14),
   },
   invitesCard: {
-    backgroundColor: "#f6f9ff",
+    backgroundColor: UI_COLORS.infoSoft,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     padding: spacing.md,
     gap: vs(10),
     borderWidth: 1,
-    borderColor: "#d9e6ff",
+    borderColor: UI_COLORS.border,
   },
   invitesTitle: {
     fontSize: rf(14),
     fontWeight: "800",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   invitesSubtitle: {
     fontSize: rf(12),
-    color: "#4c5767",
+    color: UI_COLORS.muted,
     lineHeight: vs(18),
   },
   inviteRow: {
@@ -933,15 +981,15 @@ const styles = StyleSheet.create({
   inviteName: {
     fontSize: rf(14),
     fontWeight: "700",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   inviteRole: {
     fontSize: rf(12),
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
     textTransform: "capitalize",
   },
   inviteButton: {
-    backgroundColor: "#2f5ae0",
+    backgroundColor: UI_COLORS.info,
     borderRadius: borderRadius.lg,
     paddingHorizontal: hs(14),
     paddingVertical: vs(10),
@@ -957,19 +1005,20 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: rf(12),
     fontWeight: "700",
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: s(0.6),
   },
   input: {
     borderWidth: 1,
-    borderColor: "#d9e0eb",
+    borderColor: UI_COLORS.border,
     borderRadius: borderRadius.sm,
+    borderCurve: "continuous",
     paddingHorizontal: hs(14),
     paddingVertical: vs(12),
     fontSize: rf(15),
-    color: "#1f2633",
-    backgroundColor: "#f8f9fc",
+    color: UI_COLORS.text,
+    backgroundColor: UI_COLORS.surfaceAlt,
   },
   textArea: {
     minHeight: s(70),
@@ -977,30 +1026,37 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: rf(12),
-    color: "#4c5767",
-    backgroundColor: "#f3f8ff",
+    color: UI_COLORS.muted,
+    backgroundColor: UI_COLORS.surfaceAlt,
     padding: spacing.sm,
-    toggleRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: spacing.lg,
-    },
-    toggleCopy: {
-      flex: 1,
-      gap: spacing.xs,
-    },
-    toggleTitle: {
-      fontSize: rf(15),
-      fontWeight: "600",
-      color: "#1f2633",
-    },
-    toggleDescription: {
-      fontSize: rf(13),
-      color: "#6f7c8c",
-      lineHeight: vs(18),
-    },
     borderRadius: borderRadius.sm,
+    borderCurve: "continuous",
+    lineHeight: vs(18),
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.lg,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+  },
+  toggleCopy: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  toggleTitle: {
+    fontSize: rf(15),
+    fontWeight: "700",
+    color: UI_COLORS.text,
+  },
+  toggleDescription: {
+    fontSize: rf(13),
+    color: UI_COLORS.muted,
     lineHeight: vs(18),
   },
   currencyRow: {
@@ -1012,12 +1068,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: hs(18),
     borderRadius: borderRadius.xl,
     borderWidth: 1,
-    borderColor: "#d9e0eb",
-    backgroundColor: "#f8f9fc",
+    borderColor: UI_COLORS.border,
+    backgroundColor: UI_COLORS.surfaceAlt,
   },
   currencyChipActive: {
-    backgroundColor: "#e8f5e9",
-    borderColor: "#bde5c5",
+    backgroundColor: UI_COLORS.accentSoft,
+    borderColor: UI_COLORS.accent,
   },
   currencyChipDisabled: {
     opacity: 0.6,
@@ -1025,39 +1081,44 @@ const styles = StyleSheet.create({
   currencyChipText: {
     fontSize: rf(14),
     fontWeight: "800",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   currencyChipTextActive: {
-    color: "#2e7d32",
+    color: UI_COLORS.accentStrong,
   },
   formButtonsRow: {
     flexDirection: "row",
     gap: hs(12),
+    paddingTop: vs(4),
   },
   formButton: {
     flex: 1,
     paddingVertical: vs(14),
-    borderRadius: borderRadius.xl,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
   },
   formButtonSecondary: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.35)",
+    borderColor: UI_COLORS.border,
   },
   formButtonSecondaryText: {
-    color: "#fff",
-    fontSize: rf(15),
+    color: UI_COLORS.text,
+    fontSize: rf(14),
     fontWeight: "700",
   },
   formButtonPrimary: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.accent,
   },
   formButtonPrimaryText: {
-    color: "#4CAF50",
-    fontSize: rf(15),
+    color: "#ffffff",
+    fontSize: rf(14),
     fontWeight: "800",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });
 

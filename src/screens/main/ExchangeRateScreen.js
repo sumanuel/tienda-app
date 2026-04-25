@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -76,20 +76,6 @@ export const ExchangeRateScreen = () => {
     };
   }, [canStart, start, tourBooted]);
 
-  const formattedLastUpdate = useMemo(() => {
-    if (!lastUpdate) {
-      return "Sin sincronizar";
-    }
-
-    return `${lastUpdate.toLocaleDateString()} · ${lastUpdate.toLocaleTimeString(
-      [],
-      {
-        hour: "2-digit",
-        minute: "2-digit",
-      },
-    )}`;
-  }, [lastUpdate]);
-
   const handleManualSave = async () => {
     const numericValue = parseFloat(manualValue.replace(",", "."));
     if (Number.isNaN(numericValue) || numericValue <= 0) {
@@ -157,16 +143,6 @@ export const ExchangeRateScreen = () => {
             eyebrow="Conversi\u00f3n"
             title="Tasa de cambio"
             subtitle="Administra la tasa oficial y tus referencias en una vista m\u00e1s clara y compacta."
-            pills={[
-              {
-                text: rate ? `VES ${Number(rate).toFixed(2)}` : "Sin tasa",
-                tone: rate ? "info" : "warning",
-              },
-              {
-                text: formattedLastUpdate,
-                tone: "neutral",
-              },
-            ]}
           />
 
           <TourGuideZone
