@@ -18,6 +18,11 @@ import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
+  FormActionRow,
+  FormSectionHeader,
+  SegmentedOptions,
+} from "../../components/common/FormPatterns";
+import {
   ScreenHero,
   SurfaceCard,
   UI_COLORS,
@@ -239,13 +244,10 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
               style={styles.heroCard}
             />
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Datos del proveedor</Text>
-              <Text style={styles.sectionHint}>
-                La cédula intentará autocompletar el nombre del proveedor
-                existente.
-              </Text>
-            </View>
+            <FormSectionHeader
+              title="Datos del proveedor"
+              hint="La cédula intentará autocompletar el nombre del proveedor existente."
+            />
 
             <SurfaceCard style={styles.card}>
               <Text style={styles.label}>Cédula del proveedor *</Text>
@@ -269,41 +271,21 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
               />
             </SurfaceCard>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Detalle de la cuenta</Text>
-              <Text style={styles.sectionHint}>
-                Usa montos positivos. Puedes asociar la factura para un mejor
-                seguimiento.
-              </Text>
-            </View>
+            <FormSectionHeader
+              title="Detalle de la cuenta"
+              hint="Usa montos positivos. Puedes asociar la factura para un mejor seguimiento."
+            />
 
             <SurfaceCard style={styles.card}>
               <Text style={styles.label}>Moneda del monto *</Text>
-              <View style={styles.currencyRow}>
-                {["VES", "USD"].map((code) => {
-                  const active = formData.baseCurrency === code;
-                  return (
-                    <Pressable
-                      key={code}
-                      style={({ pressed }) => [
-                        styles.currencyChip,
-                        active ? styles.currencyChipActive : null,
-                        pressed && styles.cardPressed,
-                      ]}
-                      onPress={() => updateFormData("baseCurrency", code)}
-                    >
-                      <Text
-                        style={[
-                          styles.currencyChipText,
-                          active ? styles.currencyChipTextActive : null,
-                        ]}
-                      >
-                        {code === "USD" ? "Monto en USD" : "Monto en Bs"}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <SegmentedOptions
+                options={[
+                  { value: "VES", label: "Monto en Bs" },
+                  { value: "USD", label: "Monto en USD" },
+                ]}
+                value={formData.baseCurrency}
+                onChange={(code) => updateFormData("baseCurrency", code)}
+              />
 
               <Text style={styles.label}>
                 {formData.baseCurrency === "USD" ? "Monto (USD)" : "Monto (Bs)"}{" "}
@@ -413,29 +395,12 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
               )}
             </SurfaceCard>
 
-            <View style={styles.buttonRow}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  styles.secondaryButton,
-                  pressed && styles.cardPressed,
-                ]}
-                onPress={() => navigation.goBack()}
-              >
-                <Text style={styles.secondaryButtonText}>Cancelar</Text>
-              </Pressable>
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  styles.primaryButton,
-                  pressed && styles.cardPressed,
-                ]}
-                onPress={handleSave}
-              >
-                <Text style={styles.primaryButtonText}>Actualizar cuenta</Text>
-              </Pressable>
-            </View>
+            <FormActionRow
+              onCancel={() => navigation.goBack()}
+              onSubmit={handleSave}
+              submitLabel="Actualizar cuenta"
+              submitTone="danger"
+            />
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

@@ -1,27 +1,32 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  InfoPill,
+  ScreenHero,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
+import {
+  FormActionRow,
+  SegmentedOptions,
+} from "../../components/common/FormPatterns";
+import { rf, vs, spacing, borderRadius } from "../../utils/responsive";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 export const RecordPaymentPayableScreen = () => {
@@ -29,6 +34,7 @@ export const RecordPaymentPayableScreen = () => {
   const route = useRoute();
   const { account } = route.params;
   const { recordPayment, getBalance } = useAccounts();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const [loading, setLoading] = useState(false);
   const [balance, setBalance] = useState(null);
@@ -49,7 +55,11 @@ export const RecordPaymentPayableScreen = () => {
       setBalance(balanceData);
       setPaymentAmount(balanceData.balance.toString());
     } catch (error) {
-      Alert.alert("Error", "No se pudo cargar el saldo de la cuenta");
+      showAlert({
+        title: "Error",
+        message: "No se pudo cargar el saldo de la cuenta",
+        type: "error",
+      });
     }
   };
 
@@ -91,13 +101,21 @@ export const RecordPaymentPayableScreen = () => {
     if (loading) return;
 
     if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
-      Alert.alert("Error", "Ingrese un monto válido");
+      showAlert({
+        title: "Error",
+        message: "Ingresa un monto válido",
+        type: "error",
+      });
       return;
     }
 
     const amount = parseFloat(paymentAmount);
     if (amount > balance.balance) {
-      Alert.alert("Error", "El monto no puede ser mayor al saldo pendiente");
+      showAlert({
+        title: "Error",
+        message: "El monto no puede ser mayor al saldo pendiente",
+        type: "error",
+      });
       return;
     }
 
@@ -115,10 +133,18 @@ export const RecordPaymentPayableScreen = () => {
         "payable",
       );
 
-      Alert.alert("Éxito", "Pago registrado correctamente");
+      showAlert({
+        title: "Éxito",
+        message: "Pago registrado correctamente",
+        type: "success",
+      });
       safeBackToAccounts();
     } catch (error) {
-      Alert.alert("Error", "No se pudo registrar el pago");
+      showAlert({
+        title: "Error",
+        message: "No se pudo registrar el pago",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -127,348 +153,312 @@ export const RecordPaymentPayableScreen = () => {
   if (!balance) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2f5ae0" />
+        <ActivityIndicator size="large" color={UI_COLORS.info} />
         <Text style={styles.loadingText}>Cargando...</Text>
       </View>
     );
   }
 
+  const totalPaid = balance.paidAmount || 0;
+  const paymentOptions = [
+    { value: "cash", label: "Efectivo" },
+    { value: "card", label: "Tarjeta" },
+    { value: "transfer", label: "Transferencia" },
+    { value: "pago_movil", label: "Pago móvil" },
+  ];
+
   return (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-      <View style={styles.header}>
-        <Text style={styles.title}>Registrar Pago</Text>
-        <Text style={styles.subtitle}>{account.supplierName}</Text>
-      </View>
-
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Saldo Pendiente</Text>
-        <Text style={styles.balanceAmount}>
-          {formatCurrency(balance.balance, "VES")}
-        </Text>
-        <Text style={styles.totalInfo}>
-          Total: {formatCurrency(balance.totalAmount, "VES")} | Pagado:{" "}
-          {formatCurrency(balance.paidAmount, "VES")}
-        </Text>
-      </View>
-
-      <View style={styles.formCard}>
-        <Text style={styles.sectionTitle}>Monto del Pago</Text>
-        <TextInput
-          style={styles.amountInput}
-          value={paymentAmount}
-          onChangeText={setPaymentAmount}
-          placeholder="0.00"
-          keyboardType="numeric"
-          selectTextOnFocus
-        />
-
-        <Text style={styles.sectionTitle}>Método de Pago</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.paymentButtonsScroll}
-          contentContainerStyle={styles.paymentButtons}
+    <>
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         >
-          <TouchableOpacity
-            style={[
-              styles.paymentButton,
-              paymentMethod === "cash" && styles.paymentButtonActive,
-            ]}
-            onPress={() => setPaymentMethod("cash")}
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <Text
-              style={[
-                styles.paymentButtonText,
-                paymentMethod === "cash" && styles.paymentButtonTextActive,
+            <ScreenHero
+              iconName="cash-outline"
+              iconColor={UI_COLORS.danger}
+              eyebrow="Pagos"
+              title="Registrar pago"
+              subtitle={`Registra el abono al proveedor ${account.supplierName} con el saldo pendiente visible antes de confirmar.`}
+              pills={[
+                {
+                  text: `Pendiente ${formatCurrency(balance.balance, "VES")}`,
+                  tone: balance.balance > 0 ? "warning" : "accent",
+                },
+                {
+                  text: `Pagado ${formatCurrency(totalPaid, "VES")}`,
+                  tone: "info",
+                },
               ]}
-            >
-              Efectivo
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.paymentButton,
-              paymentMethod === "card" && styles.paymentButtonActive,
-            ]}
-            onPress={() => setPaymentMethod("card")}
-          >
-            <Text
-              style={[
-                styles.paymentButtonText,
-                paymentMethod === "card" && styles.paymentButtonTextActive,
-              ]}
-            >
-              Tarjeta
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.paymentButton,
-              paymentMethod === "transfer" && styles.paymentButtonActive,
-            ]}
-            onPress={() => setPaymentMethod("transfer")}
-          >
-            <Text
-              style={[
-                styles.paymentButtonText,
-                paymentMethod === "transfer" && styles.paymentButtonTextActive,
-              ]}
-            >
-              Transferencia
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.paymentButton,
-              paymentMethod === "pago_movil" && styles.paymentButtonActive,
-            ]}
-            onPress={() => setPaymentMethod("pago_movil")}
-          >
-            <Text
-              style={[
-                styles.paymentButtonText,
-                paymentMethod === "pago_movil" &&
-                  styles.paymentButtonTextActive,
-              ]}
-            >
-              Pago Móvil
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-
-        {(paymentMethod === "transfer" || paymentMethod === "pago_movil") && (
-          <TextInput
-            style={styles.input}
-            value={reference}
-            onChangeText={setReference}
-            placeholder="Número de referencia"
-            autoCapitalize="none"
-          />
-        )}
-
-        <Text style={styles.sectionTitle}>Fecha del Pago</Text>
-        <TouchableOpacity
-          style={styles.input}
-          onPress={openDatePicker}
-          activeOpacity={0.85}
-          disabled={loading}
-        >
-          <Text style={styles.dateText}>{paymentDateLabel}</Text>
-        </TouchableOpacity>
-
-        {showDatePicker && (
-          <View style={styles.datePickerWrapper}>
-            <DateTimePicker
-              value={paymentDate}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={handleDateChange}
-              maximumDate={new Date()}
             />
-            {Platform.OS === "ios" && (
-              <TouchableOpacity
-                style={styles.datePickerDone}
-                onPress={closeDatePicker}
-                activeOpacity={0.85}
+
+            <SurfaceCard style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <View style={styles.metricBlock}>
+                  <Text style={styles.metricLabel}>Saldo pendiente</Text>
+                  <Text style={[styles.metricValue, styles.pendingValue]}>
+                    {formatCurrency(balance.balance, "VES")}
+                  </Text>
+                </View>
+                <InfoPill text={paymentDateLabel} tone="info" />
+              </View>
+              <View style={styles.metricInlineRow}>
+                <View style={styles.metricInlineCard}>
+                  <Text style={styles.metricInlineLabel}>Total</Text>
+                  <Text style={styles.metricInlineValue}>
+                    {formatCurrency(balance.totalAmount, "VES")}
+                  </Text>
+                </View>
+                <View style={styles.metricInlineCard}>
+                  <Text style={styles.metricInlineLabel}>Pagado</Text>
+                  <Text style={styles.metricInlineValue}>
+                    {formatCurrency(totalPaid, "VES")}
+                  </Text>
+                </View>
+              </View>
+            </SurfaceCard>
+
+            <SurfaceCard style={styles.formCard}>
+              <Text style={styles.label}>Monto del pago *</Text>
+              <TextInput
+                style={styles.amountInput}
+                value={paymentAmount}
+                onChangeText={setPaymentAmount}
+                placeholder="0.00"
+                placeholderTextColor="#9aa2b1"
+                keyboardType="numeric"
+                selectTextOnFocus
+              />
+              <Text style={styles.helperText}>
+                Verifica el monto antes de guardar para no exceder el saldo
+                pendiente.
+              </Text>
+
+              <Text style={styles.label}>Método de pago *</Text>
+              <SegmentedOptions
+                options={paymentOptions}
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+                compact
+              />
+
+              {(paymentMethod === "transfer" ||
+                paymentMethod === "pago_movil") && (
+                <>
+                  <Text style={styles.label}>Referencia</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={reference}
+                    onChangeText={setReference}
+                    placeholder="Número de referencia"
+                    placeholderTextColor="#9aa2b1"
+                    autoCapitalize="none"
+                  />
+                </>
+              )}
+
+              <Text style={styles.label}>Fecha del pago *</Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.input,
+                  pressed && styles.pressed,
+                ]}
+                onPress={openDatePicker}
+                disabled={loading}
               >
-                <Text style={styles.datePickerDoneText}>Listo</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+                <Text style={styles.dateText}>{paymentDateLabel}</Text>
+              </Pressable>
 
-        <Text style={styles.sectionTitle}>Notas (Opcional)</Text>
-        <TextInput
-          style={[styles.input, styles.notesInput]}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Notas adicionales..."
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-        />
-      </View>
+              {showDatePicker && (
+                <View style={styles.datePickerWrapper}>
+                  <DateTimePicker
+                    value={paymentDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={handleDateChange}
+                    maximumDate={new Date()}
+                  />
+                  {Platform.OS === "ios" && (
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.datePickerDone,
+                        pressed && styles.pressed,
+                      ]}
+                      onPress={closeDatePicker}
+                    >
+                      <Text style={styles.datePickerDoneText}>Listo</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={safeBackToAccounts}
-          disabled={loading}
-        >
-          <Text style={styles.cancelButtonText}>Cancelar</Text>
-        </TouchableOpacity>
+              <Text style={styles.label}>Notas</Text>
+              <TextInput
+                style={[styles.input, styles.notesInput]}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Notas adicionales..."
+                placeholderTextColor="#9aa2b1"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </SurfaceCard>
 
-        <TouchableOpacity
-          style={[styles.confirmButton, loading && styles.buttonDisabled]}
-          onPress={handleRecordPayment}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.confirmButtonText}>Registrar Pago</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+            <FormActionRow
+              onCancel={safeBackToAccounts}
+              onSubmit={handleRecordPayment}
+              submitLabel="Registrar pago"
+              submitTone="danger"
+              loading={loading}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+      <CustomAlert />
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f7fa",
+    backgroundColor: UI_COLORS.page,
+  },
+  flex: {
+    flex: 1,
+  },
+  content: {
+    padding: spacing.lg,
+    paddingBottom: vs(56),
+    gap: spacing.lg,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f7fa",
+    backgroundColor: UI_COLORS.page,
   },
   loadingText: {
     marginTop: vs(16),
     fontSize: rf(16),
-    color: "#666",
+    color: UI_COLORS.muted,
   },
-  header: {
-    backgroundColor: "#fff",
-    padding: s(20),
-    paddingTop: vs(16),
-    borderBottomWidth: 1,
-    borderBottomColor: "#e1e5e9",
+  summaryCard: {
+    gap: spacing.md,
+    ...SHADOWS.soft,
   },
-  title: {
-    fontSize: rf(24),
-    fontWeight: "bold",
-    color: "#1a202c",
-    marginBottom: vs(4),
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.md,
   },
-  subtitle: {
-    fontSize: rf(16),
-    color: "#718096",
+  metricBlock: {
+    flex: 1,
+    gap: vs(4),
   },
-  balanceCard: {
-    backgroundColor: "#fff",
-    margin: s(16),
-    padding: s(20),
-    borderRadius: borderRadius.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  balanceLabel: {
-    fontSize: rf(14),
-    color: "#718096",
-    marginBottom: vs(8),
-  },
-  balanceAmount: {
-    fontSize: rf(28),
-    fontWeight: "bold",
-    color: "#e53e3e",
-    marginBottom: vs(8),
-  },
-  totalInfo: {
+  metricLabel: {
     fontSize: rf(12),
-    color: "#718096",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  metricValue: {
+    fontSize: rf(24),
+    fontWeight: "800",
+  },
+  pendingValue: {
+    color: UI_COLORS.danger,
+  },
+  metricInlineRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  metricInlineCard: {
+    flex: 1,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: spacing.md,
+    gap: vs(4),
+  },
+  metricInlineLabel: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+  },
+  metricInlineValue: {
+    fontSize: rf(15),
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   formCard: {
-    backgroundColor: "#fff",
-    margin: s(16),
-    marginTop: 0,
-    padding: s(20),
-    borderRadius: borderRadius.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    gap: spacing.md,
+    ...SHADOWS.soft,
   },
-  sectionTitle: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#2d3748",
-    marginTop: vs(20),
-    marginBottom: vs(12),
+  label: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   amountInput: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: UI_COLORS.border,
     borderRadius: borderRadius.md,
-    padding: s(16),
-    fontSize: rf(18),
-    fontWeight: "bold",
+    borderCurve: "continuous",
+    paddingHorizontal: spacing.md,
+    paddingVertical: vs(14),
+    fontSize: rf(20),
+    fontWeight: "800",
     textAlign: "center",
-    backgroundColor: "#f7fafc",
-    color: "#2d3748",
-  },
-  paymentButtonsScroll: {
-    marginBottom: vs(8),
-  },
-  paymentButtons: {
-    gap: s(8),
-    paddingVertical: vs(4),
-  },
-  paymentButton: {
-    backgroundColor: "#f7fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: borderRadius.md,
-    padding: s(12),
-    alignItems: "center",
-    minWidth: hs(80),
-  },
-  paymentButtonActive: {
-    backgroundColor: "#2f5ae0",
-    borderColor: "#2f5ae0",
-  },
-  paymentButtonIcon: {
-    fontSize: iconSize.md,
-    marginBottom: vs(4),
-  },
-  paymentButtonText: {
-    fontSize: rf(12),
-    fontWeight: "500",
-    color: "#4a5568",
-  },
-  paymentButtonTextActive: {
-    color: "#fff",
+    backgroundColor: UI_COLORS.surfaceAlt,
+    color: UI_COLORS.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: UI_COLORS.border,
     borderRadius: borderRadius.md,
-    padding: s(12),
+    borderCurve: "continuous",
+    padding: spacing.md,
     fontSize: rf(16),
-    backgroundColor: "#f7fafc",
-    color: "#2d3748",
-    marginBottom: vs(8),
+    backgroundColor: UI_COLORS.surfaceAlt,
+    color: UI_COLORS.text,
   },
   dateText: {
-    fontSize: rf(16),
-    color: "#1f2937",
+    fontSize: rf(15),
+    color: UI_COLORS.text,
   },
   datePickerWrapper: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    paddingVertical: vs(10),
-    paddingHorizontal: hs(6),
-    marginBottom: vs(15),
+    borderColor: UI_COLORS.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   datePickerDone: {
     alignSelf: "flex-end",
-    paddingVertical: vs(10),
-    paddingHorizontal: hs(14),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#2f5ae0",
-    marginTop: vs(8),
-    marginRight: hs(8),
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.info,
+    marginTop: spacing.xs,
+    marginRight: spacing.xs,
   },
   datePickerDoneText: {
     color: "#fff",
@@ -476,42 +466,20 @@ const styles = StyleSheet.create({
     fontSize: rf(14),
   },
   notesInput: {
-    height: vs(80),
+    minHeight: vs(88),
     textAlignVertical: "top",
   },
-  buttonContainer: {
-    flexDirection: "row",
-    gap: s(12),
-    padding: s(16),
-    paddingBottom: vs(32),
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: "#f7fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+  helperText: {
+    fontSize: rf(12),
+    color: UI_COLORS.info,
+    backgroundColor: UI_COLORS.infoSoft,
     borderRadius: borderRadius.md,
-    padding: s(16),
-    alignItems: "center",
+    borderCurve: "continuous",
+    padding: spacing.md,
+    lineHeight: vs(18),
   },
-  cancelButtonText: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#4a5568",
-  },
-  confirmButton: {
-    flex: 1,
-    backgroundColor: "#2f5ae0",
-    borderRadius: borderRadius.md,
-    padding: s(16),
-    alignItems: "center",
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  confirmButtonText: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#fff",
+  pressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });

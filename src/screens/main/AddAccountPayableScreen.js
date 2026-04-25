@@ -4,9 +4,8 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -18,14 +17,17 @@ import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  ScreenHero,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
+import {
+  FormActionRow,
+  FormSectionHeader,
+  SegmentedOptions,
+} from "../../components/common/FormPatterns";
+import { rf, vs, spacing, borderRadius } from "../../utils/responsive";
 
 /**
  * Pantalla para agregar nueva cuenta por pagar
@@ -243,27 +245,21 @@ export const AddAccountPayableScreen = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Text style={styles.heroIconText}>📑</Text>
-              </View>
-              <View style={styles.heroCopy}>
-                <Text style={styles.heroTitle}>Nueva cuenta por pagar</Text>
-                <Text style={styles.heroSubtitle}>
-                  Registra compromisos con proveedores y mantén tu flujo de caja
-                  bajo control.
-                </Text>
-              </View>
-            </View>
+            <ScreenHero
+              iconName="receipt-outline"
+              iconColor={UI_COLORS.danger}
+              eyebrow="Pagos"
+              title="Nueva cuenta por pagar"
+              subtitle="Registra compromisos con proveedores con una vista más compacta y fácil de revisar."
+              style={styles.heroCard}
+            />
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Datos del proveedor</Text>
-              <Text style={styles.sectionHint}>
-                Usa el documento para autocompletar proveedores registrados.
-              </Text>
-            </View>
+            <FormSectionHeader
+              title="Datos del proveedor"
+              hint="Usa el documento para autocompletar proveedores registrados."
+            />
 
-            <View style={styles.card}>
+            <SurfaceCard style={styles.card}>
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>RIF/Cédula *</Text>
                 <TextInput
@@ -288,43 +284,24 @@ export const AddAccountPayableScreen = ({ navigation }) => {
                   }
                 />
               </View>
-            </View>
+            </SurfaceCard>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Detalle de la obligación</Text>
-              <Text style={styles.sectionHint}>
-                Describe el concepto para reconocer la cuenta rápidamente.
-              </Text>
-            </View>
+            <FormSectionHeader
+              title="Detalle de la obligación"
+              hint="Describe el concepto para reconocer la cuenta rápidamente."
+            />
 
-            <View style={styles.card}>
+            <SurfaceCard style={styles.card}>
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Moneda del monto *</Text>
-                <View style={styles.currencyRow}>
-                  {["VES", "USD"].map((code) => {
-                    const active = formData.baseCurrency === code;
-                    return (
-                      <TouchableOpacity
-                        key={code}
-                        style={[
-                          styles.currencyChip,
-                          active ? styles.currencyChipActive : null,
-                        ]}
-                        onPress={() => updateFormData("baseCurrency", code)}
-                        activeOpacity={0.85}
-                      >
-                        <Text
-                          style={[
-                            styles.currencyChipText,
-                            active ? styles.currencyChipTextActive : null,
-                          ]}
-                        >
-                          {code === "USD" ? "Monto en USD" : "Monto en Bs"}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                <SegmentedOptions
+                  options={[
+                    { value: "VES", label: "Monto en Bs" },
+                    { value: "USD", label: "Monto en USD" },
+                  ]}
+                  value={formData.baseCurrency}
+                  onChange={(code) => updateFormData("baseCurrency", code)}
+                />
               </View>
 
               <View style={styles.fieldGroup}>
@@ -402,10 +379,13 @@ export const AddAccountPayableScreen = ({ navigation }) => {
 
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Fecha de vencimiento *</Text>
-                <TouchableOpacity
-                  style={[styles.input, styles.dateTrigger]}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.input,
+                    styles.dateTrigger,
+                    pressed && styles.cardPressed,
+                  ]}
                   onPress={showDatePickerModal}
-                  activeOpacity={0.85}
                 >
                   <Text
                     style={
@@ -416,7 +396,7 @@ export const AddAccountPayableScreen = ({ navigation }) => {
                   >
                     {formData.dueDate || "Selecciona la fecha"}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
 
                 {showDatePicker && (
                   <View style={styles.datePickerWrapper}>
@@ -427,13 +407,15 @@ export const AddAccountPayableScreen = ({ navigation }) => {
                       onChange={handleDateChange}
                     />
                     {Platform.OS === "ios" && (
-                      <TouchableOpacity
-                        style={styles.datePickerDone}
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.datePickerDone,
+                          pressed && styles.cardPressed,
+                        ]}
                         onPress={closeDatePicker}
-                        activeOpacity={0.85}
                       >
                         <Text style={styles.datePickerDoneText}>Listo</Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
                   </View>
                 )}
@@ -445,39 +427,15 @@ export const AddAccountPayableScreen = ({ navigation }) => {
                   oportunos.
                 </Text>
               ) : null}
-            </View>
+            </SurfaceCard>
 
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  styles.secondaryButton,
-                  loading && styles.buttonDisabled,
-                ]}
-                onPress={() => navigation.goBack()}
-                activeOpacity={0.85}
-                disabled={loading}
-              >
-                <Text style={styles.secondaryText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  styles.primaryButton,
-                  loading && styles.buttonDisabled,
-                ]}
-                onPress={handleSave}
-                activeOpacity={0.85}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.primaryText}>Guardar cuenta</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            <FormActionRow
+              onCancel={() => navigation.goBack()}
+              onSubmit={handleSave}
+              submitLabel="Guardar cuenta"
+              submitTone="danger"
+              loading={loading}
+            />
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -489,7 +447,7 @@ export const AddAccountPayableScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   flex: {
     flex: 1,
@@ -498,89 +456,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: vs(60),
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
   heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  heroIcon: {
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#fff5f3",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: spacing.lg,
-  },
-  heroIconText: {
-    fontSize: rf(30),
-  },
-  heroCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: rf(20),
-  },
-  sectionHeader: {
-    paddingHorizontal: spacing.xs,
-    gap: spacing.xs,
-  },
-  sectionTitle: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#1f2633",
-  },
-  sectionHint: {
-    fontSize: rf(12),
-    color: "#6f7c8c",
+    marginBottom: vs(2),
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 5,
     gap: 20,
+    ...SHADOWS.soft,
   },
   fieldGroup: {
     gap: spacing.xs,
   },
   fieldLabel: {
     fontSize: rf(12),
-    fontWeight: "600",
-    color: "#8492a6",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#d9e0eb",
+    borderColor: UI_COLORS.border,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: vs(13),
     fontSize: rf(15),
-    color: "#1f2633",
-    backgroundColor: "#f8f9fc",
+    color: UI_COLORS.text,
+    backgroundColor: UI_COLORS.surfaceAlt,
   },
   textArea: {
     minHeight: vs(88),
@@ -590,10 +495,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   datePickerWrapper: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "#d9e0eb",
+    borderColor: UI_COLORS.border,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
   },
@@ -601,8 +507,9 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.sm,
-    backgroundColor: "#2f5ae0",
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.info,
     marginTop: spacing.xs,
     marginRight: spacing.xs,
   },
@@ -613,16 +520,20 @@ const styles = StyleSheet.create({
   },
   dateValue: {
     fontSize: rf(15),
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   datePlaceholder: {
     fontSize: rf(15),
     color: "#9aa2b1",
   },
   helperText: {
-    color: "#7a8796",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
+    fontSize: rf(12),
+    color: UI_COLORS.info,
+    backgroundColor: UI_COLORS.infoSoft,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    lineHeight: vs(18),
+    padding: spacing.md,
   },
   modalInput: {
     borderWidth: 1,
@@ -669,39 +580,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
   },
-  currencyRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  currencyChip: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: "#d9e0eb",
-    backgroundColor: "#f8f9fc",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  currencyChipActive: {
-    backgroundColor: "#2f5ae0",
-    borderColor: "#2f5ae0",
-  },
-  currencyChipText: {
-    fontSize: rf(14),
-    fontWeight: "600",
-    color: "#6f7c8c",
-  },
-  currencyChipTextActive: {
-    color: "#fff",
-  },
   dualAmountCard: {
-    backgroundColor: "#f8f9fc",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: "#e8edf2",
+    borderColor: UI_COLORS.border,
     gap: spacing.md,
   },
   dualAmountRow: {
@@ -711,60 +596,28 @@ const styles = StyleSheet.create({
   },
   dualAmountLabel: {
     fontSize: rf(14),
-    fontWeight: "600",
-    color: "#6f7c8c",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   dualAmountValue: {
     fontSize: rf(16),
     fontWeight: "700",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   dualAmountHint: {
     fontSize: rf(12),
-    color: "#9aa2b1",
+    color: UI_COLORS.muted,
     textAlign: "center",
     fontStyle: "italic",
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.lg,
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: spacing.lg,
-    borderRadius: borderRadius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryButton: {
-    backgroundColor: "#ef5350",
-    shadowColor: "#ef5350",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.2,
-    shadowRadius: s(6),
-    elevation: 3,
-  },
-  secondaryButton: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#c3cad5",
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  primaryText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: rf(15),
-  },
-  secondaryText: {
-    color: "#4c5767",
-    fontWeight: "600",
-    fontSize: rf(15),
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

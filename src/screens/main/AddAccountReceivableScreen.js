@@ -4,14 +4,12 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -19,14 +17,17 @@ import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  ScreenHero,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
+import {
+  FormActionRow,
+  FormSectionHeader,
+  SegmentedOptions,
+} from "../../components/common/FormPatterns";
+import { rf, vs, spacing, borderRadius } from "../../utils/responsive";
 
 /**
  * Pantalla para agregar nueva cuenta por cobrar
@@ -244,32 +245,21 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Ionicons
-                  name="card-outline"
-                  size={iconSize.lg}
-                  color="#2f5ae0"
-                />
-              </View>
-              <View style={styles.heroTextContainer}>
-                <Text style={styles.heroTitle}>Nueva cuenta por cobrar</Text>
-                <Text style={styles.heroSubtitle}>
-                  Registra la obligación del cliente y mantén el flujo de caja
-                  controlado.
-                </Text>
-              </View>
-            </View>
+            <ScreenHero
+              iconName="card-outline"
+              iconColor={UI_COLORS.info}
+              eyebrow="Cobros"
+              title="Nueva cuenta por cobrar"
+              subtitle="Registra la obligación del cliente con una lectura más clara y preparada para seguimiento diario."
+              style={styles.heroCard}
+            />
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Datos del cliente</Text>
-              <Text style={styles.sectionHint}>
-                La cédula intentará autocompletar el nombre del cliente
-                existente.
-              </Text>
-            </View>
+            <FormSectionHeader
+              title="Datos del cliente"
+              hint="La cédula intentará autocompletar el nombre del cliente existente."
+            />
 
-            <View style={styles.card}>
+            <SurfaceCard style={styles.card}>
               <Text style={styles.label}>Cédula del cliente *</Text>
               <TextInput
                 style={styles.input}
@@ -289,43 +279,23 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
                 onChangeText={(value) => updateFormData("customerName", value)}
                 autoCapitalize="words"
               />
-            </View>
+            </SurfaceCard>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Detalle de la cuenta</Text>
-              <Text style={styles.sectionHint}>
-                Usa montos positivos. Puedes asociar la factura para un mejor
-                seguimiento.
-              </Text>
-            </View>
+            <FormSectionHeader
+              title="Detalle de la cuenta"
+              hint="Usa montos positivos. Puedes asociar la factura para un mejor seguimiento."
+            />
 
-            <View style={styles.card}>
+            <SurfaceCard style={styles.card}>
               <Text style={styles.label}>Moneda del monto *</Text>
-              <View style={styles.currencyRow}>
-                {["VES", "USD"].map((code) => {
-                  const active = formData.baseCurrency === code;
-                  return (
-                    <TouchableOpacity
-                      key={code}
-                      style={[
-                        styles.currencyChip,
-                        active ? styles.currencyChipActive : null,
-                      ]}
-                      onPress={() => updateFormData("baseCurrency", code)}
-                      activeOpacity={0.85}
-                    >
-                      <Text
-                        style={[
-                          styles.currencyChipText,
-                          active ? styles.currencyChipTextActive : null,
-                        ]}
-                      >
-                        {code === "USD" ? "Monto en USD" : "Monto en Bs"}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              <SegmentedOptions
+                options={[
+                  { value: "VES", label: "Monto en Bs" },
+                  { value: "USD", label: "Monto en USD" },
+                ]}
+                value={formData.baseCurrency}
+                onChange={(code) => updateFormData("baseCurrency", code)}
+              />
 
               <Text style={styles.label}>
                 {formData.baseCurrency === "USD"
@@ -391,8 +361,12 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
               />
 
               <Text style={styles.label}>Fecha de vencimiento *</Text>
-              <TouchableOpacity
-                style={[styles.input, styles.datePickerTrigger]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.input,
+                  styles.datePickerTrigger,
+                  pressed && styles.cardPressed,
+                ]}
                 onPress={showDatePickerModal}
               >
                 <Text
@@ -402,7 +376,7 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
                 >
                   {formData.dueDate || "Selecciona la fecha"}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
               {formData.dueDate ? (
                 <Text style={styles.helperInfo}>
                   Programar recordatorios con anticipación ayuda a reducir la
@@ -419,47 +393,26 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
                     onChange={handleDateChange}
                   />
                   {Platform.OS === "ios" && (
-                    <TouchableOpacity
-                      style={styles.datePickerDone}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.datePickerDone,
+                        pressed && styles.cardPressed,
+                      ]}
                       onPress={closeDatePicker}
-                      activeOpacity={0.85}
                     >
                       <Text style={styles.datePickerDoneText}>Listo</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
                 </View>
               )}
-            </View>
+            </SurfaceCard>
 
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  styles.secondaryButton,
-                  loading && styles.buttonDisabled,
-                ]}
-                onPress={() => navigation.goBack()}
-                disabled={loading}
-              >
-                <Text style={styles.secondaryButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  styles.primaryButton,
-                  loading && styles.buttonDisabled,
-                ]}
-                onPress={handleSave}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.primaryButtonText}>Guardar cuenta</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            <FormActionRow
+              onCancel={() => navigation.goBack()}
+              onSubmit={handleSave}
+              submitLabel="Guardar cuenta"
+              loading={loading}
+            />
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -471,7 +424,7 @@ export const AddAccountReceivableScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   flex: {
     flex: 1,
@@ -479,104 +432,24 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
-    paddingBottom: vs(40),
-    gap: spacing.xl,
+    paddingBottom: vs(56),
+    gap: spacing.lg,
   },
   heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(10),
-    elevation: 6,
-  },
-  heroIcon: {
-    width: s(56),
-    height: s(56),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: spacing.lg,
-  },
-  heroIconText: {
-    fontSize: rf(28),
-  },
-  heroTextContainer: {
-    flex: 1,
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-    marginBottom: vs(6),
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: rf(20),
-  },
-  sectionHeader: {
-    paddingHorizontal: hs(4),
-    gap: vs(4),
-  },
-  sectionTitle: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#1f2633",
-  },
-  sectionHint: {
-    fontSize: rf(12),
-    color: "#6f7c8c",
+    marginBottom: vs(2),
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(8),
-    elevation: 4,
+    padding: spacing.lg,
     gap: spacing.md,
-  },
-  currencyRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: vs(14),
-  },
-  currencyChip: {
-    flex: 1,
-    paddingVertical: vs(10),
-    paddingHorizontal: hs(12),
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#f8fafc",
-    alignItems: "center",
-  },
-  currencyChipActive: {
-    borderColor: "#4CAF50",
-    backgroundColor: "#eaf6ee",
-  },
-  currencyChipText: {
-    fontSize: rf(13),
-    fontWeight: "700",
-    color: "#6f7c8c",
-  },
-  currencyChipTextActive: {
-    color: "#2e7d32",
+    ...SHADOWS.soft,
   },
   dualAmountCard: {
     marginTop: vs(12),
-    backgroundColor: "#f8fafc",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: UI_COLORS.border,
     padding: spacing.md,
     gap: spacing.sm,
   },
@@ -588,36 +461,37 @@ const styles = StyleSheet.create({
   dualAmountLabel: {
     fontSize: rf(12),
     fontWeight: "700",
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
     letterSpacing: 0.4,
   },
   dualAmountValue: {
     fontSize: rf(14),
     fontWeight: "800",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   dualAmountHint: {
     marginTop: vs(4),
     fontSize: rf(12),
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
     fontWeight: "600",
   },
   label: {
     fontSize: rf(12),
-    fontWeight: "600",
-    color: "#8492a6",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#d9e0eb",
+    borderColor: UI_COLORS.border,
     borderRadius: borderRadius.md,
-    paddingHorizontal: hs(14),
-    paddingVertical: vs(12),
+    borderCurve: "continuous",
+    paddingHorizontal: spacing.md,
+    paddingVertical: vs(13),
     fontSize: rf(15),
-    color: "#1f2633",
-    backgroundColor: "#f8f9fc",
+    color: UI_COLORS.text,
+    backgroundColor: UI_COLORS.surfaceAlt,
   },
   textArea: {
     minHeight: vs(90),
@@ -628,7 +502,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: rf(15),
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   datePlaceholder: {
     fontSize: rf(15),
@@ -636,17 +510,19 @@ const styles = StyleSheet.create({
   },
   helperInfo: {
     fontSize: rf(12),
-    color: "#4c5767",
-    backgroundColor: "#f3f7ff",
+    color: UI_COLORS.info,
+    backgroundColor: UI_COLORS.infoSoft,
     padding: spacing.md,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     lineHeight: vs(18),
   },
   datePickerWrapper: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "#d9e0eb",
+    borderColor: UI_COLORS.border,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
   },
@@ -654,8 +530,9 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.sm,
-    backgroundColor: "#2f5ae0",
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.info,
     marginTop: spacing.xs,
     marginRight: spacing.xs,
   },
@@ -664,44 +541,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: rf(14),
   },
-  buttonRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.lg,
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: spacing.lg,
-    borderRadius: borderRadius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: "#c3cad5",
-    backgroundColor: "#fff",
-  },
   buttonDisabled: {
     opacity: 0.6,
-  },
-  secondaryButtonText: {
-    color: "#4c5767",
-    fontWeight: "600",
-    fontSize: rf(15),
-  },
-  primaryButton: {
-    backgroundColor: "#2fb176",
-    shadowColor: "#2fb176",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.25,
-    shadowRadius: s(8),
-    elevation: 6,
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: rf(15),
   },
   modalOverlay: {
     flex: 1,
@@ -757,6 +598,10 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: "row",
     gap: 12,
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
   modalButton: {
     flex: 1,
