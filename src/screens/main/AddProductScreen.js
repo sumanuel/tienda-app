@@ -44,13 +44,11 @@ export const AddProductScreen = ({ navigation }) => {
   });
 
   const nameRef = useRef(null);
-  const categoryRef = useRef(null);
   const costRef = useRef(null);
   const additionalCostRef = useRef(null);
   const marginRef = useRef(null);
   const ivaRef = useRef(null);
   const stockRef = useRef(null);
-  const descriptionRef = useRef(null);
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
@@ -366,39 +364,8 @@ export const AddProductScreen = ({ navigation }) => {
                 onChangeText={(value) => handleInputChange("name", value)}
                 returnKeyType="next"
                 onFocus={() => scrollToField(nameRef)}
-                onSubmitEditing={() => categoryRef.current?.focus()}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Categoría</Text>
-              <TextInput
-                ref={categoryRef}
-                style={styles.input}
-                placeholder="Ej: Bebidas, Hogar, Limpieza"
-                placeholderTextColor="#9aa2b1"
-                value={formData.category}
-                onChangeText={(value) => handleInputChange("category", value)}
                 returnKeyType="next"
-                onFocus={() => scrollToField(categoryRef)}
-                onSubmitEditing={() => descriptionRef.current?.focus()}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Descripción</Text>
-              <TextInput
-                ref={descriptionRef}
-                style={[styles.input, styles.textArea]}
-                placeholder="Características, presentación o notas internas"
-                placeholderTextColor="#9aa2b1"
-                value={formData.description}
-                onChangeText={(value) =>
-                  handleInputChange("description", value)
-                }
-                multiline
-                numberOfLines={4}
-                onFocus={() => scrollToField(descriptionRef)}
+                onSubmitEditing={() => costRef.current?.focus()}
               />
             </View>
           </SurfaceCard>

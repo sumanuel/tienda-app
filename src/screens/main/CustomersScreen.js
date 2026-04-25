@@ -293,7 +293,7 @@ export const CustomersScreen = () => {
                   isGeneric && styles.genericCustomerName,
                 ]}
               >
-                {item.name}
+                {String(item.name || "").toUpperCase()}
                 {isGeneric && " (ventas rápidas)"}
               </Text>
               <InfoPill

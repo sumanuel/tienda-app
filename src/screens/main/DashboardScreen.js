@@ -346,21 +346,6 @@ export const DashboardScreen = ({ navigation }) => {
               <Text style={styles.heroRateValue}>{exchangeRateLabel}</Text>
               <Text style={styles.heroHelper}>{exchangeRateHelper}</Text>
             </View>
-
-            <View style={styles.heroDivider} />
-
-            <View style={styles.heroSummaryList}>
-              <View style={styles.heroSummaryItem}>
-                <Text style={styles.heroSummaryValue}>{salesSummary}</Text>
-                <Text style={styles.heroSummaryLabel}>Movimiento del día</Text>
-              </View>
-              <View style={styles.heroSummaryItem}>
-                <Text style={styles.heroSummaryValue}>{inventorySummary}</Text>
-                <Text style={styles.heroSummaryLabel}>
-                  Inventario registrado
-                </Text>
-              </View>
-            </View>
           </View>
         </View>
 
@@ -398,21 +383,6 @@ export const DashboardScreen = ({ navigation }) => {
                 ? "venta realizada"
                 : "ventas realizadas"}
             </Text>
-          </View>
-
-          <View style={styles.balanceHighlights}>
-            <View style={styles.highlightPill}>
-              <Text style={styles.highlightPillLabel}>Clientes</Text>
-              <Text style={styles.highlightPillValue}>
-                {customers?.length || 0}
-              </Text>
-            </View>
-            <View style={styles.highlightPill}>
-              <Text style={styles.highlightPillLabel}>Proveedores</Text>
-              <Text style={styles.highlightPillValue}>
-                {suppliers?.length || 0}
-              </Text>
-            </View>
           </View>
 
           <Pressable
@@ -713,33 +683,6 @@ const styles = StyleSheet.create({
     fontSize: rf(12),
     color: DASHBOARD_COLORS.muted,
   },
-  heroDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: DASHBOARD_COLORS.border,
-  },
-  heroSummaryList: {
-    flexDirection: "row",
-    gap: spacing.md,
-    flexWrap: "wrap",
-  },
-  heroSummaryItem: {
-    flex: 1,
-    minWidth: hs(120),
-    backgroundColor: DASHBOARD_COLORS.surfaceAlt,
-    borderRadius: borderRadius.md,
-    borderCurve: "continuous",
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  heroSummaryValue: {
-    fontSize: rf(15),
-    fontWeight: "700",
-    color: DASHBOARD_COLORS.text,
-  },
-  heroSummaryLabel: {
-    fontSize: rf(12),
-    color: DASHBOARD_COLORS.muted,
-  },
   mainCard: {
     backgroundColor: DASHBOARD_COLORS.surface,
     borderRadius: borderRadius.lg,
@@ -800,28 +743,6 @@ const styles = StyleSheet.create({
   salesCount: {
     fontSize: rf(13),
     color: DASHBOARD_COLORS.muted,
-  },
-  balanceHighlights: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  highlightPill: {
-    flex: 1,
-    backgroundColor: DASHBOARD_COLORS.surfaceAlt,
-    borderRadius: borderRadius.md,
-    borderCurve: "continuous",
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  highlightPillLabel: {
-    fontSize: rf(12),
-    color: DASHBOARD_COLORS.muted,
-    fontWeight: "600",
-  },
-  highlightPillValue: {
-    fontSize: rf(20),
-    color: DASHBOARD_COLORS.text,
-    fontWeight: "800",
   },
   viewDetailsButton: {
     backgroundColor: DASHBOARD_COLORS.accent,

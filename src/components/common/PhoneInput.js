@@ -87,6 +87,13 @@ export const PhoneInput = ({
   onChangeText,
   placeholder = "Ej: 4121234567",
   disabled = false,
+  inputRef,
+  returnKeyType,
+  onSubmitEditing,
+  onFocus,
+  blurOnSubmit,
+  containerStyle,
+  inputStyle,
 }) => {
   const [selectedCountry, setSelectedCountry] = useState(getDefaultCountry);
   const [callingCode, setCallingCode] = useState(() => {
@@ -156,7 +163,13 @@ export const PhoneInput = ({
   };
 
   return (
-    <View style={[styles.container, disabled && styles.containerDisabled]}>
+    <View
+      style={[
+        styles.container,
+        disabled && styles.containerDisabled,
+        containerStyle,
+      ]}
+    >
       <TouchableOpacity
         style={styles.prefixButton}
         onPress={() => !disabled && setPickerVisible(true)}
@@ -180,7 +193,8 @@ export const PhoneInput = ({
       />
 
       <TextInput
-        style={styles.input}
+        ref={inputRef}
+        style={[styles.input, inputStyle]}
         placeholder={placeholder}
         placeholderTextColor="#9aa2b1"
         value={nationalNumber}
@@ -190,6 +204,10 @@ export const PhoneInput = ({
         }}
         keyboardType="phone-pad"
         editable={!disabled}
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
+        onFocus={onFocus}
+        blurOnSubmit={blurOnSubmit}
       />
     </View>
   );

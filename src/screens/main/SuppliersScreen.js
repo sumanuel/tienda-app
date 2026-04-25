@@ -178,7 +178,9 @@ export const SuppliersScreen = () => {
                   text={item.contactPerson || "Sin contacto"}
                   tone="info"
                 />
-                <Text style={styles.supplierName}>{item.name}</Text>
+                <Text style={styles.supplierName}>
+                  {String(item.name || "").toUpperCase()}
+                </Text>
               </View>
               <InfoPill
                 text={
