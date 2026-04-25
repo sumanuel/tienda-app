@@ -15,6 +15,7 @@ import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
+import { buildSaleInvoiceWhatsAppMessage } from "../../utils/whatsappMessages";
 import { getCustomerById } from "../../services/database/customers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
@@ -104,7 +105,6 @@ export const SaleDetailScreen = () => {
   };
 
   const buildWhatsAppInvoiceText = () => {
-    const created = sale?.createdAt ? new Date(sale.createdAt) : new Date();
     const customerName =
       customer?.name ||
       (sale?.notes ? sale.notes.replace("Cliente: ", "") : "Cliente");
@@ -120,37 +120,27 @@ export const SaleDetailScreen = () => {
       const displayPriceVES = shouldRecalc
         ? priceUSD * exchangeRate
         : Number(it.price) || 0;
-      const subtotalVES = quantity * displayPriceVES;
-      return `- ${it.productName} x${quantity}: ${formatCurrency(subtotalVES, "VES")}`;
+      return {
+        productName: it.productName,
+        quantity,
+        subtotalVES: quantity * displayPriceVES,
+      };
     });
 
-    const totalVES = formatCurrency(calculateTotal(sale), "VES");
     const totalUSDNumber = (details?.items || []).reduce(
       (sum, it) =>
         sum + (Number(it.priceUSD) || 0) * (Number(it.quantity) || 0),
       0,
     );
-    const totalUSD =
-      totalUSDNumber > 0 ? formatCurrency(totalUSDNumber, "USD") : null;
 
-    const parts = [
-      `Factura - ${getSaleDisplayNumber(sale)}`,
-      `Fecha: ${created.toLocaleDateString("es-VE")} ${created.toLocaleTimeString(
-        [],
-        {
-          hour: "2-digit",
-          minute: "2-digit",
-        },
-      )}`,
-      `Cliente: ${customerName}`,
-      "",
-      "Productos:",
-      ...lines,
-      "",
-      `Total: ${totalVES}${totalUSD ? ` (${totalUSD})` : ""}`,
-    ];
-
-    return parts.join("\n");
+    return buildSaleInvoiceWhatsAppMessage({
+      saleNumber: getSaleDisplayNumber(sale),
+      createdAt: sale?.createdAt,
+      customerName,
+      items: lines,
+      totalVES: calculateTotal(sale),
+      totalUSD: totalUSDNumber,
+    });
   };
 
   const handleSendWhatsAppInvoice = async () => {

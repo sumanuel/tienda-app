@@ -1,16 +1,12 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { formatCurrency } from "../../utils/currency";
 import { formatExchangeRate } from "../../utils/exchange";
 import {
-  s,
   rf,
-  vs,
-  hs,
   spacing,
   borderRadius,
-  iconSize,
 } from "../../utils/responsive";
+import { SHADOWS, UI_COLORS } from "../common/AppUI";
 
 /**
  * Componente para mostrar la tasa de cambio actual
@@ -53,16 +49,13 @@ export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.1,
-    shadowRadius: s(8),
-    elevation: 6,
+    borderCurve: "continuous",
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: "#f1f5f9",
+    borderColor: UI_COLORS.border,
+    ...SHADOWS.soft,
   },
   header: {
     flexDirection: "row",
@@ -71,17 +64,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   label: {
-    fontSize: rf(16),
-    color: "#64748b",
-    fontWeight: "600",
+    fontSize: rf(14),
+    color: UI_COLORS.muted,
+    fontWeight: "700",
     letterSpacing: 0.5,
   },
   source: {
     fontSize: rf(12),
-    color: "#10b981",
+    color: UI_COLORS.accentStrong,
     fontWeight: "700",
     textTransform: "uppercase",
-    backgroundColor: "#dcfce7",
+    backgroundColor: UI_COLORS.accentSoft,
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
@@ -91,26 +84,26 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   currency: {
-    fontSize: rf(18),
-    color: "#475569",
+    fontSize: rf(16),
+    color: UI_COLORS.muted,
     fontWeight: "500",
     marginBottom: spacing.xs,
   },
   rate: {
-    fontSize: rf(36),
-    fontWeight: "700",
-    color: "#6366f1",
-    letterSpacing: 1,
+    fontSize: rf(32),
+    fontWeight: "800",
+    color: UI_COLORS.info,
+    letterSpacing: 0.8,
   },
   lastUpdate: {
     fontSize: rf(12),
-    color: "#94a3b8",
+    color: UI_COLORS.muted,
     textAlign: "center",
     fontWeight: "500",
   },
   noRate: {
     fontSize: rf(16),
-    color: "#94a3b8",
+    color: UI_COLORS.muted,
     textAlign: "center",
     fontWeight: "500",
   },

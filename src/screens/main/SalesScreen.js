@@ -392,7 +392,6 @@ export const SalesScreen = () => {
             {item.notes ? item.notes.replace("Cliente: ", "") : "Sin nombre"}
           </Text>
         </View>
-        <View style={styles.metaSeparator} />
         <View style={styles.metaBlock}>
           <Text style={styles.metaLabel}>Pago</Text>
           <Text style={styles.metaValue}>
@@ -708,16 +707,16 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: hs(16),
-    paddingTop: vs(16),
-    paddingBottom: vs(110),
+    paddingTop: vs(14),
+    paddingBottom: vs(104),
   },
   headerContent: {
-    gap: vs(18),
-    marginBottom: vs(8),
+    gap: vs(14),
+    marginBottom: vs(6),
   },
   summaryGrid: {
     flexDirection: "row",
-    gap: hs(12),
+    gap: hs(10),
   },
   metricCard: {
     ...SHADOWS.soft,
@@ -726,7 +725,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.soft,
   },
   dateCard: {
-    gap: vs(18),
+    gap: vs(14),
     ...SHADOWS.soft,
   },
   dateRow: {
@@ -735,7 +734,7 @@ const styles = StyleSheet.create({
   },
   dateColumn: {
     flex: 1,
-    gap: vs(10),
+    gap: vs(8),
   },
   dateLabel: {
     fontSize: rf(12),
@@ -773,7 +772,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     paddingHorizontal: hs(16),
-    paddingVertical: vs(10),
+    paddingVertical: vs(9),
     alignItems: "center",
     flex: 1,
   },
@@ -787,21 +786,21 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
-    padding: spacing.lg,
-    gap: vs(16),
+    padding: spacing.md,
+    gap: vs(12),
     borderWidth: 1,
     borderColor: UI_COLORS.border,
     ...SHADOWS.soft,
-    marginBottom: vs(12),
+    marginBottom: vs(10),
   },
   saleHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: hs(14),
+    gap: hs(12),
   },
   saleIcon: {
-    width: s(46),
-    height: s(46),
+    width: s(42),
+    height: s(42),
     borderRadius: borderRadius.md,
     backgroundColor: UI_COLORS.infoSoft,
     alignItems: "center",
@@ -830,19 +829,19 @@ const styles = StyleSheet.create({
   },
   saleMeta: {
     flexDirection: "row",
-    gap: hs(16),
+    gap: hs(12),
     flexWrap: "wrap",
   },
   metaBlock: {
     flex: 1,
     minWidth: "40%",
-    gap: vs(6),
+    gap: vs(4),
     backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: spacing.md,
+    padding: spacing.sm + 2,
   },
   metaLabel: {
     fontSize: rf(11),
@@ -857,7 +856,7 @@ const styles = StyleSheet.create({
     color: UI_COLORS.text,
   },
   emptyState: {
-    paddingVertical: vs(60),
+    paddingVertical: vs(52),
   },
   fab: {
     backgroundColor: UI_COLORS.info,
@@ -871,7 +870,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: "100%",
-    maxWidth: s(420),
+    maxWidth: s(400),
     gap: spacing.md,
     ...SHADOWS.card,
   },
@@ -887,7 +886,7 @@ const styles = StyleSheet.create({
   modalGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: hs(12),
+    gap: hs(10),
   },
   modalMetricCard: {
     minWidth: "47%",
@@ -897,7 +896,7 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     borderWidth: 1,
     borderColor: UI_COLORS.border,
-    padding: spacing.md,
+    padding: spacing.sm + 2,
     gap: vs(6),
   },
   modalLabel: {

@@ -19,9 +19,9 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
 import { useAccounts } from "../../hooks/useAccounts";
-import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
+import { buildReceivableReminderWhatsAppMessage } from "../../utils/whatsappMessages";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   EmptyStateCard,
@@ -120,35 +120,20 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   }, [canStart, start, tourBooted]);
 
   const buildReceivableWhatsAppText = useCallback((account) => {
-    const customerName = account?.customerName || "Cliente";
     const amount = Number(account?.amount) || 0;
     const paidAmount = Number(account?.paidAmount) || 0;
     const pendingAmount = Math.max(0, amount - paidAmount);
-    const baseAmountUSD = Number(account?.baseAmountUSD) || 0;
 
-    const parts = [`Hola ${customerName},`];
-    parts.push("Te escribo para compartirte un recordatorio de pago.");
-
-    if (account?.invoiceNumber) {
-      parts.push(`Factura: ${account.invoiceNumber}`);
-    }
-    if (account?.description) {
-      parts.push(`Concepto: ${account.description}`);
-    }
-    if (account?.dueDate) {
-      parts.push(`Vence: ${account.dueDate}`);
-    }
-
-    parts.push(`Monto: ${formatCurrency(amount, "VES")}`);
-    if (baseAmountUSD > 0) {
-      parts.push(`Monto (USD): ${formatCurrency(baseAmountUSD, "USD")}`);
-    }
-    if (paidAmount > 0) {
-      parts.push(`Pagado: ${formatCurrency(paidAmount, "VES")}`);
-      parts.push(`Pendiente: ${formatCurrency(pendingAmount, "VES")}`);
-    }
-
-    return parts.join("\n");
+    return buildReceivableReminderWhatsAppMessage({
+      customerName: account?.customerName,
+      invoiceNumber: account?.invoiceNumber,
+      description: account?.description,
+      dueDate: account?.dueDate,
+      amountVES: amount,
+      baseAmountUSD: Number(account?.baseAmountUSD) || 0,
+      paidAmountVES: paidAmount,
+      pendingAmountVES: pendingAmount,
+    });
   }, []);
 
   const handleSendWhatsApp = useCallback(
