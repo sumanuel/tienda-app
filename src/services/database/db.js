@@ -145,6 +145,26 @@ const getTableRowCount = async (database, tableName) => {
   }
 };
 
+const targetHasOnlyGenericCustomer = async (database) => {
+  try {
+    const countRow = await database.getFirstAsync(
+      "SELECT COUNT(*) AS total FROM customers;",
+    );
+
+    if ((Number(countRow?.total) || 0) !== 1) {
+      return false;
+    }
+
+    const genericRow = await database.getFirstAsync(
+      "SELECT id FROM customers WHERE active = 1 AND TRIM(COALESCE(documentNumber, '')) = '1' LIMIT 1;",
+    );
+
+    return Boolean(genericRow?.id);
+  } catch (_) {
+    return false;
+  }
+};
+
 const copyLegacyRowsToCurrentDatabase = async (
   sourceDb,
   targetDb,
@@ -258,6 +278,15 @@ export const migrateLegacyDatabaseToCurrentStoreIfNeeded = async () => {
       }
 
       if (targetCount > 0) {
+        if (
+          tableName === "customers" &&
+          (await targetHasOnlyGenericCustomer(targetDb))
+        ) {
+          await copyLegacyRowsToCurrentDatabase(sourceDb, targetDb, tableName);
+          migratedTables.push({ tableName, rows: sourceCount });
+          continue;
+        }
+
         skippedTables.push({ tableName, reason: "target-has-data" });
         continue;
       }
