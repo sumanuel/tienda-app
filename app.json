@@ -2,7 +2,7 @@
   "expo": {
     "name": "T-Suma",
     "slug": "tienda-app",
-    "version": "0.1.1.260424",
+    "version": "0.1.1.260425",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,7 @@
       }
     },
     "android": {
-      "versionCode": 7,
+      "versionCode": 8,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4CAF50"
