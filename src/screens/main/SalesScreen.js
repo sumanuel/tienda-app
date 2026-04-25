@@ -3,9 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   FlatList,
-  Alert,
   SafeAreaView,
   ActivityIndicator,
   Platform,
@@ -13,12 +12,24 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import {
+  EmptyStateCard,
+  FloatingActionButton,
+  InfoPill,
+  MetricCard,
+  ScreenHero,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
+import { SegmentedOptions } from "../../components/common/FormPatterns";
 import { getSaleItemsCostUSDBySaleIds } from "../../services/database/sales";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
@@ -36,18 +47,12 @@ import {
  */
 export const SalesScreen = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { canStart, start, TourGuideZone } = useTourGuideController("sales");
   const TOUR_ZONE_BASE = 4000;
   const [tourBooted, setTourBooted] = useState(false);
-  const {
-    sales,
-    todayStats,
-    loading,
-    getSaleDetails,
-    loadSales,
-    loadTodayStats,
-    cancelSale,
-  } = useSales();
+  const { sales, todayStats, loading, loadSales, loadTodayStats, cancelSale } =
+    useSales();
 
   const { rate } = useExchangeRateContext();
   const { showAlert, CustomAlert } = useCustomAlert();
@@ -152,7 +157,10 @@ export const SalesScreen = () => {
       };
     }
 
-    const total = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
+    const total = filteredSales.reduce(
+      (sum, sale) => sum + (Number(calculateTotal(sale)) || 0),
+      0,
+    );
     return {
       count: filteredSales.length,
       total,
@@ -349,14 +357,17 @@ export const SalesScreen = () => {
   };
 
   const renderSale = ({ item }) => (
-    <TouchableOpacity
-      style={styles.saleCard}
+    <Pressable
+      style={({ pressed }) => [styles.saleCard, pressed && styles.pressed]}
       onPress={() => handleShowDetails(item)}
-      activeOpacity={0.85}
     >
       <View style={styles.saleHeader}>
         <View style={styles.saleIcon}>
-          <Ionicons name="receipt-outline" size={iconSize.lg} color="#2f5ae0" />
+          <Ionicons
+            name="receipt-outline"
+            size={iconSize.lg}
+            color={UI_COLORS.info}
+          />
         </View>
         <View style={styles.saleInfo}>
           <Text style={styles.saleNumber}>{getSaleDisplayNumber(item)}</Text>
@@ -368,11 +379,10 @@ export const SalesScreen = () => {
             })}
           </Text>
         </View>
-        <View style={styles.saleAmountBadge}>
-          <Text style={styles.saleAmountText}>
-            {formatCurrency(calculateTotal(item), "VES")}
-          </Text>
-        </View>
+        <InfoPill
+          text={formatCurrency(calculateTotal(item), "VES")}
+          tone="info"
+        />
       </View>
 
       <View style={styles.saleMeta}>
@@ -389,21 +399,23 @@ export const SalesScreen = () => {
             {getPaymentMethodText(item.paymentMethod)}
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.cancelButton}
+        <Pressable
+          style={({ pressed }) => [
+            styles.cancelButton,
+            pressed && styles.pressed,
+          ]}
           onPress={() => handleCancelSale(item)}
-          activeOpacity={0.7}
         >
-          <Ionicons name="ban-outline" size={rf(18)} color="#d64545" />
-        </TouchableOpacity>
+          <Ionicons name="ban-outline" size={rf(18)} color={UI_COLORS.danger} />
+        </Pressable>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2f5ae0" />
+        <ActivityIndicator size="large" color={UI_COLORS.info} />
         <Text style={styles.loadingText}>Sincronizando historial...</Text>
       </SafeAreaView>
     );
@@ -419,23 +431,49 @@ export const SalesScreen = () => {
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
             <View style={styles.headerContent}>
-              <View style={styles.heroCard}>
-                <View style={styles.heroIcon}>
-                  <Ionicons
-                    name="bar-chart-outline"
-                    size={iconSize.xl}
-                    color="#2f5ae0"
-                  />
-                </View>
-                <View style={styles.heroCopy}>
-                  <Text style={styles.heroTitle}>
-                    Historial de ventas ({summary.count})
-                  </Text>
-                  <Text style={styles.heroSubtitle}>
-                    Visualiza el desempeño de tus ventas y explora los detalles
-                    con un toque.
-                  </Text>
-                </View>
+              <ScreenHero
+                iconName="bar-chart-outline"
+                iconColor={UI_COLORS.info}
+                eyebrow="Ventas"
+                title="Historial de ventas"
+                subtitle="Consulta ventas del d\u00eda o por rango con tarjetas m\u00e1s claras, m\u00e9tricas compactas y acceso directo a los totales."
+                pills={[
+                  {
+                    text: `${summary.count} registros`,
+                    tone: "info",
+                  },
+                  {
+                    text: formatCurrency(summary.total, "VES"),
+                    tone: "accent",
+                  },
+                ]}
+              />
+
+              <View style={styles.summaryGrid}>
+                <MetricCard
+                  label={
+                    activeTab === "today" ? "Ventas hoy" : "Ventas filtradas"
+                  }
+                  value={String(summary.count)}
+                  hint={
+                    activeTab === "today"
+                      ? "Movimientos registrados en la jornada actual"
+                      : "Resultados dentro del rango seleccionado"
+                  }
+                  tone="info"
+                  style={styles.metricCard}
+                />
+                <MetricCard
+                  label="Facturado"
+                  value={formatCurrency(summary.total, "VES")}
+                  hint={
+                    activeTab === "today"
+                      ? "Total acumulado de hoy"
+                      : `${formatDate(startDate)} - ${formatDate(endDate)}`
+                  }
+                  tone="accent"
+                  style={styles.metricCard}
+                />
               </View>
 
               <TourGuideZone
@@ -445,57 +483,39 @@ export const SalesScreen = () => {
                 }
                 borderRadius={borderRadius.lg}
               >
-                <View>
-                  <View style={styles.tabGroup}>
-                    {[
-                      { key: "today", label: "Hoy" },
-                      { key: "all", label: "Histórico" },
-                    ].map((tab) => {
-                      const active = activeTab === tab.key;
-                      return (
-                        <TouchableOpacity
-                          key={tab.key}
-                          style={[
-                            styles.tabChip,
-                            active && styles.tabChipActive,
-                          ]}
-                          onPress={() => setActiveTab(tab.key)}
-                          activeOpacity={0.85}
-                        >
-                          <Text
-                            style={[
-                              styles.tabChipText,
-                              active && styles.tabChipTextActive,
-                            ]}
-                          >
-                            {tab.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
+                <SurfaceCard style={styles.segmentCard}>
+                  <SegmentedOptions
+                    options={[
+                      { value: "today", label: "Hoy" },
+                      { value: "all", label: "Histórico" },
+                    ]}
+                    value={activeTab}
+                    onChange={setActiveTab}
+                  />
+                </SurfaceCard>
               </TourGuideZone>
 
               {activeTab === "all" && (
-                <View style={styles.dateCard}>
+                <SurfaceCard style={styles.dateCard}>
                   <View style={styles.dateRow}>
                     <View style={styles.dateColumn}>
                       <Text style={styles.dateLabel}>Desde</Text>
-                      <TouchableOpacity
-                        style={styles.dateSelector}
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.dateSelector,
+                          pressed && styles.pressed,
+                        ]}
                         onPress={() => setShowStartPicker(true)}
-                        activeOpacity={0.85}
                       >
                         <Ionicons
                           name="calendar-outline"
                           size={rf(16)}
-                          color="#2f5ae0"
+                          color={UI_COLORS.info}
                         />
                         <Text style={styles.dateValue}>
                           {formatDate(startDate)}
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
 
                       {showStartPicker ? (
                         <DateTimePicker
@@ -511,20 +531,22 @@ export const SalesScreen = () => {
 
                     <View style={styles.dateColumn}>
                       <Text style={styles.dateLabel}>Hasta</Text>
-                      <TouchableOpacity
-                        style={styles.dateSelector}
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.dateSelector,
+                          pressed && styles.pressed,
+                        ]}
                         onPress={() => setShowEndPicker(true)}
-                        activeOpacity={0.85}
                       >
                         <Ionicons
                           name="calendar-outline"
                           size={rf(16)}
-                          color="#2f5ae0"
+                          color={UI_COLORS.info}
                         />
                         <Text style={styles.dateValue}>
                           {formatDate(endDate)}
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
 
                       {showEndPicker ? (
                         <DateTimePicker
@@ -540,50 +562,52 @@ export const SalesScreen = () => {
                   </View>
 
                   <View style={styles.quickFilters}>
-                    <TouchableOpacity
-                      style={styles.quickFilter}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.quickFilter,
+                        pressed && styles.pressed,
+                      ]}
                       onPress={() => handleQuickRange("currentMonth")}
-                      activeOpacity={0.85}
                     >
                       <Text style={styles.quickFilterText}>Este mes</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.quickFilter}
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.quickFilter,
+                        pressed && styles.pressed,
+                      ]}
                       onPress={() => handleQuickRange("lastMonth")}
-                      activeOpacity={0.85}
                     >
                       <Text style={styles.quickFilterText}>Mes anterior</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.quickFilter}
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.quickFilter,
+                        pressed && styles.pressed,
+                      ]}
                       onPress={() => handleQuickRange("week")}
-                      activeOpacity={0.85}
                     >
                       <Text style={styles.quickFilterText}>Esta semana</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
-                </View>
+                </SurfaceCard>
               )}
             </View>
           }
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons
-                name="receipt-outline"
-                size={iconSize.xxl}
-                color="#8ca0b8"
-              />
-              <Text style={styles.emptyTitle}>
-                {activeTab === "today"
+            <EmptyStateCard
+              title={
+                activeTab === "today"
                   ? "No hay ventas registradas hoy"
-                  : "No encontramos ventas en este rango"}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {activeTab === "today"
+                  : "No encontramos ventas en este rango"
+              }
+              subtitle={
+                activeTab === "today"
                   ? "Registra una venta y aparecerá aquí al instante."
-                  : "Ajusta el rango o sincroniza tus ventas recientes."}
-              </Text>
-            </View>
+                  : "Ajusta el rango o sincroniza tus ventas recientes."
+              }
+              style={styles.emptyState}
+            />
           }
         />
 
@@ -592,13 +616,12 @@ export const SalesScreen = () => {
           text={"Abre los totales del rango seleccionado presionando '$'."}
           shape="circle"
         >
-          <TouchableOpacity
+          <FloatingActionButton
             style={styles.fab}
+            bottom={vs(24) + Math.max(insets.bottom, vs(10))}
             onPress={() => setShowTotalsModal(true)}
-            activeOpacity={0.9}
-          >
-            <Text style={styles.fabIcon}>$</Text>
-          </TouchableOpacity>
+            iconName="stats-chart"
+          />
         </TourGuideZone>
       </SafeAreaView>
 
@@ -609,7 +632,7 @@ export const SalesScreen = () => {
         onRequestClose={() => setShowTotalsModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <SurfaceCard style={styles.modalCard}>
             <Text style={styles.modalTitle}>Totales</Text>
             <Text style={styles.modalSubtitle}>
               {activeTab === "today"
@@ -619,56 +642,58 @@ export const SalesScreen = () => {
 
             {totalsLoading ? (
               <View style={styles.modalLoading}>
-                <ActivityIndicator size="large" color="#2f5ae0" />
+                <ActivityIndicator size="large" color={UI_COLORS.info} />
                 <Text style={styles.modalLoadingText}>Calculando...</Text>
               </View>
             ) : (
-              <View style={styles.modalBody}>
-                <View style={styles.modalRow}>
+              <View style={styles.modalGrid}>
+                <View style={styles.modalMetricCard}>
                   <Text style={styles.modalLabel}>Total vendido</Text>
-                  <View style={styles.modalValueBlock}>
-                    <Text style={styles.modalValue}>
-                      {formatCurrency(totals.soldVES, "VES")}
-                    </Text>
-                    <Text style={styles.modalValueSecondary}>
-                      {formatCurrency(totals.soldUSD, "USD")}
-                    </Text>
-                  </View>
+                  <Text style={styles.modalValue}>
+                    {formatCurrency(totals.soldVES, "VES")}
+                  </Text>
+                  <Text style={styles.modalValueSecondary}>
+                    {formatCurrency(totals.soldUSD, "USD")}
+                  </Text>
                 </View>
-                <View style={styles.modalRow}>
+                <View style={styles.modalMetricCard}>
                   <Text style={styles.modalLabel}>Costo vendido</Text>
-                  <View style={styles.modalValueBlock}>
-                    <Text style={styles.modalValue}>
-                      {formatCurrency(totals.costVES, "VES")}
-                    </Text>
-                    <Text style={styles.modalValueSecondary}>
-                      {formatCurrency(totals.costUSD, "USD")}
-                    </Text>
-                  </View>
+                  <Text style={styles.modalValue}>
+                    {formatCurrency(totals.costVES, "VES")}
+                  </Text>
+                  <Text style={styles.modalValueSecondary}>
+                    {formatCurrency(totals.costUSD, "USD")}
+                  </Text>
                 </View>
-                <View style={styles.modalDivider} />
-                <View style={styles.modalRow}>
+                <View style={styles.modalMetricCard}>
                   <Text style={styles.modalLabel}>Ganancia</Text>
-                  <View style={styles.modalValueBlock}>
-                    <Text style={styles.modalValue}>
-                      {formatCurrency(totals.profitVES, "VES")}
-                    </Text>
-                    <Text style={styles.modalValueSecondary}>
-                      {formatCurrency(totals.profitUSD, "USD")}
-                    </Text>
-                  </View>
+                  <Text
+                    style={[
+                      styles.modalValue,
+                      totals.profitVES >= 0
+                        ? styles.positiveValue
+                        : styles.negativeValue,
+                    ]}
+                  >
+                    {formatCurrency(totals.profitVES, "VES")}
+                  </Text>
+                  <Text style={styles.modalValueSecondary}>
+                    {formatCurrency(totals.profitUSD, "USD")}
+                  </Text>
                 </View>
               </View>
             )}
 
-            <TouchableOpacity
-              style={styles.modalCloseButton}
+            <Pressable
+              style={({ pressed }) => [
+                styles.modalCloseButton,
+                pressed && styles.pressed,
+              ]}
               onPress={() => setShowTotalsModal(false)}
-              activeOpacity={0.85}
             >
               <Text style={styles.modalCloseText}>Cerrar</Text>
-            </TouchableOpacity>
-          </View>
+            </Pressable>
+          </SurfaceCard>
         </View>
       </Modal>
       <CustomAlert />
@@ -679,7 +704,7 @@ export const SalesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   listContent: {
     paddingHorizontal: hs(16),
@@ -690,83 +715,19 @@ const styles = StyleSheet.create({
     gap: vs(18),
     marginBottom: vs(8),
   },
-  heroCard: {
+  summaryGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 8,
+    gap: hs(12),
   },
-  heroIcon: {
-    width: s(60),
-    height: s(60),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: hs(18),
+  metricCard: {
+    ...SHADOWS.soft,
   },
-  heroIconText: {
-    fontSize: iconSize.xl,
-  },
-  heroCopy: {
-    flex: 1,
-    gap: vs(6),
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: vs(20),
-  },
-  tabGroup: {
-    flexDirection: "row",
-    backgroundColor: "#f3f5fa",
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
-    gap: vs(8),
-  },
-  tabChip: {
-    flex: 1,
-    borderRadius: borderRadius.sm,
-    paddingVertical: vs(12),
-    alignItems: "center",
-  },
-  tabChipActive: {
-    backgroundColor: "#2f5ae0",
-    shadowColor: "#2f5ae0",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.18,
-    shadowRadius: s(6),
-    elevation: 4,
-  },
-  tabChipText: {
-    fontSize: rf(14),
-    fontWeight: "600",
-    color: "#5b6472",
-  },
-  tabChipTextActive: {
-    color: "#fff",
+  segmentCard: {
+    ...SHADOWS.soft,
   },
   dateCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(12),
-    elevation: 5,
     gap: vs(18),
+    ...SHADOWS.soft,
   },
   dateRow: {
     flexDirection: "row",
@@ -778,61 +739,59 @@ const styles = StyleSheet.create({
   },
   dateLabel: {
     fontSize: rf(12),
-    fontWeight: "600",
-    color: "#8492a6",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
-    letterSpacing: s(0.6),
+    letterSpacing: 0.6,
   },
   dateSelector: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8f9fc",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "#d9e0eb",
+    borderColor: UI_COLORS.border,
     paddingHorizontal: hs(12),
     paddingVertical: vs(10),
     gap: hs(10),
   },
-  dateCalendarIcon: {
-    fontSize: rf(16),
-  },
   dateValue: {
     flex: 1,
     fontSize: rf(13),
-    fontWeight: "600",
-    color: "#2f3a4c",
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   quickFilters: {
     flexDirection: "row",
     gap: hs(8),
   },
   quickFilter: {
-    backgroundColor: "#f8f9fc",
+    backgroundColor: UI_COLORS.infoSoft,
     borderRadius: borderRadius.sm,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "#d9e0eb",
+    borderColor: UI_COLORS.border,
     paddingHorizontal: hs(16),
     paddingVertical: vs(10),
     alignItems: "center",
     flex: 1,
   },
   quickFilterText: {
-    color: "#2f5ae0",
-    fontWeight: "600",
+    color: UI_COLORS.info,
+    fontWeight: "700",
     fontSize: rf(13),
     flex: 1,
   },
   saleCard: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: spacing.lg,
     gap: vs(16),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    ...SHADOWS.soft,
     marginBottom: vs(12),
   },
   saleHeader: {
@@ -844,12 +803,9 @@ const styles = StyleSheet.create({
     width: s(46),
     height: s(46),
     borderRadius: borderRadius.md,
-    backgroundColor: "#f3f8ff",
+    backgroundColor: UI_COLORS.infoSoft,
     alignItems: "center",
     justifyContent: "center",
-  },
-  saleIconText: {
-    fontSize: iconSize.lg,
   },
   saleInfo: {
     flex: 1,
@@ -857,110 +813,54 @@ const styles = StyleSheet.create({
   },
   saleNumber: {
     fontSize: rf(16),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   saleDate: {
     fontSize: rf(12),
-    color: "#6f7c8c",
-  },
-  saleAmountBadge: {
-    backgroundColor: "#2f5ae0",
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: hs(14),
-    paddingVertical: vs(8),
-  },
-  saleAmountText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: rf(13),
+    color: UI_COLORS.muted,
   },
   cancelButton: {
     width: s(32),
     height: s(32),
     borderRadius: borderRadius.md,
-    backgroundColor: "#fee2e2",
+    backgroundColor: UI_COLORS.dangerSoft,
     alignItems: "center",
     justifyContent: "center",
-  },
-  cancelIcon: {
-    fontSize: rf(14),
-    color: "#dc2626",
   },
   saleMeta: {
     flexDirection: "row",
-    alignItems: "center",
     gap: hs(16),
+    flexWrap: "wrap",
   },
   metaBlock: {
     flex: 1,
+    minWidth: "40%",
     gap: vs(6),
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: spacing.md,
   },
   metaLabel: {
     fontSize: rf(11),
-    fontWeight: "600",
-    color: "#8492a6",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
-    letterSpacing: s(0.6),
+    letterSpacing: 0.6,
   },
   metaValue: {
     fontSize: rf(13),
-    fontWeight: "600",
-    color: "#1f2633",
-  },
-  metaSeparator: {
-    width: s(1),
-    height: s(32),
-    backgroundColor: "#e4e9f2",
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
     paddingVertical: vs(60),
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    gap: vs(12),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.04,
-    shadowRadius: s(8),
-    elevation: 2,
-  },
-  emptyEmoji: {
-    fontSize: rf(42),
-  },
-  emptyTitle: {
-    fontSize: rf(16),
-    fontWeight: "700",
-    color: "#1f2633",
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    fontSize: rf(13),
-    color: "#6f7c8c",
-    textAlign: "center",
-    paddingHorizontal: hs(24),
   },
   fab: {
-    position: "absolute",
-    right: hs(18),
-    bottom: vs(24),
-    width: s(56),
-    height: s(56),
-    borderRadius: s(28),
-    backgroundColor: "#2f5ae0",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.18,
-    shadowRadius: s(14),
-    elevation: 10,
-  },
-  fabIcon: {
-    color: "#fff",
-    fontSize: rf(22),
-    fontWeight: "800",
+    backgroundColor: UI_COLORS.info,
   },
   modalOverlay: {
     flex: 1,
@@ -972,209 +872,79 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     maxWidth: s(420),
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
+    gap: spacing.md,
+    ...SHADOWS.card,
   },
   modalTitle: {
     fontSize: rf(18),
     fontWeight: "800",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   modalSubtitle: {
-    marginTop: vs(6),
     fontSize: rf(13),
-    color: "#5b6472",
+    color: UI_COLORS.muted,
   },
-  modalBody: {
-    marginTop: vs(18),
-    gap: vs(12),
-  },
-  modalRow: {
+  modalGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: hs(12),
+  },
+  modalMetricCard: {
+    minWidth: "47%",
+    flexGrow: 1,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: spacing.md,
+    gap: vs(6),
   },
   modalLabel: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    fontWeight: "600",
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   modalValue: {
-    fontSize: rf(15),
-    color: "#1f2633",
+    fontSize: rf(16),
+    color: UI_COLORS.text,
     fontWeight: "800",
-  },
-  modalValueBlock: {
-    alignItems: "flex-end",
-    gap: vs(4),
   },
   modalValueSecondary: {
     fontSize: rf(12),
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
     fontWeight: "700",
   },
-  modalDivider: {
-    height: s(1),
-    backgroundColor: "#e4e9f2",
-  },
   modalCloseButton: {
-    marginTop: vs(18),
-    backgroundColor: "#f3f5fa",
+    marginTop: vs(4),
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
     paddingVertical: vs(12),
     alignItems: "center",
   },
   modalCloseText: {
     fontSize: rf(14),
     fontWeight: "800",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   modalLoading: {
-    marginTop: vs(18),
+    paddingVertical: vs(16),
     alignItems: "center",
     gap: vs(10),
   },
   modalLoadingText: {
     fontSize: rf(13),
-    color: "#5b6472",
+    color: UI_COLORS.muted,
     fontWeight: "600",
-  },
-  detailOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(13, 22, 38, 0.55)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: spacing.xl,
-  },
-  detailCard: {
-    width: "100%",
-    maxHeight: "85%",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    gap: vs(18),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(14) },
-    shadowOpacity: 0.2,
-    shadowRadius: s(20),
-    elevation: 12,
-  },
-  detailHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: hs(16),
-  },
-  detailBack: {
-    width: s(40),
-    height: s(40),
-    borderRadius: borderRadius.md,
-    backgroundColor: "#f0f3fa",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  detailBackText: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#2f5ae0",
-  },
-  detailHeaderInfo: {
-    flex: 1,
-    gap: vs(4),
-  },
-  detailTitle: {
-    fontSize: rf(18),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  detailSubtitle: {
-    fontSize: rf(13),
-    color: "#6f7c8c",
-  },
-  detailAmountChip: {
-    backgroundColor: "#2fb176",
-    borderRadius: borderRadius.md,
-    paddingHorizontal: hs(14),
-    paddingVertical: vs(8),
-  },
-  detailAmountText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-  detailSummary: {
-    flexDirection: "row",
-    backgroundColor: "#f8f9fc",
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    gap: hs(14),
-  },
-  detailSummaryItem: {
-    flex: 1,
-    gap: vs(6),
-  },
-  detailSummaryLabel: {
-    fontSize: rf(11),
-    fontWeight: "600",
-    color: "#7a8796",
-    textTransform: "uppercase",
-    letterSpacing: s(0.6),
-  },
-  detailSummaryValue: {
-    fontSize: rf(14),
-    fontWeight: "600",
-    color: "#1f2633",
-  },
-  detailsLoader: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: vs(40),
-  },
-  detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  detailItemSpacing: {
-    marginTop: vs(12),
-  },
-  detailItemInfo: {
-    flex: 1,
-    gap: vs(6),
-  },
-  detailItemName: {
-    fontSize: rf(15),
-    fontWeight: "600",
-    color: "#1f2633",
-  },
-  detailItemQuantity: {
-    fontSize: rf(13),
-    color: "#6f7c8c",
-  },
-  detailItemTotal: {
-    fontSize: rf(14),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  detailDivider: {
-    height: s(1),
-    backgroundColor: "#e4e9f2",
-    marginTop: vs(12),
-  },
-  detailEmpty: {
-    paddingVertical: vs(30),
-    alignItems: "center",
-  },
-  detailEmptyText: {
-    fontSize: rf(13),
-    color: "#6f7c8c",
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
     alignItems: "center",
     justifyContent: "center",
     gap: vs(16),
@@ -1182,7 +952,17 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: rf(14),
     fontWeight: "600",
-    color: "#4c5767",
+    color: UI_COLORS.muted,
+  },
+  positiveValue: {
+    color: UI_COLORS.accentStrong,
+  },
+  negativeValue: {
+    color: UI_COLORS.danger,
+  },
+  pressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

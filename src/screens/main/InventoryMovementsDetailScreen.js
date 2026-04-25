@@ -1,24 +1,29 @@
 import React, { useEffect, useState } from "react";
-import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
   FlatList,
-  TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { FloatingActionButton, UI_COLORS } from "../../components/common/AppUI";
+import {
+  InventoryEmptyState,
+  InventoryHero,
+  InventoryMovementCard,
+  InventoryProductSummaryCard,
+} from "../../components/common/InventoryUI";
 import {
   getProductByBarcode,
   getProductInventoryMovements,
 } from "../../services/database/products";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
-  s,
   rf,
   vs,
   hs,
@@ -159,59 +164,21 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
 
   const renderMovement = ({ item }) => {
     const isExit = String(item.type) === "exit";
-    const dt = parseMovementDate(item.createdAt);
+    const movementDate = parseMovementDate(item.createdAt);
 
     return (
-      <View
-        style={[styles.movementCard, isExit ? styles.movementCardExit : null]}
-      >
-        <View style={styles.movementHeader}>
-          <View>
-            <Text style={styles.movementDate}>
-              {item.movementNumber || `MOV-${String(item.id).padStart(6, "0")}`}
-            </Text>
-            <Text style={styles.movementDate}>
-              {dt.toLocaleDateString()} {dt.toLocaleTimeString()}
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.movementBadge,
-              isExit ? styles.movementBadgeExit : styles.movementBadgeEntry,
-            ]}
-          >
-            <Text
-              style={[
-                styles.movementBadgeText,
-                isExit
-                  ? styles.movementBadgeTextExit
-                  : styles.movementBadgeTextEntry,
-              ]}
-            >
-              {isExit ? "Salida" : "Entrada"}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.movementDetails}>
-          <Text
-            style={[
-              styles.movementQuantity,
-              isExit
-                ? styles.movementQuantityExit
-                : styles.movementQuantityEntry,
-            ]}
-          >
-            {isExit ? "-" : "+"}
-            {item.quantity} unidades
-          </Text>
-          <Text style={styles.movementStock}>
-            Stock: {item.previousStock} → {item.newStock}
-          </Text>
-        </View>
-
-        {item.notes && <Text style={styles.movementNotes}>{item.notes}</Text>}
-      </View>
+      <InventoryMovementCard
+        movementNumber={
+          item.movementNumber || `MOV-${String(item.id).padStart(6, "0")}`
+        }
+        dateLabel={`${movementDate.toLocaleDateString()} ${movementDate.toLocaleTimeString()}`}
+        typeLabel={isExit ? "Salida" : "Entrada"}
+        typeTone={isExit ? "danger" : "accent"}
+        quantityLabel={`${isExit ? "-" : "+"}${item.quantity} unidades`}
+        quantityTone={isExit ? "danger" : "accent"}
+        stockLabel={`Stock: ${item.previousStock} → ${item.newStock}`}
+        notes={item.notes}
+      />
     );
   };
 
@@ -219,116 +186,82 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
     if (!product || loading) return null;
 
     return (
-      <View style={styles.emptyMovements}>
-        <Ionicons
-          name="document-text-outline"
-          size={iconSize.xxl}
-          color="#8ca0b8"
-        />
-        <Text style={styles.emptyTitle}>Sin movimientos registrados</Text>
-        <Text style={styles.emptySubtitle}>
-          El inventario actual ({product.stock} unidades) se considera como
-          registro inicial.
-        </Text>
-      </View>
+      <InventoryEmptyState
+        title="Sin movimientos registrados"
+        subtitle={`El inventario actual (${product.stock} unidades) se considera como registro inicial.`}
+      />
     );
   };
 
   return (
     <>
-      <View style={styles.container}>
-        <View style={styles.topContent}>
-          <View style={styles.headerContent}>
-            <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Ionicons
-                  name="cube-outline"
-                  size={iconSize.xl}
-                  color="#c9861a"
-                />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
+          <View style={styles.topContent}>
+            <InventoryHero
+              iconName="cube-outline"
+              iconColor={UI_COLORS.warning}
+              eyebrow="Inventario"
+              title="Historial de movimientos"
+              subtitle="Consulta entradas y salidas del producto seleccionado desde una sola vista más clara."
+            />
+
+            {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={UI_COLORS.warning} />
+                <Text style={styles.loadingText}>Cargando movimientos...</Text>
               </View>
-              <View style={styles.heroTextContainer}>
-                <Text style={styles.heroTitle}>Movimientos de inventario</Text>
-                <Text style={styles.heroSubtitle}>
-                  Entradas y salidas del producto seleccionado.
-                </Text>
-              </View>
-            </View>
+            ) : null}
+
+            {product && !loading ? (
+              <InventoryProductSummaryCard
+                product={product}
+                stockTone="warning"
+              />
+            ) : null}
           </View>
 
-          {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-          {loading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4CAF50" />
-              <Text style={styles.loadingText}>Cargando movimientos...</Text>
-            </View>
-          )}
-
-          {product && !loading && (
-            <View style={styles.productCard}>
-              <View style={styles.productHeader}>
-                <View style={styles.productNameRow}>
-                  <Text style={styles.productName}>{product.name}</Text>
-                  <Text style={styles.productStock}>
-                    {product.stock} unidades
-                  </Text>
-                </View>
-                <Text style={styles.productCode}>
-                  Código:{" "}
-                  {product.productNumber ||
-                    `PRD-${String(product.id).padStart(6, "0")}`}
-                </Text>
-                {!!product.barcode && (
-                  <Text style={styles.productCode}>
-                    Barcode: {product.barcode}
-                  </Text>
-                )}
-              </View>
-            </View>
-          )}
+          <TourGuideZone
+            zone={TOUR_ZONE_BASE + 1}
+            text={
+              "Aquí verás el historial de entradas y salidas, con su fecha y cómo cambió el stock."
+            }
+            borderRadius={borderRadius.lg}
+            style={styles.listWrapper}
+          >
+            <FlatList
+              data={movements}
+              renderItem={renderMovement}
+              keyExtractor={(item) => item.id.toString()}
+              style={styles.list}
+              ListEmptyComponent={renderEmpty}
+              contentContainerStyle={[
+                styles.listContent,
+                { paddingBottom: listPaddingBottom },
+              ]}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            />
+          </TourGuideZone>
         </View>
 
-        <TourGuideZone
-          zone={TOUR_ZONE_BASE + 1}
-          text={
-            "Aquí verás el historial de entradas y salidas, con su fecha y cómo cambió el stock."
-          }
-          borderRadius={borderRadius.lg}
-          style={styles.listWrapper}
-        >
-          <FlatList
-            data={movements}
-            renderItem={renderMovement}
-            keyExtractor={(item) => item.id.toString()}
-            style={styles.list}
-            ListEmptyComponent={renderEmpty}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: listPaddingBottom },
-            ]}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          />
-        </TourGuideZone>
-      </View>
-
-      {product && (
-        <TourGuideZone
-          zone={TOUR_ZONE_BASE + 2}
-          text={"Registra una nueva entrada o salida de inventario."}
-          shape="circle"
-        >
-          <TouchableOpacity
-            style={[styles.fab, { bottom: fabBottom }]}
-            onPress={handleFabPress}
-            activeOpacity={0.85}
+        {product ? (
+          <TourGuideZone
+            zone={TOUR_ZONE_BASE + 2}
+            text="Registra una nueva entrada o salida de inventario."
+            shape="circle"
           >
-            <Text style={styles.fabIcon}>+</Text>
-          </TouchableOpacity>
-        </TourGuideZone>
-      )}
-
+            <FloatingActionButton
+              onPress={handleFabPress}
+              bottom={fabBottom}
+              iconName="add"
+              style={styles.mixedFab}
+            />
+          </TourGuideZone>
+        ) : null}
+      </SafeAreaView>
       <CustomAlert />
     </>
   );
@@ -337,11 +270,12 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   topContent: {
     paddingHorizontal: hs(spacing.md),
     paddingTop: vs(spacing.md),
+    gap: spacing.md,
   },
   listWrapper: {
     flex: 1,
@@ -351,55 +285,12 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: hs(spacing.md),
-    paddingTop: vs(spacing.xs),
+    paddingTop: vs(spacing.md),
     paddingBottom: vs(80),
   },
-  headerContent: {
-    gap: s(spacing.md),
-    marginBottom: vs(spacing.xs),
-  },
-  heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: s(spacing.md),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  heroIcon: {
-    width: s(50),
-    height: s(50),
-    borderRadius: borderRadius.md,
-    backgroundColor: "#f3f8ff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: hs(spacing.md),
-  },
-  heroIconText: {
-    fontSize: rf(24),
-  },
-  heroTextContainer: {
-    flex: 1,
-    gap: s(spacing.xs),
-  },
-  heroTitle: {
-    fontSize: rf(18),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(13),
-    color: "#5b6472",
-    lineHeight: rf(18),
-  },
   errorText: {
-    color: "#c62828",
+    color: UI_COLORS.danger,
     fontSize: rf(14),
-    marginTop: vs(spacing.xs),
     textAlign: "center",
   },
   loadingContainer: {
@@ -409,156 +300,10 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: vs(spacing.md),
     fontSize: rf(15),
-    color: "#6c7a8a",
+    color: UI_COLORS.muted,
   },
-  productCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.md,
-    padding: s(spacing.md),
-    marginTop: vs(spacing.sm),
-    marginBottom: vs(spacing.md),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  productHeader: {
-    gap: vs(spacing.xs),
-  },
-  productNameRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: vs(spacing.xs),
-  },
-  productName: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#2f3a4c",
-  },
-  productStock: {
-    fontSize: rf(14),
-    fontWeight: "600",
-    color: "#4CAF50",
-  },
-  productCode: {
-    fontSize: rf(13),
-    color: "#6c7a8a",
-  },
-  movementCard: {
-    backgroundColor: "#f8f9fa",
-    borderRadius: borderRadius.md,
-    padding: s(spacing.md),
-    marginBottom: vs(spacing.md),
-    borderLeftWidth: 4,
-    borderLeftColor: "#4CAF50",
-  },
-  movementCardExit: {
-    borderLeftColor: "#c62828",
-  },
-  movementHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: vs(spacing.xs),
-  },
-  movementDate: {
-    fontSize: rf(12),
-    color: "#6c7a8a",
-    fontWeight: "500",
-  },
-  movementBadge: {
-    paddingHorizontal: hs(spacing.xs),
-    paddingVertical: vs(spacing.xs),
-    borderRadius: borderRadius.md,
-  },
-  movementBadgeEntry: {
-    backgroundColor: "#e8f5e8",
-  },
-  movementBadgeExit: {
-    backgroundColor: "#ffebee",
-  },
-  movementBadgeText: {
-    fontSize: rf(10),
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  movementBadgeTextEntry: {
-    color: "#2e7d32",
-  },
-  movementBadgeTextExit: {
-    color: "#c62828",
-  },
-  movementDetails: {
-    marginBottom: vs(spacing.xs),
-  },
-  movementQuantity: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    marginBottom: vs(spacing.xs),
-  },
-  movementQuantityEntry: {
-    color: "#2e7d32",
-  },
-  movementQuantityExit: {
-    color: "#c62828",
-  },
-  movementStock: {
-    fontSize: rf(13),
-    color: "#6c7a8a",
-  },
-  movementNotes: {
-    fontSize: rf(13),
-    color: "#4f6bed",
-    fontStyle: "italic",
-    paddingTop: vs(spacing.xs),
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-  },
-  emptyMovements: {
-    alignItems: "center",
-    paddingVertical: vs(32),
-    backgroundColor: "#f8f9fa",
-    borderRadius: borderRadius.md,
-  },
-  emptyEmoji: {
-    fontSize: rf(32),
-    marginBottom: vs(spacing.md),
-  },
-  emptyTitle: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#2f3a4c",
-    marginBottom: vs(spacing.xs),
-  },
-  emptySubtitle: {
-    fontSize: rf(14),
-    color: "#6c7a8a",
-    textAlign: "center",
-    lineHeight: rf(20),
-    paddingHorizontal: hs(spacing.md),
-  },
-  fab: {
-    position: "absolute",
-    bottom: vs(20),
-    right: hs(20),
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: s(28),
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabIcon: {
-    fontSize: rf(28),
-    color: "#fff",
-    fontWeight: "700",
+  mixedFab: {
+    backgroundColor: UI_COLORS.warning,
   },
 });
 

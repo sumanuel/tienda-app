@@ -1,28 +1,26 @@
 import React, { useState } from "react";
-import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
   FlatList,
-  TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FloatingActionButton, UI_COLORS } from "../../components/common/AppUI";
+import {
+  InventoryEmptyState,
+  InventoryHero,
+  InventoryMovementCard,
+  InventoryProductSummaryCard,
+} from "../../components/common/InventoryUI";
 import {
   getProductByBarcode,
   getProductEntryMovements,
 } from "../../services/database/products";
-import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+import { rf, vs, hs, spacing, iconSize } from "../../utils/responsive";
 
 export const InventoryEntryDetailScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -44,13 +42,11 @@ export const InventoryEntryDetailScreen = ({ navigation, route }) => {
 
     const asString = String(createdAt);
 
-    // ISO (con timezone) => parse directo
     if (asString.includes("T")) {
       const parsed = new Date(asString);
       if (!Number.isNaN(parsed.getTime())) return parsed;
     }
 
-    // SQLite CURRENT_TIMESTAMP: "YYYY-MM-DD HH:mm:ss" (UTC)
     if (asString.includes(" ")) {
       const normalized = `${asString.replace(" ", "T")}Z`;
       const parsed = new Date(normalized);
@@ -105,106 +101,60 @@ export const InventoryEntryDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  const renderMovement = ({ item }) => (
-    <View style={styles.movementCard}>
-      <View style={styles.movementHeader}>
-        <View>
-          <Text style={styles.movementDate}>
-            {item.movementNumber || `MOV-${String(item.id).padStart(6, "0")}`}
-          </Text>
-          <Text style={styles.movementDate}>
-            {parseMovementDate(item.createdAt).toLocaleDateString()}{" "}
-            {parseMovementDate(item.createdAt).toLocaleTimeString()}
-          </Text>
-        </View>
-        <View style={styles.movementBadge}>
-          <Text style={styles.movementBadgeText}>Entrada</Text>
-        </View>
-      </View>
+  const renderMovement = ({ item }) => {
+    const movementDate = parseMovementDate(item.createdAt);
 
-      <View style={styles.movementDetails}>
-        <Text style={styles.movementQuantity}>+{item.quantity} unidades</Text>
-        <Text style={styles.movementStock}>
-          Stock: {item.previousStock} → {item.newStock}
-        </Text>
-      </View>
-
-      {item.notes && <Text style={styles.movementNotes}>{item.notes}</Text>}
-    </View>
-  );
+    return (
+      <InventoryMovementCard
+        movementNumber={
+          item.movementNumber || `MOV-${String(item.id).padStart(6, "0")}`
+        }
+        dateLabel={`${movementDate.toLocaleDateString()} ${movementDate.toLocaleTimeString()}`}
+        typeLabel="Entrada"
+        typeTone="accent"
+        quantityLabel={`+${item.quantity} unidades`}
+        quantityTone="accent"
+        stockLabel={`Stock: ${item.previousStock} → ${item.newStock}`}
+        notes={item.notes}
+      />
+    );
+  };
 
   const renderEmpty = () => {
     if (!product || loading) return null;
 
     return (
-      <View style={styles.emptyMovements}>
-        <Ionicons
-          name="document-text-outline"
-          size={iconSize.xxl}
-          color="#8ca0b8"
-        />
-        <Text style={styles.emptyTitle}>Sin movimientos registrados</Text>
-        <Text style={styles.emptySubtitle}>
-          El inventario actual ({product.stock} unidades) se considera como
-          registro inicial.
-        </Text>
-      </View>
+      <InventoryEmptyState
+        title="Sin movimientos registrados"
+        subtitle={`El inventario actual (${product.stock} unidades) se considera como registro inicial.`}
+      />
     );
   };
 
   return (
-    <>
+    <SafeAreaView style={styles.container}>
       <View style={styles.container}>
         <View style={styles.topContent}>
-          <View style={styles.headerContent}>
-            <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Ionicons
-                  name="arrow-down-circle-outline"
-                  size={iconSize.xl}
-                  color="#169c5a"
-                />
-              </View>
-              <View style={styles.heroTextContainer}>
-                <Text style={styles.heroTitle}>Entrada de Inventario</Text>
-                <Text style={styles.heroSubtitle}>
-                  Movimientos de entrada del producto seleccionado.
-                </Text>
-              </View>
-            </View>
-          </View>
+          <InventoryHero
+            iconName="arrow-down-circle-outline"
+            iconColor={UI_COLORS.accent}
+            eyebrow="Inventario"
+            title="Detalle de entradas"
+            subtitle="Revisa los movimientos de entrada del producto seleccionado sin perder el contexto del stock actual."
+          />
 
           {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-          {loading && (
+          {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4CAF50" />
+              <ActivityIndicator size="large" color={UI_COLORS.accent} />
               <Text style={styles.loadingText}>Cargando movimientos...</Text>
             </View>
-          )}
+          ) : null}
 
-          {product && !loading && (
-            <View style={styles.productCard}>
-              <View style={styles.productHeader}>
-                <View style={styles.productNameRow}>
-                  <Text style={styles.productName}>{product.name}</Text>
-                  <Text style={styles.productStock}>
-                    {product.stock} unidades
-                  </Text>
-                </View>
-                <Text style={styles.productCode}>
-                  Código:{" "}
-                  {product.productNumber ||
-                    `PRD-${String(product.id).padStart(6, "0")}`}
-                </Text>
-                {!!product.barcode && (
-                  <Text style={styles.productCode}>
-                    Barcode: {product.barcode}
-                  </Text>
-                )}
-              </View>
-            </View>
-          )}
+          {product && !loading ? (
+            <InventoryProductSummaryCard product={product} stockTone="accent" />
+          ) : null}
         </View>
 
         <FlatList
@@ -221,74 +171,36 @@ export const InventoryEntryDetailScreen = ({ navigation, route }) => {
         />
       </View>
 
-      {product && (
-        <TouchableOpacity
-          style={[styles.fab, { bottom: fabBottom }]}
+      {product ? (
+        <FloatingActionButton
           onPress={handleAddEntry}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
-      )}
-    </>
+          bottom={fabBottom}
+          iconName="add"
+        />
+      ) : null}
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   topContent: {
     paddingHorizontal: hs(spacing.md),
     paddingTop: vs(spacing.md),
+    gap: spacing.md,
   },
   listContent: {
     paddingHorizontal: hs(spacing.md),
-    paddingTop: vs(spacing.xs),
+    paddingTop: vs(spacing.md),
     paddingBottom: vs(80),
   },
-  headerContent: {
-    gap: s(spacing.md),
-    marginBottom: vs(spacing.xs),
-  },
-  heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: s(spacing.md),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  heroIcon: {
-    width: s(50),
-    height: s(50),
-    borderRadius: borderRadius.md,
-    backgroundColor: "#f3f8ff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: hs(spacing.md),
-  },
-  heroIconText: {
-    fontSize: rf(24),
-  },
-  heroTextContainer: {
-    flex: 1,
-    gap: s(spacing.xs),
-  },
-  heroTitle: {
-    fontSize: rf(18),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(13),
-    color: "#5b6472",
-    lineHeight: rf(18),
+  errorText: {
+    color: UI_COLORS.danger,
+    fontSize: rf(14),
+    textAlign: "center",
   },
   loadingContainer: {
     alignItems: "center",
@@ -297,143 +209,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: vs(spacing.md),
     fontSize: rf(15),
-    color: "#6c7a8a",
-  },
-  errorText: {
-    color: "#c62828",
-    fontSize: rf(14),
-    marginTop: vs(spacing.xs),
-    textAlign: "center",
-  },
-  productCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: s(spacing.md),
-    marginBottom: vs(spacing.sm),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  productHeader: {
-    marginBottom: vs(spacing.md),
-  },
-  productNameRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: vs(spacing.xs),
-  },
-  productName: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#2f3a4c",
-  },
-  productStock: {
-    fontSize: rf(14),
-    fontWeight: "600",
-    color: "#4CAF50",
-  },
-  productCode: {
-    fontSize: rf(13),
-    color: "#6c7a8a",
-  },
-  emptyMovements: {
-    alignItems: "center",
-    paddingVertical: vs(32),
-    backgroundColor: "#f8f9fa",
-    borderRadius: borderRadius.md,
-  },
-  emptyEmoji: {
-    fontSize: rf(32),
-    marginBottom: vs(spacing.md),
-  },
-  emptyTitle: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#2f3a4c",
-    marginBottom: vs(spacing.xs),
-  },
-  emptySubtitle: {
-    fontSize: rf(14),
-    color: "#6c7a8a",
-    textAlign: "center",
-    lineHeight: rf(20),
-    paddingHorizontal: hs(spacing.md),
-  },
-  movementCard: {
-    backgroundColor: "#f8f9fa",
-    borderRadius: borderRadius.md,
-    padding: s(spacing.md),
-    marginBottom: vs(spacing.md),
-    borderLeftWidth: 4,
-    borderLeftColor: "#4CAF50",
-  },
-  movementHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: vs(spacing.xs),
-  },
-  movementDate: {
-    fontSize: rf(12),
-    color: "#6c7a8a",
-    fontWeight: "500",
-  },
-  movementBadge: {
-    backgroundColor: "#e8f5e8",
-    paddingHorizontal: hs(spacing.xs),
-    paddingVertical: vs(spacing.xs),
-    borderRadius: borderRadius.md,
-  },
-  movementBadgeText: {
-    fontSize: rf(10),
-    color: "#2e7d32",
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  movementDetails: {
-    marginBottom: vs(spacing.xs),
-  },
-  movementQuantity: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#2e7d32",
-    marginBottom: vs(spacing.xs),
-  },
-  movementStock: {
-    fontSize: rf(13),
-    color: "#6c7a8a",
-  },
-  movementNotes: {
-    fontSize: rf(13),
-    color: "#4f6bed",
-    fontStyle: "italic",
-    paddingTop: vs(spacing.xs),
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-  },
-  fab: {
-    position: "absolute",
-    bottom: vs(20),
-    right: hs(20),
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: s(28),
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabIcon: {
-    fontSize: rf(28),
-    color: "#fff",
-    fontWeight: "bold",
+    color: UI_COLORS.muted,
   },
 });
 
