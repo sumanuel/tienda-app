@@ -19,6 +19,7 @@ import {
   TourGuideZone,
   useTourGuideController,
 } from "rn-tourguide";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TourTooltip from "../../components/tour/TourTooltip";
 import { useProducts } from "../../hooks/useProducts";
 import { useSales } from "../../hooks/useSales";
@@ -55,6 +56,7 @@ const POS_COLORS = UI_COLORS;
  * Pantalla de punto de venta (POS)
  */
 export const POSScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { canStart, start } = useTourGuideController("pos_v3");
   const [tourBooted, setTourBooted] = useState(false);
   const {
@@ -1069,7 +1071,12 @@ export const POSScreen = ({ navigation }) => {
           }
         />
 
-        <View style={styles.cartSummary}>
+        <View
+          style={[
+            styles.cartSummary,
+            { bottom: vs(14) + Math.max(insets.bottom, vs(8)) },
+          ]}
+        >
           <TourGuideZone
             tourKey="pos_v3"
             zone={TOUR_ZONE_BASE + 3}
@@ -1369,7 +1376,12 @@ export const POSScreen = ({ navigation }) => {
                 )}
               </ScrollView>
 
-              <View style={styles.modalFooter}>
+              <View
+                style={[
+                  styles.modalFooter,
+                  { paddingBottom: vs(10) + Math.max(insets.bottom, vs(6)) },
+                ]}
+              >
                 <View style={styles.totalSection}>
                   <View style={styles.totalVES}>
                     <Text style={styles.totalMetaLabel}>Subtotal</Text>
@@ -1553,7 +1565,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: rf(14),
     fontWeight: "600",
-    color: "#4c5767",
+    color: POS_COLORS.muted,
   },
   listHeader: {
     gap: vs(16),
@@ -1565,9 +1577,9 @@ const styles = StyleSheet.create({
     backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.xl,
     borderCurve: "continuous",
-    padding: spacing.lg,
+    padding: spacing.md,
     width: "100%",
-    gap: vs(16),
+    gap: vs(14),
     ...SHADOWS.card,
   },
   heroTopRow: {
@@ -1663,13 +1675,13 @@ const styles = StyleSheet.create({
     backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.xl,
     borderCurve: "continuous",
-    padding: spacing.lg,
-    gap: vs(12),
+    padding: spacing.md,
+    gap: vs(10),
     width: "100%",
     ...SHADOWS.soft,
   },
   searchCardContent: {
-    gap: vs(12),
+    gap: vs(10),
   },
   searchHeaderRow: {
     flexDirection: "row",
@@ -1706,7 +1718,7 @@ const styles = StyleSheet.create({
     backgroundColor: POS_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
-    paddingVertical: vs(15),
+    paddingVertical: vs(13),
     paddingHorizontal: hs(16),
     fontSize: rf(14),
     fontWeight: "500",
@@ -1716,20 +1728,20 @@ const styles = StyleSheet.create({
   },
   productsContent: {
     paddingTop: vs(8),
-    paddingBottom: vs(140),
+    paddingBottom: vs(132),
     gap: vs(10),
   },
   productsContentWithSummary: {
-    paddingBottom: vs(228),
+    paddingBottom: vs(212),
   },
   productCard: {
     backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
     padding: spacing.md,
-    gap: vs(12),
+    gap: vs(10),
     flex: 1,
-    marginBottom: vs(10),
+    marginBottom: vs(8),
     ...SHADOWS.soft,
   },
   productCardDisabled: {
@@ -1862,7 +1874,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: hs(16),
     right: hs(16),
-    bottom: vs(18),
     backgroundColor: "transparent",
   },
   cartSummaryInfo: {
@@ -1885,7 +1896,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     borderCurve: "continuous",
     paddingHorizontal: hs(18),
-    paddingVertical: vs(14),
+    paddingVertical: vs(13),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1920,8 +1931,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: hs(16),
-    paddingTop: vs(16),
-    paddingBottom: vs(12),
+    paddingTop: vs(12),
+    paddingBottom: vs(10),
   },
   backButton: {
     backgroundColor: POS_COLORS.surfaceAlt,
@@ -1946,15 +1957,15 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     paddingHorizontal: hs(16),
-    paddingBottom: vs(28),
+    paddingBottom: vs(20),
   },
   customerSection: {
     backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
     padding: spacing.md,
-    marginBottom: vs(12),
-    gap: vs(14),
+    marginBottom: vs(10),
+    gap: vs(12),
     ...SHADOWS.soft,
   },
   sectionTitle: {
@@ -1980,9 +1991,9 @@ const styles = StyleSheet.create({
     backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
-    padding: spacing.lg,
+    padding: spacing.md,
     marginBottom: vs(8),
-    gap: vs(16),
+    gap: vs(14),
     ...SHADOWS.soft,
   },
   emptyCartContainer: {
@@ -2008,7 +2019,7 @@ const styles = StyleSheet.create({
     backgroundColor: POS_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
-    padding: spacing.md,
+    padding: spacing.sm + 2,
     gap: hs(12),
   },
   cartItemLeft: {
@@ -2039,8 +2050,8 @@ const styles = StyleSheet.create({
     gap: hs(10),
   },
   quantityButton: {
-    width: s(36),
-    height: s(36),
+    width: s(34),
+    height: s(34),
     borderRadius: borderRadius.sm,
     borderCurve: "continuous",
     backgroundColor: POS_COLORS.info,
@@ -2089,9 +2100,9 @@ const styles = StyleSheet.create({
     backgroundColor: POS_COLORS.surface,
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
-    padding: spacing.lg,
-    marginBottom: vs(20),
-    gap: vs(18),
+    padding: spacing.md,
+    marginBottom: vs(16),
+    gap: vs(14),
     ...SHADOWS.soft,
   },
   paymentButtonsScroll: {
@@ -2107,10 +2118,10 @@ const styles = StyleSheet.create({
     borderColor: POS_COLORS.border,
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
-    paddingVertical: vs(10),
+    paddingVertical: vs(9),
     paddingHorizontal: hs(12),
     alignItems: "center",
-    minWidth: s(92),
+    minWidth: s(88),
   },
   paymentButtonActive: {
     backgroundColor: POS_COLORS.info,
@@ -2169,7 +2180,7 @@ const styles = StyleSheet.create({
     borderColor: POS_COLORS.border,
     borderRadius: borderRadius.sm,
     borderCurve: "continuous",
-    paddingVertical: vs(12),
+    paddingVertical: vs(11),
     paddingHorizontal: hs(14),
     fontSize: rf(16),
     backgroundColor: POS_COLORS.surfaceAlt,
@@ -2193,11 +2204,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: vs(12),
+    marginBottom: vs(10),
     backgroundColor: POS_COLORS.surfaceAlt,
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
-    paddingVertical: vs(10),
+    paddingVertical: vs(9),
     paddingHorizontal: hs(12),
   },
   totalVES: {
@@ -2245,8 +2256,8 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: vs(52),
-    paddingVertical: vs(14),
+    minHeight: vs(50),
+    paddingVertical: vs(12),
   },
   clearButtonText: {
     color: "#fff",
