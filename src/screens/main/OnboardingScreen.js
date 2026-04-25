@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -104,6 +105,14 @@ export const OnboardingScreen = ({
   } = useAuth();
   const { showAlert, CustomAlert } = useCustomAlert();
   const scrollViewRef = useRef(null);
+  const formScrollRef = useRef(null);
+  const businessNameRef = useRef(null);
+  const businessRifRef = useRef(null);
+  const businessAddressRef = useRef(null);
+  const businessPhoneRef = useRef(null);
+  const businessEmailRef = useRef(null);
+  const rateRef = useRef(null);
+  const ivaRef = useRef(null);
   const rateDirtyRef = useRef(false);
   const existingBusinessLoadedRef = useRef(false);
   const existingRateLoadedRef = useRef(false);
@@ -367,6 +376,23 @@ export const OnboardingScreen = ({
     setCurrentSlide(slideIndex);
   };
 
+  const scrollToFormField = (ref) => {
+    if (ref?.current && formScrollRef?.current) {
+      setTimeout(() => {
+        ref.current.measureLayout(
+          formScrollRef.current,
+          (x, y) => {
+            formScrollRef.current.scrollTo({
+              y: Math.max(y - 120, 0),
+              animated: true,
+            });
+          },
+          () => {},
+        );
+      }, 100);
+    }
+  };
+
   const validateBusiness = () => {
     if (!business.name?.trim()) {
       showAlert({
@@ -513,6 +539,7 @@ export const OnboardingScreen = ({
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <ScrollView
+            ref={formScrollRef}
             contentContainerStyle={styles.formContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -585,6 +612,7 @@ export const OnboardingScreen = ({
                       : "Nombre del negocio *"}
                   </Text>
                   <TextInput
+                    ref={businessNameRef}
                     style={styles.input}
                     placeholder="Ej: Mi Tienda C.A."
                     placeholderTextColor="#9aa2b1"
@@ -596,12 +624,16 @@ export const OnboardingScreen = ({
                       }))
                     }
                     autoCapitalize="characters"
+                    returnKeyType="next"
+                    onFocus={() => scrollToFormField(businessNameRef)}
+                    onSubmitEditing={() => businessRifRef.current?.focus()}
                   />
                 </View>
 
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>RIF</Text>
                   <TextInput
+                    ref={businessRifRef}
                     style={styles.input}
                     placeholder="Ej: J-12345678-9"
                     placeholderTextColor="#9aa2b1"
@@ -610,12 +642,16 @@ export const OnboardingScreen = ({
                       setBusiness((prev) => ({ ...prev, rif: text }))
                     }
                     autoCapitalize="characters"
+                    returnKeyType="next"
+                    onFocus={() => scrollToFormField(businessRifRef)}
+                    onSubmitEditing={() => businessAddressRef.current?.focus()}
                   />
                 </View>
 
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>Dirección</Text>
                   <TextInput
+                    ref={businessAddressRef}
                     style={[styles.input, styles.textArea]}
                     placeholder="Dirección del negocio"
                     placeholderTextColor="#9aa2b1"
@@ -625,6 +661,9 @@ export const OnboardingScreen = ({
                     }
                     multiline
                     numberOfLines={2}
+                    blurOnSubmit
+                    onFocus={() => scrollToFormField(businessAddressRef)}
+                    onSubmitEditing={() => businessPhoneRef.current?.focus()}
                   />
                 </View>
 
@@ -636,12 +675,17 @@ export const OnboardingScreen = ({
                       setBusiness((prev) => ({ ...prev, phone: text }))
                     }
                     placeholder="Ej: 4121234567"
+                    inputRef={businessPhoneRef}
+                    returnKeyType="next"
+                    onFocus={() => scrollToFormField(businessPhoneRef)}
+                    onSubmitEditing={() => businessEmailRef.current?.focus()}
                   />
                 </View>
 
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>Email</Text>
                   <TextInput
+                    ref={businessEmailRef}
                     style={styles.input}
                     placeholder="contacto@mitienda.com"
                     placeholderTextColor="#9aa2b1"
@@ -651,6 +695,14 @@ export const OnboardingScreen = ({
                     }
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    returnKeyType="done"
+                    onFocus={() => scrollToFormField(businessEmailRef)}
+                    onSubmitEditing={() => {
+                      Keyboard.dismiss();
+                      if (validateBusiness()) {
+                        setStep("currency");
+                      }
+                    }}
                   />
                 </View>
               </SurfaceCard>
@@ -698,6 +750,7 @@ export const OnboardingScreen = ({
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>Tasa (USD → VES) *</Text>
                   <TextInput
+                    ref={rateRef}
                     style={styles.input}
                     placeholder="Ej: 38.50"
                     placeholderTextColor="#9aa2b1"
@@ -707,18 +760,30 @@ export const OnboardingScreen = ({
                       setRateInput(text);
                     }}
                     keyboardType="decimal-pad"
+                    returnKeyType="next"
+                    onFocus={() => scrollToFormField(rateRef)}
+                    onSubmitEditing={() => ivaRef.current?.focus()}
                   />
                 </View>
 
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>IVA por defecto (%)</Text>
                   <TextInput
+                    ref={ivaRef}
                     style={styles.input}
                     placeholder="Ej: 16"
                     placeholderTextColor="#9aa2b1"
                     value={ivaInput}
                     onChangeText={setIvaInput}
                     keyboardType="decimal-pad"
+                    returnKeyType="done"
+                    onFocus={() => scrollToFormField(ivaRef)}
+                    onSubmitEditing={() => {
+                      Keyboard.dismiss();
+                      if (validateCurrency()) {
+                        completeOnboarding({ persistSettings: true });
+                      }
+                    }}
                   />
                 </View>
 
