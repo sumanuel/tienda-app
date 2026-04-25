@@ -1,18 +1,7 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-} from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { convertCurrency } from "../../utils/exchange";
-import {
-  rf,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+import { rf, spacing, borderRadius, iconSize } from "../../utils/responsive";
 import { SHADOWS, UI_COLORS } from "../common/AppUI";
 
 /**

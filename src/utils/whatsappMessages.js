@@ -19,10 +19,13 @@ export const buildSaleInvoiceWhatsAppMessage = ({
 
   return joinSections([
     `Factura ${saleNumber}`,
-    `Fecha: ${created.toLocaleDateString("es-VE")} ${created.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`,
+    `Fecha: ${created.toLocaleDateString("es-VE")} ${created.toLocaleTimeString(
+      [],
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      },
+    )}`,
     `Cliente: ${customerName || "Cliente"}`,
     "",
     "Productos:",
@@ -35,7 +38,9 @@ export const buildSaleInvoiceWhatsAppMessage = ({
     ),
     "",
     `Total: ${formatCurrency(Number(totalVES) || 0, "VES")}${
-      Number(totalUSD) > 0 ? ` (${formatCurrency(Number(totalUSD), "USD")})` : ""
+      Number(totalUSD) > 0
+        ? ` (${formatCurrency(Number(totalUSD), "USD")})`
+        : ""
     }`,
   ]);
 };

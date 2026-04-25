@@ -25,13 +25,7 @@ import {
   SHADOWS,
   UI_COLORS,
 } from "../../components/common/AppUI";
-import {
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-} from "../../utils/responsive";
+import { rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 export const ExchangeRateScreen = () => {
   const { rate, lastUpdate, setManualRate } = useExchangeRate({
@@ -204,7 +198,8 @@ export const ExchangeRateScreen = () => {
                 <View style={styles.manualCopy}>
                   <Text style={styles.manualTitle}>Actualizar manualmente</Text>
                   <Text style={styles.manualSubtitle}>
-                    Ingresa la tasa acordada para aplicarla de inmediato en toda la app.
+                    Ingresa la tasa acordada para aplicarla de inmediato en toda
+                    la app.
                   </Text>
                 </View>
                 <InfoPill text="USD → VES" tone="info" />

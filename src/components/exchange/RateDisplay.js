@@ -1,11 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { formatExchangeRate } from "../../utils/exchange";
-import {
-  rf,
-  spacing,
-  borderRadius,
-} from "../../utils/responsive";
+import { rf, spacing, borderRadius } from "../../utils/responsive";
 import { SHADOWS, UI_COLORS } from "../common/AppUI";
 
 /**
