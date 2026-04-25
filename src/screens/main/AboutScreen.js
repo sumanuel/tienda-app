@@ -4,12 +4,18 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   SafeAreaView,
   Linking,
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  InfoPill,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
 import {
   s,
   rf,
@@ -40,7 +46,7 @@ export const AboutScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         {/* Logo/Brand Section */}
-        <View style={styles.brandCard}>
+        <SurfaceCard style={styles.brandCard}>
           <View style={styles.logoContainer}>
             <Image
               source={require("../../../assets/icon.png")}
@@ -48,25 +54,25 @@ export const AboutScreen = () => {
               resizeMode="contain"
             />
           </View>
+          <InfoPill text={`Versión ${appVersion}`} tone="info" />
           <Text style={styles.logoText}>T-Suma</Text>
-          <Text style={styles.versionText}>Versión {appVersion}</Text>
           <Text style={styles.taglineText}>
             Sistema de Punto de Venta Inteligente
           </Text>
-        </View>
+        </SurfaceCard>
 
         {/* Description */}
-        <View style={styles.infoCard}>
+        <SurfaceCard style={styles.infoCard}>
           <Text style={styles.sectionTitle}>Sobre la aplicación</Text>
           <Text style={styles.descriptionText}>
             T-Suma es un sistema completo de punto de venta diseñado para
             pequeños y medianos negocios. Gestiona inventarios, ventas, clientes
             y finanzas de manera eficiente y sencilla.
           </Text>
-        </View>
+        </SurfaceCard>
 
         {/* Features */}
-        <View style={styles.infoCard}>
+        <SurfaceCard style={styles.infoCard}>
           <Text style={styles.sectionTitle}>Características principales</Text>
           <View style={styles.featuresList}>
             <Text style={styles.featureItem}>
@@ -88,38 +94,48 @@ export const AboutScreen = () => {
               • Interfaz intuitiva y moderna
             </Text>
           </View>
-        </View>
+        </SurfaceCard>
 
         {/* Contact */}
-        <View style={styles.infoCard}>
+        <SurfaceCard style={styles.infoCard}>
           <Text style={styles.sectionTitle}>Contacto</Text>
           <Text style={styles.contactText}>
             Para soporte técnico o consultas:
           </Text>
 
-          <TouchableOpacity
-            style={styles.contactButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.contactButton,
+              pressed && styles.cardPressed,
+            ]}
             onPress={handleEmailPress}
-            activeOpacity={0.8}
           >
-            <Text style={styles.contactButtonText}>
-              📧 jesusprada27@gmail.com
-            </Text>
-          </TouchableOpacity>
+            <Ionicons
+              name="mail-outline"
+              size={rf(18)}
+              color={UI_COLORS.info}
+            />
+            <Text style={styles.contactButtonText}>jesusprada27@gmail.com</Text>
+          </Pressable>
 
-          <TouchableOpacity
-            style={styles.contactButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.contactButton,
+              pressed && styles.cardPressed,
+            ]}
             onPress={handleWebsitePress}
-            activeOpacity={0.8}
           >
-            <Text style={styles.contactButtonText}>
-              🌐 https://trenkit.com/
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <Ionicons
+              name="globe-outline"
+              size={rf(18)}
+              color={UI_COLORS.info}
+            />
+            <Text style={styles.contactButtonText}>https://trenkit.com/</Text>
+          </Pressable>
+        </SurfaceCard>
 
         {/* Legal */}
-        <View style={styles.infoCard}>
+        <SurfaceCard style={styles.infoCard}>
           <Text style={styles.sectionTitle}>Información legal</Text>
           <Text style={styles.legalText}>
             © 2025 T-Suma. Todos los derechos reservados.
@@ -127,7 +143,7 @@ export const AboutScreen = () => {
           <Text style={styles.legalText}>
             Esta aplicación está protegida por leyes de propiedad intelectual.
           </Text>
-        </View>
+        </SurfaceCard>
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -142,7 +158,7 @@ export const AboutScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   content: {
     paddingHorizontal: spacing.lg,
@@ -151,24 +167,18 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   brandCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
     padding: s(32),
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: s(14),
-    elevation: 6,
+    gap: spacing.sm,
+    ...SHADOWS.soft,
   },
   logoContainer: {
     width: s(96),
     height: s(96),
     borderRadius: s(28),
-    backgroundColor: "#f3f8ff",
+    backgroundColor: UI_COLORS.infoSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.lg,
     overflow: "hidden",
   },
   logoImage: {
@@ -177,40 +187,28 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: rf(24),
-    fontWeight: "700",
-    color: "#1f2633",
-    marginBottom: s(8),
-  },
-  versionText: {
-    fontSize: rf(14),
-    color: "#6f7c8c",
-    marginBottom: s(8),
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   taglineText: {
-    fontSize: rf(16),
+    fontSize: rf(15),
     fontWeight: "600",
-    color: "#1f2633",
+    color: UI_COLORS.muted,
     textAlign: "center",
   },
   infoCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
     padding: s(22),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: s(14),
-    elevation: 6,
+    gap: spacing.md,
+    ...SHADOWS.soft,
   },
   sectionTitle: {
     fontSize: rf(18),
     fontWeight: "700",
-    color: "#1f2633",
-    marginBottom: spacing.lg,
+    color: UI_COLORS.text,
   },
   descriptionText: {
     fontSize: rf(15),
-    color: "#5b6472",
+    color: UI_COLORS.muted,
     lineHeight: s(22),
   },
   featuresList: {
@@ -218,42 +216,47 @@ const styles = StyleSheet.create({
   },
   featureItem: {
     fontSize: rf(15),
-    color: "#5b6472",
+    color: UI_COLORS.muted,
     lineHeight: s(20),
   },
   contactText: {
     fontSize: rf(15),
-    color: "#5b6472",
-    marginBottom: spacing.lg,
+    color: UI_COLORS.muted,
     lineHeight: s(22),
   },
   contactButton: {
-    backgroundColor: "#f3f8ff",
+    backgroundColor: UI_COLORS.infoSoft,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.md,
-    marginBottom: s(8),
+    borderCurve: "continuous",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: hs(10),
   },
   contactButtonText: {
     fontSize: rf(15),
-    color: "#2f5ae0",
-    fontWeight: "600",
+    color: UI_COLORS.info,
+    fontWeight: "700",
   },
   legalText: {
     fontSize: rf(14),
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
     lineHeight: s(20),
-    marginBottom: s(8),
   },
   footer: {
     alignItems: "center",
     paddingVertical: spacing.xl,
+    gap: spacing.sm,
   },
   footerText: {
     fontSize: rf(16),
     fontWeight: "600",
-    color: "#1f2633",
-    marginBottom: s(8),
+    color: UI_COLORS.text,
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

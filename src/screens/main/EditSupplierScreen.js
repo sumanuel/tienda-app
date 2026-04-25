@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,10 +6,10 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  Keyboard,
 } from "react-native";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -31,6 +31,14 @@ export const EditSupplierScreen = ({ navigation, route }) => {
   const { editSupplier } = useSuppliers();
   const { supplier } = route.params;
   const { showAlert, CustomAlert } = useCustomAlert();
+  const documentRef = useRef(null);
+  const nameRef = useRef(null);
+  const contactPersonRef = useRef(null);
+  const phoneRef = useRef(null);
+  const emailRef = useRef(null);
+  const addressRef = useRef(null);
+  const paymentTermsRef = useRef(null);
+  const scrollViewRef = useRef(null);
 
   const [formData, setFormData] = useState({
     documentNumber: "",
@@ -96,6 +104,23 @@ export const EditSupplierScreen = ({ navigation, route }) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const scrollToField = (ref) => {
+    if (ref?.current && scrollViewRef?.current) {
+      setTimeout(() => {
+        ref.current.measureLayout(
+          scrollViewRef.current,
+          (x, y) => {
+            scrollViewRef.current.scrollTo({
+              y: Math.max(y - 120, 0),
+              animated: true,
+            });
+          },
+          () => {},
+        );
+      }, 100);
+    }
+  };
+
   return (
     <>
       <SafeAreaView style={styles.container}>
@@ -105,6 +130,7 @@ export const EditSupplierScreen = ({ navigation, route }) => {
           keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         >
           <ScrollView
+            ref={scrollViewRef}
             style={styles.flex}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
@@ -134,6 +160,7 @@ export const EditSupplierScreen = ({ navigation, route }) => {
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>RIF/Cédula *</Text>
                 <TextInput
+                  ref={documentRef}
                   style={styles.input}
                   placeholder="J123456789"
                   placeholderTextColor="#9aa2b1"
@@ -142,17 +169,25 @@ export const EditSupplierScreen = ({ navigation, route }) => {
                     updateFormData("documentNumber", value)
                   }
                   autoCapitalize="characters"
+                  returnKeyType="next"
+                  onFocus={() => scrollToField(documentRef)}
+                  onSubmitEditing={() => nameRef.current?.focus()}
                 />
               </View>
 
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Razón social *</Text>
                 <TextInput
+                  ref={nameRef}
                   style={styles.input}
                   placeholder="Nombre de la empresa"
                   placeholderTextColor="#9aa2b1"
                   value={formData.name}
                   onChangeText={(value) => updateFormData("name", value)}
+                  autoCapitalize="characters"
+                  returnKeyType="next"
+                  onFocus={() => scrollToField(nameRef)}
+                  onSubmitEditing={() => contactPersonRef.current?.focus()}
                 />
               </View>
             </View>
@@ -169,6 +204,7 @@ export const EditSupplierScreen = ({ navigation, route }) => {
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Persona de contacto</Text>
                 <TextInput
+                  ref={contactPersonRef}
                   style={styles.input}
                   placeholder="Nombre del responsable"
                   placeholderTextColor="#9aa2b1"
@@ -176,30 +212,41 @@ export const EditSupplierScreen = ({ navigation, route }) => {
                   onChangeText={(value) =>
                     updateFormData("contactPerson", value)
                   }
+                  autoCapitalize="characters"
+                  returnKeyType="next"
+                  onFocus={() => scrollToField(contactPersonRef)}
+                  onSubmitEditing={() => phoneRef.current?.focus()}
                 />
               </View>
 
-              <View style={styles.dualRow}>
-                <View style={styles.dualField}>
-                  <Text style={styles.fieldLabel}>Teléfono</Text>
-                  <PhoneInput
-                    value={formData.phone}
-                    onChangeText={(value) => updateFormData("phone", value)}
-                    placeholder="Ej: 4121234567"
-                  />
-                </View>
-                <View style={styles.dualField}>
-                  <Text style={styles.fieldLabel}>Email</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="contacto@empresa.com"
-                    placeholderTextColor="#9aa2b1"
-                    value={formData.email}
-                    onChangeText={(value) => updateFormData("email", value)}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Teléfono</Text>
+                <PhoneInput
+                  value={formData.phone}
+                  onChangeText={(value) => updateFormData("phone", value)}
+                  placeholder="Ej: 4121234567"
+                  inputRef={phoneRef}
+                  returnKeyType="next"
+                  onFocus={() => scrollToField(phoneRef)}
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Email</Text>
+                <TextInput
+                  ref={emailRef}
+                  style={styles.input}
+                  placeholder="contacto@empresa.com"
+                  placeholderTextColor="#9aa2b1"
+                  value={formData.email}
+                  onChangeText={(value) => updateFormData("email", value)}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  returnKeyType="next"
+                  onFocus={() => scrollToField(emailRef)}
+                  onSubmitEditing={() => addressRef.current?.focus()}
+                />
               </View>
             </View>
 
@@ -215,6 +262,7 @@ export const EditSupplierScreen = ({ navigation, route }) => {
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Dirección</Text>
                 <TextInput
+                  ref={addressRef}
                   style={[styles.input, styles.textArea]}
                   placeholder="Ciudad, estado, referencias"
                   placeholderTextColor="#9aa2b1"
@@ -222,12 +270,14 @@ export const EditSupplierScreen = ({ navigation, route }) => {
                   onChangeText={(value) => updateFormData("address", value)}
                   multiline
                   numberOfLines={3}
+                  onFocus={() => scrollToField(addressRef)}
                 />
               </View>
 
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Términos de pago</Text>
                 <TextInput
+                  ref={paymentTermsRef}
                   style={styles.input}
                   placeholder="Ej: 30 días, contado, crédito"
                   placeholderTextColor="#9aa2b1"
@@ -235,6 +285,12 @@ export const EditSupplierScreen = ({ navigation, route }) => {
                   onChangeText={(value) =>
                     updateFormData("paymentTerms", value)
                   }
+                  returnKeyType="done"
+                  onFocus={() => scrollToField(paymentTermsRef)}
+                  onSubmitEditing={() => {
+                    Keyboard.dismiss();
+                    handleSave();
+                  }}
                 />
               </View>
 

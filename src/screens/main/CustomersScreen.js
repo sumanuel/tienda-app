@@ -5,7 +5,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   TextInput,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -16,6 +16,14 @@ import { getAllSales } from "../../services/database/sales";
 import { getAllAccountsReceivable } from "../../services/database/accounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
+import {
+  EmptyStateCard,
+  FloatingActionButton,
+  InfoPill,
+  SurfaceCard,
+  SHADOWS,
+  UI_COLORS,
+} from "../../components/common/AppUI";
 import {
   s,
   rf,
@@ -267,14 +275,16 @@ export const CustomersScreen = () => {
 
       return (
         <View style={styles.card}>
-          <TouchableOpacity
-            style={styles.cardBody}
+          <Pressable
+            style={({ pressed }) => [
+              styles.cardBody,
+              pressed && !isGeneric && styles.cardPressed,
+            ]}
             onPress={
               isGeneric
                 ? undefined
                 : () => navigation.navigate("EditCustomer", { customer: item })
             }
-            activeOpacity={isGeneric ? 1 : 0.85}
           >
             <View style={styles.cardHeader}>
               <Text
@@ -283,47 +293,54 @@ export const CustomersScreen = () => {
                   isGeneric && styles.genericCustomerName,
                 ]}
               >
-                {item.name}
+                {String(item.name || "").toUpperCase()}
                 {isGeneric && " (ventas rápidas)"}
               </Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {item.customerNumber ||
-                    `CLI-${String(item.id).padStart(6, "0")}`}
+              <InfoPill
+                text={
+                  item.customerNumber ||
+                  `CLI-${String(item.id).padStart(6, "0")}`
+                }
+                tone={isGeneric ? "warning" : "info"}
+              />
+            </View>
+
+            <View style={styles.metaStack}>
+              <View style={styles.metaRow}>
+                <View style={[styles.metaCard, styles.metaCardHalf]}>
+                  <Text style={styles.metaLabel}>Documento</Text>
+                  <Text style={styles.metaValue}>
+                    {item.documentNumber || "Sin documento"}
+                  </Text>
+                </View>
+
+                <View style={[styles.metaCard, styles.metaCardHalf]}>
+                  <Text style={styles.metaLabel}>Contacto</Text>
+                  <Text style={styles.metaValue}>
+                    {hasPhone ? item.phone : "Sin teléfono"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.metaCard, styles.metaCardWide]}>
+                <Text style={styles.metaLabel}>Email</Text>
+                <Text style={styles.metaValue}>
+                  {hasEmail ? item.email : "No registrado"}
                 </Text>
               </View>
             </View>
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Documento</Text>
-              <Text style={styles.infoValue}>
-                {item.documentNumber || "Sin documento"}
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Contacto</Text>
-              <Text style={styles.infoValue}>
-                {hasPhone ? item.phone : "Sin teléfono"}
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>
-                {hasEmail ? item.email : "No registrado"}
-              </Text>
-            </View>
-          </TouchableOpacity>
+          </Pressable>
 
           {!isGeneric && (
-            <TouchableOpacity
-              style={styles.deleteButton}
+            <Pressable
+              style={({ pressed }) => [
+                styles.deleteButton,
+                pressed && styles.cardPressed,
+              ]}
               onPress={() => confirmDeleteCustomer(item)}
-              activeOpacity={0.85}
             >
-              <Text style={styles.deleteButtonText}>✕</Text>
-            </TouchableOpacity>
+              <Ionicons name="close" size={rf(16)} color={UI_COLORS.danger} />
+            </Pressable>
           )}
         </View>
       );
@@ -333,18 +350,38 @@ export const CustomersScreen = () => {
 
   const header = (
     <View style={styles.headerContent}>
-      <View style={styles.heroCard}>
-        <View style={styles.heroIcon}>
-          <Ionicons name="people-outline" size={iconSize.xl} color="#2f5ae0" />
+      <SurfaceCard style={styles.heroCard}>
+        <View style={styles.heroTopRow}>
+          <View style={[styles.heroBadge, styles.heroBadgeInfo]}>
+            <Ionicons
+              name="people-outline"
+              size={rf(22)}
+              color={UI_COLORS.info}
+            />
+          </View>
+          <InfoPill text={`${customers.length} registrados`} tone="accent" />
         </View>
-        <View style={styles.heroTextContainer}>
+
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroEyebrow}>Clientes</Text>
           <Text style={styles.heroTitle}>Directorio de clientes</Text>
           <Text style={styles.heroSubtitle}>
-            Centraliza la información de contacto y fortalece la relación con
-            tus compradores.
+            Busca, actualiza y mantén visible la información clave de cada
+            comprador.
           </Text>
         </View>
-      </View>
+
+        <View style={styles.heroPillRow}>
+          <InfoPill
+            text={`${sortedCustomers.filter((item) => item.documentNumber === "1").length} genérico`}
+            tone="warning"
+          />
+          <InfoPill
+            text={`${sortedCustomers.filter((item) => item.phone || item.email).length} con contacto`}
+            tone="info"
+          />
+        </View>
+      </SurfaceCard>
 
       <TourGuideZone
         zone={TOUR_ZONE_BASE + 1}
@@ -354,8 +391,13 @@ export const CustomersScreen = () => {
         borderRadius={borderRadius.lg}
         style={styles.searchCard}
       >
-        <View>
-          <Text style={styles.searchTitle}>Buscar cliente</Text>
+        <SurfaceCard style={styles.searchSurface}>
+          <View style={styles.searchTitleBlock}>
+            <Text style={styles.searchTitle}>Buscar cliente</Text>
+            <Text style={styles.searchHint}>
+              Filtra por nombre, cédula o dato de contacto.
+            </Text>
+          </View>
           <TextInput
             style={styles.searchInput}
             placeholder="Nombre, cédula o contacto"
@@ -363,7 +405,7 @@ export const CustomersScreen = () => {
             onChangeText={handleSearch}
             placeholderTextColor="#9aa2b1"
           />
-        </View>
+        </SurfaceCard>
       </TourGuideZone>
 
       {/* <View style={styles.actionsCard}>
@@ -391,17 +433,14 @@ export const CustomersScreen = () => {
   );
 
   const renderEmpty = () => (
-    <View style={styles.emptyCard}>
-      <Text style={styles.emptyTitle}>
-        {searchQuery
+    <EmptyStateCard
+      title={
+        searchQuery
           ? "No se encontraron clientes"
-          : "Aún no hay clientes registrados"}
-      </Text>
-      <Text style={styles.emptySubtitle}>
-        Registra nuevos clientes para guardar sus datos y asociar cuentas por
-        cobrar.
-      </Text>
-    </View>
+          : "Aún no hay clientes registrados"
+      }
+      subtitle="Registra nuevos clientes para guardar sus datos y asociar cuentas por cobrar."
+    />
   );
 
   if (loading) {
@@ -416,9 +455,15 @@ export const CustomersScreen = () => {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>Error: {error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.retryButton,
+            pressed && styles.cardPressed,
+          ]}
+          onPress={refresh}
+        >
           <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -444,13 +489,11 @@ export const CustomersScreen = () => {
         text={"Presiona '+' para registrar un nuevo cliente."}
         shape="circle"
       >
-        <TouchableOpacity
-          style={[styles.fab, { bottom: fabBottom }]}
+        <FloatingActionButton
           onPress={() => navigation.navigate("AddCustomer")}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
+          bottom={fabBottom}
+          iconName="add"
+        />
       </TourGuideZone>
       <CustomAlert />
     </View>
@@ -460,13 +503,13 @@ export const CustomersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   loadingText: {
     fontSize: rf(16),
@@ -478,115 +521,93 @@ const styles = StyleSheet.create({
     paddingBottom: vs(120),
   },
   headerContent: {
-    gap: vs(18),
+    gap: vs(16),
     marginBottom: vs(8),
   },
   heroCard: {
+    gap: vs(14),
+  },
+  heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 8,
+    justifyContent: "space-between",
+    gap: hs(12),
   },
-  heroIcon: {
-    width: s(60),
-    height: s(60),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
-    justifyContent: "center",
+  heroBadge: {
+    width: s(48),
+    height: s(48),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
-    marginRight: hs(18),
+    justifyContent: "center",
   },
-  heroIconText: {
-    fontSize: iconSize.xl,
+  heroBadgeInfo: {
+    backgroundColor: UI_COLORS.infoSoft,
   },
-  heroTextContainer: {
-    flex: 1,
+  heroCopy: {
     gap: vs(6),
   },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: vs(20),
-  },
-  metricRow: {
-    flexDirection: "row",
-    gap: hs(16),
-  },
-  metricCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.md,
-    paddingVertical: vs(18),
-    paddingHorizontal: hs(20),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
-    gap: vs(4),
-  },
-  metricLabel: {
+  heroEyebrow: {
     fontSize: rf(12),
-    fontWeight: "600",
-    color: "#7a8796",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: s(0.8),
   },
-  metricValue: {
-    fontSize: rf(22),
-    fontWeight: "700",
-    color: "#1f2633",
+  heroTitle: {
+    fontSize: rf(20),
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
-  metricHint: {
-    fontSize: rf(12),
-    color: "#6f7c8c",
+  heroSubtitle: {
+    fontSize: rf(14),
+    color: UI_COLORS.muted,
+    lineHeight: vs(20),
+  },
+  heroPillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: hs(10),
   },
   searchCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(8),
-    elevation: 4,
     gap: vs(14),
+  },
+  searchSurface: {
+    gap: vs(14),
+    ...SHADOWS.soft,
+  },
+  searchTitleBlock: {
+    gap: vs(4),
   },
   searchTitle: {
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#1f2633",
+    fontWeight: "700",
+    color: UI_COLORS.text,
+  },
+  searchHint: {
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   searchInput: {
-    backgroundColor: "#f3f5fa",
-    borderRadius: borderRadius.sm,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: vs(12),
     paddingHorizontal: hs(16),
     fontSize: rf(15),
-    color: "#1f2633",
+    color: UI_COLORS.text,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
   },
   card: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
+    ...SHADOWS.soft,
     gap: hs(16),
     marginBottom: vs(12),
   },
@@ -602,113 +623,70 @@ const styles = StyleSheet.create({
   },
   customerName: {
     flex: 1,
-    fontSize: rf(16),
+    fontSize: rf(15),
     fontWeight: "700",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   genericCustomerName: {
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
     fontStyle: "italic",
   },
-  badge: {
-    paddingHorizontal: hs(12),
-    paddingVertical: vs(6),
-    borderRadius: borderRadius.sm,
-    backgroundColor: "#f3f8ff",
-  },
-  badgeText: {
-    fontSize: rf(12),
-    fontWeight: "600",
-    color: "#2f5ae0",
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  metaStack: {
     gap: hs(12),
   },
-  infoLabel: {
-    fontSize: rf(13),
-    fontWeight: "600",
-    color: "#7a8796",
+  metaRow: {
+    flexDirection: "row",
+    gap: hs(12),
   },
-  infoValue: {
-    fontSize: rf(13),
-    color: "#4c5767",
+  metaCard: {
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(10),
+    gap: vs(4),
+  },
+  metaCardHalf: {
     flex: 1,
-    textAlign: "right",
+    minWidth: 0,
+  },
+  metaCardWide: {
+    width: "100%",
+  },
+  metaLabel: {
+    fontSize: rf(11),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: s(0.6),
+  },
+  metaValue: {
+    fontSize: rf(12),
+    color: UI_COLORS.text,
+    fontWeight: "600",
   },
   deleteButton: {
     width: s(44),
     height: s(44),
     borderRadius: borderRadius.md,
-    backgroundColor: "#fff0f0",
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.dangerSoft,
     justifyContent: "center",
     alignItems: "center",
-  },
-  deleteButtonText: {
-    fontSize: rf(18),
-    fontWeight: "700",
-    color: "#d62828",
-  },
-  fab: {
-    position: "absolute",
-    bottom: vs(20),
-    right: hs(20),
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: s(28),
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.3,
-    shadowRadius: s(8),
-    elevation: 8,
-  },
-  fabIcon: {
-    fontSize: rf(28),
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  emptyCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    alignItems: "center",
-    gap: vs(12),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
-    marginTop: vs(40),
-  },
-  emptyTitle: {
-    fontSize: rf(17),
-    fontWeight: "700",
-    color: "#1f2633",
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    fontSize: rf(13),
-    color: "#6f7c8c",
-    textAlign: "center",
-    lineHeight: vs(20),
   },
   errorText: {
     fontSize: rf(16),
-    color: "#ef4444",
+    color: UI_COLORS.danger,
     textAlign: "center",
     marginBottom: vs(16),
   },
   retryButton: {
-    backgroundColor: "#3b82f6",
+    backgroundColor: UI_COLORS.info,
     paddingHorizontal: hs(20),
     paddingVertical: vs(12),
-    borderRadius: borderRadius.sm,
-    shadowColor: "#3b82f6",
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    shadowColor: UI_COLORS.info,
     shadowOffset: { width: 0, height: s(2) },
     shadowOpacity: 0.3,
     shadowRadius: s(4),
@@ -717,6 +695,10 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: "#fff",
     fontWeight: "700",
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
   /* actionsCard: {
     backgroundColor: "#fff",

@@ -1,22 +1,8 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { convertCurrency } from "../../utils/exchange";
-import { formatCurrency } from "../../utils/currency";
-import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+import { rf, spacing, borderRadius, iconSize } from "../../utils/responsive";
+import { SHADOWS, UI_COLORS } from "../common/AppUI";
 
 /**
  * Componente para convertir entre monedas
@@ -52,7 +38,7 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
 
   return (
     <View style={[styles.container, style]}>
-      <Text style={styles.title}>🔄 Convertidor de Monedas</Text>
+      <Text style={styles.title}>Convertidor de monedas</Text>
 
       <View style={styles.inputContainer}>
         <Text style={styles.currencyLabel}>USD</Text>
@@ -65,9 +51,12 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
         />
       </View>
 
-      <TouchableOpacity style={styles.swapButton} onPress={handleSwap}>
+      <Pressable
+        style={({ pressed }) => [styles.swapButton, pressed && styles.pressed]}
+        onPress={handleSwap}
+      >
         <Text style={styles.swapIcon}>⇅</Text>
-      </TouchableOpacity>
+      </Pressable>
 
       <View style={styles.inputContainer}>
         <Text style={styles.currencyLabel}>VES </Text>
@@ -91,22 +80,19 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.1,
-    shadowRadius: s(8),
-    elevation: 6,
+    borderCurve: "continuous",
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: "#f1f5f9",
+    borderColor: UI_COLORS.border,
+    ...SHADOWS.soft,
   },
   title: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1e293b",
-    marginBottom: spacing.xl,
+    fontSize: rf(18),
+    fontWeight: "800",
+    color: UI_COLORS.text,
+    marginBottom: spacing.lg,
     textAlign: "center",
     letterSpacing: 0.5,
   },
@@ -115,46 +101,36 @@ const styles = StyleSheet.create({
   },
   currencyLabel: {
     fontSize: rf(14),
-    color: "#64748b",
+    color: UI_COLORS.muted,
     marginBottom: spacing.xs,
-    fontWeight: "600",
+    fontWeight: "700",
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     padding: spacing.md,
     fontSize: rf(18),
     fontWeight: "600",
-    color: "#1e293b",
+    color: UI_COLORS.text,
     borderWidth: 2,
-    borderColor: "#e2e8f0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(1) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(2),
-    elevation: 1,
+    borderColor: UI_COLORS.border,
   },
   activeInput: {
-    borderColor: "#6366f1",
-    backgroundColor: "#eef2ff",
-    shadowColor: "#6366f1",
-    shadowOpacity: 0.1,
+    borderColor: UI_COLORS.info,
+    backgroundColor: UI_COLORS.infoSoft,
   },
   swapButton: {
     alignSelf: "center",
-    backgroundColor: "#6366f1",
+    backgroundColor: UI_COLORS.info,
     width: iconSize.lg,
     height: iconSize.lg,
     borderRadius: borderRadius.xl,
     alignItems: "center",
     justifyContent: "center",
     marginVertical: spacing.md,
-    shadowColor: "#6366f1",
-    shadowOffset: { width: 0, height: s(2) },
-    shadowOpacity: 0.3,
-    shadowRadius: s(4),
-    elevation: 4,
+    ...SHADOWS.soft,
   },
   swapIcon: {
     fontSize: rf(20),
@@ -163,13 +139,18 @@ const styles = StyleSheet.create({
   },
   rateInfo: {
     fontSize: rf(14),
-    color: "#64748b",
+    color: UI_COLORS.muted,
     textAlign: "center",
     marginTop: spacing.lg,
     fontWeight: "500",
-    backgroundColor: "#f8fafc",
+    backgroundColor: UI_COLORS.surfaceAlt,
     padding: spacing.md,
     borderRadius: borderRadius.sm,
+    borderCurve: "continuous",
+  },
+  pressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

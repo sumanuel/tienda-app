@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   SafeAreaView,
   ActivityIndicator,
   TextInput,
@@ -19,14 +19,13 @@ import CurrencyConverter from "../../components/exchange/CurrencyConverter";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  InfoPill,
+  ScreenHero,
+  SurfaceCard,
+  SHADOWS,
+  UI_COLORS,
+} from "../../components/common/AppUI";
+import { rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 export const ExchangeRateScreen = () => {
   const { rate, lastUpdate, setManualRate } = useExchangeRate({
@@ -76,20 +75,6 @@ export const ExchangeRateScreen = () => {
       mounted = false;
     };
   }, [canStart, start, tourBooted]);
-
-  const formattedLastUpdate = useMemo(() => {
-    if (!lastUpdate) {
-      return "Sin sincronizar";
-    }
-
-    return `${lastUpdate.toLocaleDateString()} · ${lastUpdate.toLocaleTimeString(
-      [],
-      {
-        hour: "2-digit",
-        minute: "2-digit",
-      },
-    )}`;
-  }, [lastUpdate]);
 
   const handleManualSave = async () => {
     const numericValue = parseFloat(manualValue.replace(",", "."));
@@ -152,17 +137,13 @@ export const ExchangeRateScreen = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.heroCard}>
-            <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>💱</Text>
-            </View>
-            <View style={styles.heroInfo}>
-              <Text style={styles.heroTitle}>Tasa de cambio</Text>
-              <Text style={styles.heroSubtitle}>
-                Administra la tasa oficial y tus referencias en un solo lugar.
-              </Text>
-            </View>
-          </View>
+          <ScreenHero
+            iconName="swap-horizontal-outline"
+            iconColor={UI_COLORS.info}
+            eyebrow="Conversi\u00f3n"
+            title="Tasa de cambio"
+            subtitle="Administra la tasa oficial y tus referencias en una vista m\u00e1s clara y compacta."
+          />
 
           <TourGuideZone
             zone={TOUR_ZONE_BASE + 1}
@@ -188,16 +169,19 @@ export const ExchangeRateScreen = () => {
             }
             borderRadius={borderRadius.lg}
           >
-            <View style={styles.manualCard}>
-              <Text style={styles.manualTitle}>Actualizar manualmente</Text>
-              <Text style={styles.manualSubtitle}>
-                Ingresa la tasa acordada para aplicar inmediatamente en la app.
-              </Text>
+            <SurfaceCard style={styles.manualCard}>
+              <View style={styles.manualHeader}>
+                <View style={styles.manualCopy}>
+                  <Text style={styles.manualTitle}>Actualizar manualmente</Text>
+                  <Text style={styles.manualSubtitle}>
+                    Ingresa la tasa acordada para aplicarla de inmediato en toda
+                    la app.
+                  </Text>
+                </View>
+                <InfoPill text="USD → VES" tone="info" />
+              </View>
 
               <View style={styles.manualInputRow}>
-                <View style={styles.manualBadge}>
-                  <Text style={styles.manualBadgeText}>USD → VES</Text>
-                </View>
                 <TextInput
                   ref={manualInputRef}
                   value={manualValue}
@@ -217,17 +201,17 @@ export const ExchangeRateScreen = () => {
                 text={"Presiona 'Guardar tasa manual' para guardar la tasa."}
                 borderRadius={borderRadius.lg}
               >
-                <TouchableOpacity
-                  style={[
+                <Pressable
+                  style={({ pressed }) => [
                     styles.secondaryButton,
                     saving && styles.buttonDisabled,
+                    pressed && styles.pressed,
                   ]}
                   onPress={() => {
                     Keyboard.dismiss();
                     handleManualSave();
                   }}
                   disabled={saving}
-                  activeOpacity={0.85}
                 >
                   {saving ? (
                     <ActivityIndicator color="#fff" />
@@ -236,9 +220,9 @@ export const ExchangeRateScreen = () => {
                       Guardar tasa manual
                     </Text>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               </TourGuideZone>
-            </View>
+            </SurfaceCard>
           </TourGuideZone>
 
           <TourGuideZone
@@ -262,139 +246,100 @@ export const ExchangeRateScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   flex: {
     flex: 1,
   },
   content: {
-    padding: spacing.xl,
+    padding: spacing.lg,
     paddingBottom: vs(120),
-    gap: spacing.xl,
-  },
-  heroCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    flexDirection: "row",
     gap: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 8,
-  },
-  heroIcon: {
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroIconText: {
-    fontSize: rf(30),
-  },
-  heroInfo: {
-    flex: 1,
-    gap: spacing.sm,
-  },
-  heroTitle: {
-    fontSize: rf(22),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: rf(20),
   },
   manualCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    gap: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(12),
-    elevation: 5,
+    gap: spacing.md,
+    ...SHADOWS.soft,
+  },
+  manualHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  manualCopy: {
+    flex: 1,
+    gap: vs(4),
   },
   manualTitle: {
-    fontSize: rf(18),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontSize: rf(16),
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   manualSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: rf(20),
+    fontSize: rf(13),
+    color: UI_COLORS.muted,
+    lineHeight: vs(19),
   },
   manualInputRow: {
-    flexDirection: "row",
-    gap: spacing.md,
     alignItems: "center",
-  },
-  manualBadge: {
-    backgroundColor: "#e8f1ff",
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  manualBadgeText: {
-    color: "#2f5ae0",
-    fontWeight: "700",
-    fontSize: rf(13),
   },
   manualInput: {
     flex: 1,
-    backgroundColor: "#f3f5fa",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    paddingVertical: vs(14),
+    paddingHorizontal: hs(16),
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#1f2633",
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   secondaryButton: {
-    backgroundColor: "#1f9254",
+    backgroundColor: UI_COLORS.accent,
     borderRadius: borderRadius.lg,
-    paddingVertical: spacing.lg,
+    borderCurve: "continuous",
+    minHeight: vs(50),
+    paddingVertical: vs(12),
     alignItems: "center",
   },
   secondaryButtonText: {
     color: "#fff",
-    fontWeight: "600",
-    fontSize: rf(15),
+    fontWeight: "700",
+    fontSize: rf(14),
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   moduleCard: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.xl,
+    borderCurve: "continuous",
+    padding: spacing.lg,
     gap: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(12),
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    ...SHADOWS.soft,
   },
   moduleTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   moduleSubtitle: {
     fontSize: 13,
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
   },
   rateDisplay: {
     marginTop: 4,
   },
   converter: {
     marginTop: 4,
+  },
+  pressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

@@ -14,7 +14,7 @@ import {
   StatusBar as RNStatusBar,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Modal,
   StyleSheet,
   useWindowDimensions,
@@ -117,6 +117,55 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const navigationRef = createNavigationContainerRef();
+
+const NAV_COLORS = {
+  accent: "#1f7a59",
+  accentStrong: "#15533d",
+  info: "#245fd1",
+  text: "#183127",
+  muted: "#6d7d73",
+  surface: "#ffffff",
+  surfaceAlt: "#f2f6f3",
+  border: "#dce7df",
+  overlay: "rgba(10, 24, 19, 0.24)",
+};
+
+const buildStackScreenOptions = (accentColor = NAV_COLORS.accent) => ({
+  headerStyle: {
+    backgroundColor: NAV_COLORS.surface,
+    shadowColor: "transparent",
+    elevation: 0,
+  },
+  headerTintColor: NAV_COLORS.text,
+  headerTitleStyle: {
+    fontWeight: "700",
+    fontSize: rf(18),
+    color: NAV_COLORS.text,
+  },
+  headerTitleAlign: "center",
+  headerShadowVisible: false,
+  headerBackTitleVisible: false,
+  headerLeftContainerStyle: {
+    paddingLeft: hs(6),
+  },
+  headerRightContainerStyle: {
+    paddingRight: hs(6),
+  },
+  headerBackImage: () => (
+    <View
+      style={{
+        width: s(36),
+        height: s(36),
+        borderRadius: s(18),
+        backgroundColor: `${accentColor}18`,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Ionicons name="chevron-back" size={rf(18)} color={accentColor} />
+    </View>
+  ),
+});
 
 const canManageBusinessSetup = (membership) => {
   const role = String(membership?.role || "")
@@ -260,12 +309,25 @@ function MainTabs() {
     <>
       <Tab.Navigator
         screenOptions={{
-          tabBarActiveTintColor: "#4CAF50",
-          tabBarInactiveTintColor: "#999",
+          tabBarActiveTintColor: NAV_COLORS.accent,
+          tabBarInactiveTintColor: NAV_COLORS.muted,
           tabBarStyle: {
+            position: "absolute",
+            left: hs(14),
+            right: hs(14),
+            bottom: vs(10),
             paddingBottom: tabBarBottomPadding,
             height: tabBarHeight,
             paddingTop: isTablet ? 10 : 6,
+            borderTopWidth: 0,
+            borderRadius: borderRadius.xl,
+            borderCurve: "continuous",
+            backgroundColor: NAV_COLORS.surface,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.12,
+            shadowRadius: s(18),
+            elevation: 10,
           },
           tabBarLabelPosition: "below-icon",
           tabBarLabelStyle: {
@@ -283,15 +345,24 @@ function MainTabs() {
             paddingVertical: isTablet ? 8 : 4,
             justifyContent: "center",
             alignItems: "center",
+            borderRadius: borderRadius.lg,
+            borderCurve: "continuous",
           },
           headerShown: true,
           headerStyle: {
-            backgroundColor: "#4CAF50",
+            backgroundColor: NAV_COLORS.surface,
+            shadowColor: "transparent",
+            elevation: 0,
           },
-          headerTintColor: "#fff",
+          headerTintColor: NAV_COLORS.text,
           headerTitleStyle: {
-            fontWeight: "bold",
+            fontWeight: "700",
             fontSize: rf(18),
+            color: NAV_COLORS.text,
+          },
+          headerShadowVisible: false,
+          sceneStyle: {
+            backgroundColor: "#f4f7fb",
           },
         }}
       >
@@ -328,18 +399,25 @@ function MainTabs() {
             ),
             title: "Punto de venta",
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   setShowAccountsMenu(false);
                   setShowFichaMenu(false);
                   navigation.navigate("Dashboard");
                 }}
-                style={{ paddingHorizontal: hs(14), paddingVertical: vs(6) }}
+                style={({ pressed }) => [
+                  tabStyles.headerBackButton,
+                  pressed && tabStyles.menuItemPressed,
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Volver"
               >
-                <Text style={{ color: "#fff", fontSize: rf(22) }}>←</Text>
-              </TouchableOpacity>
+                <Ionicons
+                  name="chevron-back"
+                  size={rf(20)}
+                  color={NAV_COLORS.text}
+                />
+              </Pressable>
             ),
           })}
           listeners={{
@@ -362,18 +440,25 @@ function MainTabs() {
             ),
             title: "Historial de ventas",
             headerLeft: () => (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   setShowAccountsMenu(false);
                   setShowFichaMenu(false);
                   navigation.navigate("Dashboard");
                 }}
-                style={{ paddingHorizontal: hs(14), paddingVertical: vs(6) }}
+                style={({ pressed }) => [
+                  tabStyles.headerBackButton,
+                  pressed && tabStyles.menuItemPressed,
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Volver"
               >
-                <Text style={{ color: "#fff", fontSize: rf(22) }}>←</Text>
-              </TouchableOpacity>
+                <Ionicons
+                  name="chevron-back"
+                  size={rf(20)}
+                  color={NAV_COLORS.text}
+                />
+              </Pressable>
             ),
           })}
           listeners={{
@@ -495,11 +580,7 @@ const QuickActionMenu = ({
     onRequestClose={onClose}
   >
     <View style={tabStyles.modalContainer}>
-      <TouchableOpacity
-        style={tabStyles.backdrop}
-        activeOpacity={1}
-        onPress={onClose}
-      />
+      <Pressable style={tabStyles.backdrop} onPress={onClose} />
       <View
         style={[
           tabStyles.menuWrapper,
@@ -517,10 +598,13 @@ const QuickActionMenu = ({
       >
         <View style={tabStyles.menuCard}>
           {items.map((item, index) => (
-            <TouchableOpacity
+            <Pressable
               key={item.key}
-              style={[tabStyles.menuItem, index > 0 && tabStyles.menuDivider]}
-              activeOpacity={0.85}
+              style={({ pressed }) => [
+                tabStyles.menuItem,
+                index > 0 && tabStyles.menuDivider,
+                pressed && tabStyles.menuItemPressed,
+              ]}
               onPress={item.onPress}
             >
               <View style={tabStyles.menuIcon}>
@@ -528,14 +612,19 @@ const QuickActionMenu = ({
                   <Ionicons
                     name={item.iconName}
                     size={rf(18)}
-                    color="#2f6f48"
+                    color={NAV_COLORS.accent}
                   />
                 ) : typeof item.icon === "string" ? (
                   <Text style={tabStyles.menuIconText}>{item.icon}</Text>
                 ) : null}
               </View>
               <Text style={tabStyles.menuLabel}>{item.label}</Text>
-            </TouchableOpacity>
+              <Ionicons
+                name="chevron-forward"
+                size={rf(16)}
+                color={NAV_COLORS.muted}
+              />
+            </Pressable>
           ))}
         </View>
       </View>
@@ -555,50 +644,65 @@ const tabStyles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    backgroundColor: NAV_COLORS.overlay,
   },
   menuWrapper: {
     paddingHorizontal: 24,
     alignItems: "center",
-    alignItems: "center",
   },
   menuCard: {
     width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
+    backgroundColor: NAV_COLORS.surface,
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.12,
-    shadowRadius: s(14),
-    elevation: 6,
+    shadowOffset: { width: 0, height: s(10) },
+    shadowOpacity: 0.14,
+    shadowRadius: s(20),
+    elevation: 8,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: spacing.xs,
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  menuItemPressed: {
+    opacity: 0.82,
   },
   menuDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#e5eaf0",
+    borderTopColor: NAV_COLORS.border,
   },
   menuIcon: {
     width: iconSize.md,
     height: iconSize.md,
     borderRadius: borderRadius.sm,
-    backgroundColor: "#ecf4ef",
+    borderCurve: "continuous",
+    backgroundColor: NAV_COLORS.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: spacing.sm,
   },
   menuIconText: {
     fontSize: rf(16),
   },
   menuLabel: {
+    flex: 1,
     fontSize: rf(14),
     fontWeight: "600",
-    color: "#2f3a4c",
+    color: NAV_COLORS.text,
+  },
+  headerBackButton: {
+    marginLeft: hs(12),
+    width: s(38),
+    height: s(38),
+    borderRadius: s(19),
+    borderCurve: "continuous",
+    backgroundColor: NAV_COLORS.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 
@@ -922,7 +1026,7 @@ function AppContent() {
               onReady={applyImmersiveMode}
               onStateChange={applyImmersiveMode}
             >
-              <Stack.Navigator>
+              <Stack.Navigator screenOptions={buildStackScreenOptions()}>
                 <Stack.Screen
                   name="Main"
                   component={MainTabs}
@@ -931,572 +1035,204 @@ function AppContent() {
                 <Stack.Screen
                   name="RateNotifications"
                   component={RateNotificationsScreen}
-                  options={{
-                    title: "Notificaciones",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Notificaciones" }}
                 />
                 <Stack.Screen
                   name="AddProduct"
                   component={AddProductScreen}
-                  options={{
-                    title: "Nuevo Producto",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Nuevo Producto" }}
                 />
                 <Stack.Screen
                   name="EditProduct"
                   component={EditProductScreen}
-                  options={{
-                    title: "Editar Producto",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Editar Producto" }}
                 />
                 <Stack.Screen
                   name="AddCustomer"
                   component={AddCustomerScreen}
-                  options={{
-                    title: "Nuevo Cliente",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Nuevo Cliente" }}
                 />
                 <Stack.Screen
                   name="EditCustomer"
                   component={EditCustomerScreen}
-                  options={{
-                    title: "Editar Cliente",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Editar Cliente" }}
                 />
                 <Stack.Screen
                   name="AddSupplier"
                   component={AddSupplierScreen}
-                  options={{
-                    title: "Nuevo Proveedor",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Nuevo Proveedor" }}
                 />
                 <Stack.Screen
                   name="EditSupplier"
                   component={EditSupplierScreen}
-                  options={{
-                    title: "Editar Proveedor",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Editar Proveedor" }}
                 />
                 <Stack.Screen
                   name="AddAccountReceivable"
                   component={AddAccountReceivableScreen}
-                  options={{
-                    title: "Nueva Cuenta por Cobrar",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Nueva Cuenta por Cobrar" }}
                 />
                 <Stack.Screen
                   name="EditAccountReceivable"
                   component={EditAccountReceivableScreen}
-                  options={{
-                    title: "Editar Cuenta por Cobrar",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Editar Cuenta por Cobrar" }}
                 />
                 <Stack.Screen
                   name="RecordPayment"
                   component={RecordPaymentScreen}
                   options={{
+                    ...buildStackScreenOptions(NAV_COLORS.info),
                     title: "Registrar Pago",
-                    headerStyle: {
-                      backgroundColor: "#2f5ae0",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
                   }}
                 />
                 <Stack.Screen
                   name="PaymentHistory"
                   component={PaymentHistoryScreen}
                   options={{
+                    ...buildStackScreenOptions(NAV_COLORS.info),
                     title: "Historial de Pagos",
-                    headerStyle: {
-                      backgroundColor: "#2f5ae0",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
                   }}
                 />
                 <Stack.Screen
                   name="RecordPaymentPayable"
                   component={RecordPaymentPayableScreen}
                   options={{
+                    ...buildStackScreenOptions(NAV_COLORS.info),
                     title: "Registrar Pago",
-                    headerStyle: {
-                      backgroundColor: "#2f5ae0",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
                   }}
                 />
                 <Stack.Screen
                   name="PaymentHistoryPayable"
                   component={PaymentHistoryPayableScreen}
                   options={{
+                    ...buildStackScreenOptions(NAV_COLORS.info),
                     title: "Historial de Pagos",
-                    headerStyle: {
-                      backgroundColor: "#2f5ae0",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
                   }}
                 />
                 <Stack.Screen
                   name="AddAccountPayable"
                   component={AddAccountPayableScreen}
-                  options={{
-                    title: "Nueva Cuenta por Pagar",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Nueva Cuenta por Pagar" }}
                 />
                 <Stack.Screen
                   name="EditAccountPayable"
                   component={EditAccountPayableScreen}
-                  options={{
-                    title: "Editar Cuenta por Pagar",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Editar Cuenta por Pagar" }}
                 />
                 <Stack.Screen
                   name="SaleDetail"
                   component={SaleDetailScreen}
-                  options={{
-                    title: "Detalle de Venta",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Detalle de Venta" }}
                 />
                 <Stack.Screen
                   name="CancelledSales"
                   component={CancelledSalesScreen}
-                  options={{
-                    title: "Ventas Anuladas",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Ventas Anuladas" }}
                 />
                 <Stack.Screen
                   name="StoreManagement"
                   component={StoreManagementScreen}
-                  options={{
-                    title: "Tiendas y colaboradores",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Tiendas y colaboradores" }}
                 />
                 <Stack.Screen
                   name="BusinessSettings"
                   component={BusinessSettingsScreen}
-                  options={{
-                    title: "Datos del Negocio",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Datos del Negocio" }}
                 />
                 <Stack.Screen
                   name="PricingSettings"
                   component={PricingSettingsScreen}
-                  options={{
-                    title: "Margen de Ganancias",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Margen de Ganancias" }}
                 />
                 <Stack.Screen
                   name="AddInventoryEntry"
                   component={AddInventoryEntryScreen}
-                  options={{
-                    title: "Agregar Entrada",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Agregar Entrada" }}
                 />
                 <Stack.Screen
                   name="AddInventoryExit"
                   component={AddInventoryExitScreen}
-                  options={{
-                    title: "Agregar Salida",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Agregar Salida" }}
                 />
                 <Stack.Screen
                   name="ExchangeRate"
                   component={ExchangeRateScreen}
-                  options={{
-                    title: "Tasa de cambio",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Tasa de cambio" }}
                 />
                 <Stack.Screen
                   name="MobilePayments"
                   component={MobilePaymentsScreen}
-                  options={{
-                    title: "Pago movil",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Pago movil" }}
                 />
                 <Stack.Screen
                   name="Products"
                   component={ProductsScreen}
-                  options={{
-                    title: "Productos",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Productos" }}
                 />
                 <Stack.Screen
                   name="QRProducts"
                   component={QRProductsScreen}
-                  options={{
-                    title: "Códigos QR",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Códigos QR" }}
                 />
                 <Stack.Screen
                   name="Suppliers"
                   component={SuppliersScreen}
-                  options={{
-                    title: "Proveedores",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Proveedores" }}
                 />
                 <Stack.Screen
                   name="Customers"
                   component={CustomersScreen}
-                  options={{
-                    title: "Clientes",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Clientes" }}
                 />
                 <Stack.Screen
                   name="AccountsReceivable"
                   component={AccountsReceivableScreen}
-                  options={{
-                    title: "Cuentas por cobrar",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Cuentas por cobrar" }}
                 />
                 <Stack.Screen
                   name="AccountsPayable"
                   component={AccountsPayableScreen}
-                  options={{
-                    title: "Cuentas por pagar",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Cuentas por pagar" }}
                 />
                 <Stack.Screen
                   name="Capital"
                   component={CapitalScreen}
-                  options={{
-                    title: "Capital",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Capital" }}
                 />
                 <Stack.Screen
                   name="InventoryEntry"
                   component={InventoryEntryScreen}
-                  options={{
-                    title: "Entrada de Inventario",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Entrada de Inventario" }}
                 />
                 <Stack.Screen
                   name="InventoryMovements"
                   component={InventoryMovementsScreen}
-                  options={{
-                    title: "Movimientos de inventario",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Movimientos de inventario" }}
                 />
                 <Stack.Screen
                   name="InventoryMovementsDetail"
                   component={InventoryMovementsDetailScreen}
-                  options={{
-                    title: "Movimientos",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Movimientos" }}
                 />
                 <Stack.Screen
                   name="InventoryEntryDetail"
                   component={InventoryEntryDetailScreen}
-                  options={{
-                    title: "Entradas",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Entradas" }}
                 />
                 <Stack.Screen
                   name="InventoryExit"
                   component={InventoryExitScreen}
-                  options={{
-                    title: "Salida de Inventario",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Salida de Inventario" }}
                 />
                 <Stack.Screen
                   name="InventoryExitDetail"
                   component={InventoryExitDetailScreen}
-                  options={{
-                    title: "Salidas",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Salidas" }}
                 />
                 <Stack.Screen
                   name="About"
                   component={AboutScreen}
-                  options={{
-                    title: "Acerca de",
-                    headerStyle: {
-                      backgroundColor: "#4CAF50",
-                    },
-                    headerTintColor: "#fff",
-                    headerTitleStyle: {
-                      fontWeight: "bold",
-                      fontSize: rf(18),
-                    },
-                  }}
+                  options={{ title: "Acerca de" }}
                 />
               </Stack.Navigator>
             </NavigationContainer>

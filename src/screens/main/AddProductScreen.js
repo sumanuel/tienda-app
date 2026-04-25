@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,14 +16,12 @@ import { getSettings } from "../../services/database/settings";
 import { insertInventoryMovement } from "../../services/database/products";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  ScreenHero,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
+import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 /**
  * Pantalla para agregar nuevo producto
@@ -46,13 +44,11 @@ export const AddProductScreen = ({ navigation }) => {
   });
 
   const nameRef = useRef(null);
-  const categoryRef = useRef(null);
   const costRef = useRef(null);
   const additionalCostRef = useRef(null);
   const marginRef = useRef(null);
   const ivaRef = useRef(null);
   const stockRef = useRef(null);
-  const descriptionRef = useRef(null);
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
@@ -305,15 +301,23 @@ export const AddProductScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.heroCard}>
-            <View style={styles.heroTextContainer}>
-              <Text style={styles.heroTitle}>Nuevo producto</Text>
-              <Text style={styles.heroSubtitle}>
-                Calculamos automáticamente el precio sugerido según el margen
-                configurado.
-              </Text>
-            </View>
-          </View>
+          <ScreenHero
+            iconName="cube-outline"
+            iconColor={UI_COLORS.info}
+            eyebrow="Catálogo"
+            title="Nuevo producto"
+            subtitle="Calculamos automáticamente el precio sugerido según margen, costos y tasa vigente."
+            pills={[
+              { text: `Margen ${margin || 0}%`, tone: "accent" },
+              {
+                text: pricingSummary.rate
+                  ? `Tasa ${pricingSummary.rate.toFixed(2)}`
+                  : "Sin tasa",
+                tone: pricingSummary.rate ? "info" : "warning",
+              },
+            ]}
+            style={styles.heroCard}
+          />
 
           {/* <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
@@ -348,7 +352,7 @@ export const AddProductScreen = ({ navigation }) => {
             </Text>
           </View>
 
-          <View style={styles.card}>
+          <SurfaceCard style={styles.card}>
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Nombre *</Text>
               <TextInput
@@ -360,42 +364,11 @@ export const AddProductScreen = ({ navigation }) => {
                 onChangeText={(value) => handleInputChange("name", value)}
                 returnKeyType="next"
                 onFocus={() => scrollToField(nameRef)}
-                onSubmitEditing={() => categoryRef.current?.focus()}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Categoría</Text>
-              <TextInput
-                ref={categoryRef}
-                style={styles.input}
-                placeholder="Ej: Bebidas, Hogar, Limpieza"
-                placeholderTextColor="#9aa2b1"
-                value={formData.category}
-                onChangeText={(value) => handleInputChange("category", value)}
                 returnKeyType="next"
-                onFocus={() => scrollToField(categoryRef)}
-                onSubmitEditing={() => descriptionRef.current?.focus()}
+                onSubmitEditing={() => costRef.current?.focus()}
               />
             </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Descripción</Text>
-              <TextInput
-                ref={descriptionRef}
-                style={[styles.input, styles.textArea]}
-                placeholder="Características, presentación o notas internas"
-                placeholderTextColor="#9aa2b1"
-                value={formData.description}
-                onChangeText={(value) =>
-                  handleInputChange("description", value)
-                }
-                multiline
-                numberOfLines={4}
-                onFocus={() => scrollToField(descriptionRef)}
-              />
-            </View>
-          </View>
+          </SurfaceCard>
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Precio y margen</Text>
@@ -404,7 +377,7 @@ export const AddProductScreen = ({ navigation }) => {
             </Text>
           </View>
 
-          <View style={styles.card}>
+          <SurfaceCard style={styles.card}>
             <View style={styles.currencySwitch}>
               {[
                 { code: "USD", label: "Costo en USD" },
@@ -412,11 +385,12 @@ export const AddProductScreen = ({ navigation }) => {
               ].map((option) => {
                 const active = costCurrency === option.code;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={option.code}
-                    style={[
+                    style={({ pressed }) => [
                       styles.currencyChip,
                       active ? styles.currencyChipActive : null,
+                      pressed && styles.cardPressed,
                     ]}
                     onPress={() => {
                       if (option.code === costCurrency) return;
@@ -457,7 +431,6 @@ export const AddProductScreen = ({ navigation }) => {
 
                       setCostCurrency(option.code);
                     }}
-                    activeOpacity={0.85}
                   >
                     <Text
                       style={[
@@ -467,7 +440,7 @@ export const AddProductScreen = ({ navigation }) => {
                     >
                       {option.label}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>
@@ -554,7 +527,7 @@ export const AddProductScreen = ({ navigation }) => {
                 </Text>
               </View>
             </View>
-          </View>
+          </SurfaceCard>
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Inventario inicial</Text>
@@ -564,7 +537,7 @@ export const AddProductScreen = ({ navigation }) => {
             </Text>
           </View>
 
-          <View style={styles.card}>
+          <SurfaceCard style={styles.card}>
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Cantidad *</Text>
               <TextInput
@@ -585,30 +558,30 @@ export const AddProductScreen = ({ navigation }) => {
               Puedes ajustar el stock, margen e IVA luego desde la pantalla de
               edición del producto.
             </Text>
-          </View>
+          </SurfaceCard>
 
           <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[
+            <Pressable
+              style={({ pressed }) => [
                 styles.actionButton,
                 styles.secondaryButton,
                 loading && styles.buttonDisabled,
+                pressed && styles.cardPressed,
               ]}
               onPress={() => navigation.goBack()}
-              activeOpacity={0.85}
               disabled={loading}
             >
               <Text style={styles.secondaryButtonText}>Cancelar</Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={[
+            <Pressable
+              style={({ pressed }) => [
                 styles.actionButton,
                 styles.primaryButton,
                 loading && styles.buttonDisabled,
+                pressed && styles.cardPressed,
               ]}
               onPress={handleSubmit}
-              activeOpacity={0.85}
               disabled={loading}
             >
               {loading ? (
@@ -616,7 +589,7 @@ export const AddProductScreen = ({ navigation }) => {
               ) : (
                 <Text style={styles.primaryButtonText}>Guardar producto</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -628,7 +601,7 @@ export const AddProductScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   flex: {
     flex: 1,
@@ -636,46 +609,11 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: hs(16),
     paddingTop: vs(16),
-    paddingBottom: vs(70),
-    gap: vs(24),
+    paddingBottom: vs(76),
+    gap: vs(18),
   },
   heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.1,
-    shadowRadius: s(18),
-    elevation: 8,
-  },
-  heroIcon: {
-    width: s(60),
-    height: s(60),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: hs(18),
-  },
-  heroIconText: {
-    fontSize: iconSize.xl,
-  },
-  heroTextContainer: {
-    flex: 1,
-    gap: vs(6),
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: vs(20),
+    marginBottom: vs(2),
   },
   summaryCard: {
     backgroundColor: "#fff",
@@ -721,43 +659,39 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#1f2633",
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   sectionHint: {
     fontSize: rf(12),
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
-    gap: vs(20),
+    gap: vs(18),
+    ...SHADOWS.soft,
   },
   fieldGroup: {
-    gap: vs(8),
+    gap: vs(7),
   },
   fieldLabel: {
     fontSize: rf(12),
-    fontWeight: "600",
-    color: "#8492a6",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
-    letterSpacing: s(0.6),
+    letterSpacing: 0.6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#d9e0eb",
-    borderRadius: borderRadius.sm,
+    borderColor: UI_COLORS.border,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingHorizontal: hs(14),
-    paddingVertical: vs(12),
+    paddingVertical: vs(13),
     fontSize: rf(15),
-    color: "#1f2633",
-    backgroundColor: "#f8f9fc",
+    color: UI_COLORS.text,
+    backgroundColor: UI_COLORS.surfaceAlt,
   },
   textArea: {
     minHeight: s(96),
@@ -765,102 +699,107 @@ const styles = StyleSheet.create({
   },
   currencySwitch: {
     flexDirection: "row",
-    backgroundColor: "#f3f5fa",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
-    padding: spacing.sm,
+    borderCurve: "continuous",
+    padding: spacing.xs,
     gap: vs(6),
   },
   currencyChip: {
     flex: 1,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: vs(10),
     paddingHorizontal: hs(12),
     alignItems: "center",
     justifyContent: "center",
   },
   currencyChipActive: {
-    backgroundColor: "#2f5ae0",
+    backgroundColor: UI_COLORS.info,
   },
   currencyChipText: {
     fontSize: rf(12),
-    fontWeight: "600",
-    color: "#5b6472",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
   },
   currencyChipTextActive: {
     color: "#fff",
   },
   priceGrid: {
     flexDirection: "row",
-    gap: hs(16),
+    gap: hs(12),
   },
   priceCard: {
     flex: 1,
-    backgroundColor: "#f8f9fc",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
-    paddingVertical: vs(18),
+    borderCurve: "continuous",
+    paddingVertical: vs(16),
     paddingHorizontal: hs(16),
     gap: vs(6),
   },
   priceLabel: {
     fontSize: rf(12),
-    fontWeight: "600",
-    color: "#7a8796",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
-    letterSpacing: s(0.6),
+    letterSpacing: 0.6,
   },
   priceValue: {
     fontSize: rf(18),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   priceHint: {
     fontSize: rf(12),
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
   },
   helperText: {
     fontSize: rf(12),
-    color: "#6f7c8c",
-    backgroundColor: "#f3f8ff",
+    color: UI_COLORS.info,
+    backgroundColor: UI_COLORS.infoSoft,
     padding: spacing.md,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     lineHeight: vs(18),
   },
   buttonRow: {
     flexDirection: "row",
     gap: hs(12),
+    paddingTop: vs(4),
   },
   actionButton: {
     flex: 1,
-    paddingVertical: vs(16),
-    borderRadius: borderRadius.sm,
+    paddingVertical: vs(15),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
   },
   secondaryButton: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
-    borderColor: "#c3cad5",
+    borderColor: UI_COLORS.border,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   secondaryButtonText: {
-    color: "#4c5767",
-    fontWeight: "600",
-    fontSize: rf(15),
+    color: UI_COLORS.info,
+    fontWeight: "700",
+    fontSize: rf(14),
   },
   primaryButton: {
-    backgroundColor: "#2fb176",
-    shadowColor: "#2fb176",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.22,
-    shadowRadius: s(8),
-    elevation: 6,
+    backgroundColor: UI_COLORS.accent,
   },
   primaryButtonText: {
     color: "#fff",
     fontWeight: "700",
-    fontSize: rf(15),
+    fontSize: rf(14),
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

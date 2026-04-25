@@ -4,9 +4,8 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -19,14 +18,17 @@ import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  FormActionRow,
+  FormSectionHeader,
+  SegmentedOptions,
+} from "../../components/common/FormPatterns";
+import {
+  ScreenHero,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
+import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 /**
  * Pantalla para editar cuenta por pagar existente
@@ -219,75 +221,6 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
     }
   };
 
-  const DatePickerModal = () => (
-    <Modal
-      visible={showDatePicker}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={() => setShowDatePicker(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.datePickerContainer}>
-          <Text style={styles.modalTitle}>
-            Seleccionar Fecha de Vencimiento
-          </Text>
-
-          <View style={styles.datePicker}>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => {
-                const today = new Date();
-                handleDateSelect(today);
-              }}
-            >
-              <Text style={styles.dateButtonText}>Hoy</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                handleDateSelect(tomorrow);
-              }}
-            >
-              <Text style={styles.dateButtonText}>Mañana</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => {
-                const week = new Date();
-                week.setDate(week.getDate() + 7);
-                handleDateSelect(week);
-              }}
-            >
-              <Text style={styles.dateButtonText}>En 1 semana</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => {
-                const month = new Date();
-                month.setMonth(month.getMonth() + 1);
-                handleDateSelect(month);
-              }}
-            >
-              <Text style={styles.dateButtonText}>En 1 mes</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setShowDatePicker(false)}
-          >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-
   return (
     <>
       <SafeAreaView style={styles.container}>
@@ -302,31 +235,21 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Ionicons
-                  name="cash-outline"
-                  size={iconSize.lg}
-                  color="#169c5a"
-                />
-              </View>
-              <View style={styles.heroTextContainer}>
-                <Text style={styles.heroTitle}>Editar cuenta por pagar</Text>
-                <Text style={styles.heroSubtitle}>
-                  Modifica los detalles de la obligación al proveedor.
-                </Text>
-              </View>
-            </View>
+            <ScreenHero
+              iconName="cash-outline"
+              iconColor={UI_COLORS.accent}
+              eyebrow="Pagos"
+              title="Editar cuenta por pagar"
+              subtitle="Actualiza la obligación al proveedor con una presentación más clara y ordenada."
+              style={styles.heroCard}
+            />
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Datos del proveedor</Text>
-              <Text style={styles.sectionHint}>
-                La cédula intentará autocompletar el nombre del proveedor
-                existente.
-              </Text>
-            </View>
+            <FormSectionHeader
+              title="Datos del proveedor"
+              hint="La cédula intentará autocompletar el nombre del proveedor existente."
+            />
 
-            <View style={styles.card}>
+            <SurfaceCard style={styles.card}>
               <Text style={styles.label}>Cédula del proveedor *</Text>
               <TextInput
                 style={styles.input}
@@ -346,43 +269,23 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
                 onChangeText={(value) => updateFormData("supplierName", value)}
                 autoCapitalize="words"
               />
-            </View>
+            </SurfaceCard>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Detalle de la cuenta</Text>
-              <Text style={styles.sectionHint}>
-                Usa montos positivos. Puedes asociar la factura para un mejor
-                seguimiento.
-              </Text>
-            </View>
+            <FormSectionHeader
+              title="Detalle de la cuenta"
+              hint="Usa montos positivos. Puedes asociar la factura para un mejor seguimiento."
+            />
 
-            <View style={styles.card}>
+            <SurfaceCard style={styles.card}>
               <Text style={styles.label}>Moneda del monto *</Text>
-              <View style={styles.currencyRow}>
-                {["VES", "USD"].map((code) => {
-                  const active = formData.baseCurrency === code;
-                  return (
-                    <TouchableOpacity
-                      key={code}
-                      style={[
-                        styles.currencyChip,
-                        active ? styles.currencyChipActive : null,
-                      ]}
-                      onPress={() => updateFormData("baseCurrency", code)}
-                      activeOpacity={0.85}
-                    >
-                      <Text
-                        style={[
-                          styles.currencyChipText,
-                          active ? styles.currencyChipTextActive : null,
-                        ]}
-                      >
-                        {code === "USD" ? "Monto en USD" : "Monto en Bs"}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              <SegmentedOptions
+                options={[
+                  { value: "VES", label: "Monto en Bs" },
+                  { value: "USD", label: "Monto en USD" },
+                ]}
+                value={formData.baseCurrency}
+                onChange={(code) => updateFormData("baseCurrency", code)}
+              />
 
               <Text style={styles.label}>
                 {formData.baseCurrency === "USD" ? "Monto (USD)" : "Monto (Bs)"}{" "}
@@ -446,8 +349,12 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
               />
 
               <Text style={styles.label}>Fecha de vencimiento *</Text>
-              <TouchableOpacity
-                style={[styles.input, styles.datePickerTrigger]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.input,
+                  styles.datePickerTrigger,
+                  pressed && styles.cardPressed,
+                ]}
                 onPress={showDatePickerModal}
               >
                 <Text
@@ -457,7 +364,7 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
                 >
                   {formData.dueDate || "Selecciona la fecha"}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
               {formData.dueDate ? (
                 <Text style={styles.helperInfo}>
                   Programar recordatorios con anticipación ayuda a reducir la
@@ -474,33 +381,26 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
                     onChange={handleDateChange}
                   />
                   {Platform.OS === "ios" && (
-                    <TouchableOpacity
-                      style={styles.datePickerDone}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.datePickerDone,
+                        pressed && styles.cardPressed,
+                      ]}
                       onPress={closeDatePicker}
-                      activeOpacity={0.85}
                     >
                       <Text style={styles.datePickerDoneText}>Listo</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
                 </View>
               )}
-            </View>
+            </SurfaceCard>
 
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.secondaryButton]}
-                onPress={() => navigation.goBack()}
-              >
-                <Text style={styles.secondaryButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.actionButton, styles.primaryButton]}
-                onPress={handleSave}
-              >
-                <Text style={styles.primaryButtonText}>Actualizar cuenta</Text>
-              </TouchableOpacity>
-            </View>
+            <FormActionRow
+              onCancel={() => navigation.goBack()}
+              onSubmit={handleSave}
+              submitLabel="Actualizar cuenta"
+              submitTone="danger"
+            />
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -512,7 +412,7 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: UI_COLORS.page,
   },
   flex: {
     flex: 1,
@@ -520,93 +420,50 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
+    paddingBottom: vs(56),
+    gap: spacing.lg,
   },
   heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: borderRadius.md,
-    padding: spacing.xl,
-    marginBottom: spacing.xxl,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  heroIcon: {
-    width: iconSize.lg,
-    height: iconSize.lg,
-    borderRadius: s(24),
-    backgroundColor: "#f0f9ff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: spacing.lg,
-  },
-  heroIconText: {
-    fontSize: rf(24),
-  },
-  heroTextContainer: {
-    flex: 1,
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "600",
-    color: "#1e293b",
-    marginBottom: spacing.xs,
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#64748b",
-    lineHeight: rf(20),
+    marginBottom: vs(2),
   },
   sectionHeader: {
-    marginBottom: spacing.lg,
+    paddingHorizontal: hs(4),
+    gap: vs(4),
   },
   sectionTitle: {
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#1e293b",
-    marginBottom: spacing.xs,
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   sectionHint: {
-    fontSize: rf(14),
-    color: "#64748b",
-    lineHeight: rf(20),
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: borderRadius.md,
-    padding: spacing.xl,
-    marginBottom: spacing.xxl,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...SHADOWS.soft,
   },
   label: {
-    fontSize: rf(14),
-    fontWeight: "500",
-    color: "#374151",
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     marginBottom: spacing.sm,
     marginTop: spacing.lg,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: borderRadius.sm,
+    borderColor: UI_COLORS.border,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: rf(16),
-    color: "#1f2937",
-    backgroundColor: "#ffffff",
+    paddingVertical: vs(13),
+    fontSize: rf(15),
+    color: UI_COLORS.text,
+    backgroundColor: UI_COLORS.surfaceAlt,
   },
   textArea: {
     height: vs(80),
@@ -616,10 +473,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   datePickerWrapper: {
-    backgroundColor: "#ffffff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: UI_COLORS.border,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
     marginTop: spacing.sm,
@@ -628,8 +486,9 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
-    borderRadius: s(10),
-    backgroundColor: "#2f5ae0",
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.info,
     marginTop: spacing.sm,
     marginRight: spacing.sm,
   },
@@ -639,47 +498,54 @@ const styles = StyleSheet.create({
     fontSize: rf(14),
   },
   dateText: {
-    fontSize: rf(16),
-    color: "#1f2937",
+    fontSize: rf(15),
+    color: UI_COLORS.text,
   },
   datePlaceholder: {
-    fontSize: rf(16),
+    fontSize: rf(15),
     color: "#9ca3af",
   },
   helperInfo: {
     fontSize: rf(12),
-    color: "#6b7280",
+    color: UI_COLORS.info,
+    backgroundColor: UI_COLORS.infoSoft,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     marginTop: spacing.xs,
-    lineHeight: rf(16),
+    lineHeight: rf(18),
   },
   buttonRow: {
     flexDirection: "row",
     gap: spacing.md,
-    marginBottom: spacing.xxl,
+    paddingTop: vs(4),
+    marginBottom: spacing.xl,
   },
   actionButton: {
     flex: 1,
-    paddingVertical: spacing.lg,
-    borderRadius: borderRadius.sm,
+    paddingVertical: vs(15),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
+    justifyContent: "center",
   },
   primaryButton: {
-    backgroundColor: "#3b82f6",
+    backgroundColor: UI_COLORS.accent,
   },
   primaryButtonText: {
     color: "#ffffff",
-    fontSize: rf(16),
-    fontWeight: "600",
+    fontSize: rf(14),
+    fontWeight: "700",
   },
   secondaryButton: {
-    backgroundColor: "#ffffff",
+    backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: UI_COLORS.border,
   },
   secondaryButtonText: {
-    color: "#374151",
-    fontSize: rf(16),
-    fontWeight: "600",
+    color: UI_COLORS.info,
+    fontSize: rf(14),
+    fontWeight: "700",
   },
   currencyRow: {
     flexDirection: "row",
@@ -690,30 +556,32 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "#d9e0eb",
-    backgroundColor: "#f8f9fc",
+    borderColor: UI_COLORS.border,
+    backgroundColor: UI_COLORS.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
   currencyChipActive: {
-    backgroundColor: "#2f5ae0",
-    borderColor: "#2f5ae0",
+    backgroundColor: UI_COLORS.accentSoft,
+    borderColor: UI_COLORS.accent,
   },
   currencyChipText: {
     fontSize: rf(14),
-    fontWeight: "600",
-    color: "#6f7c8c",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
   },
   currencyChipTextActive: {
-    color: "#fff",
+    color: UI_COLORS.accentStrong,
   },
   dualAmountCard: {
-    backgroundColor: "#f8f9fc",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: "#e8edf2",
+    borderColor: UI_COLORS.border,
     gap: spacing.md,
   },
   dualAmountRow: {
@@ -723,68 +591,25 @@ const styles = StyleSheet.create({
   },
   dualAmountLabel: {
     fontSize: rf(14),
-    fontWeight: "600",
-    color: "#6f7c8c",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   dualAmountValue: {
     fontSize: rf(16),
     fontWeight: "700",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   dualAmountHint: {
     fontSize: rf(12),
-    color: "#9aa2b1",
+    color: UI_COLORS.muted,
     textAlign: "center",
     fontStyle: "italic",
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  datePickerContainer: {
-    backgroundColor: "#ffffff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    margin: spacing.xl,
-    width: "90%",
-    maxWidth: s(400),
-  },
-  modalTitle: {
-    fontSize: rf(18),
-    fontWeight: "600",
-    color: "#1e293b",
-    textAlign: "center",
-    marginBottom: spacing.lg,
-  },
-  dateButton: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: "#f8fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    marginBottom: spacing.sm,
-    alignItems: "center",
-  },
-  dateButtonText: {
-    fontSize: rf(16),
-    fontWeight: "500",
-    color: "#374151",
-  },
-  cancelButton: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: "#ef4444",
-    alignItems: "center",
-    marginTop: spacing.md,
-  },
-  cancelButtonText: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#ffffff",
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

@@ -1,28 +1,26 @@
 import React, { useState, useEffect } from "react";
 import {
+  SafeAreaView,
   View,
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useRoute } from "@react-navigation/native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  EmptyStateCard,
+  InfoPill,
+  ScreenHero,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
+import { rf, vs, spacing, borderRadius } from "../../utils/responsive";
 
 export const PaymentHistoryScreen = () => {
-  const navigation = useNavigation();
   const route = useRoute();
   const { account } = route.params;
   const { getPayments } = useAccounts();
@@ -57,14 +55,15 @@ export const PaymentHistoryScreen = () => {
   };
 
   const renderPaymentItem = ({ item }) => (
-    <View style={styles.paymentItem}>
+    <SurfaceCard style={styles.paymentItem}>
       <View style={styles.paymentHeader}>
         <Text style={styles.paymentAmount}>
           {formatCurrency(item.amount, account.currency || "VES")}
         </Text>
-        <Text style={styles.paymentMethod}>
-          {getPaymentMethodLabel(item.paymentMethod)}
-        </Text>
+        <InfoPill
+          text={getPaymentMethodLabel(item.paymentMethod)}
+          tone="info"
+        />
       </View>
 
       <View style={styles.paymentDetails}>
@@ -76,175 +75,176 @@ export const PaymentHistoryScreen = () => {
         )}
       </View>
 
-      {item.notes && <Text style={styles.paymentNotes}>{item.notes}</Text>}
-    </View>
+      {item.notes ? (
+        <Text style={styles.paymentNotes}>{item.notes}</Text>
+      ) : null}
+    </SurfaceCard>
   );
 
   const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="card-outline" size={iconSize.xxl} color="#8ca0b8" />
-      <Text style={styles.emptyTitle}>Sin pagos registrados</Text>
-      <Text style={styles.emptyText}>
-        No se han registrado pagos para esta cuenta aún.
-      </Text>
-    </View>
+    <EmptyStateCard
+      title="Sin pagos registrados"
+      subtitle="Los pagos aplicados a esta cuenta aparecerán aquí para que puedas revisar fecha, referencia y notas."
+      style={styles.emptyState}
+    />
   );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2f5ae0" />
+        <ActivityIndicator size="large" color={UI_COLORS.info} />
         <Text style={styles.loadingText}>Cargando historial...</Text>
       </View>
     );
   }
 
   const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const currency = account.currency || "VES";
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Historial de Pagos</Text>
-        <Text style={styles.subtitle}>{account.customerName}</Text>
-        <View style={styles.summary}>
-          <Text style={styles.summaryText}>
-            Total pagado: {formatCurrency(totalPaid, account.currency || "VES")}
-          </Text>
-          <Text style={styles.summaryText}>
-            De: {formatCurrency(account.amount, account.currency || "VES")}
-          </Text>
-        </View>
-      </View>
-
+    <SafeAreaView style={styles.container}>
       <FlatList
         data={payments}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderPaymentItem}
         ListEmptyComponent={renderEmptyState}
         contentContainerStyle={styles.listContainer}
+        ListHeaderComponent={
+          <View style={styles.headerContent}>
+            <ScreenHero
+              iconName="time-outline"
+              iconColor={UI_COLORS.info}
+              eyebrow="Cobros"
+              title="Historial de pagos"
+              subtitle={`Consulta los abonos registrados para ${account.customerName} con una lectura rápida del progreso de la cuenta.`}
+              pills={[
+                {
+                  text: `${payments.length} movimientos`,
+                  tone: payments.length ? "info" : "neutral",
+                },
+                {
+                  text: `Pagado ${formatCurrency(totalPaid, currency)}`,
+                  tone: "accent",
+                },
+              ]}
+            />
+
+            <SurfaceCard style={styles.summaryCard}>
+              <View style={styles.summaryMetric}>
+                <Text style={styles.summaryLabel}>Total pagado</Text>
+                <Text style={styles.summaryValueAccent}>
+                  {formatCurrency(totalPaid, currency)}
+                </Text>
+              </View>
+              <View style={styles.summaryMetric}>
+                <Text style={styles.summaryLabel}>Monto original</Text>
+                <Text style={styles.summaryValue}>
+                  {formatCurrency(account.amount, currency)}
+                </Text>
+              </View>
+            </SurfaceCard>
+          </View>
+        }
         showsVerticalScrollIndicator={false}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f7fa",
+    backgroundColor: UI_COLORS.page,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f7fa",
+    backgroundColor: UI_COLORS.page,
   },
   loadingText: {
     marginTop: vs(16),
     fontSize: rf(16),
-    color: "#666",
+    color: UI_COLORS.muted,
   },
-  header: {
-    backgroundColor: "#fff",
-    padding: spacing.xl,
-    paddingTop: vs(16),
-    borderBottomWidth: 1,
-    borderBottomColor: "#e1e5e9",
-  },
-  title: {
-    fontSize: rf(24),
-    fontWeight: "bold",
-    color: "#1a202c",
-    marginBottom: vs(4),
-  },
-  subtitle: {
-    fontSize: rf(16),
-    color: "#718096",
-    marginBottom: vs(12),
-  },
-  summary: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: vs(8),
-    borderTopWidth: 1,
-    borderTopColor: "#e1e5e9",
-  },
-  summaryText: {
-    fontSize: rf(14),
-    color: "#4a5568",
-    fontWeight: "500",
+  headerContent: {
+    padding: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.md,
   },
   listContainer: {
+    paddingBottom: vs(40),
+  },
+  summaryCard: {
+    flexDirection: "row",
+    gap: spacing.md,
+    ...SHADOWS.soft,
+  },
+  summaryMetric: {
+    flex: 1,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
     padding: spacing.md,
-    paddingBottom: vs(32),
+    gap: vs(4),
+  },
+  summaryLabel: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  summaryValue: {
+    fontSize: rf(16),
+    fontWeight: "800",
+    color: UI_COLORS.text,
+  },
+  summaryValueAccent: {
+    fontSize: rf(16),
+    fontWeight: "800",
+    color: UI_COLORS.accent,
   },
   paymentItem: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: vs(12),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: s(4),
-    elevation: 3,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    gap: vs(8),
+    ...SHADOWS.soft,
   },
   paymentHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: vs(8),
+    gap: spacing.md,
   },
   paymentAmount: {
     fontSize: rf(18),
-    fontWeight: "bold",
-    color: "#2f5ae0",
-  },
-  paymentMethod: {
-    fontSize: rf(14),
-    color: "#718096",
-    backgroundColor: "#f7fafc",
-    paddingHorizontal: hs(8),
-    paddingVertical: vs(4),
-    borderRadius: borderRadius.sm,
+    fontWeight: "800",
+    color: UI_COLORS.info,
   },
   paymentDetails: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: vs(8),
+    gap: spacing.md,
   },
   paymentDate: {
-    fontSize: rf(14),
-    color: "#4a5568",
+    fontSize: rf(13),
+    color: UI_COLORS.muted,
   },
   paymentReference: {
-    fontSize: rf(14),
-    color: "#4a5568",
+    fontSize: rf(13),
+    color: UI_COLORS.muted,
   },
   paymentNotes: {
-    fontSize: rf(14),
-    color: "#718096",
-    fontStyle: "italic",
+    fontSize: rf(13),
+    color: UI_COLORS.text,
+    lineHeight: vs(18),
   },
   emptyState: {
-    alignItems: "center",
-    paddingTop: vs(60),
-    paddingHorizontal: hs(32),
-  },
-  emptyIcon: {
-    fontSize: iconSize.xl,
-    marginBottom: vs(16),
-  },
-  emptyTitle: {
-    fontSize: rf(18),
-    fontWeight: "600",
-    color: "#2d3748",
-    marginBottom: vs(8),
-  },
-  emptyText: {
-    fontSize: rf(14),
-    color: "#718096",
-    textAlign: "center",
-    lineHeight: rf(20),
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    paddingBottom: vs(32),
   },
 });

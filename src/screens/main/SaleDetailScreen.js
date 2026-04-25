@@ -3,12 +3,10 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   FlatList,
   SafeAreaView,
   ActivityIndicator,
-  ScrollView,
-  Alert,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -17,16 +15,19 @@ import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
+import { buildSaleInvoiceWhatsAppMessage } from "../../utils/whatsappMessages";
 import { getCustomerById } from "../../services/database/customers";
+import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  EmptyStateCard,
+  FloatingActionButton,
+  InfoPill,
+  ScreenHero,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
+import { rf, vs, spacing, borderRadius } from "../../utils/responsive";
 export const SaleDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -34,6 +35,7 @@ export const SaleDetailScreen = () => {
   const { getSaleDetails } = useSales();
 
   const insets = useSafeAreaInsets();
+  const { showAlert, CustomAlert } = useCustomAlert();
 
   const { rate } = useExchangeRateContext();
 
@@ -96,7 +98,6 @@ export const SaleDetailScreen = () => {
       setDetails(saleData);
     } catch (error) {
       console.error("Error loading sale details:", error);
-      // Handle error, maybe navigate back
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -104,7 +105,6 @@ export const SaleDetailScreen = () => {
   };
 
   const buildWhatsAppInvoiceText = () => {
-    const created = sale?.createdAt ? new Date(sale.createdAt) : new Date();
     const customerName =
       customer?.name ||
       (sale?.notes ? sale.notes.replace("Cliente: ", "") : "Cliente");
@@ -120,37 +120,27 @@ export const SaleDetailScreen = () => {
       const displayPriceVES = shouldRecalc
         ? priceUSD * exchangeRate
         : Number(it.price) || 0;
-      const subtotalVES = quantity * displayPriceVES;
-      return `- ${it.productName} x${quantity}: ${formatCurrency(subtotalVES, "VES")}`;
+      return {
+        productName: it.productName,
+        quantity,
+        subtotalVES: quantity * displayPriceVES,
+      };
     });
 
-    const totalVES = formatCurrency(calculateTotal(sale), "VES");
     const totalUSDNumber = (details?.items || []).reduce(
       (sum, it) =>
         sum + (Number(it.priceUSD) || 0) * (Number(it.quantity) || 0),
       0,
     );
-    const totalUSD =
-      totalUSDNumber > 0 ? formatCurrency(totalUSDNumber, "USD") : null;
 
-    const parts = [
-      `Factura - ${getSaleDisplayNumber(sale)}`,
-      `Fecha: ${created.toLocaleDateString("es-VE")} ${created.toLocaleTimeString(
-        [],
-        {
-          hour: "2-digit",
-          minute: "2-digit",
-        },
-      )}`,
-      `Cliente: ${customerName}`,
-      "",
-      "Productos:",
-      ...lines,
-      "",
-      `Total: ${totalVES}${totalUSD ? ` (${totalUSD})` : ""}`,
-    ];
-
-    return parts.join("\n");
+    return buildSaleInvoiceWhatsAppMessage({
+      saleNumber: getSaleDisplayNumber(sale),
+      createdAt: sale?.createdAt,
+      customerName,
+      items: lines,
+      totalVES: calculateTotal(sale),
+      totalUSD: totalUSDNumber,
+    });
   };
 
   const handleSendWhatsAppInvoice = async () => {
@@ -160,10 +150,11 @@ export const SaleDetailScreen = () => {
       await openWhatsApp({ phone, text });
     } catch (error) {
       console.error("Error sending WhatsApp invoice:", error);
-      Alert.alert(
-        "No se pudo enviar",
-        error?.message || "No se pudo abrir WhatsApp",
-      );
+      showAlert({
+        title: "No se pudo enviar",
+        message: error?.message || "No se pudo abrir WhatsApp",
+        type: "error",
+      });
     }
   };
 
@@ -220,7 +211,7 @@ export const SaleDetailScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <ActivityIndicator size="large" color={UI_COLORS.info} />
         <Text style={styles.loadingText}>Cargando detalles de la venta...</Text>
       </SafeAreaView>
     );
@@ -231,352 +222,296 @@ export const SaleDetailScreen = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>No se pudo cargar la venta</Text>
-          <TouchableOpacity
-            style={styles.backButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.pressed,
+            ]}
             onPress={() => navigation.goBack()}
           >
             <Text style={styles.backButtonText}>Volver</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
   }
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <FlatList
-        data={[]}
-        renderItem={() => null}
-        ListHeaderComponent={
-          <View style={styles.headerContent}>
-            <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Ionicons
-                  name="receipt-outline"
-                  size={rf(30)}
-                  color="#2f5ae0"
-                />
-              </View>
-              <View style={styles.heroCopy}>
-                <Text style={styles.heroTitle}>
-                  Detalle de venta {getSaleDisplayNumber(sale)}
-                </Text>
-                <Text style={styles.heroSubtitle}>
-                  Revisa los productos, cliente y método de pago de esta venta.
-                </Text>
-              </View>
-            </View>
+  const customerName =
+    customer?.name ||
+    (sale.notes ? sale.notes.replace("Cliente: ", "") : "Sin nombre");
+  const totalVes = calculateTotal(sale);
+  const totalUsdNumber = (details?.items || []).reduce(
+    (sum, it) => sum + (Number(it.priceUSD) || 0) * (Number(it.quantity) || 0),
+    0,
+  );
 
-            <View style={styles.saleCard}>
-              <View style={styles.saleHeader}>
-                <View style={styles.saleIcon}>
-                  <Ionicons
-                    name="receipt-outline"
-                    size={rf(24)}
-                    color="#2f5ae0"
+  return (
+    <>
+      <SafeAreaView style={styles.container}>
+        <FlatList
+          data={[]}
+          renderItem={() => null}
+          ListHeaderComponent={
+            <View style={styles.headerContent}>
+              <ScreenHero
+                iconName="receipt-outline"
+                iconColor={UI_COLORS.info}
+                eyebrow="Ventas"
+                title={`Detalle ${getSaleDisplayNumber(sale)}`}
+                subtitle="Revisa productos, cliente, totales y método de pago con una jerarquía más clara."
+                pills={[
+                  {
+                    text: getPaymentMethodText(sale.paymentMethod),
+                    tone:
+                      sale.paymentMethod === "por_cobrar" ? "warning" : "info",
+                  },
+                  {
+                    text: formatCurrency(totalVes, "VES"),
+                    tone: "accent",
+                  },
+                ]}
+              />
+
+              <SurfaceCard style={styles.saleCard}>
+                <View style={styles.saleHeader}>
+                  <View style={styles.saleInfo}>
+                    <Text style={styles.saleNumber}>
+                      {getSaleDisplayNumber(sale)}
+                    </Text>
+                    <Text style={styles.saleDate}>
+                      {new Date(sale.createdAt).toLocaleDateString("es-VE")} ·{" "}
+                      {new Date(sale.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </View>
+                  <InfoPill
+                    text={formatCurrency(totalVes, "VES")}
+                    tone="accent"
                   />
                 </View>
-                <View style={styles.saleInfo}>
-                  <Text style={styles.saleNumber}>
-                    {getSaleDisplayNumber(sale)}
-                  </Text>
-                  <Text style={styles.saleDate}>
-                    {new Date(sale.createdAt).toLocaleDateString("es-VE")} ·{" "}
-                    {new Date(sale.createdAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </Text>
-                </View>
-                <View style={styles.saleAmountBadge}>
-                  <Text style={styles.saleAmountText}>
-                    {formatCurrency(calculateTotal(sale), "VES")}
-                  </Text>
-                </View>
-              </View>
 
-              <View style={styles.saleMeta}>
-                <View style={styles.metaBlock}>
-                  <Text style={styles.metaLabel}>Cliente</Text>
-                  <Text style={styles.metaValue} numberOfLines={1}>
-                    {sale.notes
-                      ? sale.notes.replace("Cliente: ", "")
-                      : "Sin nombre"}
-                  </Text>
-                </View>
-                <View style={styles.metaSeparator} />
-                <View style={styles.metaBlock}>
-                  <Text style={styles.metaLabel}>Pago</Text>
-                  <Text style={styles.metaValue}>
-                    {getPaymentMethodText(sale.paymentMethod)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.totalsDivider} />
-
-              <View style={styles.totalsSummary}>
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalRowLabel}>Subtotal</Text>
-                  <Text style={styles.totalRowValue}>
-                    {formatCurrency(Number(sale.subtotal) || 0, "VES")}
-                  </Text>
-                </View>
-
-                {(Number(sale.tax) || 0) > 0 && (
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalRowLabel}>IVA</Text>
-                    <Text style={styles.totalRowValue}>
-                      {formatCurrency(Number(sale.tax) || 0, "VES")}
+                <View style={styles.saleMeta}>
+                  <View style={styles.metaBlock}>
+                    <Text style={styles.metaLabel}>Cliente</Text>
+                    <Text style={styles.metaValue} numberOfLines={1}>
+                      {customerName}
                     </Text>
                   </View>
-                )}
-
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalRowLabelStrong}>Total</Text>
-                  <Text style={styles.totalRowValueStrong}>
-                    {formatCurrency(Number(sale.total) || 0, "VES")}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.productsCard}>
-              <Text style={styles.cardTitle}>Productos vendidos</Text>
-              <FlatList
-                data={details?.items || []}
-                renderItem={renderDetailItem}
-                keyExtractor={(_, index) => `detail-${index}`}
-                ItemSeparatorComponent={() => (
-                  <View style={styles.detailDivider} />
-                )}
-                ListEmptyComponent={
-                  <View style={styles.emptyProducts}>
-                    <Text style={styles.emptyProductsText}>
-                      No se encontraron productos para esta venta.
+                  <View style={styles.metaBlock}>
+                    <Text style={styles.metaLabel}>Pago</Text>
+                    <Text style={styles.metaValue}>
+                      {getPaymentMethodText(sale.paymentMethod)}
                     </Text>
                   </View>
-                }
-                scrollEnabled={false}
-              />
-            </View>
-          </View>
-        }
-        contentContainerStyle={styles.listContent}
-      />
+                  <View style={styles.metaBlock}>
+                    <Text style={styles.metaLabel}>WhatsApp</Text>
+                    <Text style={styles.metaValue} numberOfLines={1}>
+                      {customer?.phone || "No disponible"}
+                    </Text>
+                  </View>
+                </View>
 
-      {isValidWhatsAppPhone(customer?.phone) ? (
-        <TouchableOpacity
-          style={[
-            styles.whatsappFab,
-            { bottom: vs(24) + Math.max(insets.bottom, vs(24)) },
-          ]}
-          onPress={handleSendWhatsAppInvoice}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="logo-whatsapp" size={rf(22)} color="#ffffff" />
-        </TouchableOpacity>
-      ) : null}
-    </SafeAreaView>
+                <View style={styles.totalsDivider} />
+
+                <View style={styles.metricGrid}>
+                  <View style={styles.metricCard}>
+                    <Text style={styles.metricLabel}>Subtotal</Text>
+                    <Text style={styles.metricValue}>
+                      {formatCurrency(Number(sale.subtotal) || 0, "VES")}
+                    </Text>
+                  </View>
+
+                  {(Number(sale.tax) || 0) > 0 ? (
+                    <View style={styles.metricCard}>
+                      <Text style={styles.metricLabel}>IVA</Text>
+                      <Text style={styles.metricValue}>
+                        {formatCurrency(Number(sale.tax) || 0, "VES")}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.metricCard}>
+                    <Text style={styles.metricLabel}>Total</Text>
+                    <Text
+                      style={[styles.metricValue, styles.metricValueAccent]}
+                    >
+                      {formatCurrency(Number(sale.total) || 0, "VES")}
+                    </Text>
+                  </View>
+
+                  {totalUsdNumber > 0 ? (
+                    <View style={styles.metricCard}>
+                      <Text style={styles.metricLabel}>Total USD</Text>
+                      <Text style={styles.metricValue}>
+                        {formatCurrency(totalUsdNumber, "USD")}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </SurfaceCard>
+
+              <SurfaceCard style={styles.productsCard}>
+                <View style={styles.productsHeader}>
+                  <Text style={styles.cardTitle}>Productos vendidos</Text>
+                  <InfoPill
+                    text={`${(details?.items || []).length} items`}
+                    tone="neutral"
+                  />
+                </View>
+                <FlatList
+                  data={details?.items || []}
+                  renderItem={renderDetailItem}
+                  keyExtractor={(_, index) => `detail-${index}`}
+                  ItemSeparatorComponent={() => (
+                    <View style={styles.detailDivider} />
+                  )}
+                  ListEmptyComponent={
+                    <EmptyStateCard
+                      title="Sin productos"
+                      subtitle="No se encontraron productos para esta venta."
+                      style={styles.emptyProducts}
+                    />
+                  }
+                  scrollEnabled={false}
+                />
+              </SurfaceCard>
+            </View>
+          }
+          contentContainerStyle={styles.listContent}
+        />
+
+        {isValidWhatsAppPhone(customer?.phone) ? (
+          <FloatingActionButton
+            style={styles.whatsappFab}
+            bottom={vs(24) + Math.max(insets.bottom, vs(24))}
+            onPress={handleSendWhatsAppInvoice}
+            iconName="logo-whatsapp"
+          />
+        ) : null}
+      </SafeAreaView>
+      <CustomAlert />
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   listContent: {
-    paddingHorizontal: s(16),
-    paddingTop: s(16),
-    paddingBottom: s(110),
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: vs(110),
   },
   whatsappFab: {
-    position: "absolute",
-    right: s(18),
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: iconSize.xl / 2,
     backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.15,
-    shadowRadius: s(12),
-    elevation: 6,
-  },
-  whatsappFabText: {
-    color: "#fff",
-    fontSize: rf(22),
   },
   headerContent: {
-    gap: s(18),
-    marginBottom: s(8),
-  },
-  heroCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: s(22),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 8,
-  },
-  heroIcon: {
-    width: s(60),
-    height: s(60),
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: s(18),
-  },
-  heroIconText: {
-    fontSize: rf(30),
-  },
-  heroCopy: {
-    flex: 1,
-    gap: s(6),
-  },
-  heroTitle: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-  },
-  heroSubtitle: {
-    fontSize: rf(14),
-    color: "#5b6472",
-    lineHeight: rf(20),
+    gap: spacing.md,
+    marginBottom: spacing.sm,
   },
   saleCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: s(18),
-    gap: s(16),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(10),
-    elevation: 4,
+    gap: spacing.md,
+    ...SHADOWS.soft,
   },
   saleHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: s(14),
-  },
-  saleIcon: {
-    width: s(46),
-    height: s(46),
-    borderRadius: s(14),
-    backgroundColor: "#f3f8ff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saleIconText: {
-    fontSize: rf(24),
+    gap: spacing.md,
   },
   saleInfo: {
     flex: 1,
-    gap: s(4),
+    gap: vs(4),
   },
   saleNumber: {
     fontSize: rf(16),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   saleDate: {
     fontSize: rf(12),
-    color: "#6f7c8c",
-  },
-  saleAmountBadge: {
-    backgroundColor: "#2f5ae0",
-    borderRadius: s(12),
-    paddingHorizontal: s(14),
-    paddingVertical: s(8),
-  },
-  saleAmountText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: rf(13),
+    color: UI_COLORS.muted,
   },
   saleMeta: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: s(16),
+    gap: spacing.md,
+    flexWrap: "wrap",
   },
   metaBlock: {
     flex: 1,
-    gap: s(6),
+    minWidth: "30%",
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: spacing.md,
+    gap: vs(4),
   },
   metaLabel: {
     fontSize: rf(11),
-    fontWeight: "600",
-    color: "#8492a6",
+    fontWeight: "700",
+    color: UI_COLORS.muted,
     textTransform: "uppercase",
-    letterSpacing: rf(0.6),
+    letterSpacing: 0.6,
   },
   metaValue: {
     fontSize: rf(13),
-    fontWeight: "600",
-    color: "#1f2633",
-  },
-  metaSeparator: {
-    width: 1,
-    height: s(32),
-    backgroundColor: "#e4e9f2",
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   totalsDivider: {
     height: 1,
-    backgroundColor: "#e4e9f2",
+    backgroundColor: UI_COLORS.border,
   },
-  totalsSummary: {
-    gap: s(10),
-  },
-  totalRow: {
+  metricGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: s(12),
+    flexWrap: "wrap",
+    gap: spacing.md,
   },
-  totalRowLabel: {
-    fontSize: rf(13),
-    color: "#6f7c8c",
-    fontWeight: "600",
+  metricCard: {
+    minWidth: "47%",
+    flexGrow: 1,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    padding: spacing.md,
+    gap: vs(4),
   },
-  totalRowValue: {
-    fontSize: rf(13),
-    color: "#1f2633",
+  metricLabel: {
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
     fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
-  totalRowLabelStrong: {
+  metricValue: {
     fontSize: rf(14),
-    color: "#1f2633",
-    fontWeight: "700",
+    color: UI_COLORS.text,
+    fontWeight: "800",
   },
-  totalRowValueStrong: {
-    fontSize: rf(15),
-    color: "#2f5ae0",
-    fontWeight: "700",
+  metricValueAccent: {
+    color: UI_COLORS.info,
   },
   productsCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: s(22),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.05,
-    shadowRadius: s(12),
-    elevation: 5,
+    gap: spacing.md,
+    ...SHADOWS.soft,
+  },
+  productsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: spacing.md,
   },
   cardTitle: {
     fontSize: rf(16),
-    fontWeight: "700",
-    color: "#1f2633",
-    marginBottom: s(16),
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   detailItem: {
     flexDirection: "row",
@@ -584,61 +519,74 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   detailItemSpacing: {
-    marginTop: s(12),
+    marginTop: spacing.md,
   },
   detailItemInfo: {
     flex: 1,
-    gap: s(6),
+    gap: vs(6),
   },
   detailItemName: {
     fontSize: rf(15),
-    fontWeight: "600",
-    color: "#1f2633",
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   detailItemQuantity: {
     fontSize: rf(13),
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
   },
   detailItemTotal: {
     fontSize: rf(14),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   detailDivider: {
     height: 1,
-    backgroundColor: "#e4e9f2",
-    marginTop: s(12),
+    backgroundColor: UI_COLORS.border,
+    marginTop: spacing.md,
   },
   emptyProducts: {
-    paddingVertical: s(30),
-    alignItems: "center",
-  },
-  emptyProductsText: {
-    fontSize: rf(13),
-    color: "#6f7c8c",
+    paddingVertical: spacing.sm,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
     alignItems: "center",
     justifyContent: "center",
-    gap: s(16),
+    gap: spacing.md,
   },
   loadingText: {
     fontSize: rf(14),
     fontWeight: "600",
-    color: "#4c5767",
+    color: UI_COLORS.muted,
   },
   errorContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: s(20),
+    gap: spacing.lg,
   },
   errorText: {
     fontSize: rf(16),
-    color: "#d6455d",
+    color: UI_COLORS.danger,
     textAlign: "center",
+  },
+  backButton: {
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: vs(12),
+  },
+  backButtonText: {
+    color: UI_COLORS.info,
+    fontSize: rf(14),
+    fontWeight: "700",
+  },
+  pressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

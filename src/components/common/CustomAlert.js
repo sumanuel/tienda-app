@@ -1,14 +1,8 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  Dimensions,
-} from "react-native";
+import { View, Text, StyleSheet, Modal, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
+import { SHADOWS, UI_COLORS } from "./AppUI";
 
 /**
  * CustomAlert - Reemplazo moderno y bonito para Alert.alert
@@ -24,51 +18,79 @@ import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
  * })
  */
 
-const { width } = Dimensions.get("window");
+const ALERT_TONE_MAP = {
+  success: {
+    icon: "checkmark-circle",
+    color: UI_COLORS.accent,
+    bgColor: UI_COLORS.accentSoft,
+  },
+  error: {
+    icon: "close-circle",
+    color: UI_COLORS.danger,
+    bgColor: UI_COLORS.dangerSoft,
+  },
+  warning: {
+    icon: "warning",
+    color: UI_COLORS.warning,
+    bgColor: UI_COLORS.warningSoft,
+  },
+  info: {
+    icon: "information-circle",
+    color: UI_COLORS.info,
+    bgColor: UI_COLORS.infoSoft,
+  },
+};
+
+const normalizeButtonStyle = (style) => {
+  switch (style) {
+    case "cancel":
+    case "destructive":
+    case "success":
+      return style;
+    case "default":
+    case "primary":
+    case "info":
+    default:
+      return "default";
+  }
+};
+
+const normalizeAlertConfig = (config, onClose) => {
+  const buttons =
+    Array.isArray(config?.buttons) && config.buttons.length > 0
+      ? config.buttons
+      : [{ text: "OK", onPress: onClose, style: "default" }];
+
+  return {
+    title:
+      typeof config?.title === "string" && config.title.trim()
+        ? config.title
+        : "Atención",
+    message:
+      typeof config?.message === "string"
+        ? config.message
+        : String(config?.message || ""),
+    type: ALERT_TONE_MAP[config?.type] ? config.type : "info",
+    buttons: buttons.map((button, index) => ({
+      key: `${button?.text || "button"}-${index}`,
+      text: button?.text || "OK",
+      onPress: typeof button?.onPress === "function" ? button.onPress : null,
+      style: normalizeButtonStyle(button?.style),
+    })),
+  };
+};
 
 const CustomAlert = ({ visible, onClose, config }) => {
   if (!config) return null;
 
-  const {
-    title = "Atención",
-    message = "",
-    type = "info",
-    buttons = [{ text: "OK", onPress: onClose }],
-  } = config;
-
-  // Configuración de iconos y colores según el tipo
-  const getTypeConfig = () => {
-    switch (type) {
-      case "success":
-        return {
-          icon: "checkmark-circle",
-          color: "#2fb176",
-          bgColor: "#f0fdf4",
-        };
-      case "error":
-        return {
-          icon: "close-circle",
-          color: "#dc2626",
-          bgColor: "#fef2f2",
-        };
-      case "warning":
-        return {
-          icon: "warning",
-          color: "#d97706",
-          bgColor: "#fffbeb",
-        };
-      case "info":
-      default:
-        return {
-          icon: "information-circle",
-          color: "#2f5ae0",
-          bgColor: "#f3f8ff",
-        };
-    }
-  };
-
-  const typeConfig = getTypeConfig();
+  const { title, message, type, buttons } = normalizeAlertConfig(
+    config,
+    onClose,
+  );
+  const typeConfig = ALERT_TONE_MAP[type];
   const isStackedButtons = buttons.length > 2;
+  const isSingleButton = buttons.length === 1;
+  const isTwoButtons = buttons.length === 2;
 
   return (
     <Modal
@@ -78,12 +100,15 @@ const CustomAlert = ({ visible, onClose, config }) => {
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
+        <View
+          style={[styles.modalContainer, isSingleButton && styles.modalCompact]}
+        >
           {/* Header con icono */}
-          <View style={styles.header}>
+          <View style={[styles.header, isSingleButton && styles.headerCompact]}>
             <View
               style={[
                 styles.iconContainer,
+                isSingleButton && styles.iconContainerCompact,
                 { backgroundColor: typeConfig.bgColor },
               ]}
             >
@@ -97,40 +122,56 @@ const CustomAlert = ({ visible, onClose, config }) => {
           </View>
 
           {/* Message */}
-          <View style={styles.content}>
+          <View
+            style={[styles.content, isSingleButton && styles.contentCompact]}
+          >
             <Text style={styles.message}>{message}</Text>
           </View>
 
           {/* Buttons */}
           <View
-            style={[styles.footer, isStackedButtons && styles.footerStacked]}
+            style={[
+              styles.footer,
+              isStackedButtons && styles.footerStacked,
+              isTwoButtons && styles.footerDual,
+              isSingleButton && styles.footerSingle,
+            ]}
           >
             {buttons.map((button, index) =>
               (() => {
                 const isCancel = button.style === "cancel";
                 const isDestructive = button.style === "destructive";
                 const isSuccess = button.style === "success";
+                const isDefault = button.style === "default";
+                const shouldUseAlertTone =
+                  (isSingleButton || isTwoButtons) && isDefault;
 
                 return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
+                  <Pressable
+                    key={button.key || index}
+                    style={({ pressed }) => [
                       styles.button,
                       isStackedButtons && styles.buttonStacked,
+                      isTwoButtons && styles.buttonDual,
                       isCancel && styles.cancelButton,
                       isDestructive && styles.destructiveButton,
                       isSuccess && styles.successButton,
-                      buttons.length === 1 && styles.singleButton,
+                      isDefault && styles.defaultButton,
+                      isSingleButton && styles.singleButton,
+                      shouldUseAlertTone && {
+                        backgroundColor: typeConfig.color,
+                      },
+                      pressed && styles.pressed,
                     ]}
                     onPress={() => {
                       button.onPress && button.onPress();
                       onClose();
                     }}
-                    activeOpacity={0.85}
                   >
                     <Text
                       style={[
                         styles.buttonText,
+                        isDefault && styles.defaultButtonText,
                         isCancel && styles.cancelButtonText,
                         isDestructive && styles.destructiveButtonText,
                         isSuccess && styles.successButtonText,
@@ -138,7 +179,7 @@ const CustomAlert = ({ visible, onClose, config }) => {
                     >
                       {button.text}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })(),
             )}
@@ -158,51 +199,73 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   modalContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.xl,
-    width: "90%",
-    maxWidth: s(400),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(14) },
-    shadowOpacity: 0.2,
-    shadowRadius: s(20),
-    elevation: 12,
+    borderCurve: "continuous",
+    width: "86%",
+    maxWidth: s(360),
+    ...SHADOWS.card,
+  },
+  modalCompact: {
+    width: "82%",
+    maxWidth: s(330),
   },
   header: {
     alignItems: "center",
-    paddingTop: vs(32),
-    paddingHorizontal: hs(24),
-    paddingBottom: vs(16),
+    paddingTop: vs(24),
+    paddingHorizontal: hs(20),
+    paddingBottom: vs(10),
+  },
+  headerCompact: {
+    paddingTop: vs(20),
+    paddingBottom: vs(8),
   },
   iconContainer: {
-    width: s(64),
-    height: s(64),
-    borderRadius: s(32),
+    width: s(56),
+    height: s(56),
+    borderRadius: s(28),
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: vs(16),
+    marginBottom: vs(12),
+  },
+  iconContainerCompact: {
+    width: s(52),
+    height: s(52),
+    borderRadius: s(26),
+    marginBottom: vs(10),
   },
   title: {
-    fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
+    fontSize: rf(18),
+    fontWeight: "800",
+    color: UI_COLORS.text,
     textAlign: "center",
   },
   content: {
-    paddingHorizontal: hs(24),
-    paddingBottom: vs(24),
+    paddingHorizontal: hs(20),
+    paddingBottom: vs(18),
+  },
+  contentCompact: {
+    paddingBottom: vs(14),
   },
   message: {
-    fontSize: rf(16),
-    color: "#5b6472",
+    fontSize: rf(14),
+    color: UI_COLORS.muted,
     textAlign: "center",
-    lineHeight: vs(24),
+    lineHeight: vs(20),
   },
   footer: {
     flexDirection: "row",
-    paddingHorizontal: hs(24),
-    paddingBottom: vs(24),
+    paddingHorizontal: hs(20),
+    paddingBottom: vs(20),
     gap: hs(12),
+  },
+  footerDual: {
+    alignItems: "stretch",
+    gap: hs(10),
+  },
+  footerSingle: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   footerStacked: {
     flexDirection: "column",
@@ -210,47 +273,63 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    backgroundColor: "#2f5ae0",
-    paddingVertical: vs(14),
+    backgroundColor: UI_COLORS.info,
+    minHeight: vs(44),
+    paddingVertical: vs(10),
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
+  },
+  buttonDual: {
+    minHeight: vs(46),
   },
   buttonStacked: {
     flex: 0,
     width: "100%",
   },
   singleButton: {
-    marginHorizontal: 0,
+    flex: 0,
+    alignSelf: "center",
+    minWidth: s(132),
+    maxWidth: s(172),
+    width: "58%",
+    minHeight: vs(42),
+  },
+  defaultButton: {
+    backgroundColor: UI_COLORS.info,
   },
   cancelButton: {
-    backgroundColor: "#f8f9fc",
+    backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
-    borderColor: "#d9e0eb",
+    borderColor: UI_COLORS.border,
   },
   destructiveButton: {
-    backgroundColor: "#ffebee",
-    borderWidth: 1,
-    borderColor: "#f2b8c1",
+    backgroundColor: UI_COLORS.danger,
   },
   successButton: {
-    backgroundColor: "#e8f5e9",
-    borderWidth: 1,
-    borderColor: "#bde5c5",
+    backgroundColor: UI_COLORS.accent,
   },
   buttonText: {
-    fontSize: rf(16),
-    fontWeight: "600",
+    fontSize: rf(14),
+    fontWeight: "700",
+    color: "#fff",
+  },
+  defaultButtonText: {
     color: "#fff",
   },
   cancelButtonText: {
-    color: "#2f5ae0",
+    color: UI_COLORS.muted,
   },
   destructiveButtonText: {
-    color: "#c62828",
+    color: "#fff",
   },
   successButtonText: {
-    color: "#2e7d32",
+    color: "#fff",
+  },
+  pressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

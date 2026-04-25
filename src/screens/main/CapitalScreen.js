@@ -4,6 +4,12 @@ import { useAccounts } from "../../hooks/useAccounts";
 import { useInventory } from "../../hooks/useInventory";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import {
+  InfoPill,
+  SurfaceCard,
+  UI_COLORS,
+  SHADOWS,
+} from "../../components/common/AppUI";
 import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 const CapitalScreen = () => {
@@ -20,6 +26,8 @@ const CapitalScreen = () => {
 
   const formatAmount = (value) => formatCurrency(value || 0, "VES");
   const formatUSD = (value) => formatCurrency(value || 0, "USD");
+  const toUSD = (value) =>
+    exchangeRate > 0 ? Number(value || 0) / exchangeRate : null;
 
   // Inventario: asumimos que products.cost está en USD (costo USD)
   const inventoryCostUSD = (inventory || []).reduce((sum, product) => {
@@ -49,89 +57,125 @@ const CapitalScreen = () => {
   const roundedCapital = Math.round(capital * 100) / 100;
   const roundedInventorySellUSD = Math.round(inventorySellUSD * 100) / 100;
   const roundedExchangeRate = Math.round(exchangeRate * 100) / 100;
+  const capitalDisponibleUSD =
+    exchangeRate > 0
+      ? roundedInventorySellUSD + roundedCapital / roundedExchangeRate
+      : null;
+  const receivableUSD = toUSD(totalReceivable);
+  const payableUSD = toUSD(totalPayable);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Capital Disponible USD</Text>
-        <Text
-          style={[
-            styles.summaryAmount,
-            roundedInventorySellUSD + roundedCapital / roundedExchangeRate >= 0
-              ? styles.positiveValue
-              : styles.negativeValue,
-          ]}
-        >
-          {formatUSD(
-            roundedInventorySellUSD + roundedCapital / roundedExchangeRate,
-          )}
+      <SurfaceCard style={styles.heroCard}>
+        <View style={styles.heroTopRow}>
+          <View style={styles.heroBadge}>
+            <Text style={styles.heroBadgeText}>CAP</Text>
+          </View>
+          <InfoPill
+            text={exchangeRate > 0 ? `Tasa ${roundedExchangeRate}` : "Sin tasa"}
+            tone={exchangeRate > 0 ? "info" : "warning"}
+          />
+        </View>
+        <Text style={styles.heroEyebrow}>Resumen financiero</Text>
+        <Text style={styles.heroTitle}>Capital y valor de inventario</Text>
+        <Text style={styles.heroSubtitle}>
+          Visualiza rápidamente liquidez estimada, exposición en inventario y
+          balance entre cuentas por cobrar y pagar.
         </Text>
-        <Text style={styles.summarySubtitle}>Inventario + Capital actual</Text>
+      </SurfaceCard>
+
+      <View style={styles.summaryGrid}>
+        <SurfaceCard style={[styles.summaryCard, styles.summaryCardHalf]}>
+          <Text style={styles.summaryTitle}>Capital disponible USD</Text>
+          <Text
+            style={[
+              styles.summaryAmount,
+              capitalDisponibleUSD === null || capitalDisponibleUSD >= 0
+                ? styles.positiveValue
+                : styles.negativeValue,
+            ]}
+          >
+            {capitalDisponibleUSD === null
+              ? "Sin tasa"
+              : formatUSD(capitalDisponibleUSD)}
+          </Text>
+          <Text style={styles.summarySubtitle}>
+            Inventario + capital actual
+          </Text>
+        </SurfaceCard>
+
+        <SurfaceCard style={[styles.summaryCard, styles.summaryCardHalf]}>
+          <Text style={styles.summaryTitle}>Capital disponible VES</Text>
+          <Text
+            style={[
+              styles.summaryAmount,
+              roundedInventorySellVES + roundedCapital >= 0
+                ? styles.positiveValue
+                : styles.negativeValue,
+            ]}
+          >
+            {formatAmount(roundedInventorySellVES + roundedCapital)}
+          </Text>
+          <Text style={styles.summarySubtitle}>
+            Inventario + capital actual
+          </Text>
+        </SurfaceCard>
       </View>
 
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Capital Disponible VES</Text>
-        <Text
-          style={[
-            styles.summaryAmount,
-            roundedInventorySellVES + roundedCapital >= 0
-              ? styles.positiveValue
-              : styles.negativeValue,
-          ]}
-        >
-          {formatAmount(roundedInventorySellVES + roundedCapital)}
-        </Text>
-        <Text style={styles.summarySubtitle}>Inventario + Capital actual</Text>
-      </View>
+      <View style={styles.summaryGrid}>
+        <SurfaceCard style={[styles.summaryCard, styles.summaryCardHalf]}>
+          <Text style={styles.summaryTitle}>Inventario al costo</Text>
+          <Text style={styles.summaryAmountNeutral}>
+            {formatUSD(inventoryCostUSD)}
+          </Text>
+          <Text style={styles.summarySubtitle}>
+            {formatAmount(inventoryCostVES)}
+            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)}` : ""}
+          </Text>
+        </SurfaceCard>
 
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Inventario (Costo)</Text>
-        <Text style={styles.summaryAmount}>{formatUSD(inventoryCostUSD)}</Text>
-        <Text style={styles.summarySubtitle}>
-          {formatAmount(inventoryCostVES)}{" "}
-          {exchangeRate ? `• Tasa: ${exchangeRate.toFixed(2)} VES.` : ""}
-        </Text>
-      </View>
-
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Inventario (Si vendo todo)</Text>
-        <Text style={styles.summaryAmount}>{formatUSD(inventorySellUSD)}</Text>
-        <Text style={styles.summarySubtitle}>
-          {formatAmount(inventorySellVES)}
-        </Text>
+        <SurfaceCard style={[styles.summaryCard, styles.summaryCardHalf]}>
+          <Text style={styles.summaryTitle}>Si vendes todo</Text>
+          <Text style={styles.summaryAmountNeutral}>
+            {formatUSD(inventorySellUSD)}
+          </Text>
+          <Text style={styles.summarySubtitle}>
+            {formatAmount(inventorySellVES)}
+          </Text>
+        </SurfaceCard>
       </View>
 
       <View style={styles.grid}>
-        <View style={[styles.infoCard, styles.cardSpacing]}>
-          <Text style={styles.cardTitle}>Cuentas por Cobrar</Text>
+        <SurfaceCard style={[styles.infoCard, styles.cardSpacing]}>
+          <Text style={styles.cardTitle}>Cuentas por cobrar</Text>
           <Text style={styles.cardAmount}>
-            {formatUSD(totalReceivable / exchangeRate)}
+            {receivableUSD === null ? "Sin tasa" : formatUSD(receivableUSD)}
           </Text>
           <Text style={styles.cardSubtitle}>
-            {formatAmount(totalReceivable)}{" "}
-            {exchangeRate ? `• Tasa: ${exchangeRate.toFixed(2)} VES.` : ""}
+            {formatAmount(totalReceivable)}
+            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)} VES.` : ""}
           </Text>
-        </View>
+        </SurfaceCard>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Cuentas por Pagar</Text>
+        <SurfaceCard style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Cuentas por pagar</Text>
           <Text style={[styles.cardAmount, styles.payableAmount]}>
-            {formatUSD(totalPayable / exchangeRate)}
+            {payableUSD === null ? "Sin tasa" : formatUSD(payableUSD)}
           </Text>
           <Text style={styles.cardSubtitle}>
-            {formatAmount(totalPayable)}{" "}
-            {exchangeRate ? `• Tasa: ${exchangeRate.toFixed(2)} VES.` : ""}
+            {formatAmount(totalPayable)}
+            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)} VES.` : ""}
           </Text>
-        </View>
+        </SurfaceCard>
       </View>
 
-      <View style={styles.noteCard}>
+      <SurfaceCard style={styles.noteCard}>
         <Text style={styles.noteTitle}>Sugerencias</Text>
         <Text style={styles.noteText}>
-          Mantén tus cuentas al día para fortalecer el capital disponible y
-          evitar sorpresas en tu flujo de caja.
+          Mantén cuentas e inventario al día para tener una lectura más
+          confiable del capital disponible y del flujo real de caja.
         </Text>
-      </View>
+      </SurfaceCard>
     </ScrollView>
   );
 };
@@ -139,43 +183,91 @@ const CapitalScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   content: {
     padding: spacing.md,
-    paddingBottom: vs(40),
+    paddingBottom: vs(52),
+    gap: spacing.md,
+  },
+  heroCard: {
+    gap: spacing.md,
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  heroBadge: {
+    width: s(48),
+    height: s(48),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.infoSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroBadgeText: {
+    fontSize: rf(13),
+    fontWeight: "800",
+    color: UI_COLORS.info,
+  },
+  heroEyebrow: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    fontSize: rf(20),
+    fontWeight: "800",
+    color: UI_COLORS.text,
+  },
+  heroSubtitle: {
+    fontSize: rf(14),
+    color: UI_COLORS.muted,
+    lineHeight: vs(20),
+  },
+  summaryGrid: {
+    flexDirection: "row",
+    gap: hs(12),
   },
   summaryCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: vs(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(20),
-    elevation: 6,
+    gap: vs(6),
+    ...SHADOWS.soft,
+  },
+  summaryCardHalf: {
+    flex: 1,
   },
   summaryTitle: {
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#2f3a4c",
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   summaryAmount: {
     fontSize: rf(24),
-    fontWeight: "700",
-    marginTop: vs(8),
+    fontWeight: "800",
+    marginTop: vs(2),
+  },
+  summaryAmountNeutral: {
+    fontSize: rf(24),
+    fontWeight: "800",
+    marginTop: vs(2),
+    color: UI_COLORS.text,
   },
   positiveValue: {
-    color: "#2e7d32",
+    color: UI_COLORS.accent,
   },
   negativeValue: {
-    color: "#c62828",
+    color: UI_COLORS.danger,
   },
   summarySubtitle: {
     marginTop: vs(4),
-    color: "#6c7a8a",
-    fontSize: rf(14),
+    color: UI_COLORS.muted,
+    fontSize: rf(13),
+    lineHeight: vs(18),
   },
   grid: {
     flexDirection: "row",
@@ -186,69 +278,41 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
     padding: spacing.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: vs(6) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(12),
-    elevation: 4,
+    gap: vs(6),
+    ...SHADOWS.soft,
   },
   cardTitle: {
     fontSize: rf(15),
-    fontWeight: "600",
-    color: "#2f3a4c",
-    marginBottom: vs(6),
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   cardAmount: {
     fontSize: rf(18),
-    fontWeight: "700",
-    color: "#2e7d32",
-    marginBottom: vs(2),
+    fontWeight: "800",
+    color: UI_COLORS.accent,
   },
   payableAmount: {
-    color: "#c62828",
+    color: UI_COLORS.danger,
   },
   cardSubtitle: {
-    fontSize: rf(14),
-    color: "#6c7a8a",
-  },
-  cardRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: vs(6),
-  },
-  cardLabel: {
     fontSize: rf(13),
-    color: "#6c7a8a",
-  },
-  cardValue: {
-    fontSize: rf(14),
-    fontWeight: "600",
-    color: "#2f3a4c",
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   noteCard: {
-    marginTop: vs(20),
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: vs(6) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(12),
-    elevation: 4,
+    backgroundColor: UI_COLORS.surface,
+    ...SHADOWS.soft,
   },
   noteTitle: {
     fontSize: rf(15),
-    fontWeight: "600",
-    color: "#2f3a4c",
+    fontWeight: "700",
+    color: UI_COLORS.text,
     marginBottom: vs(6),
   },
   noteText: {
     fontSize: rf(14),
-    color: "#6c7a8a",
+    color: UI_COLORS.muted,
     lineHeight: rf(20),
   },
 });

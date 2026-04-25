@@ -4,7 +4,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   SafeAreaView,
   ActivityIndicator,
@@ -13,15 +13,14 @@ import { useNavigation } from "@react-navigation/native";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { db } from "../../services/database/db";
+import { s, rf, vs, spacing, borderRadius } from "../../utils/responsive";
 import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
+  EmptyStateCard,
+  InfoPill,
+  SurfaceCard,
+  SHADOWS,
+  UI_COLORS,
+} from "../../components/common/AppUI";
 
 /**
  * Pantalla de ventas anuladas
@@ -89,16 +88,17 @@ export const CancelledSalesScreen = () => {
   };
 
   const renderSale = ({ item }) => (
-    <TouchableOpacity
-      style={styles.saleCard}
+    <Pressable
+      style={({ pressed }) => [styles.saleCard, pressed && styles.cardPressed]}
       onPress={() => navigation.navigate("SaleDetail", { saleId: item.id })}
-      activeOpacity={0.85}
     >
       <View style={styles.saleHeader}>
         <View style={styles.saleInfo}>
-          <Text style={styles.saleNumber}>
-            {getSaleDisplayNumber(item)} (Anulada)
-          </Text>
+          <View style={styles.salePillsRow}>
+            <InfoPill text="Anulada" tone="danger" />
+            <InfoPill text={`${item.itemCount || 0} items`} tone="neutral" />
+          </View>
+          <Text style={styles.saleNumber}>{getSaleDisplayNumber(item)}</Text>
           <Text style={styles.saleDate}>
             {new Date(item.createdAt).toLocaleDateString()} ·{" "}
             {new Date(item.createdAt).toLocaleTimeString([], {
@@ -115,27 +115,27 @@ export const CancelledSalesScreen = () => {
       </View>
 
       <View style={styles.saleMeta}>
-        <View style={styles.metaBlock}>
+        <View style={[styles.metaCard, styles.metaCardHalf]}>
           <Text style={styles.metaLabel}>Cliente</Text>
           <Text style={styles.metaValue} numberOfLines={1}>
             {item.notes ? item.notes.replace("Cliente: ", "") : "Sin nombre"}
           </Text>
         </View>
-        <View style={styles.metaSeparator} />
-        <View style={styles.metaBlock}>
+
+        <View style={[styles.metaCard, styles.metaCardHalf]}>
           <Text style={styles.metaLabel}>Pago</Text>
           <Text style={styles.metaValue}>
             {getPaymentMethodText(item.paymentMethod)}
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2f5ae0" />
+        <ActivityIndicator size="large" color={UI_COLORS.info} />
         <Text style={styles.loadingText}>Cargando ventas anuladas...</Text>
       </SafeAreaView>
     );
@@ -151,33 +151,39 @@ export const CancelledSalesScreen = () => {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.headerContent}>
-            <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
-                <Ionicons
-                  name="receipt-outline"
-                  size={iconSize.xl}
-                  color="#d64545"
+            <SurfaceCard style={styles.heroCard}>
+              <View style={styles.heroTopRow}>
+                <View style={styles.heroBadge}>
+                  <Ionicons
+                    name="receipt-outline"
+                    size={rf(22)}
+                    color={UI_COLORS.danger}
+                  />
+                </View>
+                <InfoPill
+                  text={`${cancelledSales.length} anuladas`}
+                  tone="danger"
                 />
               </View>
+
               <View style={styles.heroCopy}>
-                <Text style={styles.heroTitle}>
-                  Ventas Anuladas ({cancelledSales.length})
-                </Text>
+                <Text style={styles.heroEyebrow}>Historial</Text>
+                <Text style={styles.heroTitle}>Ventas anuladas</Text>
                 <Text style={styles.heroSubtitle}>
-                  Historial de facturas que han sido anuladas.
+                  Consulta rápidamente facturas anuladas, cliente asociado y
+                  método de pago.
                 </Text>
               </View>
-            </View>
+            </SurfaceCard>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No hay ventas anuladas</Text>
-              <Text style={styles.emptySubtitle}>
-                Las ventas anuladas aparecerán aquí.
-              </Text>
-            </View>
+            <EmptyStateCard
+              style={styles.emptyCard}
+              title="No hay ventas anuladas"
+              subtitle="Las ventas anuladas aparecerán aquí."
+            />
           </View>
         }
       />
@@ -188,18 +194,18 @@ export const CancelledSalesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
     justifyContent: "center",
     alignItems: "center",
   },
   loadingText: {
     marginTop: spacing.md,
     fontSize: rf(16),
-    color: "#6f7c8c",
+    color: UI_COLORS.muted,
   },
   listContent: {
     padding: spacing.md,
@@ -209,42 +215,42 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   heroCard: {
+    gap: vs(14),
+  },
+  heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 6,
+    justifyContent: "space-between",
+    gap: spacing.md,
   },
-  heroIcon: {
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#f3f8ff",
+  heroBadge: {
+    width: s(48),
+    height: s(48),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.dangerSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: spacing.md,
-  },
-  heroIconText: {
-    fontSize: rf(28),
   },
   heroCopy: {
-    flex: 1,
+    gap: vs(6),
+  },
+  heroEyebrow: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
   heroTitle: {
     fontSize: rf(20),
-    fontWeight: "700",
-    color: "#1f2633",
-    marginBottom: spacing.xs,
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   heroSubtitle: {
     fontSize: rf(14),
-    color: "#6f7c8c",
-    lineHeight: rf(20),
+    color: UI_COLORS.muted,
+    lineHeight: vs(20),
   },
   emptyState: {
     flex: 1,
@@ -253,108 +259,84 @@ const styles = StyleSheet.create({
     paddingVertical: vs(60),
   },
   emptyCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.xxl,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  emptyIcon: {
-    fontSize: rf(48),
-    marginBottom: spacing.md,
-  },
-  emptyTitle: {
-    fontSize: rf(18),
-    fontWeight: "600",
-    color: "#1f2633",
-    marginBottom: spacing.sm,
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    fontSize: rf(14),
-    color: "#6f7c8c",
-    textAlign: "center",
-    lineHeight: rf(20),
+    width: "100%",
   },
   saleCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
+    padding: spacing.lg,
     marginBottom: spacing.sm,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 4,
+    gap: vs(12),
+    ...SHADOWS.soft,
   },
   saleHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
     gap: spacing.md,
-  },
-  saleIcon: {
-    width: iconSize.lg,
-    height: iconSize.lg,
-    borderRadius: borderRadius.lg,
-    backgroundColor: "#fee2e2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saleIconText: {
-    fontSize: rf(24),
   },
   saleInfo: {
     flex: 1,
-    gap: spacing.xs,
+    gap: vs(6),
+  },
+  salePillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
   },
   saleNumber: {
-    fontSize: 16,
+    fontSize: rf(15),
     fontWeight: "700",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
   saleDate: {
-    fontSize: 12,
-    color: "#6f7c8c",
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
   },
   saleAmountBadge: {
-    backgroundColor: "#dc2626",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    backgroundColor: UI_COLORS.dangerSoft,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: spacing.md,
+    paddingVertical: vs(10),
   },
   saleAmountText: {
-    color: "#fff",
+    color: UI_COLORS.danger,
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: rf(13),
   },
   saleMeta: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    marginTop: 12,
+    gap: spacing.md,
   },
-  metaBlock: {
+  metaCard: {
     flex: 1,
-    gap: 6,
+    gap: vs(4),
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: spacing.md,
+    paddingVertical: vs(10),
+  },
+  metaCardHalf: {
+    minWidth: 0,
   },
   metaLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#8492a6",
+    fontSize: rf(11),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   metaValue: {
-    fontSize: 14,
+    fontSize: rf(13),
     fontWeight: "600",
-    color: "#1f2633",
+    color: UI_COLORS.text,
   },
-  metaSeparator: {
-    width: 1,
-    height: 20,
-    backgroundColor: "#e4e9f2",
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

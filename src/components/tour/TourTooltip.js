@@ -1,5 +1,8 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { SHADOWS, UI_COLORS } from "../common/AppUI";
+import { borderRadius, hs, rf, s, spacing, vs } from "../../utils/responsive";
 
 const TourTooltip = ({
   isFirstStep,
@@ -11,44 +14,70 @@ const TourTooltip = ({
 }) => {
   return (
     <View style={styles.card}>
+      <View style={styles.header}>
+        <View style={styles.iconWrap}>
+          <Ionicons
+            name="sparkles-outline"
+            size={rf(18)}
+            color={UI_COLORS.info}
+          />
+        </View>
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>Guía</Text>
+          <Text style={styles.title}>Siguiente paso</Text>
+        </View>
+      </View>
+
       <Text style={styles.text}>{currentStep?.text || ""}</Text>
 
       <View style={styles.actions}>
-        <TouchableOpacity
+        <Pressable
           onPress={handleStop}
-          activeOpacity={0.85}
-          style={styles.actionBtn}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            styles.secondaryBtn,
+            pressed && styles.pressed,
+          ]}
         >
-          <Text style={styles.actionText}>Skip</Text>
-        </TouchableOpacity>
+          <Text style={styles.secondaryText}>Saltar</Text>
+        </Pressable>
 
         <View style={styles.actionsRight}>
           {!isFirstStep ? (
-            <TouchableOpacity
+            <Pressable
               onPress={handlePrev}
-              activeOpacity={0.85}
-              style={styles.actionBtn}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                styles.secondaryBtn,
+                pressed && styles.pressed,
+              ]}
             >
-              <Text style={styles.actionText}>Previous</Text>
-            </TouchableOpacity>
+              <Text style={styles.secondaryText}>Atrás</Text>
+            </Pressable>
           ) : null}
 
           {!isLastStep ? (
-            <TouchableOpacity
+            <Pressable
               onPress={handleNext}
-              activeOpacity={0.85}
-              style={styles.actionBtn}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                styles.primaryBtn,
+                pressed && styles.pressed,
+              ]}
             >
-              <Text style={styles.actionText}>Next</Text>
-            </TouchableOpacity>
+              <Text style={styles.primaryText}>Siguiente</Text>
+            </Pressable>
           ) : (
-            <TouchableOpacity
+            <Pressable
               onPress={handleStop}
-              activeOpacity={0.85}
-              style={styles.actionBtn}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                styles.primaryBtn,
+                pressed && styles.pressed,
+              ]}
             >
-              <Text style={styles.actionText}>Done</Text>
-            </TouchableOpacity>
+              <Text style={styles.primaryText}>Listo</Text>
+            </Pressable>
           )}
         </View>
       </View>
@@ -58,46 +87,95 @@ const TourTooltip = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    minWidth: 260,
-    maxWidth: 320,
+    backgroundColor: UI_COLORS.surface,
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
+    paddingVertical: vs(16),
+    paddingHorizontal: hs(16),
+    minWidth: s(260),
+    maxWidth: s(320),
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.08)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 10,
+    borderColor: UI_COLORS.border,
+    ...SHADOWS.card,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: hs(10),
+    marginBottom: vs(10),
+  },
+  iconWrap: {
+    width: s(36),
+    height: s(36),
+    borderRadius: s(18),
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: UI_COLORS.infoSoft,
+  },
+  headerCopy: {
+    flex: 1,
+    gap: vs(1),
+  },
+  eyebrow: {
+    color: UI_COLORS.muted,
+    fontSize: rf(11),
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+  },
+  title: {
+    color: UI_COLORS.text,
+    fontSize: rf(15),
+    fontWeight: "800",
   },
   text: {
-    color: "#1f2633",
-    fontSize: 15,
-    lineHeight: 20,
+    color: UI_COLORS.text,
+    fontSize: rf(14),
+    lineHeight: vs(20),
     fontWeight: "600",
-    textAlign: "center",
   },
   actions: {
-    marginTop: 12,
+    marginTop: vs(14),
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: hs(10),
   },
   actionsRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: hs(10),
   },
   actionBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    minHeight: vs(40),
+    paddingVertical: vs(10),
+    paddingHorizontal: hs(14),
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  actionText: {
-    color: "#2f5ae0",
-    fontSize: 14,
+  secondaryBtn: {
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+  },
+  primaryBtn: {
+    backgroundColor: UI_COLORS.info,
+  },
+  secondaryText: {
+    color: UI_COLORS.text,
+    fontSize: rf(13),
     fontWeight: "700",
+  },
+  primaryText: {
+    color: "#ffffff",
+    fontSize: rf(13),
+    fontWeight: "700",
+  },
+  pressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 

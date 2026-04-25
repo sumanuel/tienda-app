@@ -10,7 +10,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   ActivityIndicator,
 } from "react-native";
@@ -22,6 +22,14 @@ import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
+import {
+  EmptyStateCard,
+  FloatingActionButton,
+  InfoPill,
+  SurfaceCard,
+  SHADOWS,
+  UI_COLORS,
+} from "../../components/common/AppUI";
 import {
   s,
   rf,
@@ -279,18 +287,31 @@ export const AccountsPayableScreen = ({ navigation }) => {
       );
 
       return (
-        <TouchableOpacity
-          style={styles.accountCard}
-          activeOpacity={0.9}
+        <Pressable
+          style={({ pressed }) => [
+            styles.accountCard,
+            pressed && styles.cardPressed,
+          ]}
           onPress={() => openEditScreen(item)}
         >
           <View style={styles.cardHeader}>
-            <View>
+            <View style={styles.headerCopy}>
+              <View style={styles.headerPillsRow}>
+                <InfoPill
+                  text={
+                    item.payableNumber ||
+                    `CXP-${String(item.id).padStart(6, "0")}`
+                  }
+                  tone="warning"
+                />
+                {item.invoiceNumber ? (
+                  <InfoPill
+                    text={`Factura ${item.invoiceNumber}`}
+                    tone="info"
+                  />
+                ) : null}
+              </View>
               <Text style={styles.supplierName}>{item.supplierName}</Text>
-              <Text style={styles.metaText}>
-                {item.payableNumber ||
-                  `CXP-${String(item.id).padStart(6, "0")}`}
-              </Text>
             </View>
             <View
               style={[
@@ -309,57 +330,68 @@ export const AccountsPayableScreen = ({ navigation }) => {
               <Text style={styles.amount}>
                 {formatCurrency(item.amount || 0, item.baseCurrency || "VES")}
               </Text>
+              {item.dueDate ? (
+                <Text style={styles.dueDate}>
+                  Vence{" "}
+                  {(() => {
+                    const [y, m, d] = item.dueDate.split("-").map(Number);
+                    const parsed = new Date(y, m - 1, d);
+                    return Number.isNaN(parsed.getTime())
+                      ? item.dueDate
+                      : parsed.toLocaleDateString();
+                  })()}
+                </Text>
+              ) : null}
               {(item.paidAmount || 0) > 0 && (
-                <View style={styles.paymentInfo}>
-                  <Text style={styles.paidText}>
-                    Pagado:{" "}
-                    {formatCurrency(
-                      item.paidAmount || 0,
-                      item.baseCurrency || "VES",
-                    )}
-                  </Text>
-                  <Text style={styles.pendingText}>
-                    Pendiente:{" "}
-                    {formatCurrency(
-                      Math.max(0, (item.amount || 0) - (item.paidAmount || 0)),
-                      item.baseCurrency || "VES",
-                    )}
-                  </Text>
+                <View style={styles.balanceRow}>
+                  <View style={[styles.balanceCard, styles.balanceCardSoft]}>
+                    <Text style={styles.balanceLabel}>Pagado</Text>
+                    <Text style={styles.balanceValuePaid}>
+                      {formatCurrency(
+                        item.paidAmount || 0,
+                        item.baseCurrency || "VES",
+                      )}
+                    </Text>
+                  </View>
+                  <View style={[styles.balanceCard, styles.balanceCardWarn]}>
+                    <Text style={styles.balanceLabel}>Pendiente</Text>
+                    <Text style={styles.balanceValuePending}>
+                      {formatCurrency(
+                        Math.max(
+                          0,
+                          (item.amount || 0) - (item.paidAmount || 0),
+                        ),
+                        item.baseCurrency || "VES",
+                      )}
+                    </Text>
+                  </View>
                 </View>
               )}
             </View>
-            {item.dueDate ? (
-              <Text style={styles.dueDate}>
-                Vence{" "}
-                {(() => {
-                  const [y, m, d] = item.dueDate.split("-").map(Number);
-                  const parsed = new Date(y, m - 1, d);
-                  return Number.isNaN(parsed.getTime())
-                    ? item.dueDate
-                    : parsed.toLocaleDateString();
-                })()}
-              </Text>
-            ) : null}
           </View>
 
-          {item.invoiceNumber ? (
-            <Text style={styles.invoiceNumber}>
-              Factura {item.invoiceNumber}
-            </Text>
-          ) : null}
-          {item.documentNumber ? (
-            <Text style={styles.metaText}>
-              Documento: {item.documentNumber}
-            </Text>
-          ) : null}
-          {item.description ? (
-            <Text style={styles.description}>{item.description}</Text>
-          ) : null}
-          {item.createdAt ? (
-            <Text style={styles.metaText}>
-              Registrada {new Date(item.createdAt).toLocaleDateString()}
-            </Text>
-          ) : null}
+          <View style={styles.metaGrid}>
+            {item.documentNumber ? (
+              <View style={[styles.metaCard, styles.metaCardHalf]}>
+                <Text style={styles.metaLabel}>Documento</Text>
+                <Text style={styles.metaValue}>{item.documentNumber}</Text>
+              </View>
+            ) : null}
+            {item.createdAt ? (
+              <View style={[styles.metaCard, styles.metaCardHalf]}>
+                <Text style={styles.metaLabel}>Registro</Text>
+                <Text style={styles.metaValue}>
+                  {new Date(item.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+            ) : null}
+            {item.description ? (
+              <View style={[styles.metaCard, styles.metaCardWide]}>
+                <Text style={styles.metaLabel}>Descripción</Text>
+                <Text style={styles.metaValue}>{item.description}</Text>
+              </View>
+            ) : null}
+          </View>
 
           <View style={styles.cardFooter}>
             {(() => {
@@ -369,55 +401,59 @@ export const AccountsPayableScreen = ({ navigation }) => {
               return (
                 <>
                   {!isFullyPaid && (
-                    <TouchableOpacity
-                      style={styles.secondaryButton}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.secondaryButton,
+                        pressed && styles.cardPressed,
+                      ]}
                       onPress={() => openRecordPaymentScreen(item)}
                     >
                       <Text style={styles.secondaryButtonText}>
                         Registrar pago
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
 
                   <View style={styles.iconContainer}>
                     {hasPayments && (
-                      <TouchableOpacity
-                        style={[
+                      <Pressable
+                        style={({ pressed }) => [
                           styles.iconButton,
+                          styles.infoIconButton,
                           !isFullyPaid && styles.iconButtonSmall,
-                          isFullyPaid && styles.iconButtonNormal,
+                          pressed && styles.cardPressed,
                         ]}
                         onPress={() => openPaymentHistoryScreen(item)}
                       >
                         <Ionicons
                           name="document-text-outline"
                           size={rf(16)}
-                          color="#2f5ae0"
+                          color={UI_COLORS.info}
                         />
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
 
-                    <TouchableOpacity
-                      style={[
+                    <Pressable
+                      style={({ pressed }) => [
                         styles.iconButton,
+                        styles.dangerIconButton,
                         hasPayments && !isFullyPaid && styles.iconButtonSmall,
-                        (!hasPayments || isFullyPaid) &&
-                          styles.iconButtonNormal,
+                        pressed && styles.cardPressed,
                       ]}
                       onPress={() => handleDelete(item)}
                     >
                       <Ionicons
                         name="trash-outline"
                         size={rf(16)}
-                        color="#d64545"
+                        color={UI_COLORS.danger}
                       />
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 </>
               );
             })()}
           </View>
-        </TouchableOpacity>
+        </Pressable>
       );
     },
     [
@@ -430,23 +466,35 @@ export const AccountsPayableScreen = ({ navigation }) => {
   );
 
   const header = (
-    <View>
+    <View style={styles.headerContent}>
       <TourGuideZone
         zone={TOUR_ZONE_BASE + 1}
         text={
           "Aquí ves el total. Usa 'Buscar cuentas…' para filtrar por proveedor, factura o concepto."
         }
         borderRadius={borderRadius.lg}
-        style={styles.summaryCard}
+        style={styles.heroWrap}
       >
-        <View>
+        <SurfaceCard style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <View style={styles.summaryIcon}>
-              <Ionicons name="card-outline" size={rf(22)} color="#d64545" />
+              <Ionicons
+                name="card-outline"
+                size={rf(22)}
+                color={UI_COLORS.danger}
+              />
             </View>
-            <View>
-              <Text style={styles.summaryTitle}>
-                Cuentas por Pagar ({totalCount})
+            <View style={styles.summaryCopy}>
+              <View style={styles.summaryPillsRow}>
+                <InfoPill text={`${totalCount} cuentas`} tone="warning" />
+                <InfoPill
+                  text={activeTab === "pending" ? "Pendientes" : "Pagadas"}
+                  tone={activeTab === "pending" ? "warning" : "info"}
+                />
+              </View>
+              <Text style={styles.summaryTitle}>Cuentas por pagar</Text>
+              <Text style={styles.summarySubtitle}>
+                Organiza vencimientos, saldos y pagos a proveedores.
               </Text>
             </View>
           </View>
@@ -454,10 +502,14 @@ export const AccountsPayableScreen = ({ navigation }) => {
           <Text style={styles.summaryAmount}>
             {formatCurrency(totalAmount, "VES")}
           </Text>
-        </View>
+        </SurfaceCard>
       </TourGuideZone>
 
-      <View style={styles.controlsCard}>
+      <SurfaceCard style={styles.controlsCard}>
+        <Text style={styles.searchTitle}>Buscar cuentas</Text>
+        <Text style={styles.searchHint}>
+          Filtra por proveedor, factura o concepto.
+        </Text>
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar cuentas..."
@@ -466,7 +518,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
           onChangeText={setSearchQuery}
           returnKeyType="search"
         />
-      </View>
+      </SurfaceCard>
 
       <TourGuideZone
         zone={TOUR_ZONE_BASE + 2}
@@ -480,18 +532,21 @@ export const AccountsPayableScreen = ({ navigation }) => {
         ].map((tab) => {
           const active = activeTab === tab.key;
           return (
-            <TouchableOpacity
+            <Pressable
               key={tab.key}
-              style={[styles.tabChip, active && styles.tabChipActive]}
+              style={({ pressed }) => [
+                styles.tabChip,
+                active && styles.tabChipActive,
+                pressed && styles.cardPressed,
+              ]}
               onPress={() => setActiveTab(tab.key)}
-              activeOpacity={0.85}
             >
               <Text
                 style={[styles.tabChipText, active && styles.tabChipTextActive]}
               >
                 {tab.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </TourGuideZone>
@@ -499,25 +554,15 @@ export const AccountsPayableScreen = ({ navigation }) => {
   );
 
   const renderEmpty = () => (
-    <View style={styles.emptyState}>
-      <View style={styles.emptyCard}>
-        <View style={styles.emptyIconWrap}>
-          <Ionicons
-            name="document-text-outline"
-            size={rf(26)}
-            color="#8ca0b8"
-          />
-        </View>
-        <Text style={styles.emptyTitle}>
-          {searchQuery ? "Sin resultados" : "Aún no tienes cuentas"}
-        </Text>
-        <Text style={styles.emptySubtitle}>
-          {searchQuery
-            ? "Ajusta los términos de búsqueda para intentarlo de nuevo."
-            : "Registra tu primera cuenta por pagar desde el botón superior."}
-        </Text>
-      </View>
-    </View>
+    <EmptyStateCard
+      style={styles.emptyCard}
+      title={searchQuery ? "Sin resultados" : "Aún no tienes cuentas"}
+      subtitle={
+        searchQuery
+          ? "Ajusta los términos de búsqueda para intentarlo de nuevo."
+          : "Registra tu primera cuenta por pagar desde el botón superior."
+      }
+    />
   );
 
   useFocusEffect(
@@ -529,7 +574,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <ActivityIndicator size="large" color={UI_COLORS.accent} />
         <Text style={styles.loadingText}>Cargando cuentas por pagar...</Text>
       </View>
     );
@@ -541,9 +586,15 @@ export const AccountsPayableScreen = ({ navigation }) => {
         <Text style={styles.errorText}>
           Ocurrió un error al cargar la información.
         </Text>
-        <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.retryButton,
+            pressed && styles.cardPressed,
+          ]}
+          onPress={refresh}
+        >
           <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -571,13 +622,12 @@ export const AccountsPayableScreen = ({ navigation }) => {
         text={"Presiona '+' para crear una nueva cuenta por pagar."}
         shape="circle"
       >
-        <TouchableOpacity
-          style={[styles.fab, { bottom: fabBottom }]}
+        <FloatingActionButton
+          style={styles.fab}
+          bottom={fabBottom}
           onPress={openAddScreen}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
+          iconName="add"
+        />
       </TourGuideZone>
       <CustomAlert />
     </View>
@@ -587,367 +637,302 @@ export const AccountsPayableScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#e8edf2",
+    backgroundColor: UI_COLORS.page,
     paddingHorizontal: spacing.xl,
   },
   loadingText: {
     marginTop: spacing.md,
     fontSize: rf(15),
-    color: "#6c7a8a",
+    color: UI_COLORS.muted,
   },
   errorText: {
     fontSize: rf(15),
-    color: "#c62828",
+    color: UI_COLORS.danger,
     textAlign: "center",
     marginBottom: spacing.md,
   },
   retryButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: UI_COLORS.info,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
-    shadowColor: "#4CAF50",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.2,
-    shadowRadius: s(6),
-    elevation: 2,
+    borderCurve: "continuous",
   },
   retryButtonText: {
     color: "#fff",
-    fontWeight: "600",
-    fontSize: rf(15),
+    fontWeight: "700",
+    fontSize: rf(14),
   },
   listContent: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: vs(36),
   },
+  headerContent: {
+    gap: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  heroWrap: {
+    gap: spacing.lg,
+  },
   summaryCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(10) },
-    shadowOpacity: 0.08,
-    shadowRadius: s(18),
-    elevation: 6,
+    gap: spacing.lg,
   },
   summaryHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: spacing.md,
+    alignItems: "flex-start",
+    gap: spacing.md,
   },
   summaryIcon: {
     width: iconSize.lg,
     height: iconSize.lg,
     borderRadius: borderRadius.md,
-    backgroundColor: "#f6efff",
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.dangerSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: spacing.md,
   },
-  summaryIconText: {
-    fontSize: rf(24),
+  summaryCopy: {
+    flex: 1,
+    gap: vs(6),
+  },
+  summaryPillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: hs(10),
   },
   summaryTitle: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#2f3a4c",
+    fontSize: rf(20),
+    fontWeight: "800",
+    color: UI_COLORS.text,
   },
   summaryAmount: {
     fontSize: rf(30),
-    fontWeight: "700",
-    color: "#c62828",
-    marginBottom: 0,
+    fontWeight: "800",
+    color: UI_COLORS.danger,
+  },
+  summarySubtitle: {
+    fontSize: rf(13),
+    color: UI_COLORS.muted,
+    lineHeight: vs(19),
   },
   controlsCard: {
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(8) },
-    shadowOpacity: 0.06,
-    shadowRadius: s(14),
-    elevation: 4,
+    gap: vs(6),
+    ...SHADOWS.soft,
+  },
+  searchTitle: {
+    fontSize: rf(16),
+    fontWeight: "700",
+    color: UI_COLORS.text,
+  },
+  searchHint: {
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
+    lineHeight: vs(18),
   },
   searchInput: {
-    backgroundColor: "#f3f5fa",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    paddingVertical: vs(13),
     paddingHorizontal: spacing.md,
     fontSize: rf(15),
-    color: "#1f2633",
-  },
-  primaryButton: {
-    marginTop: spacing.md,
-    backgroundColor: "#4CAF50",
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    shadowColor: "#4CAF50",
-    shadowOffset: { width: 0, height: s(6) },
-    shadowOpacity: 0.2,
-    shadowRadius: s(10),
-    elevation: 3,
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontSize: rf(15),
-    fontWeight: "600",
+    color: UI_COLORS.text,
   },
   accountCard: {
-    backgroundColor: "#fff",
+    backgroundColor: UI_COLORS.surface,
     borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     padding: spacing.lg,
     marginBottom: spacing.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(8) },
-    shadowOpacity: 0.07,
-    shadowRadius: s(12),
-    elevation: 4,
+    gap: spacing.md,
+    ...SHADOWS.soft,
   },
   cardHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  headerCopy: {
+    flex: 1,
+    gap: vs(8),
+  },
+  headerPillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: hs(8),
   },
   supplierName: {
     fontSize: rf(16),
-    fontWeight: "600",
-    color: "#2f3a4c",
-    flex: 1,
-    marginRight: spacing.md,
+    fontWeight: "700",
+    color: UI_COLORS.text,
   },
   statusBadge: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: vs(8),
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
   },
   statusText: {
-    fontSize: rf(13),
-    fontWeight: "600",
+    fontSize: rf(12),
+    fontWeight: "700",
   },
   amountRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
   amount: {
-    fontSize: rf(22),
-    fontWeight: "700",
-    color: "#c62828",
+    fontSize: rf(24),
+    fontWeight: "800",
+    color: UI_COLORS.danger,
   },
   dueDate: {
-    fontSize: rf(13),
-    color: "#6c7a8a",
-    fontWeight: "500",
-  },
-  invoiceNumber: {
-    fontSize: rf(13),
-    color: "#4f6bed",
+    fontSize: rf(12),
+    color: UI_COLORS.muted,
     fontWeight: "600",
-    marginBottom: spacing.small,
-  },
-  metaText: {
-    fontSize: rf(13),
-    color: "#6c7a8a",
-    marginBottom: spacing.small,
-  },
-  description: {
-    fontSize: rf(13),
-    color: "#4c5c6e",
-    lineHeight: vs(19),
-    marginBottom: spacing.small,
+    marginTop: vs(2),
   },
   cardFooter: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: spacing.md,
+    gap: spacing.md,
   },
   secondaryButton: {
-    backgroundColor: "#edf8ef",
+    backgroundColor: UI_COLORS.accentSoft,
     borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
+    borderCurve: "continuous",
+    paddingVertical: vs(12),
     paddingHorizontal: spacing.md,
     alignItems: "center",
-    marginRight: spacing.md,
   },
   secondaryButtonText: {
-    color: "#c62828",
-    fontWeight: "600",
-    fontSize: rf(14),
-  },
-  iconButton: {
-    width: iconSize.lg,
-    height: iconSize.lg,
-    borderRadius: borderRadius.md,
-    backgroundColor: "#e8ecff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: spacing.md,
-  },
-  iconButtonAlone: {
-    marginLeft: "auto",
-  },
-  iconButtonText: {
-    fontSize: rf(10),
+    color: UI_COLORS.accentStrong,
     fontWeight: "700",
-    color: "#7d3a44",
-  },
-  emptyState: {
-    paddingTop: vs(40),
-    alignItems: "center",
-  },
-  emptyCard: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.xl,
-    paddingVertical: spacing.xxxl,
-    paddingHorizontal: spacing.xl,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(8) },
-    shadowOpacity: 0.06,
-    shadowRadius: s(12),
-    elevation: 3,
-  },
-  emptyIconWrap: {
-    width: s(54),
-    height: s(54),
-    borderRadius: borderRadius.md,
-    backgroundColor: "#fdf2f2",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
-  },
-  emptyIcon: {
-    fontSize: rf(32),
-    marginBottom: spacing.md,
-  },
-  emptyTitle: {
-    fontSize: rf(16),
-    fontWeight: "600",
-    color: "#2f3a4c",
-    marginBottom: spacing.small,
-  },
-  emptySubtitle: {
-    fontSize: rf(14),
-    color: "#6c7a8a",
-    textAlign: "center",
-    lineHeight: vs(20),
-  },
-  fab: {
-    position: "absolute",
-    bottom: vs(20),
-    right: hs(20),
-    width: iconSize.xl,
-    height: iconSize.xl,
-    borderRadius: s(28),
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.3,
-    shadowRadius: s(8),
-    elevation: 8,
-  },
-  fabIcon: {
-    fontSize: rf(28),
-    color: "#fff",
-    fontWeight: "bold",
+    fontSize: rf(13),
   },
   iconContainer: {
     flexDirection: "row",
     alignItems: "center",
     marginLeft: "auto",
-    gap: spacing.small,
+    gap: hs(8),
   },
   iconButton: {
     width: iconSize.lg,
     height: iconSize.lg,
     borderRadius: borderRadius.md,
-    backgroundColor: "#fdecea",
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
   },
-  iconButtonNormal: {
-    // Normal size, no special positioning
+  infoIconButton: {
+    backgroundColor: UI_COLORS.infoSoft,
+  },
+  dangerIconButton: {
+    backgroundColor: UI_COLORS.dangerSoft,
   },
   iconButtonSmall: {
     width: iconSize.md,
     height: iconSize.md,
     borderRadius: borderRadius.lg,
   },
-  iconButtonText: {
-    fontSize: rf(20),
-  },
-  tabsContainer: {
+  balanceRow: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: borderRadius.lg,
-    padding: spacing.sm,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: s(2) },
-    shadowOpacity: 0.1,
-    shadowRadius: s(4),
-    elevation: 3,
+    gap: hs(10),
+    marginTop: vs(10),
   },
-  tab: {
+  balanceCard: {
     flex: 1,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
-    alignItems: "center",
+    borderCurve: "continuous",
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(10),
+    gap: vs(4),
   },
-  activeTab: {
-    backgroundColor: "#2e7d32",
+  balanceCardSoft: {
+    backgroundColor: UI_COLORS.accentSoft,
   },
-  tabText: {
-    fontSize: rf(14),
+  balanceCardWarn: {
+    backgroundColor: UI_COLORS.warningSoft,
+  },
+  balanceLabel: {
+    fontSize: rf(11),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  balanceValuePaid: {
+    fontSize: rf(13),
+    fontWeight: "700",
+    color: UI_COLORS.accentStrong,
+  },
+  balanceValuePending: {
+    fontSize: rf(13),
+    fontWeight: "700",
+    color: UI_COLORS.warning,
+  },
+  metaGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: hs(10),
+  },
+  metaCard: {
+    flex: 1,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(12),
+    paddingVertical: vs(10),
+    gap: vs(4),
+  },
+  metaCardHalf: {
+    minWidth: s(140),
+  },
+  metaCardWide: {
+    width: "100%",
+  },
+  metaLabel: {
+    fontSize: rf(11),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  metaValue: {
+    fontSize: rf(13),
+    color: UI_COLORS.text,
     fontWeight: "600",
-    color: "#64748b",
-  },
-  activeTabText: {
-    color: "#fff",
   },
   tabGroup: {
     flexDirection: "row",
-    backgroundColor: "#f3f5fa",
+    backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
     padding: spacing.sm,
     gap: spacing.sm,
   },
   tabChip: {
     flex: 1,
     borderRadius: borderRadius.md,
+    borderCurve: "continuous",
     paddingVertical: spacing.md,
     alignItems: "center",
   },
   tabChipActive: {
-    backgroundColor: "#2f5ae0",
-    shadowColor: "#2f5ae0",
-    shadowOffset: { width: 0, height: s(4) },
-    shadowOpacity: 0.18,
-    shadowRadius: s(6),
-    elevation: 4,
+    backgroundColor: UI_COLORS.info,
   },
   tabChipText: {
-    fontSize: rf(14),
-    fontWeight: "600",
-    color: "#5b6472",
+    fontSize: rf(13),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
   },
   tabChipTextActive: {
     color: "#fff",
@@ -955,18 +940,15 @@ const styles = StyleSheet.create({
   amountContainer: {
     flex: 1,
   },
-  paymentInfo: {
-    marginTop: spacing.small,
+  fab: {
+    right: hs(20),
   },
-  paidText: {
-    fontSize: rf(12),
-    color: "#48bb78",
-    fontWeight: "500",
+  emptyCard: {
+    marginTop: vs(40),
   },
-  pendingText: {
-    fontSize: rf(12),
-    color: "#e53e3e",
-    fontWeight: "500",
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });
 
