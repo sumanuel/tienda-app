@@ -90,6 +90,7 @@ const CustomAlert = ({ visible, onClose, config }) => {
   const typeConfig = ALERT_TONE_MAP[type];
   const isStackedButtons = buttons.length > 2;
   const isSingleButton = buttons.length === 1;
+  const isTwoButtons = buttons.length === 2;
 
   return (
     <Modal
@@ -132,6 +133,7 @@ const CustomAlert = ({ visible, onClose, config }) => {
             style={[
               styles.footer,
               isStackedButtons && styles.footerStacked,
+              isTwoButtons && styles.footerDual,
               isSingleButton && styles.footerSingle,
             ]}
           >
@@ -141,7 +143,8 @@ const CustomAlert = ({ visible, onClose, config }) => {
                 const isDestructive = button.style === "destructive";
                 const isSuccess = button.style === "success";
                 const isDefault = button.style === "default";
-                const shouldUseAlertTone = isSingleButton && isDefault;
+                const shouldUseAlertTone =
+                  (isSingleButton || isTwoButtons) && isDefault;
 
                 return (
                   <Pressable
@@ -149,6 +152,7 @@ const CustomAlert = ({ visible, onClose, config }) => {
                     style={({ pressed }) => [
                       styles.button,
                       isStackedButtons && styles.buttonStacked,
+                      isTwoButtons && styles.buttonDual,
                       isCancel && styles.cancelButton,
                       isDestructive && styles.destructiveButton,
                       isSuccess && styles.successButton,
@@ -255,6 +259,10 @@ const styles = StyleSheet.create({
     paddingBottom: vs(20),
     gap: hs(12),
   },
+  footerDual: {
+    alignItems: "stretch",
+    gap: hs(10),
+  },
   footerSingle: {
     justifyContent: "center",
     alignItems: "center",
@@ -273,6 +281,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  buttonDual: {
+    minHeight: vs(46),
+  },
   buttonStacked: {
     flex: 0,
     width: "100%",
@@ -289,19 +300,15 @@ const styles = StyleSheet.create({
     backgroundColor: UI_COLORS.info,
   },
   cancelButton: {
-    backgroundColor: UI_COLORS.surfaceAlt,
+    backgroundColor: UI_COLORS.surface,
     borderWidth: 1,
     borderColor: UI_COLORS.border,
   },
   destructiveButton: {
-    backgroundColor: UI_COLORS.dangerSoft,
-    borderWidth: 1,
-    borderColor: UI_COLORS.danger,
+    backgroundColor: UI_COLORS.danger,
   },
   successButton: {
-    backgroundColor: UI_COLORS.accentSoft,
-    borderWidth: 1,
-    borderColor: UI_COLORS.accent,
+    backgroundColor: UI_COLORS.accent,
   },
   buttonText: {
     fontSize: rf(14),
@@ -312,13 +319,13 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   cancelButtonText: {
-    color: UI_COLORS.info,
+    color: UI_COLORS.muted,
   },
   destructiveButtonText: {
-    color: UI_COLORS.danger,
+    color: "#fff",
   },
   successButtonText: {
-    color: UI_COLORS.accentStrong,
+    color: "#fff",
   },
   pressed: {
     opacity: 0.92,

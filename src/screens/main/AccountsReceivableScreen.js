@@ -19,6 +19,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
 import { useAccounts } from "../../hooks/useAccounts";
+import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
 import { buildReceivableReminderWhatsAppMessage } from "../../utils/whatsappMessages";
