@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  Pressable,
-  Dimensions,
-} from "react-native";
+import { View, Text, StyleSheet, Modal, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 import { SHADOWS, UI_COLORS } from "./AppUI";
@@ -24,8 +17,6 @@ import { SHADOWS, UI_COLORS } from "./AppUI";
  *   buttons: [{ text: "OK", onPress: () => {} }]
  * })
  */
-
-const { width } = Dimensions.get("window");
 
 const ALERT_TONE_MAP = {
   success: {
@@ -98,6 +89,7 @@ const CustomAlert = ({ visible, onClose, config }) => {
   );
   const typeConfig = ALERT_TONE_MAP[type];
   const isStackedButtons = buttons.length > 2;
+  const isSingleButton = buttons.length === 1;
 
   return (
     <Modal
@@ -107,12 +99,15 @@ const CustomAlert = ({ visible, onClose, config }) => {
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
+        <View
+          style={[styles.modalContainer, isSingleButton && styles.modalCompact]}
+        >
           {/* Header con icono */}
-          <View style={styles.header}>
+          <View style={[styles.header, isSingleButton && styles.headerCompact]}>
             <View
               style={[
                 styles.iconContainer,
+                isSingleButton && styles.iconContainerCompact,
                 { backgroundColor: typeConfig.bgColor },
               ]}
             >
@@ -126,13 +121,19 @@ const CustomAlert = ({ visible, onClose, config }) => {
           </View>
 
           {/* Message */}
-          <View style={styles.content}>
+          <View
+            style={[styles.content, isSingleButton && styles.contentCompact]}
+          >
             <Text style={styles.message}>{message}</Text>
           </View>
 
           {/* Buttons */}
           <View
-            style={[styles.footer, isStackedButtons && styles.footerStacked]}
+            style={[
+              styles.footer,
+              isStackedButtons && styles.footerStacked,
+              isSingleButton && styles.footerSingle,
+            ]}
           >
             {buttons.map((button, index) =>
               (() => {
@@ -140,6 +141,7 @@ const CustomAlert = ({ visible, onClose, config }) => {
                 const isDestructive = button.style === "destructive";
                 const isSuccess = button.style === "success";
                 const isDefault = button.style === "default";
+                const shouldUseAlertTone = isSingleButton && isDefault;
 
                 return (
                   <Pressable
@@ -151,7 +153,10 @@ const CustomAlert = ({ visible, onClose, config }) => {
                       isDestructive && styles.destructiveButton,
                       isSuccess && styles.successButton,
                       isDefault && styles.defaultButton,
-                      buttons.length === 1 && styles.singleButton,
+                      isSingleButton && styles.singleButton,
+                      shouldUseAlertTone && {
+                        backgroundColor: typeConfig.color,
+                      },
                       pressed && styles.pressed,
                     ]}
                     onPress={() => {
@@ -197,11 +202,19 @@ const styles = StyleSheet.create({
     maxWidth: s(360),
     ...SHADOWS.card,
   },
+  modalCompact: {
+    width: "82%",
+    maxWidth: s(330),
+  },
   header: {
     alignItems: "center",
     paddingTop: vs(24),
     paddingHorizontal: hs(20),
     paddingBottom: vs(10),
+  },
+  headerCompact: {
+    paddingTop: vs(20),
+    paddingBottom: vs(8),
   },
   iconContainer: {
     width: s(56),
@@ -210,6 +223,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: vs(12),
+  },
+  iconContainerCompact: {
+    width: s(52),
+    height: s(52),
+    borderRadius: s(26),
+    marginBottom: vs(10),
   },
   title: {
     fontSize: rf(18),
@@ -220,6 +239,9 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: hs(20),
     paddingBottom: vs(18),
+  },
+  contentCompact: {
+    paddingBottom: vs(14),
   },
   message: {
     fontSize: rf(14),
@@ -232,6 +254,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: hs(20),
     paddingBottom: vs(20),
     gap: hs(12),
+  },
+  footerSingle: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   footerStacked: {
     flexDirection: "column",
@@ -254,8 +280,10 @@ const styles = StyleSheet.create({
   singleButton: {
     flex: 0,
     alignSelf: "center",
-    minWidth: s(160),
-    width: "72%",
+    minWidth: s(132),
+    maxWidth: s(172),
+    width: "58%",
+    minHeight: vs(42),
   },
   defaultButton: {
     backgroundColor: UI_COLORS.info,
