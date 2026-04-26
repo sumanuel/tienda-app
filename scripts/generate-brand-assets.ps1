@@ -93,24 +93,41 @@ $softPanel = [System.Drawing.Color]::FromArgb(28, 255, 255, 255)
 $softPanelBorder = [System.Drawing.Color]::FromArgb(80, 255, 255, 255)
 $accentDot = [System.Drawing.Color]::FromArgb(255, 255, 233, 157)
 
-$iconBitmap = New-Object System.Drawing.Bitmap 1024, 1024
+$iconBitmap = New-Object System.Drawing.Bitmap 512, 512
 $iconGraphics = New-Graphics $iconBitmap
-$iconRect = [System.Drawing.Rectangle]::new(0, 0, 1024, 1024)
+$iconRect = [System.Drawing.Rectangle]::new(0, 0, 512, 512)
 $iconBackground = New-Object System.Drawing.Drawing2D.LinearGradientBrush($iconRect, $greenDark, $greenLight, 45)
-$iconPath = New-RoundedPath -X 46 -Y 46 -Width 932 -Height 932 -Radius 140
+$iconPath = New-RoundedPath -X 23 -Y 23 -Width 466 -Height 466 -Radius 70
 $iconGraphics.FillPath($iconBackground, $iconPath)
-$iconGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle)), 640, -80, 420, 420)
-$iconGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle2)), -80, 760, 260, 260)
-$innerPath = New-RoundedPath -X 156 -Y 140 -Width 712 -Height 712 -Radius 72
+$iconGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle)), 320, -40, 210, 210)
+$iconGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle2)), -40, 380, 130, 130)
+$innerPath = New-RoundedPath -X 78 -Y 70 -Width 356 -Height 356 -Radius 36
 $iconGraphics.FillPath((New-Object System.Drawing.SolidBrush($softPanel)), $innerPath)
-Draw-BrandSymbol -Graphics $iconGraphics -OffsetX 88 -OffsetY 228 -Scale 0.74 -Color $white -StrokeMultiplier 1.12 -WheelMultiplier 1.2
+Draw-BrandSymbol -Graphics $iconGraphics -OffsetX 44 -OffsetY 114 -Scale 0.37 -Color $white -StrokeMultiplier 1.12 -WheelMultiplier 1.2
 $iconGraphics.Dispose()
 $iconBitmap.Save((Join-Path $assetsPath 'icon.png'), [System.Drawing.Imaging.ImageFormat]::Png)
-$iconBitmap.Save((Join-Path $assetsPath 'adaptive-icon.png'), [System.Drawing.Imaging.ImageFormat]::Png)
 $iconBitmap.Dispose()
 $iconBackground.Dispose()
 $iconPath.Dispose()
 $innerPath.Dispose()
+
+$adaptiveBitmap = New-Object System.Drawing.Bitmap 1024, 1024
+$adaptiveGraphics = New-Graphics $adaptiveBitmap
+$adaptiveRect = [System.Drawing.Rectangle]::new(0, 0, 1024, 1024)
+$adaptiveBackground = New-Object System.Drawing.Drawing2D.LinearGradientBrush($adaptiveRect, $greenDark, $greenLight, 45)
+$adaptivePath = New-RoundedPath -X 46 -Y 46 -Width 932 -Height 932 -Radius 140
+$adaptiveGraphics.FillPath($adaptiveBackground, $adaptivePath)
+$adaptiveGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle)), 640, -80, 420, 420)
+$adaptiveGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle2)), -80, 760, 260, 260)
+$adaptiveInnerPath = New-RoundedPath -X 156 -Y 140 -Width 712 -Height 712 -Radius 72
+$adaptiveGraphics.FillPath((New-Object System.Drawing.SolidBrush($softPanel)), $adaptiveInnerPath)
+Draw-BrandSymbol -Graphics $adaptiveGraphics -OffsetX 88 -OffsetY 228 -Scale 0.74 -Color $white -StrokeMultiplier 1.12 -WheelMultiplier 1.2
+$adaptiveGraphics.Dispose()
+$adaptiveBitmap.Save((Join-Path $assetsPath 'adaptive-icon.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+$adaptiveBitmap.Dispose()
+$adaptiveBackground.Dispose()
+$adaptivePath.Dispose()
+$adaptiveInnerPath.Dispose()
 
 $faviconBitmap = New-Object System.Drawing.Bitmap 256, 256
 $faviconGraphics = New-Graphics $faviconBitmap
