@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { convertCurrency } from "../../utils/exchange";
 import { rf, spacing, borderRadius, iconSize } from "../../utils/responsive";
 import { SHADOWS, UI_COLORS } from "../common/AppUI";
@@ -55,7 +56,7 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
         style={({ pressed }) => [styles.swapButton, pressed && styles.pressed]}
         onPress={handleSwap}
       >
-        <Text style={styles.swapIcon}>⇅</Text>
+        <Ionicons name="swap-vertical" size={rf(20)} color="#fff" />
       </Pressable>
 
       <View style={styles.inputContainer}>
@@ -71,7 +72,7 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
 
       {exchangeRate && (
         <Text style={styles.rateInfo}>
-          💱 Tasa actual: 1 USD = VES. {exchangeRate.toFixed(2)}
+          Tasa actual: 1 USD = VES. {exchangeRate.toFixed(2)}
         </Text>
       )}
     </View>
@@ -131,11 +132,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginVertical: spacing.md,
     ...SHADOWS.soft,
-  },
-  swapIcon: {
-    fontSize: rf(20),
-    color: "#fff",
-    fontWeight: "bold",
   },
   rateInfo: {
     fontSize: rf(14),
