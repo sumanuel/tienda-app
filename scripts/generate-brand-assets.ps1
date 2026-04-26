@@ -30,7 +30,7 @@ function Draw-BrandSymbol {
     [float]$WheelMultiplier = 1.0
   )
 
-  $pen = New-Object System.Drawing.Pen($Color, (28.0 * $Scale * $StrokeMultiplier))
+  $pen = New-Object System.Drawing.Pen($Color, (34.0 * $Scale * $StrokeMultiplier))
   $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
   $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
   $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
@@ -47,7 +47,7 @@ function Draw-BrandSymbol {
   $Graphics.DrawLine($pen, $OffsetX + (745.0 * $Scale), $OffsetY + (250.0 * $Scale), $OffsetX + (745.0 * $Scale), $OffsetY + (165.0 * $Scale))
 
   $brush = New-Object System.Drawing.SolidBrush($Color)
-  $font = New-Object System.Drawing.Font('Segoe UI', (158.0 * $Scale), [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+  $font = New-Object System.Drawing.Font('Segoe UI', (166.0 * $Scale), [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
   $stringFormat = New-Object System.Drawing.StringFormat
   $stringFormat.Alignment = [System.Drawing.StringAlignment]::Center
   $stringFormat.LineAlignment = [System.Drawing.StringAlignment]::Center
@@ -103,7 +103,7 @@ $iconGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle)), 3
 $iconGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle2)), -40, 380, 130, 130)
 $innerPath = New-RoundedPath -X 78 -Y 70 -Width 356 -Height 356 -Radius 36
 $iconGraphics.FillPath((New-Object System.Drawing.SolidBrush($softPanel)), $innerPath)
-Draw-BrandSymbol -Graphics $iconGraphics -OffsetX 44 -OffsetY 114 -Scale 0.37 -Color $white -StrokeMultiplier 1.12 -WheelMultiplier 1.2
+Draw-BrandSymbol -Graphics $iconGraphics -OffsetX 20 -OffsetY 100 -Scale 0.39 -Color $white -StrokeMultiplier 1.14 -WheelMultiplier 1.22
 $iconGraphics.Dispose()
 $iconBitmap.Save((Join-Path $assetsPath 'icon.png'), [System.Drawing.Imaging.ImageFormat]::Png)
 $iconBitmap.Dispose()
@@ -121,7 +121,7 @@ $adaptiveGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle)
 $adaptiveGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle2)), -80, 760, 260, 260)
 $adaptiveInnerPath = New-RoundedPath -X 156 -Y 140 -Width 712 -Height 712 -Radius 72
 $adaptiveGraphics.FillPath((New-Object System.Drawing.SolidBrush($softPanel)), $adaptiveInnerPath)
-Draw-BrandSymbol -Graphics $adaptiveGraphics -OffsetX 88 -OffsetY 228 -Scale 0.74 -Color $white -StrokeMultiplier 1.12 -WheelMultiplier 1.2
+Draw-BrandSymbol -Graphics $adaptiveGraphics -OffsetX 34 -OffsetY 202 -Scale 0.79 -Color $white -StrokeMultiplier 1.14 -WheelMultiplier 1.22
 $adaptiveGraphics.Dispose()
 $adaptiveBitmap.Save((Join-Path $assetsPath 'adaptive-icon.png'), [System.Drawing.Imaging.ImageFormat]::Png)
 $adaptiveBitmap.Dispose()
@@ -136,7 +136,7 @@ $faviconBackground = New-Object System.Drawing.Drawing2D.LinearGradientBrush($fa
 $faviconPath = New-RoundedPath -X 10 -Y 10 -Width 236 -Height 236 -Radius 40
 $faviconGraphics.FillPath($faviconBackground, $faviconPath)
 $faviconGraphics.FillEllipse((New-Object System.Drawing.SolidBrush($softCircle2)), 150, -20, 120, 120)
-Draw-BrandSymbol -Graphics $faviconGraphics -OffsetX 20 -OffsetY 54 -Scale 0.19 -Color $white -StrokeMultiplier 1.1 -WheelMultiplier 1.2
+Draw-BrandSymbol -Graphics $faviconGraphics -OffsetX 2 -OffsetY 50 -Scale 0.21 -Color $white -StrokeMultiplier 1.12 -WheelMultiplier 1.22
 $faviconGraphics.Dispose()
 $faviconBitmap.Save((Join-Path $assetsPath 'favicon.png'), [System.Drawing.Imaging.ImageFormat]::Png)
 $faviconBitmap.Dispose()
@@ -159,7 +159,7 @@ $iconPanelRect = [System.Drawing.Rectangle]::new(58, 86, 216, 216)
 $iconPanelBrush = New-Object System.Drawing.Drawing2D.LinearGradientBrush($iconPanelRect, [System.Drawing.Color]::FromArgb(255, 53, 171, 86), $greenMid, 45)
 $iconPanel = New-RoundedPath -X 58 -Y 86 -Width 216 -Height 216 -Radius 34
 $featureGraphics.FillPath($iconPanelBrush, $iconPanel)
-Draw-BrandSymbol -Graphics $featureGraphics -OffsetX 22 -OffsetY 92 -Scale 0.24 -Color $white -StrokeMultiplier 1.08 -WheelMultiplier 1.2
+Draw-BrandSymbol -Graphics $featureGraphics -OffsetX 3 -OffsetY 94 -Scale 0.27 -Color $white -StrokeMultiplier 1.12 -WheelMultiplier 1.22
 
 $titleFont = New-Object System.Drawing.Font('Segoe UI', 34, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
 $subFont = New-Object System.Drawing.Font('Segoe UI', 18, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
@@ -218,18 +218,18 @@ $pillBorderPen.Dispose()
 $splashBitmap = New-Object System.Drawing.Bitmap 1400, 1400
 $splashGraphics = New-Graphics $splashBitmap
 $splashGraphics.Clear([System.Drawing.Color]::Transparent)
-$splashGlowBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(56, 15, 90, 63))
+$splashGlowBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(78, 15, 90, 63))
 $splashTextBrush = New-Object System.Drawing.SolidBrush($white)
-$splashSubBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(224, 255, 255, 255))
-$titleFontSplash = New-Object System.Drawing.Font('Segoe UI', 86, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
-$subFontSplash = New-Object System.Drawing.Font('Segoe UI', 30, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-$centerPanel = New-RoundedPath -X 430 -Y 150 -Width 540 -Height 540 -Radius 110
+$splashSubBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(245, 255, 255, 255))
+$titleFontSplash = New-Object System.Drawing.Font('Segoe UI', 108, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+$subFontSplash = New-Object System.Drawing.Font('Segoe UI', 42, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+$centerPanel = New-RoundedPath -X 360 -Y 120 -Width 680 -Height 680 -Radius 132
 $splashGraphics.FillPath($splashGlowBrush, $centerPanel)
-Draw-BrandSymbol -Graphics $splashGraphics -OffsetX 236 -OffsetY 140 -Scale 0.74 -Color $white -StrokeMultiplier 1.12 -WheelMultiplier 1.3
+Draw-BrandSymbol -Graphics $splashGraphics -OffsetX 95 -OffsetY 88 -Scale 1.0 -Color $white -StrokeMultiplier 1.18 -WheelMultiplier 1.28
 $splashFormat = New-Object System.Drawing.StringFormat
 $splashFormat.Alignment = [System.Drawing.StringAlignment]::Center
-$splashGraphics.DrawString('T-Suma', $titleFontSplash, $splashTextBrush, [System.Drawing.RectangleF]::new(140, 820, 1120, 120), $splashFormat)
-$splashGraphics.DrawString('Punto de venta', $subFontSplash, $splashSubBrush, [System.Drawing.RectangleF]::new(140, 940, 1120, 60), $splashFormat)
+$splashGraphics.DrawString('T-Suma', $titleFontSplash, $splashTextBrush, [System.Drawing.RectangleF]::new(110, 860, 1180, 140), $splashFormat)
+$splashGraphics.DrawString('Punto de venta', $subFontSplash, $splashSubBrush, [System.Drawing.RectangleF]::new(110, 992, 1180, 74), $splashFormat)
 $splashGraphics.Dispose()
 $splashBitmap.Save((Join-Path $assetsPath 'splash.png'), [System.Drawing.Imaging.ImageFormat]::Png)
 $splashBitmap.Dispose()
