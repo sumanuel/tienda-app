@@ -9,7 +9,9 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import {
   ActivityIndicator,
+  Animated,
   AppState,
+  Image,
   Platform,
   StatusBar as RNStatusBar,
   View,
@@ -128,6 +130,60 @@ const NAV_COLORS = {
   surfaceAlt: "#f2f6f3",
   border: "#dce7df",
   overlay: "rgba(10, 24, 19, 0.24)",
+};
+
+const STARTUP_PHASE_ORDER = [
+  "auth-check",
+  "store-context",
+  "bootstrap",
+  "db-tables",
+  "legacy-migration",
+  "settings-init",
+  "onboarding-check",
+  "background-task",
+  "finalizing",
+];
+
+const STARTUP_PHASE_COPY = {
+  "auth-check": {
+    title: "Ingresando",
+    message: "Estamos verificando tu acceso y preparando tu sesión.",
+  },
+  "store-context": {
+    title: "Preparando tienda",
+    message: "Se está preparando el área de trabajo de tu tienda.",
+  },
+  bootstrap: {
+    title: "Iniciando T-Suma",
+    message: "Estamos organizando todo para comenzar.",
+  },
+  "db-tables": {
+    title: "Preparando datos",
+    message: "Se están creando y verificando las tablas principales.",
+  },
+  "legacy-migration": {
+    title: "Actualizando información",
+    message:
+      "Se están revisando datos anteriores para mantener tu información al día.",
+  },
+  "settings-init": {
+    title: "Cargando configuración",
+    message: "Se están aplicando ajustes base del negocio y del sistema.",
+  },
+  "onboarding-check": {
+    title: "Revisando tu tienda",
+    message:
+      "Se están comprobando datos del negocio, tasa de cambio y pasos iniciales.",
+  },
+  "background-task": {
+    title: "Activando servicios",
+    message: "Se están preparando tareas automáticas y utilidades de apoyo.",
+  },
+  finalizing: {
+    title: "Casi listo",
+    message:
+      "Estamos afinando los últimos detalles para mostrar tu espacio de trabajo.",
+  },
 };
 
 const buildStackScreenOptions = (accentColor = NAV_COLORS.accent) => ({
@@ -706,6 +762,155 @@ const tabStyles = StyleSheet.create({
   },
 });
 
+const loadingStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: NAV_COLORS.accent,
+    paddingHorizontal: hs(24),
+  },
+  card: {
+    width: "100%",
+    maxWidth: s(336),
+    alignItems: "center",
+    backgroundColor: "rgba(9, 55, 39, 0.24)",
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(24),
+    paddingVertical: vs(30),
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: s(12) },
+    shadowOpacity: 0.12,
+    shadowRadius: s(18),
+    elevation: 6,
+  },
+  logoWrap: {
+    width: s(110),
+    height: s(110),
+    borderRadius: s(32),
+    borderCurve: "continuous",
+    backgroundColor: "rgba(8, 48, 35, 0.34)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: vs(18),
+  },
+  logo: {
+    width: s(84),
+    height: s(84),
+    borderRadius: s(24),
+  },
+  title: {
+    fontSize: rf(20),
+    fontWeight: "800",
+    color: "#ffffff",
+    marginBottom: vs(8),
+  },
+  message: {
+    fontSize: rf(14),
+    lineHeight: vs(20),
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.82)",
+    textAlign: "center",
+    minHeight: vs(48),
+  },
+  helper: {
+    fontSize: rf(12),
+    color: "rgba(255,255,255,0.62)",
+    textAlign: "center",
+    marginTop: vs(8),
+  },
+  progressRow: {
+    flexDirection: "row",
+    gap: hs(8),
+    marginTop: vs(18),
+  },
+  progressDot: {
+    width: s(8),
+    height: s(8),
+    borderRadius: s(4),
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  progressDotActive: {
+    backgroundColor: "#ffffff",
+    transform: [{ scale: 1.12 }],
+  },
+  spinner: {
+    marginTop: vs(16),
+  },
+});
+
+function AppLoadingScreen({ phaseKey }) {
+  const phase = STARTUP_PHASE_COPY[phaseKey] || STARTUP_PHASE_COPY.bootstrap;
+  const phaseIndex = Math.max(STARTUP_PHASE_ORDER.indexOf(phaseKey), 0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(12)).current;
+
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    translateAnim.setValue(12);
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateAnim, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, phaseKey, translateAnim]);
+
+  return (
+    <View style={loadingStyles.container}>
+      <StatusBar hidden translucent />
+      <Animated.View
+        style={[
+          loadingStyles.card,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: translateAnim }],
+          },
+        ]}
+      >
+        <View style={loadingStyles.logoWrap}>
+          <Image
+            source={require("./assets/icon.png")}
+            style={loadingStyles.logo}
+            resizeMode="contain"
+          />
+        </View>
+        <Text style={loadingStyles.title}>{phase.title}</Text>
+        <Text style={loadingStyles.message}>{phase.message}</Text>
+        <Text style={loadingStyles.helper}>
+          Tu tienda se abrirá en unos instantes.
+        </Text>
+        <ActivityIndicator
+          size="small"
+          color="#ffffff"
+          style={loadingStyles.spinner}
+        />
+        <View style={loadingStyles.progressRow}>
+          {STARTUP_PHASE_ORDER.map((message, index) => (
+            <View
+              key={`${message}-${index}`}
+              style={[
+                loadingStyles.progressDot,
+                index <= phaseIndex && loadingStyles.progressDotActive,
+              ]}
+            />
+          ))}
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
+
 /**
  * Componente principal de la aplicación
  */
@@ -713,6 +918,7 @@ function AppContent() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingInitialStep, setOnboardingInitialStep] = useState("slides");
+  const [startupPhase, setStartupPhase] = useState("auth-check");
   const initializingRef = useRef(false);
   const initializedKeyRef = useRef("");
   const {
@@ -730,6 +936,22 @@ function AppContent() {
   );
   const canManageActiveStoreBusiness =
     !activeStoreId || canManageBusinessSetup(activeMembership);
+
+  useEffect(() => {
+    if (authLoading) {
+      setStartupPhase("auth-check");
+      return;
+    }
+
+    if (storeLoading) {
+      setStartupPhase("store-context");
+      return;
+    }
+
+    if (!isReady) {
+      setStartupPhase("bootstrap");
+    }
+  }, [authLoading, isReady, storeLoading]);
 
   const applyImmersiveMode = useCallback(async () => {
     try {
@@ -801,16 +1023,20 @@ function AppContent() {
 
     try {
       setIsReady(false);
+      setStartupPhase("db-tables");
 
       // Inicializar todas las tablas en una sola transacción
       await initAllTables();
 
+      setStartupPhase("legacy-migration");
       await migrateLegacyDatabaseToCurrentStoreIfNeeded();
 
       // Inicializar settings con valores por defecto
+      setStartupPhase("settings-init");
       await initSettingsTable();
 
       // Verificar si el usuario ya completó el onboarding y si ya vio las slides
+      setStartupPhase("onboarding-check");
       const onboardingState = await getOnboardingState(user?.uid);
       const resolvedOnboardingCompleted = onboardingState.completed;
       const resolvedOnboardingSlidesSeen = onboardingState.slidesSeen;
@@ -929,6 +1155,7 @@ function AppContent() {
       ).toLowerCase();
       const isExpoGo = executionEnvironment === "storeclient";
 
+      setStartupPhase("background-task");
       if (!isExpoGo) {
         await registerDailyRateBackgroundTask();
       } else {
@@ -943,9 +1170,11 @@ function AppContent() {
       // }
 
       console.log("Database initialized successfully");
+      setStartupPhase("finalizing");
       setIsReady(true);
     } catch (error) {
       console.error("Error initializing app:", error);
+      setStartupPhase("finalizing");
       setIsReady(true); // Continuar aunque haya error
     } finally {
       initializingRef.current = false;
@@ -968,12 +1197,7 @@ function AppContent() {
   ]);
 
   if (!isReady || authLoading || storeLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <StatusBar hidden translucent />
-        <ActivityIndicator size="large" color="#4CAF50" />
-      </View>
-    );
+    return <AppLoadingScreen phaseKey={startupPhase} />;
   }
 
   if (!user) {
