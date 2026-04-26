@@ -366,7 +366,7 @@ export const DashboardScreen = ({ navigation }) => {
             >
               <Ionicons
                 name="bar-chart-outline"
-                size={iconSize.lg}
+                size={rf(20)}
                 color={DASHBOARD_COLORS.infoStrong}
               />
             </Pressable>
@@ -713,9 +713,9 @@ const styles = StyleSheet.create({
     marginTop: vs(4),
   },
   roundIconButton: {
-    width: s(48),
-    height: s(48),
-    borderRadius: s(24),
+    width: s(44),
+    height: s(44),
+    borderRadius: s(22),
     borderCurve: "continuous",
     backgroundColor: DASHBOARD_COLORS.infoSoft,
     alignItems: "center",

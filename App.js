@@ -1014,6 +1014,7 @@ function AppContent() {
       <TourGuideProvider
         backdropColor="rgba(0,0,0,0.001)"
         tooltipComponent={TourTooltip}
+        verticalOffset={Platform.OS === "android" ? -vs(8) : -vs(4)}
         preventOutsideInteraction={false}
         dismissOnPress
       >

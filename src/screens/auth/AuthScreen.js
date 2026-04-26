@@ -60,6 +60,8 @@ const AuthScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
@@ -113,7 +115,9 @@ const AuthScreen = () => {
 
       if (isRegister) {
         await signUp({ name, email: normalizedEmail, password });
-        setInfoMessage("Te enviamos un correo de verificación.");
+        setInfoMessage(
+          "Te enviamos un correo de verificación. Si no lo ves pronto, revisa también la carpeta spam.",
+        );
       } else {
         await signIn({ email: normalizedEmail, password });
       }
@@ -137,7 +141,9 @@ const AuthScreen = () => {
       setError("");
       setInfoMessage("");
       await sendPasswordReset(normalizedEmail);
-      setInfoMessage("Te enviamos un correo para restablecer tu contraseña.");
+      setInfoMessage(
+        "Te enviamos un correo para restablecer tu contraseña. Si no aparece en unos minutos, revisa también la carpeta spam.",
+      );
     } catch (authError) {
       setError(mapAuthError(authError));
     } finally {
@@ -271,43 +277,77 @@ const AuthScreen = () => {
             />
 
             <Text style={styles.label}>Contraseña</Text>
-            <TextInput
-              ref={passwordInputRef}
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Mínimo 6 caracteres"
-              placeholderTextColor="#8a94a6"
-              secureTextEntry
-              returnKeyType={isRegister ? "next" : "done"}
-              onFocus={() =>
-                scrollToFocusedInput(isRegister ? vs(240) : vs(210))
-              }
-              onSubmitEditing={() => {
-                if (isRegister) {
-                  confirmPasswordInputRef.current?.focus();
-                  return;
+            <View style={styles.passwordField}>
+              <TextInput
+                ref={passwordInputRef}
+                style={styles.passwordInput}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Mínimo 6 caracteres"
+                placeholderTextColor="#8a94a6"
+                secureTextEntry={!showPassword}
+                returnKeyType={isRegister ? "next" : "done"}
+                onFocus={() =>
+                  scrollToFocusedInput(isRegister ? vs(240) : vs(210))
                 }
+                onSubmitEditing={() => {
+                  if (isRegister) {
+                    confirmPasswordInputRef.current?.focus();
+                    return;
+                  }
 
-                submit();
-              }}
-            />
+                  submit();
+                }}
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.passwordEyeButton,
+                  pressed && styles.linkButtonPressed,
+                ]}
+                onPress={() => setShowPassword((current) => !current)}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={rf(18)}
+                  color={AUTH_COLORS.muted}
+                />
+              </Pressable>
+            </View>
 
             {isRegister && (
               <>
                 <Text style={styles.label}>Confirmar contraseña</Text>
-                <TextInput
-                  ref={confirmPasswordInputRef}
-                  style={styles.input}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  placeholder="Repite la contraseña"
-                  placeholderTextColor="#8a94a6"
-                  secureTextEntry
-                  returnKeyType="done"
-                  onFocus={() => scrollToFocusedInput(vs(300))}
-                  onSubmitEditing={submit}
-                />
+                <View style={styles.passwordField}>
+                  <TextInput
+                    ref={confirmPasswordInputRef}
+                    style={styles.passwordInput}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholder="Repite la contraseña"
+                    placeholderTextColor="#8a94a6"
+                    secureTextEntry={!showConfirmPassword}
+                    returnKeyType="done"
+                    onFocus={() => scrollToFocusedInput(vs(300))}
+                    onSubmitEditing={submit}
+                  />
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.passwordEyeButton,
+                      pressed && styles.linkButtonPressed,
+                    ]}
+                    onPress={() =>
+                      setShowConfirmPassword((current) => !current)
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        showConfirmPassword ? "eye-off-outline" : "eye-outline"
+                      }
+                      size={rf(18)}
+                      color={AUTH_COLORS.muted}
+                    />
+                  </Pressable>
+                </View>
               </>
             )}
 
@@ -476,6 +516,30 @@ const styles = StyleSheet.create({
     paddingVertical: vs(14),
     fontSize: rf(15),
     color: AUTH_COLORS.text,
+  },
+  passwordField: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: AUTH_COLORS.border,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: AUTH_COLORS.surfaceAlt,
+    paddingLeft: hs(14),
+    paddingRight: hs(6),
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: vs(14),
+    fontSize: rf(15),
+    color: AUTH_COLORS.text,
+  },
+  passwordEyeButton: {
+    width: s(38),
+    height: s(38),
+    borderRadius: s(19),
+    alignItems: "center",
+    justifyContent: "center",
   },
   errorText: {
     color: AUTH_COLORS.danger,

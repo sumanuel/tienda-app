@@ -12,10 +12,10 @@ export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
     return (
       <View style={[styles.container, style]}>
         <View style={styles.header}>
-          <Text style={styles.label}>💱 Tasa Actual</Text>
+          <Text style={styles.label}>Tasa actual</Text>
           <Text style={styles.source}>BCV</Text>
         </View>
-        <Text style={styles.noRate}>⚠️ Tasa no disponible</Text>
+        <Text style={styles.noRate}>Tasa no disponible</Text>
       </View>
     );
   }
@@ -27,7 +27,7 @@ export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
   return (
     <View style={[styles.container, style]}>
       <View style={styles.header}>
-        <Text style={styles.label}>💱 Tasa Actual</Text>
+        <Text style={styles.label}>Tasa actual</Text>
         {source && <Text style={styles.source}>{source}</Text>}
       </View>
 
@@ -37,7 +37,7 @@ export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
       </View>
 
       <Text style={styles.lastUpdate}>
-        📅 Última actualización: {formattedDate}
+        Última actualización: {formattedDate}
       </Text>
     </View>
   );

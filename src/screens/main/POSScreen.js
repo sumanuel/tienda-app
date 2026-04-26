@@ -1073,32 +1073,46 @@ export const POSScreen = ({ navigation }) => {
 
         <View
           style={[
-            styles.cartSummary,
+            styles.cartFabWrap,
             { bottom: vs(14) + Math.max(insets.bottom, vs(8)) },
           ]}
         >
+          {cart.length > 0 ? (
+            <Pressable
+              onPress={() => setShowCart(true)}
+              style={({ pressed }) => [
+                styles.cartFabAmount,
+                pressed && styles.cardPressed,
+              ]}
+            >
+              <Text style={styles.cartFabAmountLabel}>Carrito</Text>
+              <Text style={styles.cartFabAmountValue}>
+                VES. {total.toFixed(2)}
+              </Text>
+            </Pressable>
+          ) : null}
+
           <TourGuideZone
             tourKey="pos_v3"
             zone={TOUR_ZONE_BASE + 3}
-            text={"Presiona 'Ver carrito' para cobrar y completar la venta."}
-            borderRadius={borderRadius.lg}
+            text={
+              "Presiona el carrito flotante para revisar el pedido y completar la venta."
+            }
+            borderRadius={borderRadius.xl}
+            tooltipBottomOffset={vs(28)}
           >
             <Pressable
               style={({ pressed }) => [
-                styles.cartSummaryButton,
+                styles.cartFabButton,
+                cart.length === 0 && styles.cartFabButtonIdle,
                 pressed && styles.cardPressed,
               ]}
               onPress={() => setShowCart(true)}
             >
-              <View style={styles.cartSummaryInfo}>
-                <Text style={styles.cartSummaryLabel}>Carrito activo</Text>
-                <Text style={styles.cartSummaryTotal}>
-                  VES. {total.toFixed(2)}
-                </Text>
+              <Ionicons name="cart-outline" size={rf(22)} color="#ffffff" />
+              <View style={styles.cartFabBadge}>
+                <Text style={styles.cartFabBadgeText}>{cart.length}</Text>
               </View>
-              <Text style={styles.cartSummaryButtonText}>
-                Ver carrito ({cart.length})
-              </Text>
             </Pressable>
           </TourGuideZone>
         </View>
@@ -1112,6 +1126,7 @@ export const POSScreen = ({ navigation }) => {
           <TourGuideProvider
             backdropColor="rgba(0,0,0,0.001)"
             tooltipComponent={TourTooltip}
+            verticalOffset={Platform.OS === "android" ? -vs(8) : -vs(4)}
             preventOutsideInteraction={false}
             dismissOnPress
           >
@@ -1429,6 +1444,7 @@ export const POSScreen = ({ navigation }) => {
                     }
                     borderRadius={borderRadius.lg}
                     style={styles.checkoutTourZone}
+                    tooltipBottomOffset={vs(24)}
                   >
                     <Pressable
                       style={[
@@ -1732,7 +1748,7 @@ const styles = StyleSheet.create({
     gap: vs(10),
   },
   productsContentWithSummary: {
-    paddingBottom: vs(212),
+    paddingBottom: vs(184),
   },
   productCard: {
     backgroundColor: POS_COLORS.surface,
@@ -1870,43 +1886,67 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: vs(20),
   },
-  cartSummary: {
+  cartFabWrap: {
     position: "absolute",
-    left: hs(16),
     right: hs(16),
     backgroundColor: "transparent",
+    alignItems: "flex-end",
+    gap: vs(10),
   },
-  cartSummaryInfo: {
-    gap: vs(4),
-  },
-  cartSummaryLabel: {
-    fontSize: rf(12),
-    fontWeight: "600",
-    color: "#7a8796",
-    textTransform: "uppercase",
-    letterSpacing: s(0.6),
-  },
-  cartSummaryTotal: {
-    fontSize: rf(22),
-    fontWeight: "800",
-    color: "#ffffff",
-  },
-  cartSummaryButton: {
+  cartFabAmount: {
     backgroundColor: POS_COLORS.text,
     borderRadius: borderRadius.xl,
     borderCurve: "continuous",
-    paddingHorizontal: hs(18),
-    paddingVertical: vs(13),
-    flexDirection: "row",
+    paddingHorizontal: hs(16),
+    paddingVertical: vs(10),
+    alignItems: "flex-end",
+    minWidth: hs(132),
+    ...SHADOWS.soft,
+  },
+  cartFabAmountLabel: {
+    fontSize: rf(12),
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.72)",
+    textTransform: "uppercase",
+    letterSpacing: s(0.6),
+  },
+  cartFabAmountValue: {
+    fontSize: rf(18),
+    fontWeight: "800",
+    color: "#ffffff",
+    marginTop: vs(2),
+  },
+  cartFabButton: {
+    width: s(60),
+    height: s(60),
+    borderRadius: s(30),
+    borderCurve: "continuous",
+    backgroundColor: POS_COLORS.accent,
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: hs(12),
+    justifyContent: "center",
     ...SHADOWS.card,
   },
-  cartSummaryButtonText: {
-    color: "#fff",
+  cartFabButtonIdle: {
+    backgroundColor: POS_COLORS.info,
+  },
+  cartFabBadge: {
+    position: "absolute",
+    top: -vs(3),
+    right: -hs(2),
+    minWidth: s(24),
+    height: s(24),
+    borderRadius: s(12),
+    paddingHorizontal: hs(6),
+    backgroundColor: "#ffffff",
+    borderWidth: 2,
+    borderColor: POS_COLORS.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cartFabBadgeText: {
+    color: POS_COLORS.accentStrong,
     fontWeight: "700",
-    fontSize: rf(14),
+    fontSize: rf(11),
   },
   qrButton: {
     backgroundColor: POS_COLORS.infoSoft,
