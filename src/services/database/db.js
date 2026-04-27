@@ -430,6 +430,7 @@ export const initAllTables = async () => {
           priceUSD REAL DEFAULT 0,
           priceVES REAL DEFAULT 0,
           margin REAL DEFAULT 0,
+          trackInventory INTEGER DEFAULT 1,
           stock INTEGER DEFAULT 0,
           minStock INTEGER DEFAULT 0,
           image TEXT,
@@ -691,10 +692,19 @@ const runMigrations = async () => {
         const hasAdditionalCost = (columns || []).some(
           (c) => c?.name === "additionalCost",
         );
+        const hasTrackInventory = (columns || []).some(
+          (c) => c?.name === "trackInventory",
+        );
 
         if (!hasAdditionalCost) {
           await db.execAsync(
             "ALTER TABLE products ADD COLUMN additionalCost REAL DEFAULT 0;",
+          );
+        }
+
+        if (!hasTrackInventory) {
+          await db.execAsync(
+            "ALTER TABLE products ADD COLUMN trackInventory INTEGER DEFAULT 1;",
           );
         }
       }

@@ -192,7 +192,9 @@ export const ProductsScreen = ({ navigation }) => {
     const totalProducts = products.length;
     const lowStockThreshold = 5;
     const lowStock = products.filter(
-      (product) => (product.stock || 0) <= lowStockThreshold,
+      (product) =>
+        Number(product.trackInventory ?? 1) === 1 &&
+        (product.stock || 0) <= lowStockThreshold,
     ).length;
     const rateFromSettings = settings?.pricing?.currencies?.USD;
     const appliedRate = exchangeRate || rateFromSettings || 0;
@@ -211,7 +213,9 @@ export const ProductsScreen = ({ navigation }) => {
     const priceVES = appliedRate ? priceUSD * appliedRate : 0;
     const stock = item.stock || 0;
     const minStock = item.minStock ?? 0;
-    const lowStock = minStock ? stock <= minStock : stock <= 5;
+    const tracksInventory = Number(item.trackInventory ?? 1) === 1;
+    const lowStock =
+      tracksInventory && (minStock ? stock <= minStock : stock <= 5);
 
     return (
       <Pressable

@@ -44,7 +44,9 @@ export const useInventory = () => {
     try {
       setLoading(true);
       setError(null);
-      const products = await getAllProducts();
+      const products = (await getAllProducts()).filter(
+        (product) => Number(product.trackInventory ?? 1) === 1,
+      );
       setInventory(products);
 
       // Obtener productos con stock bajo
@@ -110,7 +112,7 @@ export const useInventory = () => {
         throw err;
       }
     },
-    [inventory, updateStock]
+    [inventory, updateStock],
   );
 
   /**
@@ -130,7 +132,7 @@ export const useInventory = () => {
         throw err;
       }
     },
-    [adjustStock]
+    [adjustStock],
   );
 
   /**

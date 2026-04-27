@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useProducts } from "../../hooks/useProducts";
 import { useExchangeRate } from "../../hooks/useExchangeRate";
 import { getSettings } from "../../services/database/settings";
@@ -126,6 +127,7 @@ export const AddProductScreen = ({ navigation }) => {
     category: "",
     priceUSD: calculatedPrices.usd,
     stock: "",
+    trackInventory: true,
     description: "",
   });
 
@@ -187,7 +189,10 @@ export const AddProductScreen = ({ navigation }) => {
       return;
     }
 
-    if (!formData.stock || Number.isNaN(parseInt(formData.stock, 10))) {
+    if (
+      formData.trackInventory &&
+      (!formData.stock || Number.isNaN(parseInt(formData.stock, 10)))
+    ) {
       showAlert({
         title: "Error",
         message: "El stock debe ser un número válido",
@@ -239,7 +244,8 @@ export const AddProductScreen = ({ navigation }) => {
         priceVES: parseFloat(calculatedPrices.ves),
         margin,
         iva: Number(iva) || 0,
-        stock: parseInt(formData.stock, 10),
+        trackInventory: formData.trackInventory ? 1 : 0,
+        stock: formData.trackInventory ? parseInt(formData.stock, 10) : 1,
         minStock: 0,
         description: formData.description.trim(),
       };
@@ -247,7 +253,7 @@ export const AddProductScreen = ({ navigation }) => {
       const productId = await addProduct(productData);
 
       // Si hay stock inicial, registrar como movimiento de entrada
-      if (productData.stock > 0) {
+      if (productData.trackInventory === 1 && productData.stock > 0) {
         await insertInventoryMovement(
           productId,
           "entry",
@@ -532,31 +538,71 @@ export const AddProductScreen = ({ navigation }) => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Inventario inicial</Text>
             <Text style={styles.sectionHint}>
-              Define cuántas unidades ya tienes en stock para iniciar los
-              controles.
+              Define si este producto participa en inventario y cómo debe
+              registrarse al crearlo.
             </Text>
           </View>
 
           <SurfaceCard style={styles.card}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.inventoryToggle,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={() =>
+                setFormData((prev) => ({
+                  ...prev,
+                  trackInventory: !prev.trackInventory,
+                  stock: prev.trackInventory ? "1" : prev.stock,
+                }))
+              }
+            >
+              <View style={styles.inventoryToggleCopy}>
+                <Text style={styles.fieldLabel}>Producto inventariable</Text>
+                <Text style={styles.inventoryToggleHint}>
+                  {formData.trackInventory
+                    ? "Las ventas descontarán stock y registrarán movimientos de inventario."
+                    : "Se guardará con inventario inicial 1 y las ventas no generarán movimientos de inventario."}
+                </Text>
+              </View>
+              <Ionicons
+                name={
+                  formData.trackInventory
+                    ? "checkbox-outline"
+                    : "square-outline"
+                }
+                size={rf(24)}
+                color={
+                  formData.trackInventory
+                    ? UI_COLORS.accentStrong
+                    : UI_COLORS.muted
+                }
+              />
+            </Pressable>
+
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Cantidad *</Text>
+              <Text style={styles.fieldLabel}>
+                {formData.trackInventory ? "Cantidad *" : "Inventario inicial"}
+              </Text>
               <TextInput
                 ref={stockRef}
                 style={styles.input}
-                placeholder="0"
+                placeholder={formData.trackInventory ? "0" : "1"}
                 placeholderTextColor="#9aa2b1"
-                value={formData.stock}
+                value={formData.trackInventory ? formData.stock : "1"}
                 onChangeText={(value) => handleInputChange("stock", value)}
                 keyboardType="numeric"
                 returnKeyType="done"
                 onFocus={() => scrollToField(stockRef)}
                 onSubmitEditing={handleSubmit}
+                editable={formData.trackInventory}
               />
             </View>
 
             <Text style={styles.helperText}>
-              Puedes ajustar el stock, margen e IVA luego desde la pantalla de
-              edición del producto.
+              {formData.trackInventory
+                ? "Puedes ajustar el stock, margen e IVA luego desde la pantalla de edición del producto."
+                : "Este producto seguirá disponible para venderse, pero no impactará los controles de inventario."}
             </Text>
           </SurfaceCard>
 
@@ -762,6 +808,28 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderCurve: "continuous",
     lineHeight: vs(18),
+  },
+  inventoryToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: hs(14),
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(14),
+    paddingVertical: vs(14),
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+  },
+  inventoryToggleCopy: {
+    flex: 1,
+    gap: vs(6),
+  },
+  inventoryToggleHint: {
+    fontSize: rf(12),
+    lineHeight: vs(18),
+    color: UI_COLORS.muted,
   },
   buttonRow: {
     flexDirection: "row",

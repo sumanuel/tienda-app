@@ -63,6 +63,7 @@ import ExchangeRateScreen from "./src/screens/main/ExchangeRateScreen";
 import SettingsScreen from "./src/screens/main/SettingsScreen";
 import AddProductScreen from "./src/screens/main/AddProductScreen";
 import EditProductScreen from "./src/screens/main/EditProductScreen";
+import MarginalSaleScreen from "./src/screens/main/MarginalSaleScreen";
 import { CustomersScreen } from "./src/screens/main/CustomersScreen";
 import { SuppliersScreen } from "./src/screens/main/SuppliersScreen";
 import { AddCustomerScreen } from "./src/screens/main/AddCustomerScreen";
@@ -1271,6 +1272,11 @@ function AppContent() {
                   name="EditProduct"
                   component={EditProductScreen}
                   options={{ title: "Editar Producto" }}
+                />
+                <Stack.Screen
+                  name="MarginalSale"
+                  component={MarginalSaleScreen}
+                  options={{ title: "Venta marginal" }}
                 />
                 <Stack.Screen
                   name="AddCustomer"

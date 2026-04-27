@@ -417,6 +417,16 @@ export const DashboardScreen = ({ navigation }) => {
             }}
           />
           <DashboardAction
+            icon="receipt-outline"
+            title="Registrar venta marginal"
+            subtitle="Guarda una venta puntual sin afectar inventario"
+            tone="accent"
+            onPress={() => {
+              if (!requireExchangeRate("registrar ventas marginales")) return;
+              navigation.navigate("MarginalSale");
+            }}
+          />
+          <DashboardAction
             icon="cube-outline"
             title="Revisar inventario"
             subtitle="Consulta stock, entradas y movimientos recientes"

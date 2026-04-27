@@ -5,6 +5,7 @@
  * @returns {boolean} True si tiene stock bajo
  */
 export const isLowStock = (product, threshold = 10) => {
+  if (Number(product?.trackInventory ?? 1) !== 1) return false;
   return product.stock <= threshold && product.stock > 0;
 };
 
@@ -14,6 +15,7 @@ export const isLowStock = (product, threshold = 10) => {
  * @returns {boolean} True si no tiene stock
  */
 export const isOutOfStock = (product) => {
+  if (Number(product?.trackInventory ?? 1) !== 1) return false;
   return product.stock <= 0;
 };
 
@@ -55,6 +57,9 @@ export const getOutOfStockProducts = (products) => {
  */
 export const calculateInventoryValue = (products) => {
   return products.reduce((total, product) => {
+    if (Number(product?.trackInventory ?? 1) !== 1) {
+      return total;
+    }
     return total + product.cost * product.stock;
   }, 0);
 };
