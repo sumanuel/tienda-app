@@ -12,6 +12,8 @@ export const StoreUpdatePrompt = () => {
   const { showAlert, CustomAlert } = useCustomAlert();
 
   useEffect(() => {
+    let mounted = true;
+
     const run = async () => {
       if (hasCheckedRef.current) return;
       hasCheckedRef.current = true;
@@ -23,6 +25,8 @@ export const StoreUpdatePrompt = () => {
         console.warn("Store update check failed:", error);
         return;
       }
+
+      if (!mounted) return;
 
       if (!updateInfo?.updateAvailable) return;
 
@@ -48,11 +52,15 @@ export const StoreUpdatePrompt = () => {
           });
 
           await AsyncStorage.setItem(notifiedKey, "true");
-          refreshCount();
+          if (mounted) {
+            refreshCount();
+          }
         }
       } catch (error) {
         console.warn("Failed to store update notification:", error);
       }
+
+      if (!mounted) return;
 
       // 2) Prompt (una vez por sesión)
       showAlert({
@@ -77,6 +85,10 @@ export const StoreUpdatePrompt = () => {
     };
 
     run();
+
+    return () => {
+      mounted = false;
+    };
   }, [refreshCount, showAlert]);
 
   return <CustomAlert />;

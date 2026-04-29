@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getAllProducts,
   searchProducts,
@@ -6,7 +6,6 @@ import {
   updateProduct,
   deleteProduct,
 } from "../services/database/products";
-import { useExchangeRate } from "./useExchangeRate";
 import { requestCloudSync } from "../services/firebase/firestoreSync";
 
 /**
@@ -17,21 +16,17 @@ export const useProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const { rate: exchangeRate } = useExchangeRate();
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef(null);
 
-  // Cargar productos al montar
   useEffect(() => {
-    loadProducts();
-  }, []); // No incluir loadProducts para evitar loops
-
-  // Recargar productos cuando cambie la tasa de cambio
-  useEffect(() => {
-    if (exchangeRate && products.length > 0) {
-      console.log("Tasa de cambio cambió, recargando productos...");
-      loadProducts();
-    }
-  }, [exchangeRate]);
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   /**
    * Carga todos los productos
@@ -60,22 +55,25 @@ export const useProducts = () => {
         setProducts(data);
       }
 
-      setRetryCount(0); // Reset retry count on success
+      retryCountRef.current = 0;
     } catch (err) {
       console.error("Error loading products:", err);
       setError("Error al cargar productos");
 
-      // Intentar reinicializar solo una vez
-      if (retryCount === 0) {
-        setRetryCount(1);
+      if (retryCountRef.current === 0) {
+        retryCountRef.current = 1;
         console.log("Intentando reinicializar base de datos...");
-        setTimeout(async () => {
+
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+        }
+
+        retryTimeoutRef.current = setTimeout(async () => {
           try {
-            // Intentar reinicializar la base de datos
             const { initDatabase } =
               await import("../services/database/products");
             await initDatabase();
-            loadProducts(); // Reintentar cargar
+            await loadProducts();
           } catch (initError) {
             console.error("Error reinicializando BD:", initError);
           }
@@ -84,7 +82,12 @@ export const useProducts = () => {
     } finally {
       setLoading(false);
     }
-  }, [retryCount]);
+  }, []);
+
+  // Cargar productos al montar
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   /**
    * Busca productos por texto
@@ -106,53 +109,62 @@ export const useProducts = () => {
   /**
    * Agrega un nuevo producto
    */
-  const addProduct = useCallback(async (product) => {
-    try {
-      setError(null);
-      console.log("Agregando producto:", product);
-      const id = await insertProduct(product);
-      console.log("Producto agregado con ID:", id);
-      await loadProducts(); // Recargar lista
-      requestCloudSync("products:add");
-      return id;
-    } catch (err) {
-      setError(err.message);
-      console.error("Error adding product:", err);
-      throw err;
-    }
-  }, []);
+  const addProduct = useCallback(
+    async (product) => {
+      try {
+        setError(null);
+        console.log("Agregando producto:", product);
+        const id = await insertProduct(product);
+        console.log("Producto agregado con ID:", id);
+        await loadProducts(); // Recargar lista
+        requestCloudSync("products:add");
+        return id;
+      } catch (err) {
+        setError(err.message);
+        console.error("Error adding product:", err);
+        throw err;
+      }
+    },
+    [loadProducts],
+  );
 
   /**
    * Actualiza un producto existente
    */
-  const editProduct = useCallback(async (id, product) => {
-    try {
-      setError(null);
-      await updateProduct(id, product);
-      await loadProducts(); // Recargar lista
-      requestCloudSync("products:edit");
-    } catch (err) {
-      setError(err.message);
-      console.error("Error updating product:", err);
-      throw err;
-    }
-  }, []);
+  const editProduct = useCallback(
+    async (id, product) => {
+      try {
+        setError(null);
+        await updateProduct(id, product);
+        await loadProducts(); // Recargar lista
+        requestCloudSync("products:edit");
+      } catch (err) {
+        setError(err.message);
+        console.error("Error updating product:", err);
+        throw err;
+      }
+    },
+    [loadProducts],
+  );
 
   /**
    * Elimina un producto
    */
-  const removeProduct = useCallback(async (id) => {
-    try {
-      setError(null);
-      await deleteProduct(id);
-      await loadProducts(); // Recargar lista
-      requestCloudSync("products:remove");
-    } catch (err) {
-      setError(err.message);
-      console.error("Error deleting product:", err);
-      throw err;
-    }
-  }, []);
+  const removeProduct = useCallback(
+    async (id) => {
+      try {
+        setError(null);
+        await deleteProduct(id);
+        await loadProducts(); // Recargar lista
+        requestCloudSync("products:remove");
+      } catch (err) {
+        setError(err.message);
+        console.error("Error deleting product:", err);
+        throw err;
+      }
+    },
+    [loadProducts],
+  );
 
   /**
    * Filtra productos por categoría

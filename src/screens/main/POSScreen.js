@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
@@ -8,7 +14,6 @@ import {
   FlatList,
   TextInput,
   Modal,
-  Dimensions,
   SafeAreaView,
   ActivityIndicator,
   Platform,
@@ -19,6 +24,7 @@ import {
   TourGuideZone,
   useTourGuideController,
 } from "rn-tourguide";
+import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TourTooltip from "../../components/tour/TourTooltip";
 import { useProducts } from "../../hooks/useProducts";
@@ -35,22 +41,453 @@ import {
   insertInventoryMovement,
 } from "../../services/database/products";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import {
-  s,
-  rf,
-  vs,
-  hs,
-  spacing,
-  borderRadius,
-  iconSize,
-} from "../../utils/responsive";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 const TOUR_ZONE_BASE = 0;
 const CART_TOUR_ZONE_BASE = 0;
 
 const POS_COLORS = UI_COLORS;
+
+const sortProductsByBarcode = (items) =>
+  [...items].sort((a, b) => {
+    const numA = parseInt((a.barcode || "").replace("PROD-", ""), 10) || 0;
+    const numB = parseInt((b.barcode || "").replace("PROD-", ""), 10) || 0;
+    return numA - numB;
+  });
+
+const CartTourBootstrapper = ({ showCart }) => {
+  const { canStart: canStartCart, start: startCart } =
+    useTourGuideController("pos_cart_v2");
+  const [booted, setBooted] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    let timeoutId;
+
+    const maybeStart = async () => {
+      if (booted) return;
+      if (!showCart) return;
+      if (!canStartCart) return;
+
+      const tourId = "pos_cart_v2";
+      const seen = await hasSeenTour(tourId);
+      if (!mounted) return;
+
+      if (!seen) {
+        // Dar tiempo a que el Modal y sus layouts midan posiciones.
+        timeoutId = setTimeout(() => {
+          startCart();
+          markTourSeen(tourId);
+        }, 650);
+      }
+
+      if (mounted) setBooted(true);
+    };
+
+    maybeStart();
+
+    return () => {
+      mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [booted, showCart, canStartCart, startCart]);
+
+  return null;
+};
+
+const PAYMENT_OPTIONS = [
+  { value: "cash", label: "Efectivo", icon: "cash-outline" },
+  { value: "card", label: "Tarjeta", icon: "card-outline" },
+  {
+    value: "transfer",
+    label: "Transferencia",
+    icon: "business-outline",
+  },
+  {
+    value: "pago_movil",
+    label: "Pago Móvil",
+    icon: "phone-portrait-outline",
+  },
+  {
+    value: "por_cobrar",
+    label: "Por Cobrar",
+    icon: "time-outline",
+    tourKey: "pos_cart_v2",
+    zone: CART_TOUR_ZONE_BASE + 2,
+    text: "Si deseas crear una cuenta por cobrar, selecciona el tipo de pago 'Por Cobrar'. La app la genera automáticamente al completar la venta.",
+  },
+];
+
+const POSListHeader = React.memo(function POSListHeader({
+  cartCount,
+  openQRScanner,
+  searchQuery,
+  onChangeSearchQuery,
+}) {
+  return (
+    <View style={styles.listHeader}>
+      <View style={styles.heroCard}>
+        <View style={styles.heroTopRow}>
+          <View style={styles.heroBadge}>
+            <Ionicons
+              name="flash-outline"
+              size={rf(18)}
+              color={POS_COLORS.accent}
+            />
+          </View>
+          <InfoPill
+            text={
+              cartCount > 0 ? `${cartCount} en carrito` : "Listo para vender"
+            }
+            tone={cartCount > 0 ? "accent" : "info"}
+          />
+        </View>
+
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroEyebrow}>Ventas rápidas</Text>
+          <Text style={styles.heroTitle}>Punto de venta</Text>
+          <Text style={styles.heroSubtitle}>
+            Gestiona tus ventas, clientes y cobros con una lectura más clara del
+            flujo actual.
+          </Text>
+        </View>
+      </View>
+
+      <TourGuideZone
+        tourKey="pos_v3"
+        zone={TOUR_ZONE_BASE + 1}
+        text={"Busca productos para vender rápidamente."}
+        borderRadius={borderRadius.lg}
+        style={styles.searchCard}
+      >
+        <View style={styles.searchCardContent}>
+          <View style={styles.searchHeaderRow}>
+            <View style={styles.searchCopy}>
+              <Text style={styles.searchLabel}>Buscar productos</Text>
+              <Text style={styles.searchHint}>
+                Escribe el nombre o usa el lector QR para una venta más rápida.
+              </Text>
+            </View>
+            <Pressable
+              onPress={openQRScanner}
+              style={({ pressed }) => [
+                styles.searchScanButton,
+                pressed && styles.cardPressed,
+              ]}
+            >
+              <Ionicons
+                name="qr-code-outline"
+                size={rf(18)}
+                color={POS_COLORS.info}
+              />
+            </Pressable>
+          </View>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Escribe para filtrar por nombre"
+            value={searchQuery}
+            onChangeText={onChangeSearchQuery}
+            placeholderTextColor="#8692a6"
+          />
+        </View>
+      </TourGuideZone>
+    </View>
+  );
+});
+
+const CartItemRow = React.memo(function CartItemRow({
+  item,
+  quantityDraft,
+  formatQuantity,
+  setQuantityDraft,
+  commitQuantityDraft,
+  updateQuantity,
+  removeFromCart,
+}) {
+  return (
+    <View style={styles.cartItem}>
+      <View style={styles.cartItemLeft}>
+        <Text style={styles.cartItemName} numberOfLines={1}>
+          {item.name.toUpperCase()}
+        </Text>
+        <Text style={styles.cartItemPrice}>
+          VES. {item.price.toFixed(2)} x {item.quantity}
+        </Text>
+        <Text style={styles.cartItemSubtotal}>
+          Subtotal: VES. {item.subtotal.toFixed(2)}
+        </Text>
+      </View>
+
+      <View style={styles.cartItemRight}>
+        <View style={styles.quantityControls}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.quantityButton,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() =>
+              updateQuantity(item.id, (Number(item.quantity) || 0) - 1)
+            }
+          >
+            <Text style={styles.quantityButtonText}>-</Text>
+          </Pressable>
+          <TextInput
+            style={styles.quantityInput}
+            value={quantityDraft ?? formatQuantity(item.quantity)}
+            onChangeText={(text) => setQuantityDraft(item.id, text)}
+            onEndEditing={() => commitQuantityDraft(item)}
+            keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
+            returnKeyType="done"
+            maxLength={8}
+          />
+          <Pressable
+            style={({ pressed }) => [
+              styles.quantityButton,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() =>
+              updateQuantity(item.id, (Number(item.quantity) || 0) + 1)
+            }
+          >
+            <Text style={styles.quantityButtonText}>+</Text>
+          </Pressable>
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.removeButton,
+            pressed && styles.cardPressed,
+          ]}
+          onPress={() => removeFromCart(item.id)}
+        >
+          <Text style={styles.removeButtonText}>Eliminar</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+});
+
+const PaymentMethodOption = React.memo(function PaymentMethodOption({
+  active,
+  icon,
+  label,
+  onSelect,
+  text,
+  tourKey,
+  value,
+  zone,
+}) {
+  const handlePress = useCallback(() => {
+    onSelect(value);
+  }, [onSelect, value]);
+
+  const button = (
+    <Pressable
+      style={[styles.paymentButton, active && styles.paymentButtonActive]}
+      onPress={handlePress}
+    >
+      <Ionicons
+        name={icon}
+        size={rf(20)}
+        color={active ? "#ffffff" : "#1f2633"}
+        style={styles.paymentButtonIcon}
+      />
+      <Text
+        style={[
+          styles.paymentButtonText,
+          active && styles.paymentButtonTextActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+
+  if (!tourKey || !zone) {
+    return button;
+  }
+
+  return (
+    <TourGuideZone
+      tourKey={tourKey}
+      zone={zone}
+      text={text}
+      borderRadius={borderRadius.lg}
+    >
+      {button}
+    </TourGuideZone>
+  );
+});
+
+const ProductListItem = React.memo(function ProductListItem({
+  item,
+  index,
+  exchangeRate,
+  addToCart,
+}) {
+  const stockValue = Number(item.stock) || 0;
+  const isOutOfStock = stockValue === 0;
+  const computedPriceVES = item.priceVES || item.priceUSD * exchangeRate;
+
+  const handleAddToCart = useCallback(() => {
+    addToCart(item);
+  }, [addToCart, item]);
+
+  const card = (
+    <Pressable
+      style={({ pressed }) => [
+        styles.productCard,
+        isOutOfStock && styles.productCardDisabled,
+        pressed && !isOutOfStock && styles.cardPressed,
+      ]}
+      onPress={handleAddToCart}
+      disabled={isOutOfStock}
+    >
+      <View style={styles.productTopRow}>
+        <View style={styles.productTopCopy}>
+          <InfoPill
+            text={item.category || "General"}
+            tone={isOutOfStock ? "danger" : "info"}
+            style={styles.productCategoryPill}
+          />
+          <Text style={styles.productName} numberOfLines={2}>
+            {item.name.toUpperCase()}
+          </Text>
+          <Text style={styles.productBarcode}>Código: {item.barcode}</Text>
+        </View>
+        <View style={styles.productStatusColumn}>
+          {!isOutOfStock ? (
+            <Text style={styles.productTapHint}>Tocar para vender</Text>
+          ) : (
+            <View style={styles.outOfStockBadge}>
+              <Text style={styles.outOfStockText}>Sin Stock</Text>
+            </View>
+          )}
+          {!isOutOfStock && (
+            <Text style={styles.productMiniPrice}>
+              USD. {(Number(item.priceUSD) || 0).toFixed(2)}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.productPricePanel}>
+        <Text style={styles.productPriceEyebrow}>Precio actual</Text>
+        <Text style={styles.productPrice}>
+          VES. {computedPriceVES.toFixed(2)}
+        </Text>
+      </View>
+
+      <View style={styles.productFooter}>
+        <Text style={styles.productFootnote}>
+          {isOutOfStock
+            ? "Repón existencias para volver a venderlo"
+            : "Disponible para venta inmediata"}
+        </Text>
+        <Text
+          style={[styles.productStock, isOutOfStock && styles.productStockLow]}
+        >
+          Stock: {stockValue}
+        </Text>
+      </View>
+    </Pressable>
+  );
+
+  if (index !== 0) {
+    return card;
+  }
+
+  return (
+    <TourGuideZone
+      tourKey="pos_v3"
+      zone={TOUR_ZONE_BASE + 2}
+      text={"Presiona un producto para agregarlo al carrito."}
+      borderRadius={borderRadius.lg}
+    >
+      {card}
+    </TourGuideZone>
+  );
+});
+
+const CartSummaryFooter = React.memo(function CartSummaryFooter({
+  cartCount,
+  processingSale,
+  subtotalAmount,
+  taxAmount,
+  total,
+  exchangeRate,
+  insetsBottom,
+  clearCart,
+  completeSale,
+}) {
+  const totalUSD =
+    exchangeRate > 0 ? (total / exchangeRate).toFixed(2) : "0.00";
+
+  return (
+    <View
+      style={[
+        styles.modalFooter,
+        { paddingBottom: vs(10) + Math.max(insetsBottom, vs(6)) },
+      ]}
+    >
+      <View style={styles.totalSection}>
+        <View style={styles.totalVES}>
+          <Text style={styles.totalMetaLabel}>Subtotal</Text>
+          <Text style={styles.totalMetaValue}>{subtotalAmount.toFixed(2)}</Text>
+          {taxAmount > 0 && (
+            <>
+              <Text style={styles.totalMetaLabel}>IVA</Text>
+              <Text style={styles.totalMetaValue}>{taxAmount.toFixed(2)}</Text>
+            </>
+          )}
+          <Text style={styles.totalLabel}>PAGAR VES</Text>
+          <Text style={styles.totalAmount}>{total.toFixed(2)}</Text>
+        </View>
+        <View style={styles.totalUSD}>
+          <Text style={styles.totalLabel}>PAGAR USD</Text>
+          <Text style={styles.totalAmount}>{totalUSD}</Text>
+        </View>
+      </View>
+
+      <View style={styles.actionButtons}>
+        <Pressable
+          style={[styles.clearButton, cartCount === 0 && styles.buttonDisabled]}
+          onPress={clearCart}
+          disabled={cartCount === 0}
+        >
+          <Text style={styles.clearButtonText}>Limpiar</Text>
+        </Pressable>
+
+        <TourGuideZone
+          tourKey="pos_cart_v2"
+          zone={CART_TOUR_ZONE_BASE + 3}
+          text={
+            "Completa la venta. Si elegiste 'Por Cobrar', se creará la cuenta por cobrar automáticamente."
+          }
+          borderRadius={borderRadius.lg}
+          style={styles.checkoutTourZone}
+          tooltipBottomOffset={vs(24)}
+        >
+          <Pressable
+            style={[
+              styles.checkoutButton,
+              (cartCount === 0 || processingSale) && styles.buttonDisabled,
+            ]}
+            onPress={completeSale}
+            disabled={cartCount === 0 || processingSale}
+          >
+            {processingSale ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.checkoutText}>Completar Venta</Text>
+            )}
+          </Pressable>
+        </TourGuideZone>
+      </View>
+    </View>
+  );
+});
 
 /**
  * Pantalla de punto de venta (POS)
@@ -73,9 +510,6 @@ export const POSScreen = ({ navigation }) => {
 
   const [cart, setCart] = useState([]);
   const [quantityDrafts, setQuantityDrafts] = useState({});
-  const [subtotalAmount, setSubtotalAmount] = useState(0);
-  const [taxAmount, setTaxAmount] = useState(0);
-  const [total, setTotal] = useState(0);
   const [pricingSettings, setPricingSettings] = useState({
     iva: 0,
     applyIvaOnSales: false,
@@ -90,12 +524,16 @@ export const POSScreen = ({ navigation }) => {
   const [pendingSaleData, setPendingSaleData] = useState(null);
   const [processingSale, setProcessingSale] = useState(false);
 
-  const [permission, requestPermission] = useCameraPermissions();
+  const [, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
 
   const scrollViewRef = useRef(null);
 
-  const loadPricingSettings = async () => {
+  const handleSelectPaymentMethod = useCallback((method) => {
+    setPaymentMethod(method);
+  }, []);
+
+  const loadPricingSettings = useCallback(async () => {
     try {
       const settings = await getSettings();
       setPricingSettings({
@@ -105,18 +543,18 @@ export const POSScreen = ({ navigation }) => {
     } catch (error) {
       console.warn("Error loading pricing settings in POS:", error);
     }
-  };
+  }, []);
 
-  const formatQuantity = (quantity) => {
+  const formatQuantity = useCallback((quantity) => {
     const value = Number(quantity);
     if (!Number.isFinite(value)) return "";
     if (Number.isInteger(value)) return String(value);
 
     const fixed = value.toFixed(3);
     return fixed.replace(/\.0+$/, "").replace(/(\.[0-9]*?)0+$/, "$1");
-  };
+  }, []);
 
-  const parseQuantityInput = (rawInput) => {
+  const parseQuantityInput = useCallback((rawInput) => {
     const raw = String(rawInput ?? "").trim();
     if (!raw) return null;
 
@@ -135,9 +573,9 @@ export const POSScreen = ({ navigation }) => {
 
     // Redondear a 3 decimales para evitar ruido de floats.
     return Math.round(parsed * 1000) / 1000;
-  };
+  }, []);
 
-  const setQuantityDraft = (itemId, value) => {
+  const setQuantityDraft = useCallback((itemId, value) => {
     setQuantityDrafts((prev) => {
       const next = { ...prev };
       if (value == null) {
@@ -147,101 +585,105 @@ export const POSScreen = ({ navigation }) => {
       next[itemId] = value;
       return next;
     });
-  };
+  }, []);
 
-  const commitQuantityDraft = (item) => {
-    const itemId = item?.id;
-    if (itemId == null) return;
+  const removeFromCart = useCallback((productId) => {
+    setCart((prev) => prev.filter((item) => item.id !== productId));
+  }, []);
 
-    const parsed = parseQuantityInput(quantityDrafts[itemId]);
-    if (parsed == null) {
+  const updateQuantity = useCallback(
+    (productId, newQuantity) => {
+      const normalizedQuantity = Number(newQuantity) || 0;
+      if (normalizedQuantity <= 0) {
+        removeFromCart(productId);
+        return;
+      }
+
+      setCart((prev) =>
+        prev.map((item) =>
+          item.id === productId
+            ? {
+                ...item,
+                quantity: normalizedQuantity,
+                subtotal: normalizedQuantity * item.price,
+              }
+            : item,
+        ),
+      );
+    },
+    [removeFromCart],
+  );
+
+  const commitQuantityDraft = useCallback(
+    (item) => {
+      const itemId = item?.id;
+      if (itemId == null) return;
+
+      const parsed = parseQuantityInput(quantityDrafts[itemId]);
+      if (parsed == null) {
+        setQuantityDraft(itemId, null);
+        return;
+      }
+
+      updateQuantity(itemId, parsed);
       setQuantityDraft(itemId, null);
-      return;
-    }
-
-    updateQuantity(itemId, parsed);
-    setQuantityDraft(itemId, null);
-  };
-
-  const CartTourBootstrapper = () => {
-    const { canStart: canStartCart, start: startCart } =
-      useTourGuideController("pos_cart_v2");
-    const [booted, setBooted] = useState(false);
-
-    useEffect(() => {
-      let mounted = true;
-
-      const maybeStart = async () => {
-        if (booted) return;
-        if (!showCart) return;
-        if (!canStartCart) return;
-
-        const tourId = "pos_cart_v2";
-        const seen = await hasSeenTour(tourId);
-        if (!mounted) return;
-
-        if (!seen) {
-          // Dar tiempo a que el Modal y sus layouts midan posiciones.
-          setTimeout(() => {
-            startCart();
-            markTourSeen(tourId);
-          }, 650);
-        }
-
-        if (mounted) setBooted(true);
-      };
-
-      maybeStart();
-
-      return () => {
-        mounted = false;
-      };
-    }, [booted, showCart, canStartCart, startCart]);
-
-    return null;
-  };
+    },
+    [parseQuantityInput, quantityDrafts, setQuantityDraft, updateQuantity],
+  );
 
   useEffect(() => {
     loadPricingSettings();
-  }, []);
+  }, [loadPricingSettings]);
 
-  // Calcular total cuando cambie el carrito
-  useEffect(() => {
-    const newSubtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-    const newTax = pricingSettings.applyIvaOnSales
+  const { subtotalAmount, taxAmount, total } = useMemo(() => {
+    const nextSubtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+    const nextTax = pricingSettings.applyIvaOnSales
       ? cart.reduce(
           (sum, item) => sum + item.subtotal * ((Number(item.iva) || 0) / 100),
           0,
         )
       : 0;
-    setSubtotalAmount(newSubtotal);
-    setTaxAmount(newTax);
-    setTotal(newSubtotal + newTax);
+
+    return {
+      subtotalAmount: nextSubtotal,
+      taxAmount: nextTax,
+      total: nextSubtotal + nextTax,
+    };
   }, [cart, pricingSettings]);
 
   // Scroll hacia arriba cuando se abre el carrito
   useEffect(() => {
+    let timeoutId;
+
     if (showCart && scrollViewRef.current) {
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
       }, 100); // Pequeño delay para asegurar que el modal esté completamente abierto
     }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [showCart]);
 
   // Recargar productos cuando se vuelve a la pantalla POS
-  useEffect(() => {
-    if (navigation) {
-      const unsubscribe = navigation.addListener("focus", () => {
-        console.log("Volviendo a POS, recargando productos...");
-        refreshProducts();
-        loadPricingSettings();
-      });
-      return unsubscribe;
-    }
-  }, [navigation, refreshProducts]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!navigation) return undefined;
+
+      console.log("Volviendo a POS, recargando productos...");
+      refreshProducts();
+      loadPricingSettings();
+
+      return undefined;
+    }, [navigation, refreshProducts, loadPricingSettings]),
+  );
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId;
 
     const maybeStartTour = async () => {
       if (tourBooted) return;
@@ -253,7 +695,7 @@ export const POSScreen = ({ navigation }) => {
       if (!mounted) return;
 
       if (!seen) {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           start();
           markTourSeen(tourId);
         }, 450);
@@ -266,13 +708,18 @@ export const POSScreen = ({ navigation }) => {
 
     return () => {
       mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [canStart, start, tourBooted, showCart]);
 
   // Auto-scroll cuando se muestra u oculta el campo de referencia
   useEffect(() => {
+    let timeoutId;
+
     if (scrollViewRef.current) {
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         if (paymentMethod === "transfer" || paymentMethod === "pago_movil") {
           scrollViewRef.current.scrollToEnd({ animated: true });
         } else {
@@ -281,82 +728,87 @@ export const POSScreen = ({ navigation }) => {
         }
       }, 200);
     }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [paymentMethod]);
 
   // Filtrar productos (ordenados por código de barras)
-  const filteredProducts = products
-    .sort((a, b) => {
-      const numA = parseInt((a.barcode || "").replace("PROD-", "")) || 0;
-      const numB = parseInt((b.barcode || "").replace("PROD-", "")) || 0;
-      return numA - numB;
-    })
-    .filter((product) => {
-      const matchesSearch = product.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      return matchesSearch;
-    });
+  const filteredProducts = useMemo(() => {
+    const normalizedQuery = searchQuery.toLowerCase();
+
+    return sortProductsByBarcode(products).filter((product) =>
+      product.name.toLowerCase().includes(normalizedQuery),
+    );
+  }, [products, searchQuery]);
 
   /**
    * Agrega un producto al carrito
    */
-  const addToCart = (product, options = {}) => {
-    const { showAlert: shouldShowAlert = true } = options;
+  const addToCart = useCallback(
+    (product, options = {}) => {
+      const { showAlert: shouldShowAlert = true } = options;
 
-    const stockValue = Number(product.stock) || 0;
+      const stockValue = Number(product.stock) || 0;
 
-    if (stockValue === 0) {
-      showAlert({
-        title: "Sin stock",
-        message: "Este producto no tiene stock disponible",
-        type: "error",
+      if (stockValue === 0) {
+        showAlert({
+          title: "Sin stock",
+          message: "Este producto no tiene stock disponible",
+          type: "error",
+        });
+        return;
+      }
+
+      setCart((prev) => {
+        const existingItem = prev.find((item) => item.id === product.id);
+
+        if (existingItem) {
+          const updatedItem = {
+            ...existingItem,
+            quantity: existingItem.quantity + 1,
+            subtotal: (existingItem.quantity + 1) * existingItem.price,
+          };
+          const newCart = prev.filter((item) => item.id !== product.id);
+          return [updatedItem, ...newCart];
+        }
+
+        const basePriceUSD =
+          Number(product.priceUSD) ||
+          (exchangeRate ? (Number(product.priceVES) || 0) / exchangeRate : 0);
+        const newItem = {
+          id: product.id,
+          name: product.name,
+          price: product.priceVES || product.priceUSD * exchangeRate,
+          priceUSD: basePriceUSD,
+          quantity: 1,
+          subtotal: product.priceVES || product.priceUSD * exchangeRate,
+          iva: Number(product.iva ?? pricingSettings.iva) || 0,
+          product: product,
+        };
+
+        return [newItem, ...prev];
       });
-      return;
-    }
 
-    const existingItem = cart.find((item) => item.id === product.id);
-
-    if (existingItem) {
-      // Incrementar cantidad si ya existe y mover al frente
-      const updatedItem = {
-        ...existingItem,
-        quantity: existingItem.quantity + 1,
-        subtotal: (existingItem.quantity + 1) * existingItem.price,
-      };
-      const newCart = cart.filter((item) => item.id !== product.id);
-      setCart([updatedItem, ...newCart]);
-    } else {
-      // Agregar nuevo item al frente
-      const basePriceUSD =
-        Number(product.priceUSD) ||
-        (exchangeRate ? (Number(product.priceVES) || 0) / exchangeRate : 0);
-      const newItem = {
-        id: product.id,
-        name: product.name,
-        price: product.priceVES || product.priceUSD * exchangeRate,
-        priceUSD: basePriceUSD,
-        quantity: 1,
-        subtotal: product.priceVES || product.priceUSD * exchangeRate,
-        iva: Number(product.iva ?? pricingSettings.iva) || 0,
-        product: product,
-      };
-      setCart([newItem, ...cart]);
-    }
-
-    // Mostrar feedback visual solo si se solicita
-    if (shouldShowAlert) {
-      showAlert({
-        title: "Producto agregado",
-        message: `${product.name} agregado al carrito`,
-        type: "success",
-      });
-    }
-  };
+      // Mostrar feedback visual solo si se solicita
+      if (shouldShowAlert) {
+        showAlert({
+          title: "Producto agregado",
+          message: `${product.name} agregado al carrito`,
+          type: "success",
+        });
+      }
+    },
+    [exchangeRate, pricingSettings.iva, showAlert],
+  );
 
   /**
    * Abre el escáner QR
    */
-  const openQRScanner = async () => {
+  const openQRScanner = useCallback(async () => {
     const { status } = await requestPermission();
     if (status !== "granted") {
       showAlert({
@@ -367,58 +819,32 @@ export const POSScreen = ({ navigation }) => {
       return;
     }
     setScanning(true);
-  };
+  }, [requestPermission, showAlert]);
 
   /**
    * Maneja el escaneo de código de barras
    */
-  const handleBarCodeScanned = ({ data }) => {
-    setScanning(false);
-    const product = products.find((p) => p.barcode === data);
-    if (product) {
-      addToCart(product, { showAlert: false });
-    } else {
-      showAlert({
-        title: "Producto no encontrado",
-        message: `Código: ${data}`,
-        type: "warning",
-      });
-    }
-  };
-
-  /**
-   * Remueve un producto del carrito
-   */
-  const removeFromCart = (productId) => {
-    setCart(cart.filter((item) => item.id !== productId));
-  };
-
-  /**
-   * Actualiza la cantidad de un item en el carrito
-   */
-  const updateQuantity = (productId, newQuantity) => {
-    const normalizedQuantity = Number(newQuantity) || 0;
-    if (normalizedQuantity <= 0) {
-      removeFromCart(productId);
-      return;
-    }
-
-    const updatedCart = cart.map((item) =>
-      item.id === productId
-        ? {
-            ...item,
-            quantity: normalizedQuantity,
-            subtotal: normalizedQuantity * item.price,
-          }
-        : item,
-    );
-    setCart(updatedCart);
-  };
+  const handleBarCodeScanned = useCallback(
+    ({ data }) => {
+      setScanning(false);
+      const product = products.find((p) => p.barcode === data);
+      if (product) {
+        addToCart(product, { showAlert: false });
+      } else {
+        showAlert({
+          title: "Producto no encontrado",
+          message: `Código: ${data}`,
+          type: "warning",
+        });
+      }
+    },
+    [products, addToCart, showAlert],
+  );
 
   /**
    * Limpia el carrito
    */
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     showAlert({
       title: "Limpiar carrito",
       message: "¿Estás seguro de que quieres vaciar el carrito?",
@@ -428,7 +854,7 @@ export const POSScreen = ({ navigation }) => {
         { text: "Limpiar", onPress: () => setCart([]) },
       ],
     });
-  };
+  }, [showAlert]);
 
   /**
    * Completa la venta
@@ -620,7 +1046,6 @@ export const POSScreen = ({ navigation }) => {
       setCart([]);
       setCustomerDocument("");
       setReferenceNumber("");
-      setTotal(0);
       setShowCart(false);
 
       // Mostrar confirmación
@@ -773,7 +1198,6 @@ export const POSScreen = ({ navigation }) => {
       setCart([]);
       setCustomerDocument("");
       setReferenceNumber("");
-      setTotal(0);
       setShowCart(false);
       setShowNewCustomerModal(false);
       setNewCustomerName("");
@@ -818,150 +1242,70 @@ export const POSScreen = ({ navigation }) => {
   /**
    * Renderiza un producto
    */
-  const renderProduct = ({ item, index }) => {
-    const stockValue = Number(item.stock) || 0;
-    const isOutOfStock = stockValue === 0;
-    const computedPriceVES = item.priceVES || item.priceUSD * exchangeRate;
-    const card = (
-      <Pressable
-        style={({ pressed }) => [
-          styles.productCard,
-          isOutOfStock && styles.productCardDisabled,
-          pressed && !isOutOfStock && styles.cardPressed,
-        ]}
-        onPress={() => addToCart(item)}
-        disabled={isOutOfStock}
-      >
-        <View style={styles.productTopRow}>
-          <View style={styles.productTopCopy}>
-            <InfoPill
-              text={item.category || "General"}
-              tone={isOutOfStock ? "danger" : "info"}
-              style={styles.productCategoryPill}
-            />
-            <Text style={styles.productName} numberOfLines={2}>
-              {item.name.toUpperCase()}
-            </Text>
-            <Text style={styles.productBarcode}>Código: {item.barcode}</Text>
-          </View>
-          <View style={styles.productStatusColumn}>
-            {!isOutOfStock && (
-              <Text style={styles.productTapHint}>Tocar para vender</Text>
-            )}
-            {isOutOfStock && (
-              <View style={styles.outOfStockBadge}>
-                <Text style={styles.outOfStockText}>Sin Stock</Text>
-              </View>
-            )}
-            {!isOutOfStock && (
-              <Text style={styles.productMiniPrice}>
-                USD. {item.priceUSD.toFixed(2)}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.productPricePanel}>
-          <Text style={styles.productPriceEyebrow}>Precio actual</Text>
-          <Text style={styles.productPrice}>
-            VES. {computedPriceVES.toFixed(2)}
-          </Text>
-        </View>
-
-        <View style={styles.productFooter}>
-          <Text style={styles.productFootnote}>
-            {isOutOfStock
-              ? "Repón existencias para volver a venderlo"
-              : "Disponible para venta inmediata"}
-          </Text>
-          <Text
-            style={[
-              styles.productStock,
-              isOutOfStock && styles.productStockLow,
-            ]}
-          >
-            Stock: {stockValue}
-          </Text>
-        </View>
-      </Pressable>
-    );
-
-    if (index !== 0) return card;
-
-    return (
-      <TourGuideZone
-        tourKey="pos_v3"
-        zone={TOUR_ZONE_BASE + 2}
-        text={"Presiona un producto para agregarlo al carrito."}
-        borderRadius={borderRadius.lg}
-      >
-        {card}
-      </TourGuideZone>
-    );
-  };
+  const renderProduct = useCallback(
+    ({ item, index }) => (
+      <ProductListItem
+        item={item}
+        index={index}
+        exchangeRate={exchangeRate}
+        addToCart={addToCart}
+      />
+    ),
+    [addToCart, exchangeRate],
+  );
 
   /**
    * Renderiza un item del carrito
    */
-  const renderCartItem = ({ item }) => (
-    <View style={styles.cartItem}>
-      <View style={styles.cartItemLeft}>
-        <Text style={styles.cartItemName} numberOfLines={1}>
-          {item.name.toUpperCase()}
-        </Text>
-        <Text style={styles.cartItemPrice}>
-          VES. {item.price.toFixed(2)} x {item.quantity}
-        </Text>
-        <Text style={styles.cartItemSubtotal}>
-          Subtotal: VES. {item.subtotal.toFixed(2)}
-        </Text>
-      </View>
+  const renderCartItem = useCallback(
+    ({ item }) => (
+      <CartItemRow
+        item={item}
+        quantityDraft={quantityDrafts[item.id]}
+        formatQuantity={formatQuantity}
+        setQuantityDraft={setQuantityDraft}
+        commitQuantityDraft={commitQuantityDraft}
+        updateQuantity={updateQuantity}
+        removeFromCart={removeFromCart}
+      />
+    ),
+    [
+      commitQuantityDraft,
+      formatQuantity,
+      quantityDrafts,
+      removeFromCart,
+      setQuantityDraft,
+      updateQuantity,
+    ],
+  );
 
-      <View style={styles.cartItemRight}>
-        <View style={styles.quantityControls}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.quantityButton,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() =>
-              updateQuantity(item.id, (Number(item.quantity) || 0) - 1)
-            }
-          >
-            <Text style={styles.quantityButtonText}>-</Text>
-          </Pressable>
-          <TextInput
-            style={styles.quantityInput}
-            value={quantityDrafts[item.id] ?? formatQuantity(item.quantity)}
-            onChangeText={(text) => setQuantityDraft(item.id, text)}
-            onEndEditing={() => commitQuantityDraft(item)}
-            keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
-            returnKeyType="done"
-            maxLength={8}
-          />
-          <Pressable
-            style={({ pressed }) => [
-              styles.quantityButton,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() =>
-              updateQuantity(item.id, (Number(item.quantity) || 0) + 1)
-            }
-          >
-            <Text style={styles.quantityButtonText}>+</Text>
-          </Pressable>
-        </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.removeButton,
-            pressed && styles.cardPressed,
-          ]}
-          onPress={() => removeFromCart(item.id)}
-        >
-          <Text style={styles.removeButtonText}>Eliminar</Text>
-        </Pressable>
+  const productKeyExtractor = useCallback((item) => item.id.toString(), []);
+  const cartKeyExtractor = useCallback((item) => item.id.toString(), []);
+
+  const productListHeader = useMemo(
+    () => (
+      <POSListHeader
+        cartCount={cart.length}
+        openQRScanner={openQRScanner}
+        searchQuery={searchQuery}
+        onChangeSearchQuery={setSearchQuery}
+      />
+    ),
+    [cart.length, openQRScanner, searchQuery],
+  );
+
+  const emptyProducts = useMemo(
+    () => (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No hay productos disponibles</Text>
+        <Text style={styles.emptySubtext}>
+          {searchQuery
+            ? "Intenta con otra búsqueda o limpia el filtro."
+            : "Agrega productos desde la sección de Productos."}
+        </Text>
       </View>
-    </View>
+    ),
+    [searchQuery],
   );
 
   if (productsLoading) {
@@ -979,96 +1323,16 @@ export const POSScreen = ({ navigation }) => {
         <FlatList
           data={filteredProducts}
           renderItem={renderProduct}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={productKeyExtractor}
           style={styles.flatList}
           showsVerticalScrollIndicator={false}
           numColumns={1}
-          ListHeaderComponent={
-            <View style={styles.listHeader}>
-              <View style={styles.heroCard}>
-                <View style={styles.heroTopRow}>
-                  <View style={styles.heroBadge}>
-                    <Ionicons
-                      name="flash-outline"
-                      size={rf(18)}
-                      color={POS_COLORS.accent}
-                    />
-                  </View>
-                  <InfoPill
-                    text={
-                      cart.length > 0
-                        ? `${cart.length} en carrito`
-                        : "Listo para vender"
-                    }
-                    tone={cart.length > 0 ? "accent" : "info"}
-                  />
-                </View>
-
-                <View style={styles.heroCopy}>
-                  <Text style={styles.heroEyebrow}>Ventas rápidas</Text>
-                  <Text style={styles.heroTitle}>Punto de venta</Text>
-                  <Text style={styles.heroSubtitle}>
-                    Gestiona tus ventas, clientes y cobros con una lectura más
-                    clara del flujo actual.
-                  </Text>
-                </View>
-              </View>
-
-              <TourGuideZone
-                tourKey="pos_v3"
-                zone={TOUR_ZONE_BASE + 1}
-                text={"Busca productos para vender rápidamente."}
-                borderRadius={borderRadius.lg}
-                style={styles.searchCard}
-              >
-                <View style={styles.searchCardContent}>
-                  <View style={styles.searchHeaderRow}>
-                    <View style={styles.searchCopy}>
-                      <Text style={styles.searchLabel}>Buscar productos</Text>
-                      <Text style={styles.searchHint}>
-                        Escribe el nombre o usa el lector QR para una venta más
-                        rápida.
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={openQRScanner}
-                      style={({ pressed }) => [
-                        styles.searchScanButton,
-                        pressed && styles.cardPressed,
-                      ]}
-                    >
-                      <Ionicons
-                        name="qr-code-outline"
-                        size={rf(18)}
-                        color={POS_COLORS.info}
-                      />
-                    </Pressable>
-                  </View>
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Escribe para filtrar por nombre"
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholderTextColor="#8692a6"
-                  />
-                </View>
-              </TourGuideZone>
-            </View>
-          }
+          ListHeaderComponent={productListHeader}
           contentContainerStyle={[
             styles.productsContent,
             cart.length > 0 && styles.productsContentWithSummary,
           ]}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No hay productos disponibles</Text>
-              <Text style={styles.emptySubtext}>
-                {searchQuery
-                  ? "Intenta con otra búsqueda o limpia el filtro."
-                  : "Agrega productos desde la sección de Productos."}
-              </Text>
-            </View>
-          }
+          ListEmptyComponent={emptyProducts}
         />
 
         <View
@@ -1130,7 +1394,7 @@ export const POSScreen = ({ navigation }) => {
             preventOutsideInteraction={false}
             dismissOnPress
           >
-            <CartTourBootstrapper />
+            <CartTourBootstrapper showCart={showCart} />
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <Pressable
@@ -1215,7 +1479,7 @@ export const POSScreen = ({ navigation }) => {
                     <FlatList
                       data={cart}
                       renderItem={renderCartItem}
-                      keyExtractor={(item) => item.id.toString()}
+                      keyExtractor={cartKeyExtractor}
                       scrollEnabled={false}
                     />
                   )}
@@ -1231,149 +1495,19 @@ export const POSScreen = ({ navigation }) => {
                       style={styles.paymentButtonsScroll}
                       contentContainerStyle={styles.paymentButtons}
                     >
-                      <Pressable
-                        style={[
-                          styles.paymentButton,
-                          paymentMethod === "cash" &&
-                            styles.paymentButtonActive,
-                        ]}
-                        onPress={() => setPaymentMethod("cash")}
-                      >
-                        <Ionicons
-                          name="cash-outline"
-                          size={rf(20)}
-                          color={
-                            paymentMethod === "cash" ? "#ffffff" : "#1f2633"
-                          }
-                          style={styles.paymentButtonIcon}
+                      {PAYMENT_OPTIONS.map((option) => (
+                        <PaymentMethodOption
+                          key={option.value}
+                          active={paymentMethod === option.value}
+                          icon={option.icon}
+                          label={option.label}
+                          onSelect={handleSelectPaymentMethod}
+                          text={option.text}
+                          tourKey={option.tourKey}
+                          value={option.value}
+                          zone={option.zone}
                         />
-                        <Text
-                          style={[
-                            styles.paymentButtonText,
-                            paymentMethod === "cash" &&
-                              styles.paymentButtonTextActive,
-                          ]}
-                        >
-                          Efectivo
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.paymentButton,
-                          paymentMethod === "card" &&
-                            styles.paymentButtonActive,
-                        ]}
-                        onPress={() => setPaymentMethod("card")}
-                      >
-                        <Ionicons
-                          name="card-outline"
-                          size={rf(20)}
-                          color={
-                            paymentMethod === "card" ? "#ffffff" : "#1f2633"
-                          }
-                          style={styles.paymentButtonIcon}
-                        />
-                        <Text
-                          style={[
-                            styles.paymentButtonText,
-                            paymentMethod === "card" &&
-                              styles.paymentButtonTextActive,
-                          ]}
-                        >
-                          Tarjeta
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.paymentButton,
-                          paymentMethod === "transfer" &&
-                            styles.paymentButtonActive,
-                        ]}
-                        onPress={() => setPaymentMethod("transfer")}
-                      >
-                        <Ionicons
-                          name="business-outline"
-                          size={rf(20)}
-                          color={
-                            paymentMethod === "transfer" ? "#ffffff" : "#1f2633"
-                          }
-                          style={styles.paymentButtonIcon}
-                        />
-                        <Text
-                          style={[
-                            styles.paymentButtonText,
-                            paymentMethod === "transfer" &&
-                              styles.paymentButtonTextActive,
-                          ]}
-                        >
-                          Transferencia
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.paymentButton,
-                          paymentMethod === "pago_movil" &&
-                            styles.paymentButtonActive,
-                        ]}
-                        onPress={() => setPaymentMethod("pago_movil")}
-                      >
-                        <Ionicons
-                          name="phone-portrait-outline"
-                          size={rf(20)}
-                          color={
-                            paymentMethod === "pago_movil"
-                              ? "#ffffff"
-                              : "#1f2633"
-                          }
-                          style={styles.paymentButtonIcon}
-                        />
-                        <Text
-                          style={[
-                            styles.paymentButtonText,
-                            paymentMethod === "pago_movil" &&
-                              styles.paymentButtonTextActive,
-                          ]}
-                        >
-                          Pago Móvil
-                        </Text>
-                      </Pressable>
-                      <TourGuideZone
-                        tourKey="pos_cart_v2"
-                        zone={CART_TOUR_ZONE_BASE + 2}
-                        text={
-                          "Si deseas crear una cuenta por cobrar, selecciona el tipo de pago 'Por Cobrar'. La app la genera automáticamente al completar la venta."
-                        }
-                        borderRadius={borderRadius.lg}
-                      >
-                        <Pressable
-                          style={[
-                            styles.paymentButton,
-                            paymentMethod === "por_cobrar" &&
-                              styles.paymentButtonActive,
-                          ]}
-                          onPress={() => setPaymentMethod("por_cobrar")}
-                        >
-                          <Ionicons
-                            name="time-outline"
-                            size={rf(20)}
-                            color={
-                              paymentMethod === "por_cobrar"
-                                ? "#ffffff"
-                                : "#1f2633"
-                            }
-                            style={styles.paymentButtonIcon}
-                          />
-                          <Text
-                            style={[
-                              styles.paymentButtonText,
-                              paymentMethod === "por_cobrar" &&
-                                styles.paymentButtonTextActive,
-                            ]}
-                          >
-                            Por Cobrar
-                          </Text>
-                        </Pressable>
-                      </TourGuideZone>
+                      ))}
                     </ScrollView>
 
                     {(paymentMethod === "transfer" ||
@@ -1391,79 +1525,17 @@ export const POSScreen = ({ navigation }) => {
                 )}
               </ScrollView>
 
-              <View
-                style={[
-                  styles.modalFooter,
-                  { paddingBottom: vs(10) + Math.max(insets.bottom, vs(6)) },
-                ]}
-              >
-                <View style={styles.totalSection}>
-                  <View style={styles.totalVES}>
-                    <Text style={styles.totalMetaLabel}>Subtotal</Text>
-                    <Text style={styles.totalMetaValue}>
-                      {subtotalAmount.toFixed(2)}
-                    </Text>
-                    {taxAmount > 0 && (
-                      <>
-                        <Text style={styles.totalMetaLabel}>IVA</Text>
-                        <Text style={styles.totalMetaValue}>
-                          {taxAmount.toFixed(2)}
-                        </Text>
-                      </>
-                    )}
-                    <Text style={styles.totalLabel}>PAGAR VES</Text>
-                    <Text style={styles.totalAmount}>{total.toFixed(2)}</Text>
-                  </View>
-                  <View style={styles.totalUSD}>
-                    <Text style={styles.totalLabel}>PAGAR USD</Text>
-                    <Text style={styles.totalAmount}>
-                      {exchangeRate > 0
-                        ? (total / exchangeRate).toFixed(2)
-                        : "0.00"}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.actionButtons}>
-                  <Pressable
-                    style={[
-                      styles.clearButton,
-                      cart.length === 0 && styles.buttonDisabled,
-                    ]}
-                    onPress={clearCart}
-                    disabled={cart.length === 0}
-                  >
-                    <Text style={styles.clearButtonText}>Limpiar</Text>
-                  </Pressable>
-
-                  <TourGuideZone
-                    tourKey="pos_cart_v2"
-                    zone={CART_TOUR_ZONE_BASE + 3}
-                    text={
-                      "Completa la venta. Si elegiste 'Por Cobrar', se creará la cuenta por cobrar automáticamente."
-                    }
-                    borderRadius={borderRadius.lg}
-                    style={styles.checkoutTourZone}
-                    tooltipBottomOffset={vs(24)}
-                  >
-                    <Pressable
-                      style={[
-                        styles.checkoutButton,
-                        (cart.length === 0 || processingSale) &&
-                          styles.buttonDisabled,
-                      ]}
-                      onPress={completeSale}
-                      disabled={cart.length === 0 || processingSale}
-                    >
-                      {processingSale ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                      ) : (
-                        <Text style={styles.checkoutText}>Completar Venta</Text>
-                      )}
-                    </Pressable>
-                  </TourGuideZone>
-                </View>
-              </View>
+              <CartSummaryFooter
+                cartCount={cart.length}
+                processingSale={processingSale}
+                subtotalAmount={subtotalAmount}
+                taxAmount={taxAmount}
+                total={total}
+                exchangeRate={exchangeRate}
+                insetsBottom={insets.bottom}
+                clearCart={clearCart}
+                completeSale={completeSale}
+              />
             </View>
           </TourGuideProvider>
         </Modal>

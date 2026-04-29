@@ -1,6 +1,7 @@
 import { db } from "./db";
 import {
   doc,
+  getDoc,
   getDocs,
   query,
   setDoc,
@@ -27,6 +28,8 @@ let productsColumnsChecked = false;
 let productsHasAdditionalCostColumn = false;
 let productsHasIvaColumn = false;
 const cloudProductsSeeded = new Set();
+const CLOUD_PRODUCTS_SEED_VERSION = 1;
+const cloudActiveProductsCache = new Map();
 
 const isCloudProductsEnabled = () =>
   Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
@@ -44,6 +47,70 @@ const getSalesCollectionRef = () => getStoreCollectionRef("sales");
 
 const getInventoryMovementsCollectionRef = () =>
   getStoreCollectionRef("inventory_movements");
+
+const getStoreSeedState = async () => {
+  const snapshot = await getDoc(getStoreDocRef());
+  return snapshot.data() || {};
+};
+
+const getCloudProductsCacheKey = () => getActiveStoreSeedKey() || "default";
+
+const clearCloudActiveProductsCache = () => {
+  cloudActiveProductsCache.delete(getCloudProductsCacheKey());
+};
+
+const getLocalProductsSeedStats = async () => {
+  await ensureProductsAdditionalCostColumn();
+
+  const result = await db.getFirstAsync(
+    `SELECT COUNT(*) as activeCount,
+            MAX(COALESCE(updatedAt, createdAt)) as maxUpdatedAt
+     FROM products
+     WHERE active = 1;`,
+  );
+
+  return {
+    activeCount: Number(result?.activeCount) || 0,
+    maxUpdatedAt: String(result?.maxUpdatedAt || ""),
+  };
+};
+
+const persistProductsSeedState = async (stats) => {
+  await setDoc(
+    getStoreDocRef(),
+    {
+      seedState: {
+        products: {
+          version: CLOUD_PRODUCTS_SEED_VERSION,
+          localActiveCount: Number(stats?.activeCount) || 0,
+          localMaxUpdatedAt: String(stats?.maxUpdatedAt || ""),
+          checkedAt: new Date().toISOString(),
+        },
+      },
+    },
+    { merge: true },
+  );
+};
+
+const canSkipProductsSeed = async () => {
+  const [storeData, localStats] = await Promise.all([
+    getStoreSeedState(),
+    getLocalProductsSeedStats(),
+  ]);
+
+  const seedState = storeData?.seedState?.products;
+  const remoteCount = Number(storeData?.counters?.product) || 0;
+
+  if (seedState?.version !== CLOUD_PRODUCTS_SEED_VERSION) {
+    return false;
+  }
+
+  return (
+    Number(seedState?.localActiveCount) === localStats.activeCount &&
+    String(seedState?.localMaxUpdatedAt || "") === localStats.maxUpdatedAt &&
+    remoteCount >= localStats.activeCount
+  );
+};
 
 const normalizeProductRecord = (product = {}) => ({
   id:
@@ -95,16 +162,85 @@ const sortProductsByName = (products = []) =>
     }),
   );
 
+const chunkArray = (items = [], size = 300) => {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+};
+
 const getCloudProducts = async () => {
   const snapshot = await getDocs(getProductsCollectionRef());
   return snapshot.docs.map((item) => normalizeProductRecord(item.data()));
 };
 
+const getCloudActiveProducts = async () => {
+  const cacheKey = getCloudProductsCacheKey();
+  const cachedProducts = cloudActiveProductsCache.get(cacheKey);
+  if (cachedProducts) {
+    return cachedProducts;
+  }
+
+  const snapshot = await getDocs(
+    query(getProductsCollectionRef(), where("active", "==", 1)),
+  );
+
+  const products = snapshot.docs.map((item) =>
+    normalizeProductRecord(item.data()),
+  );
+  cloudActiveProductsCache.set(cacheKey, products);
+  return products;
+};
+
+const getCloudProductById = async (productId) => {
+  const normalizedProductId = Number(productId) || 0;
+  if (normalizedProductId <= 0) {
+    return null;
+  }
+
+  const snapshot = await getDoc(
+    doc(getProductsCollectionRef(), String(normalizedProductId)),
+  );
+
+  return snapshot.exists() ? normalizeProductRecord(snapshot.data()) : null;
+};
+
+const getCloudProductByBarcode = async (barcode) => {
+  const normalizedBarcode = String(barcode || "").trim();
+  if (!normalizedBarcode) {
+    return null;
+  }
+
+  const snapshot = await getDocs(
+    query(
+      getProductsCollectionRef(),
+      where("barcode", "==", normalizedBarcode),
+    ),
+  );
+
+  const product = snapshot.docs
+    .map((item) => normalizeProductRecord(item.data()))
+    .find((item) => item.active === 1);
+
+  return product || null;
+};
+
 const getCloudInventoryMovements = async (filters = {}) => {
   const constraints = [];
+  const normalizedProductId = Number(filters.productId);
 
   if (filters.productId != null) {
-    constraints.push(where("productId", "==", Number(filters.productId)));
+    if (!Number.isFinite(normalizedProductId) || normalizedProductId <= 0) {
+      return [];
+    }
+
+    const product = await getCloudProductById(normalizedProductId);
+    if (!product || Number(product.active) !== 1) {
+      return [];
+    }
+
+    constraints.push(where("productId", "==", normalizedProductId));
   }
 
   if (filters.type) {
@@ -115,22 +251,24 @@ const getCloudInventoryMovements = async (filters = {}) => {
     ? await getDocs(query(getInventoryMovementsCollectionRef(), ...constraints))
     : await getDocs(getInventoryMovementsCollectionRef());
 
-  const productsSnapshot = await getDocs(getProductsCollectionRef());
-  const validActiveProductIds = new Set(
-    productsSnapshot.docs
-      .map((item) => normalizeProductRecord(item.data()))
-      .filter((item) => item.active === 1)
-      .map((item) => Number(item.id)),
-  );
-
   return snapshot.docs
     .map((item) => normalizeInventoryMovementRecord(item.data()))
-    .filter((item) => validActiveProductIds.has(Number(item.productId)))
+    .filter((item) => {
+      if (filters.productId != null) {
+        return true;
+      }
+      return Number(item.productId) > 0;
+    })
     .sort(
       (a, b) =>
         new Date(b.createdAt || 0).getTime() -
         new Date(a.createdAt || 0).getTime(),
     );
+};
+
+const countCloudInventoryMovementsByProduct = async (productId) => {
+  const movements = await getCloudInventoryMovements({ productId });
+  return movements.length;
 };
 
 const normalizeExistingCloudInventoryMovements = async (existingSnapshot) => {
@@ -345,6 +483,8 @@ const normalizeExistingCloudProducts = async (existingSnapshot) => {
     },
     { merge: true },
   );
+
+  await persistProductsSeedState(await getLocalProductsSeedStats());
 };
 
 const ensureCloudProductsSeeded = async () => {
@@ -352,6 +492,11 @@ const ensureCloudProductsSeeded = async () => {
 
   const seedKey = getActiveStoreSeedKey();
   if (cloudProductsSeeded.has(seedKey)) return;
+
+  if (await canSkipProductsSeed()) {
+    cloudProductsSeeded.add(seedKey);
+    return;
+  }
 
   const collectionRef = getProductsCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
@@ -367,14 +512,16 @@ const ensureCloudProductsSeeded = async () => {
   );
 
   if (rows.length > 0) {
-    const batch = writeBatch(firestore);
-    rows.forEach((row) => {
-      const normalized = normalizeProductRecord(row);
-      batch.set(doc(collectionRef, String(normalized.id)), normalized, {
-        merge: true,
+    for (const rowsChunk of chunkArray(rows, 300)) {
+      const batch = writeBatch(firestore);
+      rowsChunk.forEach((row) => {
+        const normalized = normalizeProductRecord(row);
+        batch.set(doc(collectionRef, String(normalized.id)), normalized, {
+          merge: true,
+        });
       });
-    });
-    await batch.commit();
+      await batch.commit();
+    }
 
     await setDoc(
       getStoreDocRef(),
@@ -386,6 +533,8 @@ const ensureCloudProductsSeeded = async () => {
       { merge: true },
     );
   }
+
+  await persistProductsSeedState(await getLocalProductsSeedStats());
 
   cloudProductsSeeded.add(seedKey);
 };
@@ -544,8 +693,7 @@ export const getAllProducts = async () => {
   try {
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
-      const products = await getCloudProducts();
-      return sortProductsByName(products.filter((item) => item.active === 1));
+      return sortProductsByName(await getCloudActiveProducts());
     }
 
     // Verificar si la tabla existe
@@ -581,12 +729,7 @@ export const getProductByBarcode = async (barcode) => {
   try {
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
-      const products = await getCloudProducts();
-      return (
-        products.find(
-          (item) => item.active === 1 && String(item.barcode || "") === barcode,
-        ) || null
-      );
+      return await getCloudProductByBarcode(barcode);
     }
 
     await ensureProductsAdditionalCostColumn();
@@ -605,17 +748,23 @@ export const getProductByBarcode = async (barcode) => {
  */
 export const searchProducts = async (query) => {
   try {
+    const searchTerm = String(query || "")
+      .trim()
+      .toLowerCase();
+
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
-      const searchTerm = String(query || "")
-        .trim()
-        .toLowerCase();
-      const products = await getCloudProducts();
+      const products = await getCloudActiveProducts();
       return sortProductsByName(
         products.filter((item) => {
-          if (item.active !== 1) return false;
           if (!searchTerm) return true;
-          return [item.name, item.category, item.barcode, item.description]
+          return [
+            item.name,
+            item.category,
+            item.barcode,
+            item.description,
+            item.productNumber,
+          ]
             .join(" ")
             .toLowerCase()
             .includes(searchTerm);
@@ -624,11 +773,19 @@ export const searchProducts = async (query) => {
     }
 
     await ensureProductsAdditionalCostColumn();
+    const likeTerm = `%${searchTerm}%`;
     const result = await db.getAllAsync(
       `SELECT * FROM products
-       WHERE (name LIKE ? OR category LIKE ?) AND active = 1
+       WHERE active = 1
+         AND (
+           LOWER(COALESCE(name, '')) LIKE ?
+           OR LOWER(COALESCE(category, '')) LIKE ?
+           OR LOWER(COALESCE(barcode, '')) LIKE ?
+           OR LOWER(COALESCE(description, '')) LIKE ?
+           OR LOWER(COALESCE(productNumber, '')) LIKE ?
+         )
        ORDER BY name;`,
-      [`%${query}%`, `%${query}%`],
+      [likeTerm, likeTerm, likeTerm, likeTerm, likeTerm],
     );
     return result;
   } catch (error) {
@@ -646,14 +803,8 @@ export const insertProduct = async (product) => {
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
       const now = new Date().toISOString();
-      const existingProducts = await getCloudProducts();
-      const maxSequence = existingProducts.reduce((maxValue, item) => {
-        return Math.max(
-          maxValue,
-          Number(item.id) || 0,
-          parseConsecutiveSequence(item.productNumber),
-        );
-      }, 0);
+      const storeData = await getStoreSeedState();
+      const maxSequence = Number(storeData?.counters?.product) || 0;
       const consecutive = await getNextCloudConsecutive("product", {
         minimum: maxSequence,
       });
@@ -667,6 +818,7 @@ export const insertProduct = async (product) => {
         updatedAt: now,
       });
       await setDoc(doc(getProductsCollectionRef(), String(id)), payload);
+      clearCloudActiveProductsCache();
       return id;
     }
 
@@ -721,6 +873,7 @@ export const updateProduct = async (id, product) => {
       await setDoc(doc(getProductsCollectionRef(), String(id)), payload, {
         merge: true,
       });
+      clearCloudActiveProductsCache();
       return 1;
     }
 
@@ -767,6 +920,7 @@ export const updateProductStock = async (id, newStock) => {
         stock: Number(newStock) || 0,
         updatedAt: new Date().toISOString(),
       });
+      clearCloudActiveProductsCache();
       return 1;
     }
 
@@ -793,6 +947,7 @@ export const deleteProduct = async (id) => {
         active: 0,
         updatedAt: new Date().toISOString(),
       });
+      clearCloudActiveProductsCache();
       return 1;
     }
 
@@ -813,12 +968,10 @@ export const getLowStockProducts = async () => {
   try {
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
-      const products = await getCloudProducts();
+      const products = await getCloudActiveProducts();
       return sortProductsByName(
         products.filter(
-          (item) =>
-            item.active === 1 &&
-            Number(item.stock) <= Number(item.minStock || 0),
+          (item) => Number(item.stock) <= Number(item.minStock || 0),
         ),
       );
     }
@@ -953,9 +1106,8 @@ export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
 
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
-      const products = await getCloudProducts();
+      const activeProducts = await getCloudActiveProducts();
       const batch = writeBatch(firestore);
-      const activeProducts = products.filter((item) => item.active === 1);
 
       activeProducts.forEach((item) => {
         batch.set(
@@ -1061,14 +1213,8 @@ export const insertInventoryMovement = async (
 
     if (isCloudProductsEnabled()) {
       await ensureCloudInventoryMovementsSeeded();
-      const existingMovements = await getCloudInventoryMovements();
-      const maxSequence = existingMovements.reduce((maxValue, item) => {
-        return Math.max(
-          maxValue,
-          Number(item.id) || 0,
-          parseConsecutiveSequence(item.movementNumber),
-        );
-      }, 0);
+      const storeData = await getStoreSeedState();
+      const maxSequence = Number(storeData?.counters?.movement) || 0;
       const consecutive = await getNextCloudConsecutive("movement", {
         minimum: maxSequence,
       });
@@ -1191,6 +1337,11 @@ export const getProductInventoryMovements = async (productId) => {
 };
 
 export const countProductInventoryMovements = async (productId) => {
+  if (isCloudProductsEnabled()) {
+    await ensureCloudInventoryMovementsSeeded();
+    return countCloudInventoryMovementsByProduct(productId);
+  }
+
   const movements = await getProductInventoryMovements(productId);
   return Array.isArray(movements) ? movements.length : 0;
 };

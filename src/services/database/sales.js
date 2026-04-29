@@ -4,8 +4,12 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit as limitDocs,
+  orderBy,
+  query,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
@@ -24,6 +28,8 @@ import {
 } from "../store/storeRefs";
 
 const cloudSalesSeeded = new Set();
+const CLOUD_SALES_SEED_VERSION = 1;
+const cloudSalesCache = new Map();
 
 const isCloudSalesEnabled = () =>
   Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
@@ -38,6 +44,157 @@ const createCloudNumericId = () =>
 const getSalesCollectionRef = () => getStoreCollectionRef("sales");
 
 const getProductsCollectionRef = () => getStoreCollectionRef("products");
+
+const getStoreSeedState = async () => {
+  const snapshot = await getDoc(getStoreDocRef());
+  return snapshot.data() || {};
+};
+
+const getUniqueProductIdsFromSaleItems = (items = []) => [
+  ...new Set(
+    (items || [])
+      .map((item) => Number(item?.productId) || 0)
+      .filter((productId) => productId > 0),
+  ),
+];
+
+const buildProductSalesCountMap = (sales = []) => {
+  return sales.reduce((acc, sale) => {
+    if (sale?.status === "cancelled") {
+      return acc;
+    }
+
+    getUniqueProductIdsFromSaleItems(sale.items).forEach((productId) => {
+      acc[String(productId)] = (Number(acc[String(productId)]) || 0) + 1;
+    });
+
+    return acc;
+  }, {});
+};
+
+const persistCloudProductSalesCounts = async (counts = {}) => {
+  await setDoc(
+    getStoreDocRef(),
+    {
+      metrics: {
+        productSalesCounts: counts,
+      },
+    },
+    { merge: true },
+  );
+};
+
+const applyCloudProductSalesCountsDelta = async (items = [], delta = 0) => {
+  const normalizedDelta = Number(delta) || 0;
+  if (normalizedDelta === 0) {
+    return;
+  }
+
+  const productIds = getUniqueProductIdsFromSaleItems(items);
+  if (productIds.length === 0) {
+    return;
+  }
+
+  const storeData = await getStoreSeedState();
+  const currentCounts = {
+    ...(storeData?.metrics?.productSalesCounts || {}),
+  };
+
+  productIds.forEach((productId) => {
+    const key = String(productId);
+    const nextValue = Math.max(
+      0,
+      (Number(currentCounts[key]) || 0) + normalizedDelta,
+    );
+
+    if (nextValue > 0) {
+      currentCounts[key] = nextValue;
+      return;
+    }
+
+    delete currentCounts[key];
+  });
+
+  await persistCloudProductSalesCounts(currentCounts);
+};
+
+const getCloudSalesCacheKey = () => getActiveStoreSeedKey() || "default";
+
+const clearCloudSalesCache = () => {
+  cloudSalesCache.delete(getCloudSalesCacheKey());
+};
+
+const getLocalSalesSeedStats = async () => {
+  const result = await db.getFirstAsync(
+    `SELECT COUNT(*) as totalCount,
+            COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelledCount
+     FROM sales;`,
+  );
+
+  return {
+    totalCount: Number(result?.totalCount) || 0,
+    cancelledCount: Number(result?.cancelledCount) || 0,
+  };
+};
+
+const getLocalProductSalesCountMap = async () => {
+  const rows = await db.getAllAsync(
+    `SELECT si.productId as productId,
+            COUNT(DISTINCT s.id) as count
+     FROM sales s
+     INNER JOIN sale_items si ON si.saleId = s.id
+     WHERE s.status != 'cancelled'
+       AND si.productId IS NOT NULL
+     GROUP BY si.productId;`,
+  );
+
+  return rows.reduce((acc, row) => {
+    const productId = Number(row?.productId) || 0;
+    if (productId <= 0) {
+      return acc;
+    }
+
+    acc[String(productId)] = Number(row?.count) || 0;
+    return acc;
+  }, {});
+};
+
+const persistSalesSeedState = async (stats) => {
+  await setDoc(
+    getStoreDocRef(),
+    {
+      seedState: {
+        sales: {
+          version: CLOUD_SALES_SEED_VERSION,
+          localSalesCount: Number(stats?.totalCount) || 0,
+          localCancelledCount: Number(stats?.cancelledCount) || 0,
+          checkedAt: new Date().toISOString(),
+        },
+      },
+    },
+    { merge: true },
+  );
+};
+
+const canSkipSalesSeed = async () => {
+  const [storeData, localStats] = await Promise.all([
+    getStoreSeedState(),
+    getLocalSalesSeedStats(),
+  ]);
+
+  const seedState = storeData?.seedState?.sales;
+  const remoteCount = Number(storeData?.counters?.sale) || 0;
+
+  if (seedState?.version !== CLOUD_SALES_SEED_VERSION) {
+    return false;
+  }
+
+  return (
+    Number(seedState?.localSalesCount) === localStats.totalCount &&
+    Number(seedState?.localCancelledCount) === localStats.cancelledCount &&
+    remoteCount >= localStats.totalCount
+  );
+};
 
 const normalizeSaleItem = (item = {}) => ({
   productId: Number(item.productId) || 0,
@@ -95,8 +252,140 @@ const sortSalesByDateDesc = (sales = []) =>
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
+const chunkArray = (items = [], size = 300) => {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+};
+
+const getLocalSaleItemsBySaleIds = async (saleIds = []) => {
+  const normalizedIds = [
+    ...new Set((saleIds || []).map((id) => Number(id)).filter(Boolean)),
+  ];
+
+  if (normalizedIds.length === 0) {
+    return new Map();
+  }
+
+  const placeholders = normalizedIds.map(() => "?").join(",");
+  const saleItems = await db.getAllAsync(
+    `SELECT * FROM sale_items WHERE saleId IN (${placeholders});`,
+    normalizedIds,
+  );
+
+  return saleItems.reduce((acc, item) => {
+    const saleId = Number(item.saleId) || 0;
+    if (!acc.has(saleId)) {
+      acc.set(saleId, []);
+    }
+    acc.get(saleId).push(item);
+    return acc;
+  }, new Map());
+};
+
 const getCloudSales = async () => {
+  const cacheKey = getCloudSalesCacheKey();
+  const cachedSales = cloudSalesCache.get(cacheKey);
+  if (cachedSales) {
+    return [...cachedSales];
+  }
+
   const snapshot = await getDocs(getSalesCollectionRef());
+  const sales = snapshot.docs.map((item) => normalizeSaleRecord(item.data()));
+  cloudSalesCache.set(cacheKey, sales);
+  return [...sales];
+};
+
+const getRecentCloudSales = async (maxItems = 100) => {
+  const normalizedLimit = Number.isFinite(maxItems)
+    ? Math.max(1, Math.trunc(maxItems))
+    : null;
+
+  if (!normalizedLimit) {
+    return getCloudSales();
+  }
+
+  const snapshot = await getDocs(
+    query(
+      getSalesCollectionRef(),
+      orderBy("createdAt", "desc"),
+      limitDocs(normalizedLimit),
+    ),
+  );
+
+  return snapshot.docs.map((item) => normalizeSaleRecord(item.data()));
+};
+
+const getCloudSalesByIds = async (saleIds = []) => {
+  const uniqueIds = [
+    ...new Set((saleIds || []).map((id) => Number(id)).filter(Boolean)),
+  ];
+
+  if (uniqueIds.length === 0) {
+    return [];
+  }
+
+  const snapshots = await Promise.all(
+    uniqueIds.map((id) => getDoc(doc(getSalesCollectionRef(), String(id)))),
+  );
+
+  return snapshots
+    .filter((snapshot) => snapshot.exists())
+    .map((snapshot) => normalizeSaleRecord(snapshot.data()));
+};
+
+const getCloudProductCostByIds = async (productIds = []) => {
+  const uniqueIds = [
+    ...new Set((productIds || []).map((id) => Number(id)).filter(Boolean)),
+  ];
+
+  if (uniqueIds.length === 0) {
+    return {};
+  }
+
+  const snapshots = await Promise.all(
+    uniqueIds.map((id) => getDoc(doc(getProductsCollectionRef(), String(id)))),
+  );
+
+  return snapshots.reduce((acc, snapshot) => {
+    if (!snapshot.exists()) {
+      return acc;
+    }
+
+    const product = snapshot.data() || {};
+    acc[Number(product.id) || Number(snapshot.id) || 0] =
+      Number(product.cost) || 0;
+    return acc;
+  }, {});
+};
+
+const getCloudCompletedSalesInRange = async (startIso, endIso) => {
+  const snapshot = await getDocs(
+    query(
+      getSalesCollectionRef(),
+      where("createdAt", ">=", startIso),
+      where("createdAt", "<", endIso),
+      orderBy("createdAt", "desc"),
+    ),
+  );
+
+  return snapshot.docs
+    .map((item) => normalizeSaleRecord(item.data()))
+    .filter((item) => item.status === "completed");
+};
+
+const getCloudSalesInRange = async (startIso, endIso) => {
+  const snapshot = await getDocs(
+    query(
+      getSalesCollectionRef(),
+      where("createdAt", ">=", startIso),
+      where("createdAt", "<=", endIso),
+      orderBy("createdAt", "desc"),
+    ),
+  );
+
   return snapshot.docs.map((item) => normalizeSaleRecord(item.data()));
 };
 
@@ -128,6 +417,9 @@ const normalizeExistingCloudSales = async (existingSnapshot) => {
         },
       },
       { merge: true },
+    );
+    await persistCloudProductSalesCounts(
+      buildProductSalesCountMap(existingRows),
     );
     return;
   }
@@ -166,11 +458,17 @@ const normalizeExistingCloudSales = async (existingSnapshot) => {
     },
     { merge: true },
   );
+
+  await persistCloudProductSalesCounts(buildProductSalesCountMap(existingRows));
+  await persistSalesSeedState(await getLocalSalesSeedStats());
 };
 
 const mergeMissingLocalSalesIntoCloud = async () => {
   const collectionRef = getSalesCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
+  const existingRows = existingSnapshot.docs.map((item) =>
+    normalizeSaleRecord(item.data()),
+  );
   const existingIds = new Set(
     existingSnapshot.docs.map(
       (item) => Number(item.data()?.id) || Number(item.id) || 0,
@@ -180,6 +478,9 @@ const mergeMissingLocalSalesIntoCloud = async () => {
   const salesRows = await db.getAllAsync(
     "SELECT * FROM sales ORDER BY createdAt DESC;",
   );
+  const saleItemsBySaleId = await getLocalSaleItemsBySaleIds(
+    salesRows.map((saleRow) => saleRow.id),
+  );
 
   const missingRows = [];
   for (const saleRow of salesRows) {
@@ -188,24 +489,22 @@ const mergeMissingLocalSalesIntoCloud = async () => {
       continue;
     }
 
-    const saleItems = await db.getAllAsync(
-      "SELECT * FROM sale_items WHERE saleId = ?;",
-      [saleRow.id],
-    );
     missingRows.push(
       normalizeSaleRecord({
         ...saleRow,
-        items: saleItems,
+        items: saleItemsBySaleId.get(Number(saleRow.id)) || [],
       }),
     );
   }
 
   if (missingRows.length > 0) {
-    const batch = writeBatch(firestore);
-    missingRows.forEach((row) => {
-      batch.set(doc(collectionRef, String(row.id)), row, { merge: true });
-    });
-    await batch.commit();
+    for (const rowsChunk of chunkArray(missingRows, 300)) {
+      const batch = writeBatch(firestore);
+      rowsChunk.forEach((row) => {
+        batch.set(doc(collectionRef, String(row.id)), row, { merge: true });
+      });
+      await batch.commit();
+    }
   }
 
   await setDoc(
@@ -217,6 +516,11 @@ const mergeMissingLocalSalesIntoCloud = async () => {
     },
     { merge: true },
   );
+
+  await persistCloudProductSalesCounts(
+    buildProductSalesCountMap([...existingRows, ...missingRows]),
+  );
+  await persistSalesSeedState(await getLocalSalesSeedStats());
 };
 
 const ensureCloudSalesSeeded = async () => {
@@ -224,6 +528,17 @@ const ensureCloudSalesSeeded = async () => {
 
   const seedKey = getActiveStoreSeedKey();
   if (cloudSalesSeeded.has(seedKey)) return;
+
+  if (await canSkipSalesSeed()) {
+    const storeData = await getStoreSeedState();
+    if (!storeData?.metrics?.productSalesCounts) {
+      await persistCloudProductSalesCounts(
+        await getLocalProductSalesCountMap(),
+      );
+    }
+    cloudSalesSeeded.add(seedKey);
+    return;
+  }
 
   const collectionRef = getSalesCollectionRef();
   const existingSnapshot = await getDocs(collectionRef);
@@ -238,21 +553,26 @@ const ensureCloudSalesSeeded = async () => {
     "SELECT * FROM sales ORDER BY createdAt DESC;",
   );
   if (salesRows.length > 0) {
-    const batch = writeBatch(firestore);
-    for (const saleRow of salesRows) {
-      const saleItems = await db.getAllAsync(
-        "SELECT * FROM sale_items WHERE saleId = ?;",
-        [saleRow.id],
-      );
-      const normalized = normalizeSaleRecord({
+    const saleItemsBySaleId = await getLocalSaleItemsBySaleIds(
+      salesRows.map((saleRow) => saleRow.id),
+    );
+
+    const normalizedRows = salesRows.map((saleRow) =>
+      normalizeSaleRecord({
         ...saleRow,
-        items: saleItems,
+        items: saleItemsBySaleId.get(Number(saleRow.id)) || [],
+      }),
+    );
+
+    for (const rowsChunk of chunkArray(normalizedRows, 300)) {
+      const batch = writeBatch(firestore);
+      rowsChunk.forEach((normalized) => {
+        batch.set(doc(collectionRef, String(normalized.id)), normalized, {
+          merge: true,
+        });
       });
-      batch.set(doc(collectionRef, String(normalized.id)), normalized, {
-        merge: true,
-      });
+      await batch.commit();
     }
-    await batch.commit();
 
     await setDoc(
       getStoreDocRef(),
@@ -263,8 +583,15 @@ const ensureCloudSalesSeeded = async () => {
       },
       { merge: true },
     );
+
+    await persistCloudProductSalesCounts(
+      buildProductSalesCountMap(normalizedRows),
+    );
   }
 
+  await persistSalesSeedState(await getLocalSalesSeedStats());
+
+  clearCloudSalesCache();
   cloudSalesSeeded.add(seedKey);
 };
 
@@ -340,14 +667,8 @@ export const insertSale = async (sale, items) => {
 
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
-      const existingSales = await getCloudSales();
-      const maxSequence = existingSales.reduce((maxValue, item) => {
-        return Math.max(
-          maxValue,
-          Number(item.id) || 0,
-          parseConsecutiveSequence(item.saleNumber),
-        );
-      }, 0);
+      const storeData = await getStoreSeedState();
+      const maxSequence = Number(storeData?.counters?.sale) || 0;
       const consecutive = await getNextCloudConsecutive("sale", {
         minimum: maxSequence,
       });
@@ -360,6 +681,10 @@ export const insertSale = async (sale, items) => {
         items,
       });
       await setDoc(doc(getSalesCollectionRef(), String(id)), payload);
+      if (payload.status !== "cancelled") {
+        await applyCloudProductSalesCountsDelta(payload.items, 1);
+      }
+      clearCloudSalesCache();
       return { id, saleNumber: payload.saleNumber };
     }
 
@@ -425,10 +750,12 @@ export const getAllSales = async (limit = 100) => {
   try {
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
-      const sales = sortSalesByDateDesc(
-        (await getCloudSales()).filter((item) => item.status !== "cancelled"),
+      const sales = (await getRecentCloudSales(limit)).filter(
+        (item) => item.status !== "cancelled",
       );
-      return Number.isFinite(limit) ? sales.slice(0, limit) : sales;
+      return Number.isFinite(limit)
+        ? sales.slice(0, Math.max(1, Math.trunc(limit)))
+        : sales;
     }
 
     const result = await db.getAllAsync(
@@ -490,15 +817,8 @@ export const getSalesByDateRange = async (startDate, endDate) => {
   try {
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
-      const sales = await getCloudSales();
-      const startTime = new Date(startDate).getTime();
-      const endTime = new Date(endDate).getTime();
-      return sortSalesByDateDesc(
-        sales.filter((item) => {
-          const createdAt = new Date(item.createdAt).getTime();
-          return createdAt >= startTime && createdAt <= endTime;
-        }),
-      );
+      const sales = await getCloudSalesInRange(startDate, endDate);
+      return sales.filter((item) => item.status !== "cancelled");
     }
 
     const result = await db.getAllAsync(
@@ -523,26 +843,19 @@ export const getSaleItemsCostUSDBySaleIds = async (saleIds = []) => {
 
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
-      const [sales, productsSnapshot] = await Promise.all([
-        getCloudSales(),
-        getDocs(getProductsCollectionRef()),
-      ]);
+      const sales = await getCloudSalesByIds(saleIds);
+      const productIds = sales.flatMap((sale) =>
+        (sale.items || []).map((item) => Number(item.productId) || 0),
+      );
+      const productCostById = await getCloudProductCostByIds(productIds);
 
-      const productCostById = productsSnapshot.docs.reduce((acc, item) => {
-        const product = item.data();
-        acc[Number(product.id)] = Number(product.cost) || 0;
-        return acc;
-      }, {});
-
-      return sales
-        .filter((sale) => saleIds.some((id) => Number(id) === Number(sale.id)))
-        .map((sale) => ({
-          saleId: sale.id,
-          costUSD: (sale.items || []).reduce((sum, item) => {
-            const unitCost = productCostById[Number(item.productId)] || 0;
-            return sum + unitCost * (Number(item.quantity) || 0);
-          }, 0),
-        }));
+      return sales.map((sale) => ({
+        saleId: sale.id,
+        costUSD: (sale.items || []).reduce((sum, item) => {
+          const unitCost = productCostById[Number(item.productId)] || 0;
+          return sum + unitCost * (Number(item.quantity) || 0);
+        }, 0),
+      }));
     }
 
     const placeholders = saleIds.map(() => "?").join(",");
@@ -570,17 +883,7 @@ export const getTodaySales = async () => {
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
       const { startIso, endIso } = getTodayUtcRangeForDevice();
-      const startTime = new Date(startIso).getTime();
-      const endTime = new Date(endIso).getTime();
-      const sales = await getCloudSales();
-      const todaySales = sales.filter((sale) => {
-        const createdAt = new Date(sale.createdAt).getTime();
-        return (
-          createdAt >= startTime &&
-          createdAt < endTime &&
-          sale.status === "completed"
-        );
-      });
+      const todaySales = await getCloudCompletedSalesInRange(startIso, endIso);
       return {
         count: todaySales.length,
         total: todaySales.reduce(
@@ -617,6 +920,46 @@ export const getTodaySales = async () => {
 };
 
 /**
+ * Cuenta cuántas ventas incluyen un producto específico.
+ */
+export const countSalesByProduct = async (productId) => {
+  try {
+    const normalizedProductId = Number(productId) || 0;
+    if (normalizedProductId <= 0) {
+      return 0;
+    }
+
+    if (isCloudSalesEnabled()) {
+      await ensureCloudSalesSeeded();
+      const storeData = await getStoreSeedState();
+      const existingCount =
+        storeData?.metrics?.productSalesCounts?.[String(normalizedProductId)];
+
+      if (Number.isFinite(Number(existingCount))) {
+        return Number(existingCount) || 0;
+      }
+
+      const sales = await getCloudSales();
+      const counts = buildProductSalesCountMap(sales);
+      await persistCloudProductSalesCounts(counts);
+      return Number(counts[String(normalizedProductId)]) || 0;
+    }
+
+    const result = await db.getFirstAsync(
+      `SELECT COUNT(DISTINCT s.id) as count
+       FROM sales s
+       INNER JOIN sale_items si ON si.saleId = s.id
+       WHERE s.status != 'cancelled' AND si.productId = ?;`,
+      [normalizedProductId],
+    );
+
+    return Number(result?.count) || 0;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Cancela una venta
  */
 export const cancelSale = async (saleId) => {
@@ -627,9 +970,16 @@ export const cancelSale = async (saleId) => {
 
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
+      const existingSale = await getSaleById(saleId);
+      if (!existingSale || existingSale.status === "cancelled") {
+        return 0;
+      }
+
       await updateDoc(doc(getSalesCollectionRef(), String(saleId)), {
         status: "cancelled",
       });
+      await applyCloudProductSalesCountsDelta(existingSale.items, -1);
+      clearCloudSalesCache();
       return 1;
     }
 
@@ -654,7 +1004,12 @@ export const deleteSaleById = async (saleId) => {
 
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
+      const existingSale = await getSaleById(saleId);
       await deleteDoc(doc(getSalesCollectionRef(), String(saleId)));
+      if (existingSale && existingSale.status !== "cancelled") {
+        await applyCloudProductSalesCountsDelta(existingSale.items, -1);
+      }
+      clearCloudSalesCache();
       return 1;
     }
 
@@ -680,6 +1035,7 @@ export default {
   getSalesByDateRange,
   getSaleItemsCostUSDBySaleIds,
   getTodaySales,
+  countSalesByProduct,
   cancelSale,
   deleteSaleById,
 };

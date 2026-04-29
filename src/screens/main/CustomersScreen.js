@@ -67,6 +67,7 @@ export const CustomersScreen = () => {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId;
 
     const maybeStartTour = async () => {
       if (tourBooted) return;
@@ -77,7 +78,7 @@ export const CustomersScreen = () => {
       if (!mounted) return;
 
       if (!seen) {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           start();
           markTourSeen(tourId);
         }, 450);
@@ -90,6 +91,9 @@ export const CustomersScreen = () => {
 
     return () => {
       mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [canStart, start, tourBooted]);
 
@@ -267,6 +271,20 @@ export const CustomersScreen = () => {
     });
   }, [customers]);
 
+  const customerMetrics = useMemo(() => {
+    const genericCount = sortedCustomers.filter(
+      (item) => item.documentNumber === "1",
+    ).length;
+    const withContactCount = sortedCustomers.filter(
+      (item) => item.phone || item.email,
+    ).length;
+
+    return {
+      genericCount,
+      withContactCount,
+    };
+  }, [sortedCustomers]);
+
   const renderCustomer = useCallback(
     ({ item }) => {
       const hasEmail = Boolean(item.email);
@@ -348,67 +366,68 @@ export const CustomersScreen = () => {
     [navigation, confirmDeleteCustomer],
   );
 
-  const header = (
-    <View style={styles.headerContent}>
-      <SurfaceCard style={styles.heroCard}>
-        <View style={styles.heroTopRow}>
-          <View style={[styles.heroBadge, styles.heroBadgeInfo]}>
-            <Ionicons
-              name="people-outline"
-              size={rf(22)}
-              color={UI_COLORS.info}
-            />
+  const header = useMemo(
+    () => (
+      <View style={styles.headerContent}>
+        <SurfaceCard style={styles.heroCard}>
+          <View style={styles.heroTopRow}>
+            <View style={[styles.heroBadge, styles.heroBadgeInfo]}>
+              <Ionicons
+                name="people-outline"
+                size={rf(22)}
+                color={UI_COLORS.info}
+              />
+            </View>
+            <InfoPill text={`${customers.length} registrados`} tone="accent" />
           </View>
-          <InfoPill text={`${customers.length} registrados`} tone="accent" />
-        </View>
 
-        <View style={styles.heroCopy}>
-          <Text style={styles.heroEyebrow}>Clientes</Text>
-          <Text style={styles.heroTitle}>Directorio de clientes</Text>
-          <Text style={styles.heroSubtitle}>
-            Busca, actualiza y mantén visible la información clave de cada
-            comprador.
-          </Text>
-        </View>
-
-        <View style={styles.heroPillRow}>
-          <InfoPill
-            text={`${sortedCustomers.filter((item) => item.documentNumber === "1").length} genérico`}
-            tone="warning"
-          />
-          <InfoPill
-            text={`${sortedCustomers.filter((item) => item.phone || item.email).length} con contacto`}
-            tone="info"
-          />
-        </View>
-      </SurfaceCard>
-
-      <TourGuideZone
-        zone={TOUR_ZONE_BASE + 1}
-        text={
-          "Usa 'Buscar cliente' (Nombre, cédula o contacto) para encontrarlo rápidamente."
-        }
-        borderRadius={borderRadius.lg}
-        style={styles.searchCard}
-      >
-        <SurfaceCard style={styles.searchSurface}>
-          <View style={styles.searchTitleBlock}>
-            <Text style={styles.searchTitle}>Buscar cliente</Text>
-            <Text style={styles.searchHint}>
-              Filtra por nombre, cédula o dato de contacto.
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroEyebrow}>Clientes</Text>
+            <Text style={styles.heroTitle}>Directorio de clientes</Text>
+            <Text style={styles.heroSubtitle}>
+              Busca, actualiza y mantén visible la información clave de cada
+              comprador.
             </Text>
           </View>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Nombre, cédula o contacto"
-            value={searchQuery}
-            onChangeText={handleSearch}
-            placeholderTextColor="#9aa2b1"
-          />
-        </SurfaceCard>
-      </TourGuideZone>
 
-      {/* <View style={styles.actionsCard}>
+          <View style={styles.heroPillRow}>
+            <InfoPill
+              text={`${customerMetrics.genericCount} genérico`}
+              tone="warning"
+            />
+            <InfoPill
+              text={`${customerMetrics.withContactCount} con contacto`}
+              tone="info"
+            />
+          </View>
+        </SurfaceCard>
+
+        <TourGuideZone
+          zone={TOUR_ZONE_BASE + 1}
+          text={
+            "Usa 'Buscar cliente' (Nombre, cédula o contacto) para encontrarlo rápidamente."
+          }
+          borderRadius={borderRadius.lg}
+          style={styles.searchCard}
+        >
+          <SurfaceCard style={styles.searchSurface}>
+            <View style={styles.searchTitleBlock}>
+              <Text style={styles.searchTitle}>Buscar cliente</Text>
+              <Text style={styles.searchHint}>
+                Filtra por nombre, cédula o dato de contacto.
+              </Text>
+            </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Nombre, cédula o contacto"
+              value={searchQuery}
+              onChangeText={handleSearch}
+              placeholderTextColor="#9aa2b1"
+            />
+          </SurfaceCard>
+        </TourGuideZone>
+
+        {/* <View style={styles.actionsCard}>
         <View style={styles.actionsRow}>
           <TouchableOpacity
             style={[styles.actionButton, styles.cleanButton]}
@@ -429,19 +448,33 @@ export const CustomersScreen = () => {
           </TouchableOpacity>
         </View>
       </View> */}
-    </View>
+      </View>
+    ),
+    [
+      TOUR_ZONE_BASE,
+      TourGuideZone,
+      customerMetrics,
+      customers.length,
+      handleSearch,
+      searchQuery,
+    ],
   );
 
-  const renderEmpty = () => (
-    <EmptyStateCard
-      title={
-        searchQuery
-          ? "No se encontraron clientes"
-          : "Aún no hay clientes registrados"
-      }
-      subtitle="Registra nuevos clientes para guardar sus datos y asociar cuentas por cobrar."
-    />
+  const renderEmpty = useCallback(
+    () => (
+      <EmptyStateCard
+        title={
+          searchQuery
+            ? "No se encontraron clientes"
+            : "Aún no hay clientes registrados"
+        }
+        subtitle="Registra nuevos clientes para guardar sus datos y asociar cuentas por cobrar."
+      />
+    ),
+    [searchQuery],
   );
+
+  const customerKeyExtractor = useCallback((item) => item.id.toString(), []);
 
   if (loading) {
     return (
@@ -473,7 +506,7 @@ export const CustomersScreen = () => {
       <FlatList
         data={sortedCustomers}
         renderItem={renderCustomer}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={customerKeyExtractor}
         ListHeaderComponent={header}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={[

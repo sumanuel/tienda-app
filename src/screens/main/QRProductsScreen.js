@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -38,19 +38,28 @@ export const QRProductsScreen = ({ navigation }) => {
   const [startRange, setStartRange] = useState("");
   const [endRange, setEndRange] = useState("");
 
-  const sortedProducts = [...products].sort((a, b) => {
-    const numA = parseInt((a.barcode || "").replace("PROD-", "")) || 0;
-    const numB = parseInt((b.barcode || "").replace("PROD-", "")) || 0;
-    return numA - numB;
-  });
+  const sortedProducts = useMemo(
+    () =>
+      [...products].sort((a, b) => {
+        const numA = parseInt((a.barcode || "").replace("PROD-", ""), 10) || 0;
+        const numB = parseInt((b.barcode || "").replace("PROD-", ""), 10) || 0;
+        return numA - numB;
+      }),
+    [products],
+  );
 
   const startNum = parseInt(startRange) || 0;
   const endNum = parseInt(endRange) || Infinity;
 
-  const filteredProducts = sortedProducts.filter((product) => {
-    const num = parseInt((product.barcode || "").replace("PROD-", "")) || 0;
-    return num >= startNum && num <= endNum;
-  });
+  const filteredProducts = useMemo(
+    () =>
+      sortedProducts.filter((product) => {
+        const num =
+          parseInt((product.barcode || "").replace("PROD-", ""), 10) || 0;
+        return num >= startNum && num <= endNum;
+      }),
+    [sortedProducts, startNum, endNum],
+  );
 
   const printSelected = async () => {
     if (filteredProducts.length === 0) {
@@ -147,7 +156,7 @@ export const QRProductsScreen = ({ navigation }) => {
       ],
     });
   };
-  const renderProduct = ({ item }) => {
+  const renderProduct = useCallback(({ item }) => {
     return (
       <SurfaceCard style={styles.productCard}>
         <View style={styles.productInfo}>
@@ -164,7 +173,9 @@ export const QRProductsScreen = ({ navigation }) => {
         </View>
       </SurfaceCard>
     );
-  };
+  }, []);
+
+  const productKeyExtractor = useCallback((item) => item.id.toString(), []);
 
   if (loading) {
     return (
@@ -179,7 +190,7 @@ export const QRProductsScreen = ({ navigation }) => {
       <SafeAreaView style={styles.container}>
         <FlatList
           data={filteredProducts}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={productKeyExtractor}
           renderItem={renderProduct}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}

@@ -250,50 +250,55 @@ export const MobilePaymentsScreen = () => {
     [loadPayments, showAlert],
   );
 
-  const renderPaymentItem = ({ item }) => {
-    const amount = Number(item?.amount) || 0;
+  const renderPaymentItem = useCallback(
+    ({ item }) => {
+      const amount = Number(item?.amount) || 0;
 
-    return (
-      <SurfaceCard style={styles.paymentCard}>
-        <View style={styles.paymentInfo}>
-          <View style={styles.paymentTopRow}>
-            <InfoPill
-              text={activeTab === "pending" ? "Pendiente" : "Verificado"}
-              tone={activeTab === "pending" ? "warning" : "accent"}
-            />
-            <Text style={styles.paymentReference}>Ref: {item.reference}</Text>
+      return (
+        <SurfaceCard style={styles.paymentCard}>
+          <View style={styles.paymentInfo}>
+            <View style={styles.paymentTopRow}>
+              <InfoPill
+                text={activeTab === "pending" ? "Pendiente" : "Verificado"}
+                tone={activeTab === "pending" ? "warning" : "accent"}
+              />
+              <Text style={styles.paymentReference}>Ref: {item.reference}</Text>
+            </View>
+            <Text style={styles.paymentCustomer}>{item.customerName}</Text>
+            <Text style={styles.paymentAmount}>
+              {formatCurrency(amount, "VES")}
+            </Text>
+            {item?.createdAt ? (
+              <Text style={styles.paymentCreatedAt}>
+                Agregado: {formatLocalDateTime(item.createdAt)}
+              </Text>
+            ) : null}
+            {activeTab === "verified" && item?.verifiedAt ? (
+              <Text style={styles.paymentVerifiedAt}>
+                Verificado: {formatLocalDateTime(item.verifiedAt)}
+              </Text>
+            ) : null}
           </View>
-          <Text style={styles.paymentCustomer}>{item.customerName}</Text>
-          <Text style={styles.paymentAmount}>
-            {formatCurrency(amount, "VES")}
-          </Text>
-          {item?.createdAt ? (
-            <Text style={styles.paymentCreatedAt}>
-              Agregado: {formatLocalDateTime(item.createdAt)}
-            </Text>
-          ) : null}
-          {activeTab === "verified" && item?.verifiedAt ? (
-            <Text style={styles.paymentVerifiedAt}>
-              Verificado: {formatLocalDateTime(item.verifiedAt)}
-            </Text>
-          ) : null}
-        </View>
 
-        {activeTab === "pending" ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.verifyButton,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() => confirmVerify(item)}
-          >
-            <Ionicons name="checkmark" size={rf(18)} color="#fff" />
-            <Text style={styles.verifyButtonText}>Verificar</Text>
-          </Pressable>
-        ) : null}
-      </SurfaceCard>
-    );
-  };
+          {activeTab === "pending" ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.verifyButton,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={() => confirmVerify(item)}
+            >
+              <Ionicons name="checkmark" size={rf(18)} color="#fff" />
+              <Text style={styles.verifyButtonText}>Verificar</Text>
+            </Pressable>
+          ) : null}
+        </SurfaceCard>
+      );
+    },
+    [activeTab, confirmVerify],
+  );
+
+  const paymentKeyExtractor = useCallback((item) => String(item.id), []);
 
   return (
     <>
@@ -364,7 +369,7 @@ export const MobilePaymentsScreen = () => {
         ) : (
           <FlatList
             data={data}
-            keyExtractor={(item) => String(item.id)}
+            keyExtractor={paymentKeyExtractor}
             renderItem={renderPaymentItem}
             contentContainerStyle={[
               styles.listContent,
