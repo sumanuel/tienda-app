@@ -1338,7 +1338,7 @@ export const POSScreen = ({ navigation }) => {
         <View
           style={[
             styles.cartFabWrap,
-            { bottom: vs(14) + Math.max(insets.bottom, vs(8)) },
+            { bottom: vs(72) + Math.max(insets.bottom, vs(16)) },
           ]}
         >
           {cart.length > 0 ? (
@@ -1964,6 +1964,8 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     alignItems: "flex-end",
     gap: vs(10),
+    zIndex: 40,
+    elevation: 18,
   },
   cartFabAmount: {
     backgroundColor: POS_COLORS.text,

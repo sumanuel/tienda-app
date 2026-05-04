@@ -1,6 +1,7 @@
 import {
   collection,
   collectionGroup,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
@@ -13,6 +14,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
+import { clearStoreDatabase } from "../database/db";
 import {
   getActiveStoreIdOrThrow,
   getCurrentUserIdOrThrow,
@@ -42,6 +44,20 @@ const STORE_SUBCOLLECTIONS_TO_DELETE = [
   "mobile_payments",
 ];
 const STORE_NESTED_ROW_COLLECTIONS = ["tables", "cloud_snapshots"];
+const STORE_RESET_SUBCOLLECTIONS = [
+  "products",
+  "inventory_movements",
+  "customers",
+  "suppliers",
+  "sales",
+  "accounts_receivable",
+  "accounts_payable",
+  "account_payments",
+  "settings",
+  "exchange_rates",
+  "rate_notifications",
+  "mobile_payments",
+];
 
 const normalizeText = (value) => String(value || "").trim();
 const normalizeEmail = (value) => normalizeText(value).toLowerCase();
@@ -182,6 +198,37 @@ const deleteStoreTree = async (storeId) => {
 
   await deleteDoc(doc(firestore, "stores", storeId));
   deletedDocs += 1;
+
+  return deletedDocs;
+};
+
+const clearStoreDataTree = async (storeId) => {
+  let deletedDocs = 0;
+
+  for (const collectionName of STORE_RESET_SUBCOLLECTIONS) {
+    deletedDocs += await deleteCollectionDocs(
+      collection(firestore, "stores", storeId, collectionName),
+    );
+  }
+
+  for (const collectionName of STORE_NESTED_ROW_COLLECTIONS) {
+    deletedDocs += await deleteNestedRowCollections(storeId, collectionName);
+  }
+
+  await setDoc(
+    getStoreDocRef(storeId),
+    {
+      counters: deleteField(),
+      metrics: deleteField(),
+      seedState: deleteField(),
+      tableCount: 0,
+      lastCloudSyncAt: deleteField(),
+      lastCloudSyncRunId: deleteField(),
+      lastCloudSyncReason: deleteField(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 
   return deletedDocs;
 };
@@ -509,6 +556,7 @@ export const deleteActiveStoreForCurrentUser = async () => {
   const nextMembership = remainingMemberships[0] || null;
 
   const deletedDocuments = await deleteStoreTree(storeId);
+  await clearStoreDatabase({ userId: uid, storeId });
 
   await setDoc(
     getUserMembershipDocRef(uid, storeId),
@@ -536,6 +584,46 @@ export const deleteActiveStoreForCurrentUser = async () => {
     deletedDocuments,
     nextStoreId: nextMembership?.storeId || null,
     nextStoreName: nextMembership?.storeName || null,
+  };
+};
+
+export const resetActiveStoreDataForCurrentUser = async () => {
+  const user = auth.currentUser;
+  const uid = getCurrentUserIdOrThrow(user?.uid);
+  const storeId = getActiveStoreIdOrThrow();
+
+  const [membershipSnapshot, storeMemberSnapshot, storeSnapshot] =
+    await Promise.all([
+      getDoc(getUserMembershipDocRef(uid, storeId)),
+      getDoc(getStoreMemberDocRef(storeId, uid)),
+      getDoc(getStoreDocRef(storeId)),
+    ]);
+
+  const membershipRole = normalizeText(membershipSnapshot.data()?.role);
+  const storeMemberRole = normalizeText(storeMemberSnapshot.data()?.role);
+  const storeOwnerUserId = normalizeText(storeSnapshot.data()?.ownerUserId);
+  const isOwner =
+    membershipRole === "owner" ||
+    storeMemberRole === "owner" ||
+    storeOwnerUserId === uid;
+
+  if (!isOwner) {
+    throw new Error(
+      "Solo el propietario puede reiniciar los datos de esta tienda.",
+    );
+  }
+
+  const clearedDocuments = await clearStoreDataTree(storeId);
+  const localReset = await clearStoreDatabase({ userId: uid, storeId });
+
+  return {
+    storeId,
+    storeName:
+      normalizeText(storeSnapshot.data()?.name) ||
+      normalizeText(membershipSnapshot.data()?.storeName) ||
+      "Mi Tienda",
+    clearedDocuments,
+    clearedTables: localReset?.clearedTables || 0,
   };
 };
 

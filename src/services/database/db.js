@@ -109,6 +109,39 @@ const buildStoreDatabaseName = ({ userId, storeId }) => {
   return `tienda-${sanitizeDatabaseSegment(normalizedUserId)}-${sanitizeDatabaseSegment(normalizedStoreId)}.db`;
 };
 
+const clearDatabaseRows = async (databaseOps) => {
+  const rows = await databaseOps.getAllAsync(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;",
+  );
+
+  const tableNames = rows
+    .map((row) => String(row?.name || "").trim())
+    .filter(Boolean);
+
+  if (!tableNames.length) {
+    return { clearedTables: 0 };
+  }
+
+  await databaseOps.execAsync("PRAGMA foreign_keys = OFF;");
+  try {
+    for (const tableName of [...tableNames].reverse()) {
+      await databaseOps.runAsync(`DELETE FROM ${tableName};`);
+    }
+
+    const placeholders = tableNames.map(() => "?").join(",");
+    await databaseOps.runAsync(
+      `DELETE FROM sqlite_sequence WHERE name IN (${placeholders});`,
+      tableNames,
+    );
+  } finally {
+    await databaseOps.execAsync("PRAGMA foreign_keys = ON;");
+  }
+
+  return {
+    clearedTables: tableNames.length,
+  };
+};
+
 const getNonEmptyUserTables = async (database) => {
   const rows = await database.getAllAsync(
     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;",
@@ -237,6 +270,34 @@ export const resetDatabaseContext = async () => {
   currentDbName = LEGACY_DB_NAME;
   currentDbPromise = openDatabase(LEGACY_DB_NAME);
   return { dbName: currentDbName };
+};
+
+export const clearStoreDatabase = async ({ userId, storeId } = {}) => {
+  const targetDbName = buildStoreDatabaseName({ userId, storeId });
+  const isCurrentDatabase = targetDbName === currentDbName;
+
+  if (isCurrentDatabase) {
+    const result = await clearDatabaseRows(db);
+    await reopenCurrentDatabase();
+    initializedDatabases.delete(currentDbName);
+    await initAllTables();
+    return {
+      dbName: targetDbName,
+      ...result,
+    };
+  }
+
+  const database = await openDatabase(targetDbName);
+  try {
+    const result = await clearDatabaseRows(database);
+    initializedDatabases.delete(targetDbName);
+    return {
+      dbName: targetDbName,
+      ...result,
+    };
+  } finally {
+    await closeDatabaseQuietly(Promise.resolve(database));
+  }
 };
 
 export const migrateLegacyDatabaseToCurrentStoreIfNeeded = async () => {
