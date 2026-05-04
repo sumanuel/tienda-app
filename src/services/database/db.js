@@ -276,8 +276,21 @@ export const clearStoreDatabase = async ({ userId, storeId } = {}) => {
   const targetDbName = buildStoreDatabaseName({ userId, storeId });
   const isCurrentDatabase = targetDbName === currentDbName;
 
+  const clearWithFreshConnection = async () => {
+    const database = await openDatabase(targetDbName);
+    try {
+      return await clearDatabaseRows(database);
+    } finally {
+      await closeDatabaseQuietly(Promise.resolve(database));
+    }
+  };
+
   if (isCurrentDatabase) {
-    const result = await clearDatabaseRows(db);
+    await closeDatabaseQuietly(currentDbPromise);
+    currentDbPromise = null;
+
+    const result = await clearWithFreshConnection();
+
     await reopenCurrentDatabase();
     initializedDatabases.delete(currentDbName);
     await initAllTables();
@@ -287,17 +300,12 @@ export const clearStoreDatabase = async ({ userId, storeId } = {}) => {
     };
   }
 
-  const database = await openDatabase(targetDbName);
-  try {
-    const result = await clearDatabaseRows(database);
-    initializedDatabases.delete(targetDbName);
-    return {
-      dbName: targetDbName,
-      ...result,
-    };
-  } finally {
-    await closeDatabaseQuietly(Promise.resolve(database));
-  }
+  const result = await clearWithFreshConnection();
+  initializedDatabases.delete(targetDbName);
+  return {
+    dbName: targetDbName,
+    ...result,
+  };
 };
 
 export const migrateLegacyDatabaseToCurrentStoreIfNeeded = async () => {

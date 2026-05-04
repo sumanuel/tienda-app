@@ -202,11 +202,17 @@ export const DashboardScreen = ({ navigation }) => {
   // Listener para cuando se vuelve a la pantalla (recargar inventario y cuentas)
   useFocusEffect(
     useCallback(() => {
+      loadTodayStats();
       refreshInventory();
       refreshAccounts();
       refreshNotificationsCount();
       return undefined;
-    }, [refreshInventory, refreshAccounts, refreshNotificationsCount]),
+    }, [
+      loadTodayStats,
+      refreshInventory,
+      refreshAccounts,
+      refreshNotificationsCount,
+    ]),
   );
 
   const onRefresh = async () => {
