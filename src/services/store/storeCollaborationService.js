@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
 import { clearStoreDatabase } from "../database/db";
+import { invalidateStoreCustomerCloudState } from "../database/customers";
 import { invalidateStoreProductCloudState } from "../database/products";
 import { invalidateStoreSalesCloudState } from "../database/sales";
 import {
@@ -67,6 +68,7 @@ const normalizeRif = (value) => normalizeText(value).toUpperCase();
 const normalizeStoreNameKey = (value) => normalizeText(value).toLowerCase();
 
 const invalidateStoreRuntimeCaches = ({ uid, storeId } = {}) => {
+  invalidateStoreCustomerCloudState({ uid, storeId });
   invalidateStoreProductCloudState({ uid, storeId });
   invalidateStoreSalesCloudState({ uid, storeId });
 };
