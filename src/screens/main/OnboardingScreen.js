@@ -116,6 +116,15 @@ export const OnboardingScreen = ({
   const rateDirtyRef = useRef(false);
   const existingBusinessLoadedRef = useRef(false);
   const existingRateLoadedRef = useRef(false);
+  const scrollTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
   const [saving, setSaving] = useState(false);
   const [pendingInvites, setPendingInvites] = useState([]);
 
@@ -378,7 +387,11 @@ export const OnboardingScreen = ({
 
   const scrollToFormField = (ref) => {
     if (ref?.current && formScrollRef?.current) {
-      setTimeout(() => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
         ref.current.measureLayout(
           formScrollRef.current,
           (x, y) => {

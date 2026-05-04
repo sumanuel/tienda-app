@@ -113,6 +113,7 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId;
 
     const maybeStartTour = async () => {
       if (tourBooted) return;
@@ -123,7 +124,7 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
       if (!mounted) return;
 
       if (!seen) {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           start();
           markTourSeen(tourId);
         }, 450);
@@ -136,6 +137,9 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
 
     return () => {
       mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [canStart, start, tourBooted]);
 

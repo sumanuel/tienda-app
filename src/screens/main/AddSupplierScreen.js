@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -38,6 +38,15 @@ export const AddSupplierScreen = ({ navigation }) => {
   const addressRef = useRef(null);
   const paymentTermsRef = useRef(null);
   const scrollViewRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const [formData, setFormData] = useState({
     documentNumber: "",
@@ -95,7 +104,11 @@ export const AddSupplierScreen = ({ navigation }) => {
 
   const scrollToField = (ref) => {
     if (ref?.current && scrollViewRef?.current) {
-      setTimeout(() => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
         ref.current.measureLayout(
           scrollViewRef.current,
           (x, y) => {

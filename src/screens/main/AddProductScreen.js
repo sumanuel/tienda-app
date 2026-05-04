@@ -50,6 +50,15 @@ export const AddProductScreen = ({ navigation }) => {
   const ivaRef = useRef(null);
   const stockRef = useRef(null);
   const scrollViewRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -106,7 +115,11 @@ export const AddProductScreen = ({ navigation }) => {
 
   const scrollToField = (ref) => {
     if (ref?.current && scrollViewRef?.current) {
-      setTimeout(() => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
         ref.current.measureLayout(
           scrollViewRef.current,
           (x, y) => {

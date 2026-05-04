@@ -66,6 +66,7 @@ export const SuppliersScreen = () => {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId;
 
     const maybeStartTour = async () => {
       if (tourBooted) return;
@@ -76,7 +77,7 @@ export const SuppliersScreen = () => {
       if (!mounted) return;
 
       if (!seen) {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           start();
           markTourSeen(tourId);
         }, 450);
@@ -89,6 +90,9 @@ export const SuppliersScreen = () => {
 
     return () => {
       mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [canStart, start, tourBooted]);
 
@@ -232,68 +236,82 @@ export const SuppliersScreen = () => {
     [navigation, confirmDeleteSupplier],
   );
 
-  const header = (
-    <View style={styles.headerContent}>
-      <SurfaceCard style={styles.heroCard}>
-        <View style={styles.heroTopRow}>
-          <View style={styles.heroBadge}>
-            <Ionicons
-              name="business-outline"
-              size={rf(22)}
-              color={UI_COLORS.info}
-            />
+  const header = useMemo(
+    () => (
+      <View style={styles.headerContent}>
+        <SurfaceCard style={styles.heroCard}>
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroBadge}>
+              <Ionicons
+                name="business-outline"
+                size={rf(22)}
+                color={UI_COLORS.info}
+              />
+            </View>
+            <InfoPill text={`${suppliers.length} proveedores`} tone="accent" />
           </View>
-          <InfoPill text={`${suppliers.length} proveedores`} tone="accent" />
-        </View>
 
-        <View style={styles.heroCopy}>
-          <Text style={styles.heroEyebrow}>Compras</Text>
-          <Text style={styles.heroTitle}>Proveedores y aliados</Text>
-          <Text style={styles.heroSubtitle}>
-            Organiza contactos, documentos y términos de pago con una lectura
-            más clara.
-          </Text>
-        </View>
-      </SurfaceCard>
-
-      <TourGuideZone
-        zone={TOUR_ZONE_BASE + 1}
-        text={
-          "Usa 'Buscar proveedor' (Nombre, RIF o contacto) para encontrarlo rápidamente."
-        }
-        borderRadius={borderRadius.lg}
-        style={styles.searchCard}
-      >
-        <SurfaceCard style={styles.searchSurface}>
-          <View style={styles.searchTitleBlock}>
-            <Text style={styles.searchTitle}>Buscar proveedor</Text>
-            <Text style={styles.searchHint}>
-              Filtra por nombre, RIF o contacto principal.
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroEyebrow}>Compras</Text>
+            <Text style={styles.heroTitle}>Proveedores y aliados</Text>
+            <Text style={styles.heroSubtitle}>
+              Organiza contactos, documentos y términos de pago con una lectura
+              más clara.
             </Text>
           </View>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Nombre, RIF o contacto"
-            value={searchQuery}
-            onChangeText={handleSearch}
-            placeholderTextColor="#9aa2b1"
-          />
         </SurfaceCard>
-      </TourGuideZone>
-    </View>
+
+        <TourGuideZone
+          zone={TOUR_ZONE_BASE + 1}
+          text={
+            "Usa 'Buscar proveedor' (Nombre, RIF o contacto) para encontrarlo rápidamente."
+          }
+          borderRadius={borderRadius.lg}
+          style={styles.searchCard}
+        >
+          <SurfaceCard style={styles.searchSurface}>
+            <View style={styles.searchTitleBlock}>
+              <Text style={styles.searchTitle}>Buscar proveedor</Text>
+              <Text style={styles.searchHint}>
+                Filtra por nombre, RIF o contacto principal.
+              </Text>
+            </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Nombre, RIF o contacto"
+              value={searchQuery}
+              onChangeText={handleSearch}
+              placeholderTextColor="#9aa2b1"
+            />
+          </SurfaceCard>
+        </TourGuideZone>
+      </View>
+    ),
+    [
+      TOUR_ZONE_BASE,
+      TourGuideZone,
+      handleSearch,
+      searchQuery,
+      suppliers.length,
+    ],
   );
 
-  const renderEmpty = () => (
-    <EmptyStateCard
-      style={styles.emptyCard}
-      title={
-        searchQuery
-          ? "No se encontraron proveedores"
-          : "Aún no hay proveedores registrados"
-      }
-      subtitle="Registra proveedores para vincularlos con tus compras y cuentas por pagar."
-    />
+  const renderEmpty = useCallback(
+    () => (
+      <EmptyStateCard
+        style={styles.emptyCard}
+        title={
+          searchQuery
+            ? "No se encontraron proveedores"
+            : "Aún no hay proveedores registrados"
+        }
+        subtitle="Registra proveedores para vincularlos con tus compras y cuentas por pagar."
+      />
+    ),
+    [searchQuery],
   );
+
+  const supplierKeyExtractor = useCallback((item) => item.id.toString(), []);
 
   if (loading) {
     return (
@@ -325,7 +343,7 @@ export const SuppliersScreen = () => {
       <FlatList
         data={sortedSuppliers}
         renderItem={renderSupplier}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={supplierKeyExtractor}
         ListHeaderComponent={header}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={[

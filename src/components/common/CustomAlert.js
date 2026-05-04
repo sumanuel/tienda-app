@@ -83,9 +83,9 @@ const normalizeAlertConfig = (config, onClose) => {
 const CustomAlert = ({ visible, onClose, config }) => {
   if (!config) return null;
 
-  const { title, message, type, buttons } = normalizeAlertConfig(
-    config,
-    onClose,
+  const { title, message, type, buttons } = React.useMemo(
+    () => normalizeAlertConfig(config, onClose),
+    [config, onClose],
   );
   const typeConfig = ALERT_TONE_MAP[type];
   const isStackedButtons = buttons.length > 2;
@@ -363,14 +363,28 @@ export const useCustomAlert = () => {
     setAlertConfig(null);
   }, []);
 
-  React.useEffect(() => {
-    setAlertRef({ show });
-  }, [show]);
+  const AlertRenderer = React.useCallback(
+    () => <CustomAlert visible={visible} onClose={hide} config={alertConfig} />,
+    [visible, hide, alertConfig],
+  );
 
-  return {
-    CustomAlert: () => (
-      <CustomAlert visible={visible} onClose={hide} config={alertConfig} />
-    ),
-    showAlert: show,
-  };
+  const alertController = React.useMemo(() => ({ show }), [show]);
+
+  React.useEffect(() => {
+    setAlertRef(alertController);
+
+    return () => {
+      if (alertRef === alertController) {
+        setAlertRef(null);
+      }
+    };
+  }, [alertController]);
+
+  return React.useMemo(
+    () => ({
+      CustomAlert: AlertRenderer,
+      showAlert: show,
+    }),
+    [AlertRenderer, show],
+  );
 };

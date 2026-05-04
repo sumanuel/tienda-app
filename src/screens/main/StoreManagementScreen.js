@@ -16,7 +16,6 @@ import {
   acceptInviteForCurrentUser,
   cleanupDuplicateOwnerStoresForCurrentUser,
   createInviteForActiveStore,
-  createStoreForCurrentUser,
   deleteActiveStoreForCurrentUser,
   getAvailableStoreRoles,
   listInvitesForStore,
@@ -25,6 +24,7 @@ import {
   listPendingInvitesForCurrentUser,
   removeCollaboratorFromActiveStore,
   renameActiveStoreForCurrentUser,
+  resetActiveStoreDataForCurrentUser,
   revokeInviteForActiveStore,
 } from "../../services/store/storeCollaborationService";
 import {
@@ -76,14 +76,15 @@ export const StoreManagementScreen = () => {
     switchStore,
     syncNow,
     refreshStoreContext,
+    restartStoreBootstrap,
   } = useAuth();
   const { showAlert, CustomAlert } = useCustomAlert();
   const [loadingData, setLoadingData] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [activeOperation, setActiveOperation] = useState(null);
   const [members, setMembers] = useState([]);
   const [storeInvites, setStoreInvites] = useState([]);
   const [incomingInvites, setIncomingInvites] = useState([]);
-  const [newStoreName, setNewStoreName] = useState("");
   const [renameStoreName, setRenameStoreName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("seller");
@@ -103,6 +104,41 @@ export const StoreManagementScreen = () => {
   useEffect(() => {
     setRenameStoreName(activeMembership?.storeName || "");
   }, [activeMembership?.storeName]);
+
+  useEffect(() => {
+    if (!activeOperation || activeOperation.showSlowHint) {
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setActiveOperation((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          showSlowHint: true,
+        };
+      });
+    }, 2500);
+
+    return () => clearTimeout(timeoutId);
+  }, [activeOperation]);
+
+  const startOperation = (title, message) => {
+    setSubmitting(true);
+    setActiveOperation({
+      title,
+      message,
+      showSlowHint: false,
+    });
+  };
+
+  const finishOperation = () => {
+    setSubmitting(false);
+    setActiveOperation(null);
+  };
 
   const loadData = async () => {
     try {
@@ -170,33 +206,6 @@ export const StoreManagementScreen = () => {
       showAlert({
         title: "Error",
         message: getStoreErrorMessage(error, "No se pudo cambiar de tienda."),
-        type: "error",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCreateStore = async () => {
-    try {
-      setSubmitting(true);
-      const createdStore = await createStoreForCurrentUser({
-        name: newStoreName,
-      });
-      setNewStoreName("");
-      await switchStore(createdStore.storeId);
-      await syncNow("stores:create");
-      await loadData();
-      showAlert({
-        title: "Tienda creada",
-        message: `Ahora estás trabajando en ${createdStore.storeName}.`,
-        type: "success",
-      });
-    } catch (error) {
-      console.error("Error creating store:", error);
-      showAlert({
-        title: "Error",
-        message: getStoreErrorMessage(error, "No se pudo crear la tienda."),
         type: "error",
       });
     } finally {
@@ -277,7 +286,10 @@ export const StoreManagementScreen = () => {
           style: "destructive",
           onPress: async () => {
             try {
-              setSubmitting(true);
+              startOperation(
+                "Eliminando tienda",
+                "Estamos borrando la tienda activa y limpiando su información local y cloud.",
+              );
               const result = await deleteActiveStoreForCurrentUser();
               await refreshStoreContext(result.nextStoreId || undefined);
               await loadData();
@@ -299,7 +311,58 @@ export const StoreManagementScreen = () => {
                 type: "error",
               });
             } finally {
-              setSubmitting(false);
+              finishOperation();
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleResetActiveStoreData = async () => {
+    if (!activeStoreId || !activeMembership) {
+      return;
+    }
+
+    showAlert({
+      title: "Reiniciar datos",
+      message:
+        "Se eliminarán productos, inventario, ventas, clientes, proveedores, cuentas y configuraciones de la tienda activa tanto en el dispositivo como en Firestore. La tienda y sus accesos se conservarán.",
+      type: "warning",
+      buttons: [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Reiniciar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              startOperation(
+                "Reiniciando datos",
+                "Estamos eliminando los datos operativos de la tienda en el dispositivo y en Firestore.",
+              );
+              const result = await resetActiveStoreDataForCurrentUser();
+              await restartStoreBootstrap(activeStoreId);
+              await loadData();
+              showAlert({
+                title: "Datos reiniciados",
+                message: `La tienda ${result.storeName} quedó reiniciada desde cero.`,
+                type: "success",
+              });
+            } catch (error) {
+              console.error("Error resetting store data:", error);
+              showAlert({
+                title: "Error",
+                message: getStoreErrorMessage(
+                  error,
+                  "No se pudieron reiniciar los datos de la tienda.",
+                ),
+                type: "error",
+              });
+            } finally {
+              finishOperation();
             }
           },
         },
@@ -492,7 +555,8 @@ export const StoreManagementScreen = () => {
           <View style={styles.heroInfo}>
             <Text style={styles.heroTitle}>Tiendas y colaboradores</Text>
             <Text style={styles.heroSubtitle}>
-              Cambia de tienda, crea nuevas sedes e invita usuarios por correo.
+              Cambia de tienda, administra accesos y mantén limpia la operación
+              compartida.
             </Text>
             <Text style={styles.activePill}>
               Activa: {activeMembership?.storeName || "Sin tienda"}
@@ -569,27 +633,6 @@ export const StoreManagementScreen = () => {
           )}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Crear nueva tienda</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ej: Tienda Centro"
-            placeholderTextColor="#8a94a6"
-            value={newStoreName}
-            onChangeText={setNewStoreName}
-          />
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              (!newStoreName.trim() || submitting) && styles.buttonDisabled,
-            ]}
-            onPress={handleCreateStore}
-            disabled={!newStoreName.trim() || submitting}
-          >
-            <Text style={styles.primaryButtonText}>Crear tienda</Text>
-          </TouchableOpacity>
-        </View>
-
         {isOwner(activeMembership) && (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Renombrar tienda activa</Text>
@@ -614,6 +657,20 @@ export const StoreManagementScreen = () => {
 
             <TouchableOpacity
               style={[styles.dangerButton, submitting && styles.buttonDisabled]}
+              onPress={handleResetActiveStoreData}
+              disabled={submitting}
+            >
+              <Text style={styles.dangerButtonText}>
+                Reiniciar datos de la tienda
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.helperText}>
+              Borra los datos operativos locales y cloud para comenzar de cero
+              sin eliminar la tienda.
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.dangerButton, submitting && styles.buttonDisabled]}
               onPress={handleDeleteActiveStore}
               disabled={submitting}
             >
@@ -622,8 +679,8 @@ export const StoreManagementScreen = () => {
               </Text>
             </TouchableOpacity>
             <Text style={styles.helperText}>
-              Esta acción es irreversible y borrará toda la data cloud de la
-              tienda.
+              Esta acción es irreversible y borrará la tienda junto con su data
+              local y cloud.
             </Text>
           </View>
         )}
@@ -773,6 +830,23 @@ export const StoreManagementScreen = () => {
           </View>
         )}
       </ScrollView>
+      {activeOperation ? (
+        <View style={styles.operationOverlay}>
+          <View style={styles.operationCard}>
+            <ActivityIndicator size="large" color="#2f5ae0" />
+            <Text style={styles.operationTitle}>{activeOperation.title}</Text>
+            <Text style={styles.operationMessage}>
+              {activeOperation.message}
+            </Text>
+            {activeOperation.showSlowHint ? (
+              <Text style={styles.operationHint}>
+                Esta acción puede tardar algunos minutos. Mantén la app abierta
+                hasta que termine.
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
       <CustomAlert />
     </>
   );
@@ -859,6 +933,52 @@ const styles = StyleSheet.create({
     fontSize: rf(14),
     color: "#5b6472",
     fontWeight: "600",
+  },
+  operationOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15, 23, 42, 0.28)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+    zIndex: 50,
+  },
+  operationCard: {
+    width: "100%",
+    maxWidth: hs(340),
+    backgroundColor: "#ffffff",
+    borderRadius: borderRadius.xl,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
+    alignItems: "center",
+    gap: spacing.md,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: s(10) },
+    shadowOpacity: 0.12,
+    shadowRadius: s(20),
+    elevation: 12,
+  },
+  operationTitle: {
+    fontSize: rf(18),
+    fontWeight: "800",
+    color: "#1f2633",
+    textAlign: "center",
+  },
+  operationMessage: {
+    fontSize: rf(14),
+    lineHeight: rf(20),
+    color: "#5b6472",
+    textAlign: "center",
+  },
+  operationHint: {
+    fontSize: rf(13),
+    lineHeight: rf(18),
+    color: "#9a3412",
+    textAlign: "center",
+    backgroundColor: "#fff7ed",
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    overflow: "hidden",
   },
   card: {
     backgroundColor: "#fff",

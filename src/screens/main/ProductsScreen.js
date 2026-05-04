@@ -12,7 +12,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
 import { useProducts } from "../../hooks/useProducts";
-import { getAllSales } from "../../services/database/sales";
+import { countSalesByProduct } from "../../services/database/sales";
 import { getSettings } from "../../services/database/settings";
 import { countProductInventoryMovements } from "../../services/database/products";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
@@ -36,6 +36,101 @@ import {
   iconSize,
 } from "../../utils/responsive";
 
+const ProductCard = React.memo(function ProductCard({
+  item,
+  appliedRate,
+  onEdit,
+  onDelete,
+}) {
+  const priceUSD = Number(item.priceUSD) || 0;
+  const priceVES = appliedRate ? priceUSD * appliedRate : 0;
+  const stock = Number(item.stock) || 0;
+  const minStock = Number(item.minStock ?? 0);
+  const lowStock = minStock ? stock <= minStock : stock <= 5;
+
+  const handleEdit = useCallback(() => {
+    onEdit(item);
+  }, [item, onEdit]);
+
+  const handleDelete = useCallback(() => {
+    onDelete(item);
+  }, [item, onDelete]);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.productCard,
+        lowStock && styles.productCardLowStock,
+        pressed && styles.cardPressed,
+      ]}
+      onPress={handleEdit}
+    >
+      <View style={styles.productTopRow}>
+        <View style={styles.productTopCopy}>
+          <InfoPill
+            text={item.category || "General"}
+            tone={lowStock ? "warning" : "info"}
+            style={styles.productCategoryPill}
+          />
+          <Text style={styles.productName} numberOfLines={2}>
+            {item.name.toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.productActionsColumn}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.deleteButton,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={handleDelete}
+          >
+            <Ionicons name="close" size={rf(14)} color="#ffffff" />
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.productMetaRow}>
+        <View style={styles.metaBadge}>
+          <Text style={styles.metaLabel}>Código</Text>
+          <Text style={styles.metaValue}>
+            {item.productNumber || `PRD-${String(item.id).padStart(6, "0")}`}
+          </Text>
+        </View>
+        {!!item.barcode && (
+          <View style={styles.metaBadge}>
+            <Text style={styles.metaLabel}>Barcode</Text>
+            <Text style={styles.metaValue}>{item.barcode}</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.priceRow}>
+        <View style={styles.priceTag}>
+          <Text style={styles.priceTagLabel}>VES</Text>
+          <Text style={styles.priceTagValue}>{priceVES.toFixed(2)}</Text>
+        </View>
+        <View style={styles.priceTagSecondary}>
+          <Text style={styles.priceTagSecondaryLabel}>USD</Text>
+          <Text style={styles.priceTagSecondaryValue}>
+            {priceUSD.toFixed(2)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.productFooter}>
+        <Text style={styles.productFootnote}>
+          {lowStock
+            ? `Atención: stock bajo${minStock ? `, mínimo ${minStock}` : ""}`
+            : `${stock} unidad(es) disponibles para vender`}
+        </Text>
+        <Text style={[styles.productStock, lowStock && styles.productStockLow]}>
+          Stock: {stock}
+        </Text>
+      </View>
+    </Pressable>
+  );
+});
+
 /**
  * Pantalla de gestión de productos
  */
@@ -54,30 +149,47 @@ export const ProductsScreen = ({ navigation }) => {
   const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
+  const loadSettings = useCallback(async () => {
+    try {
+      const nextSettings = await getSettings();
+      setSettings(nextSettings);
+    } catch (error) {
+      console.warn("Error cargando settings de productos:", error);
+    }
+  }, []);
+
   // Cargar settings al montar
   useEffect(() => {
-    const loadSettings = async () => {
-      const s = await getSettings();
-      setSettings(s);
+    let mounted = true;
+
+    const run = async () => {
+      try {
+        const nextSettings = await getSettings();
+        if (mounted) {
+          setSettings(nextSettings);
+        }
+      } catch (error) {
+        console.warn("Error cargando settings de productos:", error);
+      }
     };
-    loadSettings();
+    run();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Recargar productos y settings cuando la pantalla se enfoque
   useFocusEffect(
     useCallback(() => {
       loadProducts();
-      // Recargar settings también por si cambió el tipo de cambio
-      const loadSettings = async () => {
-        const s = await getSettings();
-        setSettings(s);
-      };
       loadSettings();
-    }, [loadProducts]),
+    }, [loadProducts, loadSettings]),
   );
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId;
 
     const maybeStartTour = async () => {
       if (tourBooted) return;
@@ -89,7 +201,7 @@ export const ProductsScreen = ({ navigation }) => {
 
       if (!seen) {
         // Pequeño delay para asegurar layout/render
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           start();
           markTourSeen(tourId);
         }, 450);
@@ -102,83 +214,89 @@ export const ProductsScreen = ({ navigation }) => {
 
     return () => {
       mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [canStart, start, tourBooted]);
 
-  const handleSearch = (text) => {
-    setSearchQuery(text);
-    if (text.length > 0) {
-      search(text);
-    } else {
-      loadProducts();
-    }
-  };
+  const handleSearch = useCallback(
+    (text) => {
+      setSearchQuery(text);
+      if (text.length > 0) {
+        search(text);
+      } else {
+        loadProducts();
+      }
+    },
+    [search, loadProducts],
+  );
 
-  const handleEditProduct = (product) => {
-    navigation.navigate("EditProduct", { product });
-  };
+  const handleEditProduct = useCallback(
+    (product) => {
+      navigation.navigate("EditProduct", { product });
+    },
+    [navigation],
+  );
 
-  const handleDeleteProduct = async (product) => {
-    try {
-      const allSales = await getAllSales(100000);
-      const salesCount = allSales.filter((sale) =>
-        Array.isArray(sale.items)
-          ? sale.items.some(
-              (item) => Number(item.productId) === Number(product.id),
-            )
-          : false,
-      ).length;
+  const handleDeleteProduct = useCallback(
+    async (product) => {
+      try {
+        const [salesCount, inventoryCount] = await Promise.all([
+          countSalesByProduct(product.id),
+          countProductInventoryMovements(product.id),
+        ]);
 
-      const inventoryCount = await countProductInventoryMovements(product.id);
+        if (salesCount > 0 || inventoryCount > 0) {
+          showAlert({
+            title: "No se puede eliminar",
+            message: `No se puede eliminar "${product.name}" porque tiene ${salesCount} venta(s) y ${inventoryCount} movimiento(s) de inventario asociado(s).`,
+            type: "error",
+          });
+          return;
+        }
 
-      if (salesCount > 0 || inventoryCount > 0) {
+        // Si no tiene movimientos, mostrar confirmación de eliminación
         showAlert({
-          title: "No se puede eliminar",
-          message: `No se puede eliminar "${product.name}" porque tiene ${salesCount} venta(s) y ${inventoryCount} movimiento(s) de inventario asociado(s).`,
+          title: "Eliminar Producto",
+          message: `¿Estás seguro de que quieres eliminar "${product.name}"?`,
+          type: "warning",
+          buttons: [
+            { text: "Cancelar", style: "cancel" },
+            {
+              text: "Eliminar",
+              style: "destructive",
+              onPress: async () => {
+                try {
+                  await removeProduct(product.id);
+                  showAlert({
+                    title: "Éxito",
+                    message: "Producto eliminado correctamente",
+                    type: "success",
+                  });
+                } catch (error) {
+                  console.error("Error eliminando producto:", error);
+                  showAlert({
+                    title: "Error",
+                    message: "No se pudo eliminar el producto",
+                    type: "error",
+                  });
+                }
+              },
+            },
+          ],
+        });
+      } catch (error) {
+        console.error("Error verificando movimientos del producto:", error);
+        showAlert({
+          title: "Error",
+          message: "No se pudo verificar los movimientos del producto",
           type: "error",
         });
-        return;
       }
-
-      // Si no tiene movimientos, mostrar confirmación de eliminación
-      showAlert({
-        title: "Eliminar Producto",
-        message: `¿Estás seguro de que quieres eliminar "${product.name}"?`,
-        type: "warning",
-        buttons: [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Eliminar",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                await removeProduct(product.id);
-                showAlert({
-                  title: "Éxito",
-                  message: "Producto eliminado correctamente",
-                  type: "success",
-                });
-              } catch (error) {
-                console.error("Error eliminando producto:", error);
-                showAlert({
-                  title: "Error",
-                  message: "No se pudo eliminar el producto",
-                  type: "error",
-                });
-              }
-            },
-          },
-        ],
-      });
-    } catch (error) {
-      console.error("Error verificando movimientos del producto:", error);
-      showAlert({
-        title: "Error",
-        message: "No se pudo verificar los movimientos del producto",
-        type: "error",
-      });
-    }
-  };
+    },
+    [removeProduct, showAlert],
+  );
 
   const sortedProducts = useMemo(() => {
     return [...products].sort((a, b) => {
@@ -188,178 +306,129 @@ export const ProductsScreen = ({ navigation }) => {
     });
   }, [products]);
 
+  const appliedRate = useMemo(() => {
+    const rateFromSettings = settings?.pricing?.currencies?.USD;
+    return exchangeRate || rateFromSettings || 0;
+  }, [exchangeRate, settings]);
+
   const metrics = useMemo(() => {
     const totalProducts = products.length;
     const lowStockThreshold = 5;
     const lowStock = products.filter(
       (product) => (product.stock || 0) <= lowStockThreshold,
     ).length;
-    const rateFromSettings = settings?.pricing?.currencies?.USD;
-    const appliedRate = exchangeRate || rateFromSettings || 0;
 
     return {
       totalProducts,
       lowStock,
       rateUsed: appliedRate,
     };
-  }, [products, settings, exchangeRate]);
+  }, [appliedRate, products]);
 
-  const renderProduct = ({ item }) => {
-    const rateFromSettings = settings?.pricing?.currencies?.USD;
-    const appliedRate = exchangeRate || rateFromSettings || 0;
-    const priceUSD = item.priceUSD || 0;
-    const priceVES = appliedRate ? priceUSD * appliedRate : 0;
-    const stock = item.stock || 0;
-    const minStock = item.minStock ?? 0;
-    const lowStock = minStock ? stock <= minStock : stock <= 5;
+  const renderProduct = useCallback(
+    ({ item }) => (
+      <ProductCard
+        item={item}
+        appliedRate={appliedRate}
+        onEdit={handleEditProduct}
+        onDelete={handleDeleteProduct}
+      />
+    ),
+    [appliedRate, handleDeleteProduct, handleEditProduct],
+  );
 
-    return (
-      <Pressable
-        style={({ pressed }) => [
-          styles.productCard,
-          lowStock && styles.productCardLowStock,
-          pressed && styles.cardPressed,
-        ]}
-        onPress={() => handleEditProduct(item)}
-      >
-        <View style={styles.productTopRow}>
-          <View style={styles.productTopCopy}>
+  const header = useMemo(
+    () => (
+      <View style={styles.headerContent}>
+        <SurfaceCard style={styles.heroCard}>
+          <View style={styles.heroTopRow}>
+            <View style={[styles.heroBadge, styles.heroBadgeWarning]}>
+              <Ionicons
+                name="cube-outline"
+                size={rf(22)}
+                color={UI_COLORS.warning}
+              />
+            </View>
             <InfoPill
-              text={item.category || "General"}
-              tone={lowStock ? "warning" : "info"}
-              style={styles.productCategoryPill}
-            />
-            <Text style={styles.productName} numberOfLines={2}>
-              {item.name.toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.productActionsColumn}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.deleteButton,
-                pressed && styles.cardPressed,
-              ]}
-              onPress={() => handleDeleteProduct(item)}
-            >
-              <Ionicons name="close" size={rf(14)} color="#ffffff" />
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.productMetaRow}>
-          <View style={styles.metaBadge}>
-            <Text style={styles.metaLabel}>Código</Text>
-            <Text style={styles.metaValue}>
-              {item.productNumber || `PRD-${String(item.id).padStart(6, "0")}`}
-            </Text>
-          </View>
-          {!!item.barcode && (
-            <View style={styles.metaBadge}>
-              <Text style={styles.metaLabel}>Barcode</Text>
-              <Text style={styles.metaValue}>{item.barcode}</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.priceRow}>
-          <View style={styles.priceTag}>
-            <Text style={styles.priceTagLabel}>VES</Text>
-            <Text style={styles.priceTagValue}>{priceVES.toFixed(2)}</Text>
-          </View>
-          <View style={styles.priceTagSecondary}>
-            <Text style={styles.priceTagSecondaryLabel}>USD</Text>
-            <Text style={styles.priceTagSecondaryValue}>
-              {priceUSD.toFixed(2)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.productFooter}>
-          <Text style={styles.productFootnote}>
-            {lowStock
-              ? `Atención: stock bajo${minStock ? `, mínimo ${minStock}` : ""}`
-              : `${stock} unidad(es) disponibles para vender`}
-          </Text>
-          <Text
-            style={[styles.productStock, lowStock && styles.productStockLow]}
-          >
-            Stock: {stock}
-          </Text>
-        </View>
-      </Pressable>
-    );
-  };
-
-  const header = (
-    <View style={styles.headerContent}>
-      <SurfaceCard style={styles.heroCard}>
-        <View style={styles.heroTopRow}>
-          <View style={[styles.heroBadge, styles.heroBadgeWarning]}>
-            <Ionicons
-              name="cube-outline"
-              size={rf(22)}
-              color={UI_COLORS.warning}
+              text={
+                metrics.lowStock > 0
+                  ? `${metrics.lowStock} en alerta`
+                  : "Inventario estable"
+              }
+              tone={metrics.lowStock > 0 ? "warning" : "accent"}
             />
           </View>
-          <InfoPill
-            text={
-              metrics.lowStock > 0
-                ? `${metrics.lowStock} en alerta`
-                : "Inventario estable"
-            }
-            tone={metrics.lowStock > 0 ? "warning" : "accent"}
-          />
-        </View>
 
-        <View style={styles.heroCopy}>
-          <Text style={styles.heroEyebrow}>Inventario</Text>
-          <Text style={styles.heroTitle}>Catálogo de productos</Text>
-          <Text style={styles.heroSubtitle}>
-            Edita precios, revisa existencias y ubica productos sin perder el
-            foco del inventario.
-          </Text>
-        </View>
-
-        <View style={styles.heroPillRow}>
-          <InfoPill text={`${metrics.totalProducts} productos`} tone="accent" />
-          <InfoPill
-            text={
-              metrics.rateUsed
-                ? `Tasa ${metrics.rateUsed.toFixed(2)}`
-                : "Sin tasa"
-            }
-            tone="info"
-          />
-        </View>
-      </SurfaceCard>
-
-      <TourGuideZone
-        zone={TOUR_ZONE_BASE + 1}
-        text={
-          "Usa 'Buscar producto' (Nombre, categoría o referencia) para encontrar un producto rápidamente."
-        }
-        borderRadius={borderRadius.lg}
-        style={styles.searchCard}
-      >
-        <SurfaceCard style={styles.searchSurface}>
-          <View style={styles.searchHeader}>
-            <View style={styles.searchTitleBlock}>
-              <Text style={styles.searchTitle}>Buscar producto</Text>
-              <Text style={styles.searchHint}>
-                Filtra por nombre, categoría o referencia.
-              </Text>
-            </View>
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroEyebrow}>Inventario</Text>
+            <Text style={styles.heroTitle}>Catálogo de productos</Text>
+            <Text style={styles.heroSubtitle}>
+              Edita precios, revisa existencias y ubica productos sin perder el
+              foco del inventario.
+            </Text>
           </View>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Nombre, categoría o referencia"
-            value={searchQuery}
-            onChangeText={handleSearch}
-            placeholderTextColor="#9aa2b1"
-          />
+
+          <View style={styles.heroPillRow}>
+            <InfoPill
+              text={`${metrics.totalProducts} productos`}
+              tone="accent"
+            />
+            <InfoPill
+              text={
+                metrics.rateUsed
+                  ? `Tasa ${metrics.rateUsed.toFixed(2)}`
+                  : "Sin tasa"
+              }
+              tone="info"
+            />
+          </View>
         </SurfaceCard>
-      </TourGuideZone>
-    </View>
+
+        <TourGuideZone
+          zone={TOUR_ZONE_BASE + 1}
+          text={
+            "Usa 'Buscar producto' (Nombre, categoría o referencia) para encontrar un producto rápidamente."
+          }
+          borderRadius={borderRadius.lg}
+          style={styles.searchCard}
+        >
+          <SurfaceCard style={styles.searchSurface}>
+            <View style={styles.searchHeader}>
+              <View style={styles.searchTitleBlock}>
+                <Text style={styles.searchTitle}>Buscar producto</Text>
+                <Text style={styles.searchHint}>
+                  Filtra por nombre, categoría o referencia.
+                </Text>
+              </View>
+            </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Nombre, categoría o referencia"
+              value={searchQuery}
+              onChangeText={handleSearch}
+              placeholderTextColor="#9aa2b1"
+            />
+          </SurfaceCard>
+        </TourGuideZone>
+      </View>
+    ),
+    [TOUR_ZONE_BASE, TourGuideZone, handleSearch, metrics, searchQuery],
+  );
+
+  const openAddProduct = useCallback(() => {
+    navigation.navigate("AddProduct");
+  }, [navigation]);
+
+  const productKeyExtractor = useCallback((item) => item.id.toString(), []);
+
+  const emptyProducts = useMemo(
+    () => (
+      <EmptyStateCard
+        title="Aún no hay productos"
+        subtitle="Registra tu primer producto para visualizar métricas y control de inventario."
+      />
+    ),
+    [],
   );
 
   return (
@@ -368,18 +437,13 @@ export const ProductsScreen = ({ navigation }) => {
         <FlatList
           data={sortedProducts}
           renderItem={renderProduct}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={productKeyExtractor}
           contentContainerStyle={[
             styles.list,
             { paddingBottom: listPaddingBottom },
           ]}
           ListHeaderComponent={header}
-          ListEmptyComponent={
-            <EmptyStateCard
-              title="Aún no hay productos"
-              subtitle="Registra tu primer producto para visualizar métricas y control de inventario."
-            />
-          }
+          ListEmptyComponent={emptyProducts}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         />
@@ -390,7 +454,7 @@ export const ProductsScreen = ({ navigation }) => {
           shape="circle"
         >
           <FloatingActionButton
-            onPress={() => navigation.navigate("AddProduct")}
+            onPress={openAddProduct}
             bottom={fabBottom}
             iconName="add"
           />
