@@ -76,6 +76,7 @@ export const StoreManagementScreen = () => {
     switchStore,
     syncNow,
     refreshStoreContext,
+    restartStoreBootstrap,
   } = useAuth();
   const { showAlert, CustomAlert } = useCustomAlert();
   const [loadingData, setLoadingData] = useState(true);
@@ -343,7 +344,7 @@ export const StoreManagementScreen = () => {
                 "Estamos eliminando los datos operativos de la tienda en el dispositivo y en Firestore.",
               );
               const result = await resetActiveStoreDataForCurrentUser();
-              await refreshStoreContext(activeStoreId);
+              await restartStoreBootstrap(activeStoreId);
               await loadData();
               showAlert({
                 title: "Datos reiniciados",

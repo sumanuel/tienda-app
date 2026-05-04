@@ -50,6 +50,14 @@ const getStoreSeedState = async () => {
   return snapshot.data() || {};
 };
 
+const resolveStoreSeedKey = ({ uid, storeId } = {}) => {
+  try {
+    return getActiveStoreSeedKey(uid, storeId);
+  } catch (_) {
+    return null;
+  }
+};
+
 const getUniqueProductIdsFromSaleItems = (items = []) => [
   ...new Set(
     (items || [])
@@ -122,6 +130,18 @@ const getCloudSalesCacheKey = () => getActiveStoreSeedKey() || "default";
 
 const clearCloudSalesCache = () => {
   cloudSalesCache.delete(getCloudSalesCacheKey());
+};
+
+export const invalidateStoreSalesCloudState = ({ uid, storeId } = {}) => {
+  const seedKey = resolveStoreSeedKey({ uid, storeId });
+
+  if (!seedKey) {
+    clearCloudSalesCache();
+    return;
+  }
+
+  cloudSalesCache.delete(seedKey);
+  cloudSalesSeeded.delete(seedKey);
 };
 
 const getLocalSalesSeedStats = async () => {
@@ -1028,6 +1048,7 @@ export const deleteSaleById = async (saleId) => {
 };
 
 export default {
+  invalidateStoreSalesCloudState,
   initSalesTable,
   insertSale,
   getAllSales,

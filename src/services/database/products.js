@@ -55,8 +55,29 @@ const getStoreSeedState = async () => {
 
 const getCloudProductsCacheKey = () => getActiveStoreSeedKey() || "default";
 
+const resolveStoreSeedKey = ({ uid, storeId } = {}) => {
+  try {
+    return getActiveStoreSeedKey(uid, storeId);
+  } catch (_) {
+    return null;
+  }
+};
+
 const clearCloudActiveProductsCache = () => {
   cloudActiveProductsCache.delete(getCloudProductsCacheKey());
+};
+
+export const invalidateStoreProductCloudState = ({ uid, storeId } = {}) => {
+  const seedKey = resolveStoreSeedKey({ uid, storeId });
+
+  if (!seedKey) {
+    clearCloudActiveProductsCache();
+    return;
+  }
+
+  cloudActiveProductsCache.delete(seedKey);
+  cloudProductsSeeded.delete(seedKey);
+  cloudProductsSeeded.delete(`${seedKey}:inventory_movements`);
 };
 
 const getLocalProductsSeedStats = async () => {
@@ -1347,6 +1368,7 @@ export const countProductInventoryMovements = async (productId) => {
 };
 
 export default {
+  invalidateStoreProductCloudState,
   initDatabase,
   checkTableExists,
   initSampleProducts,

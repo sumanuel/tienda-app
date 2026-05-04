@@ -21,7 +21,8 @@ let currentDbName = LEGACY_DB_NAME;
 let currentDbPromise = null;
 const initializedDatabases = new Set();
 
-const openDatabase = async (name) => SQLite.openDatabaseAsync(name);
+const openDatabase = async (name, options) =>
+  SQLite.openDatabaseAsync(name, options);
 
 const isRecoverableDatabaseError = (error) => {
   const message = String(error?.message || "");
@@ -57,6 +58,12 @@ const closeDatabaseQuietly = async (databasePromise) => {
 const reopenCurrentDatabase = async () => {
   await closeDatabaseQuietly(currentDbPromise);
   currentDbPromise = openDatabase(currentDbName);
+  return await currentDbPromise;
+};
+
+const reopenCurrentDatabaseWithNewConnection = async () => {
+  await closeDatabaseQuietly(currentDbPromise);
+  currentDbPromise = openDatabase(currentDbName, { useNewConnection: true });
   return await currentDbPromise;
 };
 
@@ -276,22 +283,21 @@ export const clearStoreDatabase = async ({ userId, storeId } = {}) => {
   const targetDbName = buildStoreDatabaseName({ userId, storeId });
   const isCurrentDatabase = targetDbName === currentDbName;
 
-  const clearWithFreshConnection = async () => {
-    const database = await openDatabase(targetDbName);
-    try {
-      return await clearDatabaseRows(database);
-    } finally {
-      await closeDatabaseQuietly(Promise.resolve(database));
-    }
+  const deleteDatabaseFile = async () => {
+    await SQLite.deleteDatabaseAsync(targetDbName);
+    return {
+      clearedTables: 0,
+      deletedDatabase: true,
+    };
   };
 
   if (isCurrentDatabase) {
     await closeDatabaseQuietly(currentDbPromise);
     currentDbPromise = null;
 
-    const result = await clearWithFreshConnection();
+    const result = await deleteDatabaseFile();
 
-    await reopenCurrentDatabase();
+    await reopenCurrentDatabaseWithNewConnection();
     initializedDatabases.delete(currentDbName);
     await initAllTables();
     return {
@@ -300,7 +306,7 @@ export const clearStoreDatabase = async ({ userId, storeId } = {}) => {
     };
   }
 
-  const result = await clearWithFreshConnection();
+  const result = await deleteDatabaseFile();
   initializedDatabases.delete(targetDbName);
   return {
     dbName: targetDbName,

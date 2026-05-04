@@ -15,6 +15,8 @@ import {
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
 import { clearStoreDatabase } from "../database/db";
+import { invalidateStoreProductCloudState } from "../database/products";
+import { invalidateStoreSalesCloudState } from "../database/sales";
 import {
   getActiveStoreIdOrThrow,
   getCurrentUserIdOrThrow,
@@ -63,6 +65,11 @@ const normalizeText = (value) => String(value || "").trim();
 const normalizeEmail = (value) => normalizeText(value).toLowerCase();
 const normalizeRif = (value) => normalizeText(value).toUpperCase();
 const normalizeStoreNameKey = (value) => normalizeText(value).toLowerCase();
+
+const invalidateStoreRuntimeCaches = ({ uid, storeId } = {}) => {
+  invalidateStoreProductCloudState({ uid, storeId });
+  invalidateStoreSalesCloudState({ uid, storeId });
+};
 
 const normalizeStoreInput = (store = {}) => {
   const name = normalizeText(store.name);
@@ -557,6 +564,7 @@ export const deleteActiveStoreForCurrentUser = async () => {
 
   const deletedDocuments = await deleteStoreTree(storeId);
   await clearStoreDatabase({ userId: uid, storeId });
+  invalidateStoreRuntimeCaches({ uid, storeId });
 
   await setDoc(
     getUserMembershipDocRef(uid, storeId),
@@ -615,6 +623,7 @@ export const resetActiveStoreDataForCurrentUser = async () => {
 
   const clearedDocuments = await clearStoreDataTree(storeId);
   const localReset = await clearStoreDatabase({ userId: uid, storeId });
+  invalidateStoreRuntimeCaches({ uid, storeId });
 
   return {
     storeId,
