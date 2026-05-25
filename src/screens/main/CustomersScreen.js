@@ -11,6 +11,7 @@ import {
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useCustomers } from "../../hooks/useCustomers";
 import { getAllSales } from "../../services/database/sales";
 import { getAllAccountsReceivable } from "../../services/database/accounts";
@@ -37,6 +38,7 @@ import {
 export const CustomersScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const {
     customers,
     loading,
@@ -53,7 +55,7 @@ export const CustomersScreen = () => {
   const TOUR_ZONE_BASE = 2000;
   const [tourBooted, setTourBooted] = useState(false);
 
-  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const fabBottom = Math.max(tabBarHeight, insets.bottom) + vs(16);
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const [searchQuery, setSearchQuery] = useState("");

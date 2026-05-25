@@ -11,6 +11,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useProducts } from "../../hooks/useProducts";
 import { countSalesByProduct } from "../../services/database/sales";
 import { getSettings } from "../../services/database/settings";
@@ -136,6 +137,7 @@ const ProductCard = React.memo(function ProductCard({
  */
 export const ProductsScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const { products, loading, search, loadProducts, removeProduct } =
     useProducts();
   const { showAlert, CustomAlert } = useCustomAlert();
@@ -146,7 +148,7 @@ export const ProductsScreen = ({ navigation }) => {
   const TOUR_ZONE_BASE = 1000;
   const [tourBooted, setTourBooted] = useState(false);
 
-  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const fabBottom = Math.max(tabBarHeight, insets.bottom) + vs(16);
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const loadSettings = useCallback(async () => {
@@ -315,7 +317,9 @@ export const ProductsScreen = ({ navigation }) => {
     const totalProducts = products.length;
     const lowStockThreshold = 5;
     const lowStock = products.filter(
-      (product) => (product.stock || 0) <= lowStockThreshold,
+      (product) =>
+        Number(product.trackInventory ?? 1) === 1 &&
+        (product.stock || 0) <= lowStockThreshold,
     ).length;
 
     return {

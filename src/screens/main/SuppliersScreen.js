@@ -11,6 +11,7 @@ import {
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import { getAllAccountsPayable } from "../../services/database/accounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -36,6 +37,7 @@ import {
 export const SuppliersScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const { canStart, start, TourGuideZone } =
     useTourGuideController("suppliers");
   const TOUR_ZONE_BASE = 3000;
@@ -43,7 +45,7 @@ export const SuppliersScreen = () => {
     useSuppliers();
   const { showAlert, CustomAlert } = useCustomAlert();
 
-  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const fabBottom = Math.max(tabBarHeight, insets.bottom) + vs(16);
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const [searchQuery, setSearchQuery] = useState("");

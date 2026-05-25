@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
@@ -76,6 +77,7 @@ const formatLocalDateTime = (value) => {
 
 export const MobilePaymentsScreen = () => {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const { showAlert, CustomAlert } = useCustomAlert();
 
   const [activeTab, setActiveTab] = useState("pending");
@@ -91,7 +93,7 @@ export const MobilePaymentsScreen = () => {
   const [formAmount, setFormAmount] = useState("");
   const [formVerified, setFormVerified] = useState(false);
 
-  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const fabBottom = Math.max(tabBarHeight, insets.bottom) + vs(16);
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const loadPayments = useCallback(async () => {

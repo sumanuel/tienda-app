@@ -138,6 +138,7 @@ export const EditProductScreen = ({ navigation, route }) => {
     name: "",
     category: "",
     stock: "",
+    trackInventory: true,
     description: "",
   });
 
@@ -148,6 +149,7 @@ export const EditProductScreen = ({ navigation, route }) => {
         name: product.name || "",
         category: product.category || "",
         stock: product.stock?.toString() || "",
+        trackInventory: product.trackInventory !== 0,
         description: product.description || "",
       });
 
@@ -231,7 +233,10 @@ export const EditProductScreen = ({ navigation, route }) => {
       return;
     }
 
-    if (!formData.stock || isNaN(parseInt(formData.stock))) {
+    if (
+      formData.trackInventory &&
+      (!formData.stock || isNaN(parseInt(formData.stock)))
+    ) {
       showAlert({
         title: "Error",
         message: "El stock debe ser un número válido",
@@ -282,7 +287,8 @@ export const EditProductScreen = ({ navigation, route }) => {
         priceVES: parseFloat(calculatedPrices.ves),
         margin: margin,
         iva: Number(iva) || 0,
-        stock: parseInt(formData.stock),
+        trackInventory: formData.trackInventory ? 1 : 0,
+        stock: formData.trackInventory ? parseInt(formData.stock) : 1,
         minStock: 0,
         description: formData.description.trim(),
       };
@@ -561,19 +567,52 @@ export const EditProductScreen = ({ navigation, route }) => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Inventario</Text>
             <Text style={styles.sectionHint}>
-              Define el stock actual para continuar los controles.
+              Ajusta si este producto participa o no en los movimientos de
+              inventario.
             </Text>
           </View>
 
           <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.inventoryToggle}
+              onPress={() =>
+                setFormData((prev) => ({
+                  ...prev,
+                  trackInventory: !prev.trackInventory,
+                  stock: prev.trackInventory ? "1" : prev.stock,
+                }))
+              }
+              activeOpacity={0.85}
+            >
+              <View style={styles.inventoryToggleCopy}>
+                <Text style={styles.fieldLabel}>Producto inventariable</Text>
+                <Text style={styles.inventoryToggleHint}>
+                  {formData.trackInventory
+                    ? "Las ventas seguirán descontando stock y registrando movimientos."
+                    : "Se mantendrá con inventario inicial 1 y las ventas no afectarán inventario."}
+                </Text>
+              </View>
+              <Ionicons
+                name={
+                  formData.trackInventory
+                    ? "checkbox-outline"
+                    : "square-outline"
+                }
+                size={rf(24)}
+                color={formData.trackInventory ? "#2f5ae0" : "#6f7c8c"}
+              />
+            </TouchableOpacity>
+
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Cantidad *</Text>
+              <Text style={styles.fieldLabel}>
+                {formData.trackInventory ? "Cantidad *" : "Inventario inicial"}
+              </Text>
               <TextInput
                 ref={stockRef}
                 style={styles.input}
-                placeholder="0"
+                placeholder={formData.trackInventory ? "0" : "1"}
                 placeholderTextColor="#9aa2b1"
-                value={formData.stock}
+                value={formData.trackInventory ? formData.stock : "1"}
                 onChangeText={(value) => handleInputChange("stock", value)}
                 keyboardType="numeric"
                 returnKeyType="done"
@@ -584,7 +623,9 @@ export const EditProductScreen = ({ navigation, route }) => {
             </View>
 
             <Text style={styles.helperText}>
-              El stock se gestiona a través de movimientos de inventario.
+              {formData.trackInventory
+                ? "El stock se gestiona a través de movimientos de inventario."
+                : "Las ventas de este producto seguirán registrándose, pero sin generar movimientos de inventario."}
             </Text>
           </View>
 
@@ -801,6 +842,27 @@ const styles = StyleSheet.create({
     color: "#6f7c8c",
   },
   helperText: {
+    fontSize: rf(12),
+    color: "#6f7c8c",
+    lineHeight: vs(18),
+  },
+  inventoryToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: hs(14),
+    backgroundColor: "#f8f9fc",
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: "#d9e0eb",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  inventoryToggleCopy: {
+    flex: 1,
+    gap: spacing.small,
+  },
+  inventoryToggleHint: {
     fontSize: rf(12),
     color: "#6f7c8c",
     lineHeight: vs(18),

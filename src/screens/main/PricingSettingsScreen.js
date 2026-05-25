@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Pressable,
   TouchableOpacity,
   TextInput,
   SafeAreaView,
@@ -450,7 +451,14 @@ export const PricingSettingsScreen = () => {
                   placeholder="Ej: 16"
                 />
 
-                <View style={styles.switchRow}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.switchRow,
+                    pressed && styles.switchRowPressed,
+                  ]}
+                  onPress={() => setFormApplyIvaOnSales((current) => !current)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
                   <View style={styles.switchCopy}>
                     <Text style={styles.switchTitle}>
                       Aplicar IVA al cobrar
@@ -465,8 +473,9 @@ export const PricingSettingsScreen = () => {
                     onValueChange={setFormApplyIvaOnSales}
                     trackColor={{ false: "#d5dbe7", true: "#81C784" }}
                     thumbColor={formApplyIvaOnSales ? "#1f9254" : "#f4f3f4"}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                   />
-                </View>
+                </Pressable>
               </ScrollView>
 
               <View style={styles.modalFooter}>
@@ -795,6 +804,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.lg,
     marginTop: spacing.md,
+    backgroundColor: "#f7f9fc",
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
+    minHeight: vs(64),
+    paddingHorizontal: hs(16),
+    paddingVertical: vs(14),
+  },
+  switchRowPressed: {
+    opacity: 0.9,
   },
   switchCopy: {
     flex: 1,

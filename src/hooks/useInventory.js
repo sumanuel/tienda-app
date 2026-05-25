@@ -24,7 +24,9 @@ export const useInventory = () => {
     try {
       setLoading(true);
       setError(null);
-      const products = await getAllProducts();
+      const products = (await getAllProducts()).filter(
+        (product) => Number(product.trackInventory ?? 1) === 1,
+      );
       setInventory(products);
 
       const lowStock = getLowStock(products, 10);

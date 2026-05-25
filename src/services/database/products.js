@@ -27,6 +27,7 @@ import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 let productsColumnsChecked = false;
 let productsHasAdditionalCostColumn = false;
 let productsHasIvaColumn = false;
+let productsHasTrackInventoryColumn = false;
 const cloudProductsSeeded = new Set();
 const CLOUD_PRODUCTS_SEED_VERSION = 1;
 const cloudActiveProductsCache = new Map();
@@ -151,6 +152,7 @@ const normalizeProductRecord = (product = {}) => ({
   priceVES: Number(product.priceVES) || 0,
   margin: Number(product.margin) || 0,
   iva: Number(product.iva) || 0,
+  trackInventory: product.trackInventory === 0 ? 0 : 1,
   stock: Number(product.stock) || 0,
   minStock: Number(product.minStock) || 0,
   image: String(product.image || "").trim(),
@@ -625,6 +627,7 @@ const ensureProductsAdditionalCostColumn = async () => {
     if (!table?.name) {
       productsColumnsChecked = true;
       productsHasAdditionalCostColumn = false;
+      productsHasTrackInventoryColumn = false;
       return;
     }
 
@@ -633,6 +636,9 @@ const ensureProductsAdditionalCostColumn = async () => {
       (c) => c?.name === "additionalCost",
     );
     productsHasIvaColumn = (columns || []).some((c) => c?.name === "iva");
+    productsHasTrackInventoryColumn = (columns || []).some(
+      (c) => c?.name === "trackInventory",
+    );
 
     if (!productsHasAdditionalCostColumn) {
       await db.execAsync(
@@ -644,6 +650,13 @@ const ensureProductsAdditionalCostColumn = async () => {
     if (!productsHasIvaColumn) {
       await db.execAsync("ALTER TABLE products ADD COLUMN iva REAL DEFAULT 0;");
       productsHasIvaColumn = true;
+    }
+
+    if (!productsHasTrackInventoryColumn) {
+      await db.execAsync(
+        "ALTER TABLE products ADD COLUMN trackInventory INTEGER DEFAULT 1;",
+      );
+      productsHasTrackInventoryColumn = true;
     }
 
     productsColumnsChecked = true;
@@ -672,6 +685,7 @@ export const initDatabase = async () => {
         priceVES REAL DEFAULT 0,
         margin REAL DEFAULT 0,
         iva REAL DEFAULT 0,
+        trackInventory INTEGER DEFAULT 1,
         stock INTEGER DEFAULT 0,
         minStock INTEGER DEFAULT 0,
         image TEXT,
@@ -846,8 +860,8 @@ export const insertProduct = async (product) => {
     await ensureProductsAdditionalCostColumn();
     console.log("Insertando producto en BD:", product);
     const result = await db.runAsync(
-      `INSERT INTO products (name, barcode, category, description, cost, additionalCost, priceUSD, priceVES, margin, iva, stock, minStock, image, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO products (name, barcode, category, description, cost, additionalCost, priceUSD, priceVES, margin, iva, trackInventory, stock, minStock, image, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         product.name,
         product.barcode,
@@ -859,6 +873,7 @@ export const insertProduct = async (product) => {
         product.priceVES || 0,
         product.margin || 0,
         product.iva || 0,
+        product.trackInventory === 0 ? 0 : 1,
         product.stock || 0,
         product.minStock || 0,
         product.image || "",
@@ -902,8 +917,8 @@ export const updateProduct = async (id, product) => {
     const result = await db.runAsync(
       `UPDATE products
        SET name = ?, barcode = ?, category = ?, description = ?,
-           cost = ?, additionalCost = ?, priceUSD = ?, priceVES = ?, margin = ?, iva = ?,
-           stock = ?, minStock = ?, image = ?, updatedAt = CURRENT_TIMESTAMP
+             cost = ?, additionalCost = ?, priceUSD = ?, priceVES = ?, margin = ?, iva = ?,
+             trackInventory = ?, stock = ?, minStock = ?, image = ?, updatedAt = CURRENT_TIMESTAMP
        WHERE id = ?;`,
       [
         product.name,
@@ -916,6 +931,7 @@ export const updateProduct = async (id, product) => {
         product.priceVES || 0,
         product.margin,
         product.iva || 0,
+        product.trackInventory === 0 ? 0 : 1,
         product.stock,
         product.minStock,
         product.image,
@@ -998,7 +1014,7 @@ export const getLowStockProducts = async () => {
     }
 
     const result = await db.getAllAsync(
-      "SELECT * FROM products WHERE stock <= minStock AND active = 1 ORDER BY stock;",
+      "SELECT * FROM products WHERE stock <= minStock AND active = 1 AND COALESCE(trackInventory, 1) = 1 ORDER BY stock;",
     );
     return result;
   } catch (error) {

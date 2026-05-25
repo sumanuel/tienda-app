@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
@@ -304,6 +305,9 @@ const SalesListHeader = React.memo(function SalesListHeader({
 export const SalesScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
+  const fabBottom = Math.max(tabBarHeight, insets.bottom) + vs(16);
+  const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
   const { canStart, start, TourGuideZone } = useTourGuideController("sales");
   const TOUR_ZONE_BASE = 4000;
   const [tourBooted, setTourBooted] = useState(false);
@@ -709,7 +713,10 @@ export const SalesScreen = () => {
           data={filteredSales}
           renderItem={renderSale}
           keyExtractor={saleKeyExtractor}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: listPaddingBottom },
+          ]}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={emptySales}
         />
@@ -721,7 +728,7 @@ export const SalesScreen = () => {
         >
           <FloatingActionButton
             style={styles.fab}
-            bottom={vs(24) + Math.max(insets.bottom, vs(10))}
+            bottom={fabBottom}
             onPress={openTotalsModal}
             iconName="stats-chart"
           />
@@ -812,7 +819,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: hs(16),
     paddingTop: vs(14),
-    paddingBottom: vs(104),
   },
   headerContent: {
     gap: vs(14),

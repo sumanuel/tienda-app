@@ -492,7 +492,7 @@ const CartSummaryFooter = React.memo(function CartSummaryFooter({
 /**
  * Pantalla de punto de venta (POS)
  */
-export const POSScreen = ({ navigation }) => {
+export const POSScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { canStart, start } = useTourGuideController("pos_v3");
   const [tourBooted, setTourBooted] = useState(false);
@@ -528,6 +528,7 @@ export const POSScreen = ({ navigation }) => {
   const [scanning, setScanning] = useState(false);
 
   const scrollViewRef = useRef(null);
+  const lastInjectedCartTokenRef = useRef(null);
 
   const handleSelectPaymentMethod = useCallback((method) => {
     setPaymentMethod(method);
@@ -631,6 +632,53 @@ export const POSScreen = ({ navigation }) => {
     [parseQuantityInput, quantityDrafts, setQuantityDraft, updateQuantity],
   );
 
+  const normalizeInjectedCartItems = useCallback(
+    (incomingItems = []) =>
+      incomingItems
+        .map((item, index) => {
+          const quantity = Number(item?.quantity) || 1;
+          const price = Number(item?.price) || 0;
+          const priceUSD =
+            Number(item?.priceUSD) ||
+            (exchangeRate ? price / Number(exchangeRate) : 0);
+          const name = String(
+            item?.name || item?.productName || item?.product?.name || "",
+          ).trim();
+
+          if (!name || price <= 0) {
+            return null;
+          }
+
+          return {
+            id:
+              item?.id ||
+              `marginal-${Date.now()}-${index}-${Math.round(price * 100)}`,
+            name,
+            price,
+            priceUSD,
+            quantity,
+            subtotal: Number(item?.subtotal) || price * quantity,
+            iva:
+              Number(item?.iva ?? item?.product?.iva ?? pricingSettings.iva) ||
+              0,
+            product: {
+              id: Number(item?.product?.id ?? item?.productId ?? 0),
+              name,
+              priceUSD,
+              priceVES: price,
+              stock: Number(item?.product?.stock ?? 1) || 1,
+              trackInventory: Number(item?.product?.trackInventory ?? 0),
+              iva:
+                Number(
+                  item?.product?.iva ?? item?.iva ?? pricingSettings.iva,
+                ) || 0,
+            },
+          };
+        })
+        .filter(Boolean),
+    [exchangeRate, pricingSettings.iva],
+  );
+
   useEffect(() => {
     loadPricingSettings();
   }, [loadPricingSettings]);
@@ -680,6 +728,55 @@ export const POSScreen = ({ navigation }) => {
       return undefined;
     }, [navigation, refreshProducts, loadPricingSettings]),
   );
+
+  useEffect(() => {
+    const injectionToken = route?.params?.cartInjectionToken;
+    const injectedCartItems = route?.params?.injectedCartItems;
+
+    if (
+      !injectionToken ||
+      lastInjectedCartTokenRef.current === injectionToken
+    ) {
+      return;
+    }
+
+    const normalizedItems = normalizeInjectedCartItems(injectedCartItems);
+    lastInjectedCartTokenRef.current = injectionToken;
+
+    if (normalizedItems.length === 0) {
+      navigation?.setParams?.({
+        cartInjectionToken: undefined,
+        injectedCartItems: undefined,
+        openCartOnInject: undefined,
+      });
+      return;
+    }
+
+    if (route?.params?.replaceCartOnInject) {
+      setCart(normalizedItems);
+    } else {
+      setCart((prevCart) => [...normalizedItems, ...prevCart]);
+    }
+
+    if (route?.params?.openCartOnInject) {
+      setShowCart(true);
+    }
+
+    navigation?.setParams?.({
+      cartInjectionToken: undefined,
+      injectedCartItems: undefined,
+      openCartOnInject: undefined,
+      replaceCartOnInject: undefined,
+    });
+  }, [
+    navigation,
+    pricingSettings.iva,
+    route?.params?.cartInjectionToken,
+    route?.params?.injectedCartItems,
+    route?.params?.openCartOnInject,
+    route?.params?.replaceCartOnInject,
+    exchangeRate,
+  ]);
 
   useEffect(() => {
     let mounted = true;
@@ -751,10 +848,11 @@ export const POSScreen = ({ navigation }) => {
   const addToCart = useCallback(
     (product, options = {}) => {
       const { showAlert: shouldShowAlert = true } = options;
+      const tracksInventory = Number(product.trackInventory ?? 1) === 1;
 
       const stockValue = Number(product.stock) || 0;
 
-      if (stockValue === 0) {
+      if (tracksInventory && stockValue === 0) {
         showAlert({
           title: "Sin stock",
           message: "Este producto no tiene stock disponible",
@@ -990,6 +1088,9 @@ export const POSScreen = ({ navigation }) => {
 
       // Actualizar stock de productos vendidos
       for (const item of cart) {
+        if (Number(item.product?.trackInventory ?? 1) !== 1) {
+          continue;
+        }
         const newStock =
           (Number(item.product.stock) || 0) - (Number(item.quantity) || 0);
         await updateProductStock(item.product.id, newStock);
@@ -1141,6 +1242,9 @@ export const POSScreen = ({ navigation }) => {
 
       // Actualizar stock de productos vendidos
       for (const item of cart) {
+        if (Number(item.product?.trackInventory ?? 1) !== 1) {
+          continue;
+        }
         const newStock =
           (Number(item.product.stock) || 0) - (Number(item.quantity) || 0);
         await updateProductStock(item.product.id, newStock);

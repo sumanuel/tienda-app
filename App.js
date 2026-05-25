@@ -63,6 +63,7 @@ import ExchangeRateScreen from "./src/screens/main/ExchangeRateScreen";
 import SettingsScreen from "./src/screens/main/SettingsScreen";
 import AddProductScreen from "./src/screens/main/AddProductScreen";
 import EditProductScreen from "./src/screens/main/EditProductScreen";
+import MarginalSaleScreen from "./src/screens/main/MarginalSaleScreen";
 import { CustomersScreen } from "./src/screens/main/CustomersScreen";
 import { SuppliersScreen } from "./src/screens/main/SuppliersScreen";
 import { AddCustomerScreen } from "./src/screens/main/AddCustomerScreen";
@@ -70,6 +71,7 @@ import { EditCustomerScreen } from "./src/screens/main/EditCustomerScreen";
 import { AddSupplierScreen } from "./src/screens/main/AddSupplierScreen";
 import { EditSupplierScreen } from "./src/screens/main/EditSupplierScreen";
 import AccountsReceivableScreen from "./src/screens/main/AccountsReceivableScreen";
+import ReceivableConsolidatedScreen from "./src/screens/main/ReceivableConsolidatedScreen";
 import AddAccountReceivableScreen from "./src/screens/main/AddAccountReceivableScreen";
 import EditAccountReceivableScreen from "./src/screens/main/EditAccountReceivableScreen";
 import { RecordPaymentScreen } from "./src/screens/main/RecordPaymentScreen";
@@ -555,6 +557,12 @@ function MainTabs() {
             iconName: "cash-outline",
             label: "Cuentas por Cobrar",
             onPress: () => handleNavigate("AccountsReceivable"),
+          },
+          {
+            key: "receivableConsolidated",
+            iconName: "albums-outline",
+            label: "Consolidado por cobrar",
+            onPress: () => handleNavigate("ReceivableConsolidated"),
           },
           {
             key: "accountsPayable",
@@ -1273,6 +1281,11 @@ function AppContent() {
                   options={{ title: "Editar Producto" }}
                 />
                 <Stack.Screen
+                  name="MarginalSale"
+                  component={MarginalSaleScreen}
+                  options={{ title: "Venta marginal" }}
+                />
+                <Stack.Screen
                   name="AddCustomer"
                   component={AddCustomerScreen}
                   options={{ title: "Nuevo Cliente" }}
@@ -1296,6 +1309,11 @@ function AppContent() {
                   name="AddAccountReceivable"
                   component={AddAccountReceivableScreen}
                   options={{ title: "Nueva Cuenta por Cobrar" }}
+                />
+                <Stack.Screen
+                  name="ReceivableConsolidated"
+                  component={ReceivableConsolidatedScreen}
+                  options={{ title: "Consolidado por cobrar" }}
                 />
                 <Stack.Screen
                   name="EditAccountReceivable"
