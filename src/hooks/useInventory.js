@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   getAllProducts,
   updateProductStock,
@@ -20,27 +20,7 @@ export const useInventory = () => {
   const [outOfStockItems, setOutOfStockItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({
-    totalValue: 0,
-    totalItems: 0,
-    lowStockCount: 0,
-    outOfStockCount: 0,
-  });
-
-  // Cargar inventario al montar
-  useEffect(() => {
-    loadInventory();
-  }, []);
-
-  // Actualizar estadísticas cuando cambia el inventario
-  useEffect(() => {
-    updateStats();
-  }, [inventory]);
-
-  /**
-   * Carga todo el inventario
-   */
-  const loadInventory = async () => {
+  const loadInventory = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -49,7 +29,6 @@ export const useInventory = () => {
       );
       setInventory(products);
 
-      // Obtener productos con stock bajo
       const lowStock = getLowStock(products, 10);
       const outOfStock = getOutOfStockProducts(products);
 
@@ -61,37 +40,45 @@ export const useInventory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Cargar inventario al montar
+  useEffect(() => {
+    loadInventory();
+  }, [loadInventory]);
 
   /**
-   * Actualiza estadísticas del inventario
+   * Carga todo el inventario
    */
-  const updateStats = () => {
+  const stats = useMemo(() => {
     const totalValue = calculateInventoryValue(inventory);
     const totalItems = inventory.reduce((sum, p) => sum + p.stock, 0);
 
-    setStats({
+    return {
       totalValue,
       totalItems,
       lowStockCount: lowStockItems.length,
       outOfStockCount: outOfStockItems.length,
-    });
-  };
+    };
+  }, [inventory, lowStockItems, outOfStockItems]);
 
   /**
    * Actualiza el stock de un producto
    */
-  const updateStock = useCallback(async (productId, newStock) => {
-    try {
-      setError(null);
-      await updateProductStock(productId, newStock);
-      await loadInventory(); // Recargar inventario
-    } catch (err) {
-      setError(err.message);
-      console.error("Error updating stock:", err);
-      throw err;
-    }
-  }, []);
+  const updateStock = useCallback(
+    async (productId, newStock) => {
+      try {
+        setError(null);
+        await updateProductStock(productId, newStock);
+        await loadInventory(); // Recargar inventario
+      } catch (err) {
+        setError(err.message);
+        console.error("Error updating stock:", err);
+        throw err;
+      }
+    },
+    [loadInventory],
+  );
 
   /**
    * Ajusta el stock (suma o resta)

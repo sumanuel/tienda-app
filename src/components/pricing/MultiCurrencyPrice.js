@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { formatCurrency } from "../../utils/currency";
 import { getSettings } from "../../services/database/settings";
@@ -6,33 +6,42 @@ import { getSettings } from "../../services/database/settings";
 /**
  * Componente para mostrar precio en múltiples monedas
  */
-export const MultiCurrencyPrice = ({
+export const MultiCurrencyPrice = React.memo(function MultiCurrencyPrice({
   priceUSD,
   priceVES, // Opcional, si no se proporciona se calcula
   showBoth = true,
   style,
-}) => {
+}) {
   const [settings, setSettings] = useState({});
-  const [calculatedVES, setCalculatedVES] = useState(priceVES);
 
   useEffect(() => {
+    let mounted = true;
+
     const loadSettings = async () => {
       const s = await getSettings();
-      setSettings(s);
+      if (mounted) {
+        setSettings(s);
+      }
     };
+
     loadSettings();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  useEffect(() => {
-    if (priceUSD && !priceVES && settings.pricing?.currencies?.USD) {
-      const exchangeRate = settings.pricing.currencies.USD;
-      setCalculatedVES(priceUSD * exchangeRate);
-    } else if (priceVES) {
-      setCalculatedVES(priceVES);
+  const displayPriceVES = useMemo(() => {
+    if (priceVES != null) {
+      return priceVES;
     }
-  }, [priceUSD, priceVES, settings]);
 
-  const displayPriceVES = calculatedVES || priceVES;
+    if (priceUSD && settings.pricing?.currencies?.USD) {
+      return priceUSD * settings.pricing.currencies.USD;
+    }
+
+    return null;
+  }, [priceUSD, priceVES, settings]);
 
   if (!priceUSD && !displayPriceVES) {
     return null;
@@ -64,7 +73,7 @@ export const MultiCurrencyPrice = ({
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

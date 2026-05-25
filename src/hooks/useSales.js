@@ -18,16 +18,10 @@ export const useSales = () => {
   const [error, setError] = useState(null);
   const [todayStats, setTodayStats] = useState({ count: 0, total: 0 });
 
-  // Cargar ventas al montar
-  useEffect(() => {
-    loadSales();
-    loadTodayStats();
-  }, []);
-
   /**
    * Carga todas las ventas
    */
-  const loadSales = async (limit = 100) => {
+  const loadSales = useCallback(async (limit = 100) => {
     try {
       setLoading(true);
       setError(null);
@@ -39,37 +33,46 @@ export const useSales = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   /**
    * Carga estadísticas del día
    */
-  const loadTodayStats = async () => {
+  const loadTodayStats = useCallback(async () => {
     try {
       const stats = await getTodaySales();
       setTodayStats(stats);
     } catch (err) {
       console.error("Error loading today stats:", err);
     }
-  };
+  }, []);
+
+  // Cargar ventas al montar
+  useEffect(() => {
+    loadSales();
+    loadTodayStats();
+  }, [loadSales, loadTodayStats]);
 
   /**
    * Registra una nueva venta
    */
-  const registerSale = useCallback(async (sale, items) => {
-    try {
-      setError(null);
-      const result = await insertSale(sale, items);
-      await loadSales(); // Recargar lista
-      await loadTodayStats(); // Actualizar estadísticas
-      requestCloudSync("sales:add");
-      return result;
-    } catch (err) {
-      setError(err.message);
-      console.error("Error registering sale:", err);
-      throw err;
-    }
-  }, []);
+  const registerSale = useCallback(
+    async (sale, items) => {
+      try {
+        setError(null);
+        const result = await insertSale(sale, items);
+        await loadSales(); // Recargar lista
+        await loadTodayStats(); // Actualizar estadísticas
+        requestCloudSync("sales:add");
+        return result;
+      } catch (err) {
+        setError(err.message);
+        console.error("Error registering sale:", err);
+        throw err;
+      }
+    },
+    [loadSales, loadTodayStats],
+  );
 
   /**
    * Obtiene detalles de una venta
@@ -88,19 +91,22 @@ export const useSales = () => {
   /**
    * Cancela una venta
    */
-  const cancelSale = useCallback(async (saleId) => {
-    try {
-      setError(null);
-      await cancelSaleDB(saleId);
-      await loadSales(); // Recargar lista
-      await loadTodayStats(); // Actualizar estadísticas
-      requestCloudSync("sales:cancel");
-    } catch (err) {
-      setError(err.message);
-      console.error("Error cancelling sale:", err);
-      throw err;
-    }
-  }, []);
+  const cancelSale = useCallback(
+    async (saleId) => {
+      try {
+        setError(null);
+        await cancelSaleDB(saleId);
+        await loadSales(); // Recargar lista
+        await loadTodayStats(); // Actualizar estadísticas
+        requestCloudSync("sales:cancel");
+      } catch (err) {
+        setError(err.message);
+        console.error("Error cancelling sale:", err);
+        throw err;
+      }
+    },
+    [loadSales, loadTodayStats],
+  );
 
   /**
    * Calcula totales del período

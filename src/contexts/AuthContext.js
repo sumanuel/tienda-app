@@ -167,6 +167,46 @@ export const AuthProvider = ({ children }) => {
     return refreshedContext;
   };
 
+  const restartStoreBootstrap = async (preferredStoreId) => {
+    if (!auth.currentUser) {
+      return null;
+    }
+
+    setStoreLoading(true);
+    try {
+      const refreshedContext = await ensureUserStoreContext(auth.currentUser, {
+        preferredStoreId: preferredStoreId || activeStoreId,
+      });
+
+      if (refreshedContext?.activeStoreId) {
+        await prepareStoreDatabase({
+          userId: auth.currentUser.uid,
+          storeId: refreshedContext.activeStoreId,
+        });
+
+        setStoreSession({
+          userId: auth.currentUser.uid,
+          activeStoreId: refreshedContext.activeStoreId,
+          defaultStoreId:
+            refreshedContext.defaultStoreId || refreshedContext.activeStoreId,
+        });
+      } else {
+        clearActiveStoreSession();
+        await resetDatabaseContext();
+      }
+
+      setActiveStoreId(refreshedContext?.activeStoreId || null);
+      setDefaultStoreId(refreshedContext?.defaultStoreId || null);
+      setMemberships(refreshedContext?.memberships || []);
+      setRequiresStoreSetup(Boolean(refreshedContext?.requiresStoreSetup));
+      setLastSyncResult({ skipped: true, reason: "store-bootstrap-restarted" });
+
+      return refreshedContext;
+    } finally {
+      setStoreLoading(false);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
       let resolvedStoreContext = null;
@@ -403,6 +443,7 @@ export const AuthProvider = ({ children }) => {
       signOut,
       switchStore,
       refreshStoreContext,
+      restartStoreBootstrap,
       sendVerification,
       refreshVerification,
       sendPasswordReset,

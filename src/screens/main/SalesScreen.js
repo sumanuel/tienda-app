@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
 import { useSales } from "../../hooks/useSales";
@@ -41,6 +41,262 @@ import {
   borderRadius,
   iconSize,
 } from "../../utils/responsive";
+
+const getPaymentMethodText = (method) => {
+  switch (method) {
+    case "cash":
+      return "Efectivo";
+    case "card":
+      return "Tarjeta";
+    case "transfer":
+      return "Transferencia";
+    default:
+      return method || "—";
+  }
+};
+
+const SaleListItem = React.memo(function SaleListItem({
+  item,
+  calculateTotal,
+  getSaleDisplayNumber,
+  onShowDetails,
+  onCancelSale,
+}) {
+  const handleShowDetails = useCallback(() => {
+    onShowDetails(item);
+  }, [item, onShowDetails]);
+
+  const handleCancelSale = useCallback(() => {
+    onCancelSale(item);
+  }, [item, onCancelSale]);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.saleCard, pressed && styles.pressed]}
+      onPress={handleShowDetails}
+    >
+      <View style={styles.saleHeader}>
+        <View style={styles.saleIcon}>
+          <Ionicons
+            name="receipt-outline"
+            size={iconSize.lg}
+            color={UI_COLORS.info}
+          />
+        </View>
+        <View style={styles.saleInfo}>
+          <Text style={styles.saleNumber}>{getSaleDisplayNumber(item)}</Text>
+          <Text style={styles.saleDate}>
+            {new Date(item.createdAt).toLocaleDateString()} ·{" "}
+            {new Date(item.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Text>
+        </View>
+        <InfoPill
+          text={formatCurrency(calculateTotal(item), "VES")}
+          tone="info"
+        />
+      </View>
+
+      <View style={styles.saleMeta}>
+        <View style={styles.metaBlock}>
+          <Text style={styles.metaLabel}>Cliente</Text>
+          <Text style={styles.metaValue} numberOfLines={1}>
+            {item.notes ? item.notes.replace("Cliente: ", "") : "Sin nombre"}
+          </Text>
+        </View>
+        <View style={styles.metaBlock}>
+          <Text style={styles.metaLabel}>Pago</Text>
+          <Text style={styles.metaValue}>
+            {getPaymentMethodText(item.paymentMethod)}
+          </Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.cancelButton,
+            pressed && styles.pressed,
+          ]}
+          onPress={handleCancelSale}
+        >
+          <Ionicons name="ban-outline" size={rf(18)} color={UI_COLORS.danger} />
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+});
+
+const SalesListHeader = React.memo(function SalesListHeader({
+  TOUR_ZONE_BASE,
+  TourGuideZone,
+  activeTab,
+  endDate,
+  formatDate,
+  handleEndDateChange,
+  handleQuickRange,
+  handleStartDateChange,
+  onChangeTab,
+  onOpenEndPicker,
+  onOpenStartPicker,
+  showEndPicker,
+  showStartPicker,
+  startDate,
+  summary,
+}) {
+  return (
+    <View style={styles.headerContent}>
+      <ScreenHero
+        iconName="bar-chart-outline"
+        iconColor={UI_COLORS.info}
+        eyebrow="Ventas"
+        title="Historial de ventas"
+        subtitle="Consulta ventas del día o por rango con tarjetas más claras, métricas compactas y acceso directo a los totales."
+        pills={[
+          {
+            text: `${summary.count} registros`,
+            tone: "info",
+          },
+          {
+            text: formatCurrency(summary.total, "VES"),
+            tone: "accent",
+          },
+        ]}
+      />
+
+      <View style={styles.summaryGrid}>
+        <MetricCard
+          label={activeTab === "today" ? "Ventas hoy" : "Ventas filtradas"}
+          value={String(summary.count)}
+          hint={
+            activeTab === "today"
+              ? "Movimientos registrados en la jornada actual"
+              : "Resultados dentro del rango seleccionado"
+          }
+          tone="info"
+          style={styles.metricCard}
+        />
+        <MetricCard
+          label="Facturado"
+          value={formatCurrency(summary.total, "VES")}
+          hint={
+            activeTab === "today"
+              ? "Total acumulado de hoy"
+              : `${formatDate(startDate)} - ${formatDate(endDate)}`
+          }
+          tone="accent"
+          style={styles.metricCard}
+        />
+      </View>
+
+      <TourGuideZone
+        zone={TOUR_ZONE_BASE + 1}
+        text={"Cambia entre ventas de hoy y el histórico por rango de fechas."}
+        borderRadius={borderRadius.lg}
+      >
+        <SurfaceCard style={styles.segmentCard}>
+          <SegmentedOptions
+            options={[
+              { value: "today", label: "Hoy" },
+              { value: "all", label: "Histórico" },
+            ]}
+            value={activeTab}
+            onChange={onChangeTab}
+          />
+        </SurfaceCard>
+      </TourGuideZone>
+
+      {activeTab === "all" && (
+        <SurfaceCard style={styles.dateCard}>
+          <View style={styles.dateRow}>
+            <View style={styles.dateColumn}>
+              <Text style={styles.dateLabel}>Desde</Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.dateSelector,
+                  pressed && styles.pressed,
+                ]}
+                onPress={onOpenStartPicker}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={rf(16)}
+                  color={UI_COLORS.info}
+                />
+                <Text style={styles.dateValue}>{formatDate(startDate)}</Text>
+              </Pressable>
+
+              {showStartPicker ? (
+                <DateTimePicker
+                  value={startDate}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
+                  onChange={handleStartDateChange}
+                />
+              ) : null}
+            </View>
+
+            <View style={styles.dateColumn}>
+              <Text style={styles.dateLabel}>Hasta</Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.dateSelector,
+                  pressed && styles.pressed,
+                ]}
+                onPress={onOpenEndPicker}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={rf(16)}
+                  color={UI_COLORS.info}
+                />
+                <Text style={styles.dateValue}>{formatDate(endDate)}</Text>
+              </Pressable>
+
+              {showEndPicker ? (
+                <DateTimePicker
+                  value={endDate}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
+                  onChange={handleEndDateChange}
+                />
+              ) : null}
+            </View>
+          </View>
+
+          <View style={styles.quickFilters}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.quickFilter,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => handleQuickRange("currentMonth")}
+            >
+              <Text style={styles.quickFilterText}>Este mes</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.quickFilter,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => handleQuickRange("lastMonth")}
+            >
+              <Text style={styles.quickFilterText}>Mes anterior</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.quickFilter,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => handleQuickRange("week")}
+            >
+              <Text style={styles.quickFilterText}>Esta semana</Text>
+            </Pressable>
+          </View>
+        </SurfaceCard>
+      )}
+    </View>
+  );
+});
 
 /**
  * Historial de ventas con estética de dashboard
@@ -95,16 +351,33 @@ export const SalesScreen = () => {
     profitUSD: 0,
   });
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", () => {
+  const openTotalsModal = useCallback(() => {
+    setShowTotalsModal(true);
+  }, []);
+
+  const closeTotalsModal = useCallback(() => {
+    setShowTotalsModal(false);
+  }, []);
+
+  const openStartPicker = useCallback(() => {
+    setShowStartPicker(true);
+  }, []);
+
+  const openEndPicker = useCallback(() => {
+    setShowEndPicker(true);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
       loadSales();
       loadTodayStats();
-    });
-    return unsubscribe;
-  }, [navigation, loadSales, loadTodayStats]);
+      return undefined;
+    }, [loadSales, loadTodayStats]),
+  );
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId;
 
     const maybeStartTour = async () => {
       if (tourBooted) return;
@@ -115,7 +388,7 @@ export const SalesScreen = () => {
       if (!mounted) return;
 
       if (!seen) {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           start();
           markTourSeen(tourId);
         }, 450);
@@ -128,6 +401,9 @@ export const SalesScreen = () => {
 
     return () => {
       mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [canStart, start, tourBooted]);
 
@@ -233,39 +509,45 @@ export const SalesScreen = () => {
     run();
   }, [showTotalsModal, filteredSales, exchangeRate, showAlert]);
 
-  const handleShowDetails = (sale) => {
-    navigation.navigate("SaleDetail", { saleId: sale.id });
-  };
+  const handleShowDetails = useCallback(
+    (sale) => {
+      navigation.navigate("SaleDetail", { saleId: sale.id });
+    },
+    [navigation],
+  );
 
-  const handleCancelSale = (sale) => {
-    showAlert({
-      title: "Anular venta",
-      message: `¿Anular la venta ${getSaleDisplayNumber(sale)}? Esta acción no se puede deshacer.`,
-      type: "warning",
-      buttons: [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Anular",
-          onPress: async () => {
-            try {
-              await cancelSale(sale.id);
-              showAlert({
-                title: "Éxito",
-                message: "Venta anulada correctamente",
-                type: "success",
-              });
-            } catch (error) {
-              showAlert({
-                title: "Error",
-                message: error?.message || "No se pudo anular la venta",
-                type: "error",
-              });
-            }
+  const handleCancelSale = useCallback(
+    (sale) => {
+      showAlert({
+        title: "Anular venta",
+        message: `¿Anular la venta ${getSaleDisplayNumber(sale)}? Esta acción no se puede deshacer.`,
+        type: "warning",
+        buttons: [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Anular",
+            onPress: async () => {
+              try {
+                await cancelSale(sale.id);
+                showAlert({
+                  title: "Éxito",
+                  message: "Venta anulada correctamente",
+                  type: "success",
+                });
+              } catch (error) {
+                showAlert({
+                  title: "Error",
+                  message: error?.message || "No se pudo anular la venta",
+                  type: "error",
+                });
+              }
+            },
           },
-        },
-      ],
-    });
-  };
+        ],
+      });
+    },
+    [cancelSale, showAlert],
+  );
 
   const handleQuickRange = (type) => {
     const now = new Date();
@@ -343,72 +625,72 @@ export const SalesScreen = () => {
     });
   };
 
-  const getPaymentMethodText = (method) => {
-    switch (method) {
-      case "cash":
-        return "Efectivo";
-      case "card":
-        return "Tarjeta";
-      case "transfer":
-        return "Transferencia";
-      default:
-        return method || "—";
-    }
-  };
+  const renderSale = useCallback(
+    ({ item }) => (
+      <SaleListItem
+        item={item}
+        calculateTotal={calculateTotal}
+        getSaleDisplayNumber={getSaleDisplayNumber}
+        onShowDetails={handleShowDetails}
+        onCancelSale={handleCancelSale}
+      />
+    ),
+    [calculateTotal, handleCancelSale, handleShowDetails],
+  );
 
-  const renderSale = ({ item }) => (
-    <Pressable
-      style={({ pressed }) => [styles.saleCard, pressed && styles.pressed]}
-      onPress={() => handleShowDetails(item)}
-    >
-      <View style={styles.saleHeader}>
-        <View style={styles.saleIcon}>
-          <Ionicons
-            name="receipt-outline"
-            size={iconSize.lg}
-            color={UI_COLORS.info}
-          />
-        </View>
-        <View style={styles.saleInfo}>
-          <Text style={styles.saleNumber}>{getSaleDisplayNumber(item)}</Text>
-          <Text style={styles.saleDate}>
-            {new Date(item.createdAt).toLocaleDateString()} ·{" "}
-            {new Date(item.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
-        </View>
-        <InfoPill
-          text={formatCurrency(calculateTotal(item), "VES")}
-          tone="info"
-        />
-      </View>
+  const saleKeyExtractor = useCallback((item) => item.id.toString(), []);
 
-      <View style={styles.saleMeta}>
-        <View style={styles.metaBlock}>
-          <Text style={styles.metaLabel}>Cliente</Text>
-          <Text style={styles.metaValue} numberOfLines={1}>
-            {item.notes ? item.notes.replace("Cliente: ", "") : "Sin nombre"}
-          </Text>
-        </View>
-        <View style={styles.metaBlock}>
-          <Text style={styles.metaLabel}>Pago</Text>
-          <Text style={styles.metaValue}>
-            {getPaymentMethodText(item.paymentMethod)}
-          </Text>
-        </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.cancelButton,
-            pressed && styles.pressed,
-          ]}
-          onPress={() => handleCancelSale(item)}
-        >
-          <Ionicons name="ban-outline" size={rf(18)} color={UI_COLORS.danger} />
-        </Pressable>
-      </View>
-    </Pressable>
+  const listHeader = useMemo(
+    () => (
+      <SalesListHeader
+        TOUR_ZONE_BASE={TOUR_ZONE_BASE}
+        TourGuideZone={TourGuideZone}
+        activeTab={activeTab}
+        endDate={endDate}
+        formatDate={formatDate}
+        handleEndDateChange={handleEndDateChange}
+        handleQuickRange={handleQuickRange}
+        handleStartDateChange={handleStartDateChange}
+        onChangeTab={setActiveTab}
+        onOpenEndPicker={openEndPicker}
+        onOpenStartPicker={openStartPicker}
+        showEndPicker={showEndPicker}
+        showStartPicker={showStartPicker}
+        startDate={startDate}
+        summary={summary}
+      />
+    ),
+    [
+      TOUR_ZONE_BASE,
+      TourGuideZone,
+      activeTab,
+      endDate,
+      openEndPicker,
+      openStartPicker,
+      showEndPicker,
+      showStartPicker,
+      startDate,
+      summary,
+    ],
+  );
+
+  const emptySales = useMemo(
+    () => (
+      <EmptyStateCard
+        title={
+          activeTab === "today"
+            ? "No hay ventas registradas hoy"
+            : "No encontramos ventas en este rango"
+        }
+        subtitle={
+          activeTab === "today"
+            ? "Registra una venta y aparecerá aquí al instante."
+            : "Ajusta el rango o sincroniza tus ventas recientes."
+        }
+        style={styles.emptyState}
+      />
+    ),
+    [activeTab],
   );
 
   if (loading) {
@@ -426,188 +708,10 @@ export const SalesScreen = () => {
         <FlatList
           data={filteredSales}
           renderItem={renderSale}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={saleKeyExtractor}
           contentContainerStyle={styles.listContent}
-          ListHeaderComponent={
-            <View style={styles.headerContent}>
-              <ScreenHero
-                iconName="bar-chart-outline"
-                iconColor={UI_COLORS.info}
-                eyebrow="Ventas"
-                title="Historial de ventas"
-                subtitle="Consulta ventas del d\u00eda o por rango con tarjetas m\u00e1s claras, m\u00e9tricas compactas y acceso directo a los totales."
-                pills={[
-                  {
-                    text: `${summary.count} registros`,
-                    tone: "info",
-                  },
-                  {
-                    text: formatCurrency(summary.total, "VES"),
-                    tone: "accent",
-                  },
-                ]}
-              />
-
-              <View style={styles.summaryGrid}>
-                <MetricCard
-                  label={
-                    activeTab === "today" ? "Ventas hoy" : "Ventas filtradas"
-                  }
-                  value={String(summary.count)}
-                  hint={
-                    activeTab === "today"
-                      ? "Movimientos registrados en la jornada actual"
-                      : "Resultados dentro del rango seleccionado"
-                  }
-                  tone="info"
-                  style={styles.metricCard}
-                />
-                <MetricCard
-                  label="Facturado"
-                  value={formatCurrency(summary.total, "VES")}
-                  hint={
-                    activeTab === "today"
-                      ? "Total acumulado de hoy"
-                      : `${formatDate(startDate)} - ${formatDate(endDate)}`
-                  }
-                  tone="accent"
-                  style={styles.metricCard}
-                />
-              </View>
-
-              <TourGuideZone
-                zone={TOUR_ZONE_BASE + 1}
-                text={
-                  "Cambia entre ventas de hoy y el histórico por rango de fechas."
-                }
-                borderRadius={borderRadius.lg}
-              >
-                <SurfaceCard style={styles.segmentCard}>
-                  <SegmentedOptions
-                    options={[
-                      { value: "today", label: "Hoy" },
-                      { value: "all", label: "Histórico" },
-                    ]}
-                    value={activeTab}
-                    onChange={setActiveTab}
-                  />
-                </SurfaceCard>
-              </TourGuideZone>
-
-              {activeTab === "all" && (
-                <SurfaceCard style={styles.dateCard}>
-                  <View style={styles.dateRow}>
-                    <View style={styles.dateColumn}>
-                      <Text style={styles.dateLabel}>Desde</Text>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.dateSelector,
-                          pressed && styles.pressed,
-                        ]}
-                        onPress={() => setShowStartPicker(true)}
-                      >
-                        <Ionicons
-                          name="calendar-outline"
-                          size={rf(16)}
-                          color={UI_COLORS.info}
-                        />
-                        <Text style={styles.dateValue}>
-                          {formatDate(startDate)}
-                        </Text>
-                      </Pressable>
-
-                      {showStartPicker ? (
-                        <DateTimePicker
-                          value={startDate}
-                          mode="date"
-                          display={
-                            Platform.OS === "ios" ? "compact" : "default"
-                          }
-                          onChange={handleStartDateChange}
-                        />
-                      ) : null}
-                    </View>
-
-                    <View style={styles.dateColumn}>
-                      <Text style={styles.dateLabel}>Hasta</Text>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.dateSelector,
-                          pressed && styles.pressed,
-                        ]}
-                        onPress={() => setShowEndPicker(true)}
-                      >
-                        <Ionicons
-                          name="calendar-outline"
-                          size={rf(16)}
-                          color={UI_COLORS.info}
-                        />
-                        <Text style={styles.dateValue}>
-                          {formatDate(endDate)}
-                        </Text>
-                      </Pressable>
-
-                      {showEndPicker ? (
-                        <DateTimePicker
-                          value={endDate}
-                          mode="date"
-                          display={
-                            Platform.OS === "ios" ? "compact" : "default"
-                          }
-                          onChange={handleEndDateChange}
-                        />
-                      ) : null}
-                    </View>
-                  </View>
-
-                  <View style={styles.quickFilters}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.quickFilter,
-                        pressed && styles.pressed,
-                      ]}
-                      onPress={() => handleQuickRange("currentMonth")}
-                    >
-                      <Text style={styles.quickFilterText}>Este mes</Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.quickFilter,
-                        pressed && styles.pressed,
-                      ]}
-                      onPress={() => handleQuickRange("lastMonth")}
-                    >
-                      <Text style={styles.quickFilterText}>Mes anterior</Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.quickFilter,
-                        pressed && styles.pressed,
-                      ]}
-                      onPress={() => handleQuickRange("week")}
-                    >
-                      <Text style={styles.quickFilterText}>Esta semana</Text>
-                    </Pressable>
-                  </View>
-                </SurfaceCard>
-              )}
-            </View>
-          }
-          ListEmptyComponent={
-            <EmptyStateCard
-              title={
-                activeTab === "today"
-                  ? "No hay ventas registradas hoy"
-                  : "No encontramos ventas en este rango"
-              }
-              subtitle={
-                activeTab === "today"
-                  ? "Registra una venta y aparecerá aquí al instante."
-                  : "Ajusta el rango o sincroniza tus ventas recientes."
-              }
-              style={styles.emptyState}
-            />
-          }
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={emptySales}
         />
 
         <TourGuideZone
@@ -618,7 +722,7 @@ export const SalesScreen = () => {
           <FloatingActionButton
             style={styles.fab}
             bottom={vs(24) + Math.max(insets.bottom, vs(10))}
-            onPress={() => setShowTotalsModal(true)}
+            onPress={openTotalsModal}
             iconName="stats-chart"
           />
         </TourGuideZone>
@@ -628,7 +732,7 @@ export const SalesScreen = () => {
         visible={showTotalsModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowTotalsModal(false)}
+        onRequestClose={closeTotalsModal}
       >
         <View style={styles.modalOverlay}>
           <SurfaceCard style={styles.modalCard}>
@@ -688,7 +792,7 @@ export const SalesScreen = () => {
                 styles.modalCloseButton,
                 pressed && styles.pressed,
               ]}
-              onPress={() => setShowTotalsModal(false)}
+              onPress={closeTotalsModal}
             >
               <Text style={styles.modalCloseText}>Cerrar</Text>
             </Pressable>

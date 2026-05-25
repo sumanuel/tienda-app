@@ -105,11 +105,24 @@ export const EditProductScreen = ({ navigation, route }) => {
   const ivaRef = useRef(null);
   const stockRef = useRef(null);
   const scrollViewRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Función para hacer scroll automático al campo enfocado
   const scrollToField = (ref) => {
     if (ref.current && scrollViewRef.current) {
-      setTimeout(() => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
         ref.current.measureLayout(
           scrollViewRef.current,
           (x, y) => {

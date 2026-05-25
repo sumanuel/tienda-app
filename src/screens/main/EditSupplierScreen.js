@@ -39,6 +39,15 @@ export const EditSupplierScreen = ({ navigation, route }) => {
   const addressRef = useRef(null);
   const paymentTermsRef = useRef(null);
   const scrollViewRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const [formData, setFormData] = useState({
     documentNumber: "",
@@ -106,7 +115,11 @@ export const EditSupplierScreen = ({ navigation, route }) => {
 
   const scrollToField = (ref) => {
     if (ref?.current && scrollViewRef?.current) {
-      setTimeout(() => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
         ref.current.measureLayout(
           scrollViewRef.current,
           (x, y) => {

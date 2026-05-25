@@ -22,6 +22,8 @@ import {
 } from "../store/storeRefs";
 
 const cloudCustomersSeeded = new Set();
+const GENERIC_CUSTOMER_DOCUMENT_NUMBER = "1";
+const GENERIC_CUSTOMER_NAME = "Cliente Genérico";
 
 const isCloudCustomersEnabled = () =>
   Boolean(auth.currentUser?.uid) && hasActiveStoreContext();
@@ -39,6 +41,14 @@ const getSalesCollectionRef = () => getStoreCollectionRef("sales");
 
 const getReceivableCollectionRef = () =>
   getStoreCollectionRef("accounts_receivable");
+
+const resolveStoreSeedKey = ({ uid, storeId } = {}) => {
+  try {
+    return getActiveStoreSeedKey(uid, storeId);
+  } catch (_) {
+    return null;
+  }
+};
 
 const normalizeCustomerRecord = (customer = {}) => ({
   id:
@@ -70,6 +80,156 @@ const sortCustomersByName = (customers = []) =>
 const getCloudCustomers = async () => {
   const snapshot = await getDocs(getCustomersCollectionRef());
   return snapshot.docs.map((item) => normalizeCustomerRecord(item.data()));
+};
+
+export const invalidateStoreCustomerCloudState = ({ uid, storeId } = {}) => {
+  const seedKey = resolveStoreSeedKey({ uid, storeId });
+
+  if (!seedKey) {
+    return;
+  }
+
+  cloudCustomersSeeded.delete(seedKey);
+};
+
+const sortCustomersForDedup = (customers = []) =>
+  [...customers].sort((a, b) => {
+    const idDiff = Number(a.id) - Number(b.id);
+    if (idDiff !== 0) return idDiff;
+
+    return (
+      new Date(a.createdAt || 0).getTime() -
+      new Date(b.createdAt || 0).getTime()
+    );
+  });
+
+const consolidateLocalCustomersByDocument = async (documentNumber) => {
+  const normalizedDocument = String(documentNumber || "").trim();
+  if (!normalizedDocument) {
+    return null;
+  }
+
+  const activeCustomers = await db.getAllAsync(
+    `SELECT * FROM customers
+     WHERE active = 1 AND TRIM(documentNumber) = ?
+     ORDER BY id ASC;`,
+    [normalizedDocument],
+  );
+
+  if (!activeCustomers.length) {
+    return null;
+  }
+
+  if (activeCustomers.length === 1) {
+    return activeCustomers[0];
+  }
+
+  const [keep, ...duplicates] = sortCustomersForDedup(activeCustomers);
+
+  for (const duplicate of duplicates) {
+    await db.runAsync(
+      "UPDATE accounts_receivable SET customerId = ?, updatedAt = CURRENT_TIMESTAMP WHERE customerId = ?;",
+      [keep.id, duplicate.id],
+    );
+    await db.runAsync(
+      "UPDATE sales SET customerId = ?, updatedAt = CURRENT_TIMESTAMP WHERE customerId = ?;",
+      [keep.id, duplicate.id],
+    );
+    await db.runAsync(
+      "UPDATE customers SET active = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?;",
+      [duplicate.id],
+    );
+  }
+
+  return keep;
+};
+
+const consolidateCloudCustomersByDocument = async (documentNumber) => {
+  const normalizedDocument = String(documentNumber || "").trim();
+  if (!normalizedDocument) {
+    return null;
+  }
+
+  const activeCustomers = (await getCloudCustomers()).filter(
+    (item) =>
+      item.active === 1 &&
+      String(item.documentNumber || "").trim() === normalizedDocument,
+  );
+
+  if (!activeCustomers.length) {
+    return null;
+  }
+
+  if (activeCustomers.length === 1) {
+    return activeCustomers[0];
+  }
+
+  const [keep, ...duplicates] = sortCustomersForDedup(activeCustomers);
+  const [salesSnapshot, receivableSnapshot] = await Promise.all([
+    getDocs(getSalesCollectionRef()),
+    getDocs(getReceivableCollectionRef()),
+  ]);
+
+  const receivables = receivableSnapshot.docs.map((item) => ({
+    ref: item.ref,
+    data: item.data() || {},
+  }));
+  const sales = salesSnapshot.docs.map((item) => item.data() || {});
+
+  for (const duplicate of duplicates) {
+    const batch = writeBatch(firestore);
+    batch.set(
+      doc(getCustomersCollectionRef(), String(duplicate.id)),
+      {
+        active: 0,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+
+    receivables
+      .filter(({ data }) => Number(data.customerId) === Number(duplicate.id))
+      .forEach(({ ref }) => {
+        batch.set(
+          ref,
+          {
+            customerId: keep.id,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+      });
+
+    sales
+      .filter((sale) => Number(sale.customerId) === Number(duplicate.id))
+      .forEach((sale) => {
+        batch.set(
+          doc(getSalesCollectionRef(), String(sale.id)),
+          {
+            customerId: keep.id,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+      });
+
+    await batch.commit();
+  }
+
+  return keep;
+};
+
+const ensureSingleGenericCustomer = async () => {
+  if (isCloudCustomersEnabled()) {
+    await ensureCloudCustomersSeeded();
+    return await consolidateCloudCustomersByDocument(
+      GENERIC_CUSTOMER_DOCUMENT_NUMBER,
+    );
+  }
+
+  return await consolidateLocalCustomersByDocument(
+    GENERIC_CUSTOMER_DOCUMENT_NUMBER,
+  );
 };
 
 const normalizeExistingCloudCustomers = async (existingSnapshot) => {
@@ -313,9 +473,14 @@ export const getAllCustomers = async () => {
   try {
     if (isCloudCustomersEnabled()) {
       await ensureCloudCustomersSeeded();
+      await consolidateCloudCustomersByDocument(
+        GENERIC_CUSTOMER_DOCUMENT_NUMBER,
+      );
       const customers = await getCloudCustomers();
       return sortCustomersByName(customers.filter((item) => item.active === 1));
     }
+
+    await consolidateLocalCustomersByDocument(GENERIC_CUSTOMER_DOCUMENT_NUMBER);
 
     const result = await db.getAllAsync(
       "SELECT * FROM customers WHERE active = 1 ORDER BY name;",
@@ -429,8 +594,15 @@ export const createGenericCustomer = async () => {
       assertSharedStoreCloudWriteAvailable();
     }
 
+    const consolidated = await ensureSingleGenericCustomer();
+    if (consolidated?.id) {
+      return consolidated.id;
+    }
+
     // Verificar si ya existe el cliente genérico
-    const existing = await getCustomerByDocumentNumber("1");
+    const existing = await getCustomerByDocumentNumber(
+      GENERIC_CUSTOMER_DOCUMENT_NUMBER,
+    );
     if (existing) {
       return existing.id;
     }
@@ -454,8 +626,8 @@ export const createGenericCustomer = async () => {
         normalizeCustomerRecord({
           id,
           customerNumber: consecutive.value,
-          name: "Cliente Genérico",
-          documentNumber: "1",
+          name: GENERIC_CUSTOMER_NAME,
+          documentNumber: GENERIC_CUSTOMER_DOCUMENT_NUMBER,
           documentType: "V",
         }),
       );
@@ -466,7 +638,7 @@ export const createGenericCustomer = async () => {
     const result = await db.runAsync(
       `INSERT INTO customers (name, documentNumber, documentType)
        VALUES (?, ?, ?);`,
-      ["Cliente Genérico", "1", "V"],
+      [GENERIC_CUSTOMER_NAME, GENERIC_CUSTOMER_DOCUMENT_NUMBER, "V"],
     );
     await db.runAsync("UPDATE customers SET customerNumber = ? WHERE id = ?;", [
       formatConsecutiveNumber("customer", result.lastInsertRowId),
@@ -806,4 +978,5 @@ export default {
   deleteCustomer,
   cleanDuplicateCustomers,
   recoverDeletedCustomers,
+  invalidateStoreCustomerCloudState,
 };

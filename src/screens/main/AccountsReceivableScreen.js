@@ -94,6 +94,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId;
 
     const maybeStartTour = async () => {
       if (tourBooted) return;
@@ -104,7 +105,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
       if (!mounted) return;
 
       if (!seen) {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           start();
           markTourSeen(tourId);
         }, 450);
@@ -117,6 +118,9 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 
     return () => {
       mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [canStart, start, tourBooted]);
 

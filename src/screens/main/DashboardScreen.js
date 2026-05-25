@@ -28,6 +28,7 @@ import {
 } from "../../utils/responsive";
 import RateDisplay from "../../components/exchange/RateDisplay";
 import { useRateNotifications } from "../../contexts/RateNotificationsContext";
+import { useFocusEffect } from "@react-navigation/native";
 
 const DASHBOARD_COLORS = {
   page: "#f4f7fb",
@@ -199,15 +200,20 @@ export const DashboardScreen = ({ navigation }) => {
   }, [rate, loadTodayStats]);
 
   // Listener para cuando se vuelve a la pantalla (recargar inventario y cuentas)
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", () => {
+  useFocusEffect(
+    useCallback(() => {
+      loadTodayStats();
       refreshInventory();
       refreshAccounts();
       refreshNotificationsCount();
-    });
-
-    return unsubscribe;
-  }, [navigation, refreshInventory, refreshAccounts]);
+      return undefined;
+    }, [
+      loadTodayStats,
+      refreshInventory,
+      refreshAccounts,
+      refreshNotificationsCount,
+    ]),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
