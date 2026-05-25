@@ -268,8 +268,10 @@ const MarginalSaleScreen = ({ navigation }) => {
       return;
     }
 
-    const resolvedAmountVES = amountCurrency === "VES" ? amountValue : amountVES;
-    const resolvedAmountUSD = amountCurrency === "USD" ? amountValue : amountUSD;
+    const resolvedAmountVES =
+      amountCurrency === "VES" ? amountValue : amountVES;
+    const resolvedAmountUSD =
+      amountCurrency === "USD" ? amountValue : amountUSD;
 
     if (resolvedAmountVES <= 0 || resolvedAmountUSD <= 0) {
       showAlert({
@@ -306,7 +308,8 @@ const MarginalSaleScreen = ({ navigation }) => {
           {compact ? item.name : item.name.toUpperCase()}
         </Text>
         <Text style={compact ? styles.pendingItemMeta : styles.cartItemPrice}>
-          VES {Number(item.price).toFixed(2)} · $ {Number(item.priceUSD).toFixed(2)} c/u
+          VES {Number(item.price).toFixed(2)} · ${" "}
+          {Number(item.priceUSD).toFixed(2)} c/u
         </Text>
         <Text
           style={compact ? styles.pendingItemAmount : styles.cartItemSubtotal}
@@ -322,7 +325,9 @@ const MarginalSaleScreen = ({ navigation }) => {
               styles.quantityButton,
               pressed && styles.cardPressed,
             ]}
-            onPress={() => updateQuantity(item.id, (Number(item.quantity) || 0) - 1)}
+            onPress={() =>
+              updateQuantity(item.id, (Number(item.quantity) || 0) - 1)
+            }
           >
             <Text style={styles.quantityButtonText}>-</Text>
           </Pressable>
@@ -340,7 +345,9 @@ const MarginalSaleScreen = ({ navigation }) => {
               styles.quantityButton,
               pressed && styles.cardPressed,
             ]}
-            onPress={() => updateQuantity(item.id, (Number(item.quantity) || 0) + 1)}
+            onPress={() =>
+              updateQuantity(item.id, (Number(item.quantity) || 0) + 1)
+            }
           >
             <Text style={styles.quantityButtonText}>+</Text>
           </Pressable>
@@ -354,7 +361,11 @@ const MarginalSaleScreen = ({ navigation }) => {
           onPress={() => handleRemoveItem(item.id)}
         >
           <Text
-            style={compact ? styles.removeCompactButtonText : styles.removeCartButtonText}
+            style={
+              compact
+                ? styles.removeCompactButtonText
+                : styles.removeCartButtonText
+            }
           >
             Eliminar
           </Text>
@@ -759,7 +770,9 @@ const MarginalSaleScreen = ({ navigation }) => {
                 <Text style={styles.priceValue}>
                   {amountVES > 0 ? `VES ${amountVES.toFixed(2)}` : "—"}
                 </Text>
-                <Text style={styles.priceHint}>Conversión con tasa vigente</Text>
+                <Text style={styles.priceHint}>
+                  Conversión con tasa vigente
+                </Text>
               </View>
             </View>
 
@@ -772,7 +785,9 @@ const MarginalSaleScreen = ({ navigation }) => {
               ]}
             >
               <Ionicons name="add" size={rf(20)} color="#fff" />
-              <Text style={styles.addButtonText}>Agregar al carrito marginal</Text>
+              <Text style={styles.addButtonText}>
+                Agregar al carrito marginal
+              </Text>
             </Pressable>
           </SurfaceCard>
 
