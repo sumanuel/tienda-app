@@ -669,8 +669,9 @@ export const POSScreen = ({ navigation, route }) => {
               stock: Number(item?.product?.stock ?? 1) || 1,
               trackInventory: Number(item?.product?.trackInventory ?? 0),
               iva:
-                Number(item?.product?.iva ?? item?.iva ?? pricingSettings.iva) ||
-                0,
+                Number(
+                  item?.product?.iva ?? item?.iva ?? pricingSettings.iva,
+                ) || 0,
             },
           };
         })
