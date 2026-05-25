@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -44,6 +45,7 @@ import {
 
 export const AccountsReceivableScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const { canStart, start, TourGuideZone } =
     useTourGuideController("accountsReceivable");
   const TOUR_ZONE_BASE = 6100;
@@ -63,7 +65,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   } = useAccounts();
   const { showAlert, CustomAlert } = useCustomAlert();
 
-  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const fabBottom = Math.max(tabBarHeight, insets.bottom) + vs(16);
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const [searchQuery, setSearchQuery] = useState("");

@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
@@ -27,7 +28,13 @@ import {
   UI_COLORS,
   SHADOWS,
 } from "../../components/common/AppUI";
-import { rf, vs, spacing, borderRadius } from "../../utils/responsive";
+import {
+  rf,
+  vs,
+  spacing,
+  borderRadius,
+  iconSize,
+} from "../../utils/responsive";
 export const SaleDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -35,6 +42,9 @@ export const SaleDetailScreen = () => {
   const { getSaleDetails } = useSales();
 
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
+  const fabBottom = Math.max(tabBarHeight, insets.bottom) + vs(16);
+  const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
   const { showAlert, CustomAlert } = useCustomAlert();
 
   const { rate } = useExchangeRateContext();
@@ -305,12 +315,6 @@ export const SaleDetailScreen = () => {
                       {getPaymentMethodText(sale.paymentMethod)}
                     </Text>
                   </View>
-                  <View style={styles.metaBlock}>
-                    <Text style={styles.metaLabel}>WhatsApp</Text>
-                    <Text style={styles.metaValue} numberOfLines={1}>
-                      {customer?.phone || "No disponible"}
-                    </Text>
-                  </View>
                 </View>
 
                 <View style={styles.totalsDivider} />
@@ -379,13 +383,16 @@ export const SaleDetailScreen = () => {
               </SurfaceCard>
             </View>
           }
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: listPaddingBottom },
+          ]}
         />
 
         {isValidWhatsAppPhone(customer?.phone) ? (
           <FloatingActionButton
             style={styles.whatsappFab}
-            bottom={vs(24) + Math.max(insets.bottom, vs(24))}
+            bottom={fabBottom}
             onPress={handleSendWhatsAppInvoice}
             iconName="logo-whatsapp"
           />
@@ -404,7 +411,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
-    paddingBottom: vs(110),
   },
   whatsappFab: {
     backgroundColor: "#4CAF50",

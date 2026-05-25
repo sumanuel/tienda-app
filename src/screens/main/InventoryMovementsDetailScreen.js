@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { FloatingActionButton, UI_COLORS } from "../../components/common/AppUI";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import {
   InventoryEmptyState,
   InventoryHero,
@@ -34,6 +35,7 @@ import {
 
 export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const { canStart, start, TourGuideZone } = useTourGuideController(
     "inventoryMovementsDetail",
   );
@@ -73,7 +75,7 @@ export const InventoryMovementsDetailScreen = ({ navigation, route }) => {
     return Number.isNaN(fallback.getTime()) ? new Date() : fallback;
   };
 
-  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const fabBottom = Math.max(tabBarHeight, insets.bottom) + vs(16);
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const loadData = async (barcode) => {

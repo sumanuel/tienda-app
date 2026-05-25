@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,6 +13,8 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useExchangeRate } from "../../hooks/useExchangeRate";
 import { useSales } from "../../hooks/useSales";
 import { useCustomers } from "../../hooks/useCustomers";
@@ -91,6 +94,8 @@ const createMarginalItem = ({
 };
 
 const MarginalSaleScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const { rate: exchangeRate } = useExchangeRate();
   const { registerSale: addSale } = useSales();
   const { addAccountReceivable } = useAccounts();
@@ -113,10 +118,16 @@ const MarginalSaleScreen = ({ navigation }) => {
   const [newCustomerName, setNewCustomerName] = useState("");
   const [pendingSaleData, setPendingSaleData] = useState(null);
   const [processingSale, setProcessingSale] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [pricingSettings, setPricingSettings] = useState({
     iva: 0,
     applyIvaOnSales: false,
   });
+
+  const cartBarBottom = Math.max(tabBarHeight, insets.bottom) + vs(12);
+  const contentBottomPadding = isKeyboardVisible
+    ? vs(28)
+    : cartBarBottom + s(78);
 
   useEffect(() => {
     let mounted = true;
@@ -139,6 +150,25 @@ const MarginalSaleScreen = ({ navigation }) => {
 
     return () => {
       mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
     };
   }, []);
 
@@ -717,11 +747,15 @@ const MarginalSaleScreen = ({ navigation }) => {
     <>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: contentBottomPadding },
+          ]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <ScreenHero
@@ -860,39 +894,43 @@ const MarginalSaleScreen = ({ navigation }) => {
           </SurfaceCard>
         </ScrollView>
 
-        <View style={styles.cartBarWrap}>
-          {cart.length > 0 ? (
+        {!isKeyboardVisible ? (
+          <View style={[styles.cartBarWrap, { bottom: cartBarBottom }]}>
+            {cart.length > 0 ? (
+              <Pressable
+                onPress={handleOpenCart}
+                style={({ pressed }) => [
+                  styles.cartAmountButton,
+                  pressed && styles.cardPressed,
+                ]}
+              >
+                <Text style={styles.cartAmountLabel}>Carrito marginal</Text>
+                <Text style={styles.cartAmountValue}>
+                  VES {total.toFixed(2)}
+                </Text>
+                <Text style={styles.cartAmountUsd}>
+                  {rateValue > 0
+                    ? `$${totalUSD.toFixed(2)}`
+                    : "Sin conversion USD"}
+                </Text>
+              </Pressable>
+            ) : null}
+
             <Pressable
               onPress={handleOpenCart}
               style={({ pressed }) => [
-                styles.cartAmountButton,
+                styles.cartButton,
+                cart.length === 0 && styles.cartButtonIdle,
                 pressed && styles.cardPressed,
               ]}
             >
-              <Text style={styles.cartAmountLabel}>Carrito marginal</Text>
-              <Text style={styles.cartAmountValue}>VES {total.toFixed(2)}</Text>
-              <Text style={styles.cartAmountUsd}>
-                {rateValue > 0
-                  ? `$${totalUSD.toFixed(2)}`
-                  : "Sin conversion USD"}
-              </Text>
+              <Ionicons name="cart-outline" size={rf(22)} color="#ffffff" />
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cart.length}</Text>
+              </View>
             </Pressable>
-          ) : null}
-
-          <Pressable
-            onPress={handleOpenCart}
-            style={({ pressed }) => [
-              styles.cartButton,
-              cart.length === 0 && styles.cartButtonIdle,
-              pressed && styles.cardPressed,
-            ]}
-          >
-            <Ionicons name="cart-outline" size={rf(22)} color="#ffffff" />
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cart.length}</Text>
-            </View>
-          </Pressable>
-        </View>
+          </View>
+        ) : null}
       </KeyboardAvoidingView>
 
       <Modal
@@ -901,7 +939,10 @@ const MarginalSaleScreen = ({ navigation }) => {
         transparent={false}
         onRequestClose={() => setShowCart(false)}
       >
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView
+          style={styles.modalContainer}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={styles.modalHeader}>
             <Pressable
               style={({ pressed }) => [
@@ -921,7 +962,11 @@ const MarginalSaleScreen = ({ navigation }) => {
             <View style={styles.headerSpacer} />
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView
+            style={styles.modalContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
             <View style={styles.customerSection}>
               <Text style={styles.sectionTitle}>Cliente</Text>
               <TextInput
@@ -1053,7 +1098,7 @@ const MarginalSaleScreen = ({ navigation }) => {
               )}
             </Pressable>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal
@@ -1062,7 +1107,10 @@ const MarginalSaleScreen = ({ navigation }) => {
         transparent
         onRequestClose={cancelNewCustomer}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={styles.newCustomerModalContent}>
             <Text style={styles.modalTitle}>Nuevo Cliente</Text>
             <Text style={styles.newCustomerInfo}>
@@ -1104,7 +1152,7 @@ const MarginalSaleScreen = ({ navigation }) => {
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <CustomAlert />
@@ -1120,7 +1168,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: hs(16),
     paddingTop: vs(16),
-    paddingBottom: vs(148),
     gap: vs(18),
   },
   card: {
@@ -1318,7 +1365,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: hs(16),
     right: hs(16),
-    bottom: vs(18),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",

@@ -10,6 +10,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FloatingActionButton, UI_COLORS } from "../../components/common/AppUI";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import {
   InventoryEmptyState,
   InventoryHero,
@@ -24,6 +25,7 @@ import { rf, vs, hs, spacing, iconSize } from "../../utils/responsive";
 
 export const InventoryExitDetailScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const [product, setProduct] = useState(route.params?.product || null);
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,7 @@ export const InventoryExitDetailScreen = ({ navigation, route }) => {
     return Number.isNaN(fallback.getTime()) ? new Date() : fallback;
   };
 
-  const fabBottom = vs(24) + Math.max(insets.bottom, vs(24));
+  const fabBottom = Math.max(tabBarHeight, insets.bottom) + vs(16);
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
 
   const loadData = async (barcode) => {

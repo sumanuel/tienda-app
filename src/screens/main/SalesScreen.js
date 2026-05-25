@@ -11,10 +11,10 @@ import {
   Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
+import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
@@ -305,7 +305,7 @@ const SalesListHeader = React.memo(function SalesListHeader({
 export const SalesScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const fabBottom = Math.max(tabBarHeight, insets.bottom) + vs(16);
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
   const { canStart, start, TourGuideZone } = useTourGuideController("sales");
