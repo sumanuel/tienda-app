@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -17,6 +17,7 @@ import { useSales } from "../../hooks/useSales";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { getSettings } from "../../services/database/settings";
 import {
   ScreenHero,
   SHADOWS,
@@ -64,6 +65,7 @@ const createMarginalItem = ({
   description,
   amountVES,
   amountUSD,
+  iva,
   sequence,
 }) => {
   return {
@@ -73,7 +75,7 @@ const createMarginalItem = ({
     priceUSD: amountUSD,
     quantity: 1,
     subtotal: amountVES,
-    iva: 0,
+    iva: Number(iva) || 0,
     product: {
       id: 0,
       name: description,
@@ -81,7 +83,7 @@ const createMarginalItem = ({
       priceVES: amountVES,
       stock: 1,
       trackInventory: 0,
-      iva: 0,
+      iva: Number(iva) || 0,
       barcode: SPECIAL_CODE,
       category: "Venta marginal",
     },
@@ -111,6 +113,34 @@ const MarginalSaleScreen = ({ navigation }) => {
   const [newCustomerName, setNewCustomerName] = useState("");
   const [pendingSaleData, setPendingSaleData] = useState(null);
   const [processingSale, setProcessingSale] = useState(false);
+  const [pricingSettings, setPricingSettings] = useState({
+    iva: 0,
+    applyIvaOnSales: false,
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPricingSettings = async () => {
+      try {
+        const settings = await getSettings();
+        if (!mounted) return;
+
+        setPricingSettings({
+          iva: Number(settings?.pricing?.iva) || 0,
+          applyIvaOnSales: Boolean(settings?.pricing?.applyIvaOnSales),
+        });
+      } catch (error) {
+        console.warn("Error loading pricing settings in marginal sale:", error);
+      }
+    };
+
+    loadPricingSettings();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const amountValue = useMemo(() => parseAmount(draft.amount), [draft.amount]);
   const rateValue = Number(exchangeRate) || 0;
@@ -132,7 +162,18 @@ const MarginalSaleScreen = ({ navigation }) => {
     () => cart.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0),
     [cart],
   );
-  const total = subtotalAmount;
+  const taxAmount = useMemo(() => {
+    if (!pricingSettings.applyIvaOnSales) {
+      return 0;
+    }
+
+    return cart.reduce(
+      (sum, item) =>
+        sum + (Number(item.subtotal) || 0) * ((Number(item.iva) || 0) / 100),
+      0,
+    );
+  }, [cart, pricingSettings.applyIvaOnSales]);
+  const total = subtotalAmount + taxAmount;
   const totalUSD = rateValue > 0 ? total / rateValue : 0;
   const requiresReference =
     paymentMethod === "transfer" || paymentMethod === "pago_movil";
@@ -286,6 +327,7 @@ const MarginalSaleScreen = ({ navigation }) => {
       description: draft.description.trim(),
       amountVES: resolvedAmountVES,
       amountUSD: resolvedAmountUSD,
+      iva: pricingSettings.iva,
       sequence: cart.length,
     });
 
@@ -451,7 +493,7 @@ const MarginalSaleScreen = ({ navigation }) => {
           } else {
             setPendingSaleData({
               subtotal: subtotalAmount,
-              tax: 0,
+              tax: taxAmount,
               discount: 0,
               total,
               currency: "VES",
@@ -484,7 +526,7 @@ const MarginalSaleScreen = ({ navigation }) => {
       const saleData = {
         customerId,
         subtotal: subtotalAmount,
-        tax: 0,
+        tax: taxAmount,
         discount: 0,
         total,
         currency: "VES",
@@ -977,6 +1019,14 @@ const MarginalSaleScreen = ({ navigation }) => {
                     VES. {subtotalAmount.toFixed(2)}
                   </Text>
                 </View>
+                {taxAmount > 0 ? (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>IVA</Text>
+                    <Text style={styles.summaryValue}>
+                      VES. {taxAmount.toFixed(2)}
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Total</Text>
                   <Text style={styles.summaryTotal}>
