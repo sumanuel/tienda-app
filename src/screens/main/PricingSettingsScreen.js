@@ -9,7 +9,6 @@ import {
   TextInput,
   SafeAreaView,
   ActivityIndicator,
-  Switch,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useExchangeRate } from "../../contexts/ExchangeRateContext";
@@ -457,7 +456,8 @@ export const PricingSettingsScreen = () => {
                     pressed && styles.switchRowPressed,
                   ]}
                   onPress={() => setFormApplyIvaOnSales((current) => !current)}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: formApplyIvaOnSales }}
                 >
                   <View style={styles.switchCopy}>
                     <Text style={styles.switchTitle}>
@@ -468,13 +468,19 @@ export const PricingSettingsScreen = () => {
                       total de la venta.
                     </Text>
                   </View>
-                  <Switch
-                    value={formApplyIvaOnSales}
-                    onValueChange={setFormApplyIvaOnSales}
-                    trackColor={{ false: "#d5dbe7", true: "#81C784" }}
-                    thumbColor={formApplyIvaOnSales ? "#1f9254" : "#f4f3f4"}
-                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-                  />
+                  <View
+                    style={[
+                      styles.switchControlWrap,
+                      formApplyIvaOnSales && styles.switchControlWrapActive,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.switchThumb,
+                        formApplyIvaOnSales && styles.switchThumbActive,
+                      ]}
+                    />
+                  </View>
                 </Pressable>
               </ScrollView>
 
@@ -817,6 +823,34 @@ const styles = StyleSheet.create({
   switchCopy: {
     flex: 1,
     gap: spacing.xs,
+  },
+  switchControlWrap: {
+    width: hs(62),
+    height: vs(36),
+    borderRadius: s(18),
+    borderCurve: "continuous",
+    backgroundColor: "#d5dbe7",
+    paddingHorizontal: hs(4),
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  switchControlWrapActive: {
+    backgroundColor: "#81C784",
+  },
+  switchThumb: {
+    width: s(28),
+    height: s(28),
+    borderRadius: s(14),
+    borderCurve: "continuous",
+    backgroundColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  switchThumbActive: {
+    transform: [{ translateX: hs(26) }],
   },
   switchTitle: {
     fontSize: rf(15),
