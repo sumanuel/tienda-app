@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAccounts } from "../../hooks/useAccounts";
 import { formatCurrency } from "../../utils/currency";
@@ -79,6 +79,7 @@ const getPendingAmount = (account) =>
   );
 
 const ReceivableConsolidatedScreen = () => {
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { accountsReceivable, loading, error, refresh } = useAccounts();
   const { showAlert, CustomAlert } = useCustomAlert();
@@ -143,6 +144,7 @@ const ReceivableConsolidatedScreen = () => {
         paidAmount: Number(account.paidAmount) || 0,
         pendingAmount,
         pendingBaseUSD,
+        account,
       });
 
       return acc;
@@ -221,6 +223,20 @@ const ReceivableConsolidatedScreen = () => {
     [showAlert],
   );
 
+  const openEditScreen = useCallback(
+    (account) => {
+      navigation.navigate("EditAccountReceivable", { account });
+    },
+    [navigation],
+  );
+
+  const openRecordPaymentScreen = useCallback(
+    (account) => {
+      navigation.navigate("RecordPayment", { account });
+    },
+    [navigation],
+  );
+
   const renderGroup = useCallback(
     ({ item }) => {
       const canSendWhatsapp = isValidWhatsAppPhone(item.customerPhone);
@@ -284,6 +300,40 @@ const ReceivableConsolidatedScreen = () => {
                   <Text style={styles.detailMeta}>
                     Vence: {formatShortDate(detail.dueDate)}
                   </Text>
+                  <View style={styles.detailActions}>
+                    {!detail.account?.invoiceNumber ? (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.detailActionButton,
+                          styles.detailActionButtonSoft,
+                          pressed && styles.cardPressed,
+                        ]}
+                        onPress={() => openEditScreen(detail.account)}
+                      >
+                        <Text style={styles.detailActionButtonText}>
+                          Abrir cuenta
+                        </Text>
+                      </Pressable>
+                    ) : null}
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.detailActionButton,
+                        styles.detailActionButtonPrimary,
+                        pressed && styles.cardPressed,
+                      ]}
+                      onPress={() => openRecordPaymentScreen(detail.account)}
+                    >
+                      <Text
+                        style={[
+                          styles.detailActionButtonText,
+                          styles.detailActionButtonTextPrimary,
+                        ]}
+                      >
+                        Registrar pago
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
                 <View style={styles.detailAmounts}>
                   <Text style={styles.detailPending}>
@@ -301,7 +351,7 @@ const ReceivableConsolidatedScreen = () => {
         </SurfaceCard>
       );
     },
-    [handleSendWhatsApp],
+    [handleSendWhatsApp, openEditScreen, openRecordPaymentScreen],
   );
 
   const keyExtractor = useCallback((item) => item.key, []);
@@ -565,6 +615,36 @@ const styles = StyleSheet.create({
     fontSize: rf(12),
     color: UI_COLORS.muted,
     lineHeight: vs(17),
+  },
+  detailActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: hs(8),
+    marginTop: vs(6),
+  },
+  detailActionButton: {
+    borderRadius: borderRadius.sm,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(10),
+    paddingVertical: vs(8),
+  },
+  detailActionButtonSoft: {
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+  },
+  detailActionButtonPrimary: {
+    backgroundColor: UI_COLORS.infoSoft,
+    borderWidth: 1,
+    borderColor: "#cfe0ff",
+  },
+  detailActionButtonText: {
+    fontSize: rf(11),
+    fontWeight: "700",
+    color: UI_COLORS.text,
+  },
+  detailActionButtonTextPrimary: {
+    color: UI_COLORS.info,
   },
   detailAmounts: {
     alignItems: "flex-end",

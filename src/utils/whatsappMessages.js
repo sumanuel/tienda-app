@@ -98,11 +98,13 @@ export const buildReceivableConsolidatedWhatsAppMessage = ({
         `- ${refLabel}`,
         item.description ? `  Concepto: ${item.description}` : null,
         item.dueDate ? `  Vence: ${item.dueDate}` : null,
+        "",
         `  Pendiente: ${formatCurrency(Number(item.pendingAmountVES) || 0, "VES")}${
           Number(item.pendingAmountUSD) > 0
             ? ` (${formatCurrency(Number(item.pendingAmountUSD), "USD")})`
             : ""
         }`,
+        "",
       ]);
     }),
     "",
@@ -111,5 +113,6 @@ export const buildReceivableConsolidatedWhatsAppMessage = ({
         ? ` (${formatCurrency(Number(totalPendingUSD), "USD")})`
         : ""
     }`,
+    "",
   ]);
 };
