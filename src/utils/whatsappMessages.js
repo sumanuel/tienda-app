@@ -83,36 +83,39 @@ export const buildReceivableConsolidatedWhatsAppMessage = ({
   totalPendingUSD,
   items = [],
 }) => {
-  return joinSections([
+  const headerBlock = joinSections([
     `Hola ${customerName || "Cliente"},`,
     "Te comparto tu consolidado de cuentas por cobrar.",
     documentNumber ? `Documento: ${documentNumber}` : null,
-    "",
-    "Detalle pendiente:",
-    ...items.map((item) => {
-      const refLabel = item.invoiceNumber
-        ? `Factura ${item.invoiceNumber}`
-        : item.receivableNumber || "Cuenta";
-
-      return joinSections([
-        `- ${refLabel}`,
-        item.description ? `  Concepto: ${item.description}` : null,
-        item.dueDate ? `  Vence: ${item.dueDate}` : null,
-        "",
-        `  Pendiente: ${formatCurrency(Number(item.pendingAmountVES) || 0, "VES")}${
-          Number(item.pendingAmountUSD) > 0
-            ? ` (${formatCurrency(Number(item.pendingAmountUSD), "USD")})`
-            : ""
-        }`,
-        "",
-      ]);
-    }),
-    "",
-    `Total pendiente: ${formatCurrency(Number(totalPendingVES) || 0, "VES")}${
-      Number(totalPendingUSD) > 0
-        ? ` (${formatCurrency(Number(totalPendingUSD), "USD")})`
-        : ""
-    }`,
-    "",
   ]);
+
+  const detailBlocks = items.map((item) => {
+    const refLabel = item.invoiceNumber
+      ? `Factura ${item.invoiceNumber}`
+      : item.receivableNumber || "Cuenta";
+
+    return [
+      `- ${refLabel}`,
+      item.description ? `Concepto: ${item.description}` : null,
+      item.dueDate ? `Vence: ${item.dueDate}` : null,
+      "",
+      `Pendiente: ${formatCurrency(Number(item.pendingAmountVES) || 0, "VES")}${
+        Number(item.pendingAmountUSD) > 0
+          ? ` (${formatCurrency(Number(item.pendingAmountUSD), "USD")})`
+          : ""
+      }`,
+    ]
+      .filter((line) => line != null)
+      .join("\n");
+  });
+
+  const totalBlock = `Total pendiente: ${formatCurrency(Number(totalPendingVES) || 0, "VES")}${
+    Number(totalPendingUSD) > 0
+      ? ` (${formatCurrency(Number(totalPendingUSD), "USD")})`
+      : ""
+  }`;
+
+  return [headerBlock, "Detalle pendiente:", ...detailBlocks, totalBlock]
+    .filter(Boolean)
+    .join("\n\n");
 };
