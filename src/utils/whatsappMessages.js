@@ -18,6 +18,8 @@ export const buildSaleInvoiceWhatsAppMessage = ({
   const created = createdAt ? new Date(createdAt) : new Date();
 
   const headerBlock = joinSections([
+    `Hola ${customerName || "Cliente"},`,
+    "Te comparto los detalles de tu compra.",
     `Factura ${saleNumber}`,
     `Fecha: ${created.toLocaleDateString("es-VE")} ${created.toLocaleTimeString(
       [],
@@ -67,6 +69,9 @@ export const buildReceivableReminderWhatsAppMessage = ({
   const detailBlock = joinSections([
     description ? `Concepto: ${description}` : null,
     dueDate ? `Vence: ${dueDate}` : null,
+  ]);
+
+  const amountBlock = joinSections([
     `Monto: ${formatCurrency(Number(amountVES) || 0, "VES")}`,
     Number(baseAmountUSD) > 0
       ? `Monto (USD): ${formatCurrency(Number(baseAmountUSD), "USD")}`
@@ -82,7 +87,9 @@ export const buildReceivableReminderWhatsAppMessage = ({
       : null,
   ]);
 
-  return [headerBlock, detailBlock, balanceBlock].filter(Boolean).join("\n\n");
+  return [headerBlock, detailBlock, amountBlock, balanceBlock]
+    .filter(Boolean)
+    .join("\n\n");
 };
 
 export const buildReceivableConsolidatedWhatsAppMessage = ({
