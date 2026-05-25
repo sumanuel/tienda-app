@@ -17,7 +17,7 @@ export const buildSaleInvoiceWhatsAppMessage = ({
 }) => {
   const created = createdAt ? new Date(createdAt) : new Date();
 
-  return joinSections([
+  const headerBlock = joinSections([
     `Factura ${saleNumber}`,
     `Fecha: ${created.toLocaleDateString("es-VE")} ${created.toLocaleTimeString(
       [],
@@ -27,22 +27,23 @@ export const buildSaleInvoiceWhatsAppMessage = ({
       },
     )}`,
     `Cliente: ${customerName || "Cliente"}`,
-    "",
-    "Productos:",
-    ...items.map(
-      (item) =>
-        `- ${item.productName} x${Number(item.quantity) || 0}: ${formatCurrency(
-          Number(item.subtotalVES) || 0,
-          "VES",
-        )}`,
-    ),
-    "",
-    `Total: ${formatCurrency(Number(totalVES) || 0, "VES")}${
-      Number(totalUSD) > 0
-        ? ` (${formatCurrency(Number(totalUSD), "USD")})`
-        : ""
-    }`,
   ]);
+
+  const itemBlocks = items.map((item) =>
+    [
+      `- ${item.productName}`,
+      `Cantidad: ${Number(item.quantity) || 0}`,
+      `Subtotal: ${formatCurrency(Number(item.subtotalVES) || 0, "VES")}`,
+    ].join("\n"),
+  );
+
+  const totalBlock = `Total: ${formatCurrency(Number(totalVES) || 0, "VES")}${
+    Number(totalUSD) > 0 ? ` (${formatCurrency(Number(totalUSD), "USD")})` : ""
+  }`;
+
+  return [headerBlock, "Productos:", ...itemBlocks, totalBlock]
+    .filter(Boolean)
+    .join("\n\n");
 };
 
 export const buildReceivableReminderWhatsAppMessage = ({
@@ -57,16 +58,22 @@ export const buildReceivableReminderWhatsAppMessage = ({
 }) => {
   const hasPartialPayment = Number(paidAmountVES) > 0;
 
-  return joinSections([
+  const headerBlock = joinSections([
     `Hola ${customerName || "Cliente"},`,
     "Te comparto un recordatorio de pago.",
     invoiceNumber ? `Factura: ${invoiceNumber}` : null,
+  ]);
+
+  const detailBlock = joinSections([
     description ? `Concepto: ${description}` : null,
     dueDate ? `Vence: ${dueDate}` : null,
     `Monto: ${formatCurrency(Number(amountVES) || 0, "VES")}`,
     Number(baseAmountUSD) > 0
       ? `Monto (USD): ${formatCurrency(Number(baseAmountUSD), "USD")}`
       : null,
+  ]);
+
+  const balanceBlock = joinSections([
     hasPartialPayment
       ? `Pagado: ${formatCurrency(Number(paidAmountVES) || 0, "VES")}`
       : null,
@@ -74,6 +81,8 @@ export const buildReceivableReminderWhatsAppMessage = ({
       ? `Pendiente: ${formatCurrency(Number(pendingAmountVES) || 0, "VES")}`
       : null,
   ]);
+
+  return [headerBlock, detailBlock, balanceBlock].filter(Boolean).join("\n\n");
 };
 
 export const buildReceivableConsolidatedWhatsAppMessage = ({
