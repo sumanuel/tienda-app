@@ -26,6 +26,10 @@ import {
 import { borderRadius, hs, rf, s, spacing, vs } from "../../utils/responsive";
 
 const SPECIAL_CODE = "VENTA-MARGINAL";
+const AMOUNT_CURRENCY_OPTIONS = [
+  { code: "USD", label: "Monto en USD" },
+  { code: "VES", label: "Monto en VES" },
+];
 
 const PAYMENT_OPTIONS = [
   { value: "cash", label: "Efectivo", icon: "cash-outline" },
@@ -58,25 +62,23 @@ const parseAmount = (value) => {
 
 const createMarginalItem = ({
   description,
-  amount,
-  exchangeRate,
+  amountVES,
+  amountUSD,
   sequence,
 }) => {
-  const amountUSD = exchangeRate > 0 ? amount / exchangeRate : 0;
-
   return {
     id: `marginal-${Date.now()}-${sequence}`,
     name: description,
-    price: amount,
+    price: amountVES,
     priceUSD: amountUSD,
     quantity: 1,
-    subtotal: amount,
+    subtotal: amountVES,
     iva: 0,
     product: {
       id: 0,
       name: description,
       priceUSD: amountUSD,
-      priceVES: amount,
+      priceVES: amountVES,
       stock: 1,
       trackInventory: 0,
       iva: 0,
@@ -98,7 +100,9 @@ const MarginalSaleScreen = ({ navigation }) => {
     description: "",
     amount: "",
   });
+  const [amountCurrency, setAmountCurrency] = useState("USD");
   const [cart, setCart] = useState([]);
+  const [quantityDrafts, setQuantityDrafts] = useState({});
   const [showCart, setShowCart] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [customerDocument, setCustomerDocument] = useState("");
@@ -110,7 +114,20 @@ const MarginalSaleScreen = ({ navigation }) => {
 
   const amountValue = useMemo(() => parseAmount(draft.amount), [draft.amount]);
   const rateValue = Number(exchangeRate) || 0;
-  const amountUSD = rateValue > 0 ? amountValue / rateValue : 0;
+  const amountUSD = useMemo(() => {
+    if (amountCurrency === "USD") {
+      return amountValue;
+    }
+
+    return rateValue > 0 ? amountValue / rateValue : 0;
+  }, [amountCurrency, amountValue, rateValue]);
+  const amountVES = useMemo(() => {
+    if (amountCurrency === "VES") {
+      return amountValue;
+    }
+
+    return rateValue > 0 ? amountValue * rateValue : 0;
+  }, [amountCurrency, amountValue, rateValue]);
   const subtotalAmount = useMemo(
     () => cart.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0),
     [cart],
@@ -122,6 +139,101 @@ const MarginalSaleScreen = ({ navigation }) => {
 
   const updateDraft = (field, value) => {
     setDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const formatQuantity = (quantity) => {
+    const value = Number(quantity);
+    if (!Number.isFinite(value)) return "";
+    if (Number.isInteger(value)) return String(value);
+
+    const fixed = value.toFixed(3);
+    return fixed.replace(/\.0+$/, "").replace(/(\.[0-9]*?)0+$/, "$1");
+  };
+
+  const parseQuantityInput = (rawInput) => {
+    const raw = String(rawInput ?? "").trim();
+    if (!raw) return null;
+
+    const normalized = raw.replace(/,/g, ".").replace(/[^0-9.]/g, "");
+    if (!normalized) return null;
+
+    const [intPart, ...rest] = normalized.split(".");
+    const decimalPart = rest.join("");
+    const rebuilt =
+      decimalPart.length > 0 ? `${intPart}.${decimalPart}` : intPart;
+
+    const parsed = Number.parseFloat(rebuilt);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+
+    return Math.round(parsed * 1000) / 1000;
+  };
+
+  const setQuantityDraft = (itemId, value) => {
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      if (value == null) {
+        delete next[itemId];
+        return next;
+      }
+
+      next[itemId] = value;
+      return next;
+    });
+  };
+
+  const updateQuantity = (itemId, nextQuantity) => {
+    const normalizedQuantity = Number(nextQuantity) || 0;
+
+    if (normalizedQuantity <= 0) {
+      handleRemoveItem(itemId);
+      return;
+    }
+
+    setCart((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              quantity: normalizedQuantity,
+              subtotal: normalizedQuantity * (Number(item.price) || 0),
+            }
+          : item,
+      ),
+    );
+  };
+
+  const commitQuantityDraft = (item) => {
+    const itemId = item?.id;
+    if (!itemId) return;
+
+    const parsed = parseQuantityInput(quantityDrafts[itemId]);
+    if (parsed == null) {
+      setQuantityDraft(itemId, null);
+      return;
+    }
+
+    updateQuantity(itemId, parsed);
+    setQuantityDraft(itemId, null);
+  };
+
+  const handleChangeAmountCurrency = (nextCurrency) => {
+    if (nextCurrency === amountCurrency) return;
+
+    if (nextCurrency === "VES" && rateValue <= 0) {
+      showAlert({
+        title: "Tasa requerida",
+        message: "Configura la tasa USD→VES para ingresar montos en VES.",
+        type: "error",
+      });
+      return;
+    }
+
+    if (Number.isFinite(amountValue) && amountValue > 0 && rateValue > 0) {
+      const factor = nextCurrency === "VES" ? rateValue : 1 / rateValue;
+      updateDraft("amount", (amountValue * factor).toFixed(2));
+    }
+
+    setAmountCurrency(nextCurrency);
   };
 
   const resetDraft = () => {
@@ -156,10 +268,22 @@ const MarginalSaleScreen = ({ navigation }) => {
       return;
     }
 
+    const resolvedAmountVES = amountCurrency === "VES" ? amountValue : amountVES;
+    const resolvedAmountUSD = amountCurrency === "USD" ? amountValue : amountUSD;
+
+    if (resolvedAmountVES <= 0 || resolvedAmountUSD <= 0) {
+      showAlert({
+        title: "Monto inválido",
+        message: "No se pudo convertir el monto con la tasa activa.",
+        type: "error",
+      });
+      return;
+    }
+
     const nextItem = createMarginalItem({
       description: draft.description.trim(),
-      amount: amountValue,
-      exchangeRate: rateValue,
+      amountVES: resolvedAmountVES,
+      amountUSD: resolvedAmountUSD,
       sequence: cart.length,
     });
 
@@ -168,8 +292,76 @@ const MarginalSaleScreen = ({ navigation }) => {
   };
 
   const handleRemoveItem = (itemId) => {
+    setQuantityDraft(itemId, null);
     setCart((prev) => prev.filter((item) => item.id !== itemId));
   };
+
+  const renderMarginalCartRow = (item, { compact = false } = {}) => (
+    <View key={item.id} style={compact ? styles.pendingItem : styles.cartItem}>
+      <View style={compact ? styles.pendingItemCopy : styles.cartItemLeft}>
+        <Text
+          style={compact ? styles.pendingItemTitle : styles.cartItemName}
+          numberOfLines={compact ? 2 : 1}
+        >
+          {compact ? item.name : item.name.toUpperCase()}
+        </Text>
+        <Text style={compact ? styles.pendingItemMeta : styles.cartItemPrice}>
+          VES {Number(item.price).toFixed(2)} · $ {Number(item.priceUSD).toFixed(2)} c/u
+        </Text>
+        <Text
+          style={compact ? styles.pendingItemAmount : styles.cartItemSubtotal}
+        >
+          Subtotal: VES {Number(item.subtotal).toFixed(2)}
+        </Text>
+      </View>
+
+      <View style={compact ? styles.pendingItemControls : styles.cartItemRight}>
+        <View style={styles.quantityControls}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.quantityButton,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() => updateQuantity(item.id, (Number(item.quantity) || 0) - 1)}
+          >
+            <Text style={styles.quantityButtonText}>-</Text>
+          </Pressable>
+          <TextInput
+            style={styles.quantityInput}
+            value={quantityDrafts[item.id] ?? formatQuantity(item.quantity)}
+            onChangeText={(text) => setQuantityDraft(item.id, text)}
+            onEndEditing={() => commitQuantityDraft(item)}
+            keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
+            returnKeyType="done"
+            maxLength={8}
+          />
+          <Pressable
+            style={({ pressed }) => [
+              styles.quantityButton,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={() => updateQuantity(item.id, (Number(item.quantity) || 0) + 1)}
+          >
+            <Text style={styles.quantityButtonText}>+</Text>
+          </Pressable>
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            compact ? styles.removeCompactButton : styles.removeCartButton,
+            pressed && styles.cardPressed,
+          ]}
+          onPress={() => handleRemoveItem(item.id)}
+        >
+          <Text
+            style={compact ? styles.removeCompactButtonText : styles.removeCartButtonText}
+          >
+            Eliminar
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 
   const handleOpenCart = () => {
     if (cart.length === 0) {
@@ -517,7 +709,32 @@ const MarginalSaleScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Monto en VES *</Text>
+              <Text style={styles.fieldLabel}>Monto *</Text>
+              <View style={styles.currencySwitch}>
+                {AMOUNT_CURRENCY_OPTIONS.map((option) => {
+                  const active = amountCurrency === option.code;
+                  return (
+                    <Pressable
+                      key={option.code}
+                      style={({ pressed }) => [
+                        styles.currencyChip,
+                        active ? styles.currencyChipActive : null,
+                        pressed && styles.cardPressed,
+                      ]}
+                      onPress={() => handleChangeAmountCurrency(option.code)}
+                    >
+                      <Text
+                        style={[
+                          styles.currencyChipText,
+                          active ? styles.currencyChipTextActive : null,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
               <TextInput
                 style={styles.input}
                 value={draft.amount}
@@ -529,30 +746,34 @@ const MarginalSaleScreen = ({ navigation }) => {
               />
             </View>
 
-            <View style={styles.previewRow}>
-              <View style={styles.previewAmountCard}>
-                <Text style={styles.previewAmountLabel}>Vista previa</Text>
-                <Text style={styles.previewAmountValue}>
-                  {amountValue > 0 ? `VES ${amountValue.toFixed(2)}` : "—"}
+            <View style={styles.priceGrid}>
+              <View style={styles.priceCard}>
+                <Text style={styles.priceLabel}>USD</Text>
+                <Text style={styles.priceValue}>
+                  {amountUSD > 0 ? `$${amountUSD.toFixed(2)}` : "—"}
                 </Text>
-                <Text style={styles.previewAmountHint}>
-                  {rateValue > 0 && amountValue > 0
-                    ? `$${amountUSD.toFixed(2)} al cambio`
-                    : "Se convertirá con la tasa activa"}
-                </Text>
+                <Text style={styles.priceHint}>Monto unitario calculado</Text>
               </View>
-
-              <Pressable
-                onPress={handleAddItem}
-                style={({ pressed }) => [
-                  styles.addButton,
-                  pressed && styles.cardPressed,
-                ]}
-              >
-                <Ionicons name="add" size={rf(20)} color="#fff" />
-                <Text style={styles.addButtonText}>Agregar</Text>
-              </Pressable>
+              <View style={styles.priceCard}>
+                <Text style={styles.priceLabel}>VES</Text>
+                <Text style={styles.priceValue}>
+                  {amountVES > 0 ? `VES ${amountVES.toFixed(2)}` : "—"}
+                </Text>
+                <Text style={styles.priceHint}>Conversión con tasa vigente</Text>
+              </View>
             </View>
+
+            <Pressable
+              onPress={handleAddItem}
+              style={({ pressed }) => [
+                styles.addButton,
+                styles.addButtonWide,
+                pressed && styles.cardPressed,
+              ]}
+            >
+              <Ionicons name="add" size={rf(20)} color="#fff" />
+              <Text style={styles.addButtonText}>Agregar al carrito marginal</Text>
+            </Pressable>
           </SurfaceCard>
 
           <SurfaceCard style={styles.card}>
@@ -577,34 +798,7 @@ const MarginalSaleScreen = ({ navigation }) => {
                 </Text>
               </View>
             ) : (
-              cart.map((item) => (
-                <View key={item.id} style={styles.pendingItem}>
-                  <View style={styles.pendingItemCopy}>
-                    <Text style={styles.pendingItemTitle}>{item.name}</Text>
-                    <Text style={styles.pendingItemMeta}>
-                      {SPECIAL_CODE} · $ {item.priceUSD.toFixed(2)}
-                    </Text>
-                  </View>
-                  <View style={styles.pendingItemActions}>
-                    <Text style={styles.pendingItemAmount}>
-                      VES {item.subtotal.toFixed(2)}
-                    </Text>
-                    <Pressable
-                      onPress={() => handleRemoveItem(item.id)}
-                      style={({ pressed }) => [
-                        styles.removeButton,
-                        pressed && styles.cardPressed,
-                      ]}
-                    >
-                      <Ionicons
-                        name="trash-outline"
-                        size={rf(16)}
-                        color={UI_COLORS.danger}
-                      />
-                    </Pressable>
-                  </View>
-                </View>
-              ))
+              cart.map((item) => renderMarginalCartRow(item, { compact: true }))
             )}
           </SurfaceCard>
         </ScrollView>
@@ -704,30 +898,7 @@ const MarginalSaleScreen = ({ navigation }) => {
                   </Text>
                 </View>
               ) : (
-                cart.map((item) => (
-                  <View key={item.id} style={styles.cartItem}>
-                    <View style={styles.cartItemLeft}>
-                      <Text style={styles.cartItemName} numberOfLines={1}>
-                        {item.name.toUpperCase()}
-                      </Text>
-                      <Text style={styles.cartItemPrice}>
-                        VES. {item.price.toFixed(2)} x {item.quantity}
-                      </Text>
-                      <Text style={styles.cartItemSubtotal}>
-                        Subtotal: VES. {item.subtotal.toFixed(2)}
-                      </Text>
-                    </View>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.removeCartButton,
-                        pressed && styles.cardPressed,
-                      ]}
-                      onPress={() => handleRemoveItem(item.id)}
-                    >
-                      <Text style={styles.removeCartButtonText}>Eliminar</Text>
-                    </Pressable>
-                  </View>
-                ))
+                cart.map((item) => renderMarginalCartRow(item))
               )}
             </View>
 
@@ -901,12 +1072,40 @@ const styles = StyleSheet.create({
     color: UI_COLORS.muted,
     lineHeight: vs(18),
   },
-  previewRow: {
+  currencySwitch: {
+    flexDirection: "row",
+    gap: hs(10),
+    flexWrap: "wrap",
+  },
+  currencyChip: {
+    flex: 1,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    backgroundColor: UI_COLORS.surfaceAlt,
+    paddingHorizontal: hs(14),
+    paddingVertical: vs(12),
+    minWidth: hs(130),
+  },
+  currencyChipActive: {
+    backgroundColor: UI_COLORS.accent,
+    borderColor: UI_COLORS.accent,
+  },
+  currencyChipText: {
+    fontSize: rf(13),
+    fontWeight: "700",
+    color: UI_COLORS.text,
+    textAlign: "center",
+  },
+  currencyChipTextActive: {
+    color: "#fff",
+  },
+  priceGrid: {
     flexDirection: "row",
     gap: hs(12),
-    alignItems: "stretch",
   },
-  previewAmountCard: {
+  priceCard: {
     flex: 1,
     backgroundColor: UI_COLORS.surfaceAlt,
     borderRadius: borderRadius.md,
@@ -915,19 +1114,19 @@ const styles = StyleSheet.create({
     paddingVertical: vs(14),
     gap: vs(4),
   },
-  previewAmountLabel: {
+  priceLabel: {
     fontSize: rf(12),
     fontWeight: "700",
     textTransform: "uppercase",
     color: UI_COLORS.muted,
     letterSpacing: 0.6,
   },
-  previewAmountValue: {
+  priceValue: {
     fontSize: rf(18),
     fontWeight: "800",
     color: UI_COLORS.text,
   },
-  previewAmountHint: {
+  priceHint: {
     fontSize: rf(12),
     color: UI_COLORS.muted,
   },
@@ -942,6 +1141,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: hs(16),
     paddingVertical: vs(14),
     ...SHADOWS.soft,
+  },
+  addButtonWide: {
+    width: "100%",
+    flexDirection: "row",
   },
   addButtonText: {
     fontSize: rf(14),
@@ -992,7 +1195,7 @@ const styles = StyleSheet.create({
   },
   pendingItem: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     borderWidth: 1,
     borderColor: UI_COLORS.border,
@@ -1015,14 +1218,27 @@ const styles = StyleSheet.create({
     fontSize: rf(12),
     color: UI_COLORS.muted,
   },
-  pendingItemActions: {
+  pendingItemControls: {
     alignItems: "flex-end",
     gap: vs(8),
+    marginLeft: hs(10),
   },
   pendingItemAmount: {
-    fontSize: rf(14),
+    fontSize: rf(13),
     fontWeight: "800",
     color: UI_COLORS.accentStrong,
+  },
+  removeCompactButton: {
+    backgroundColor: UI_COLORS.dangerSoft,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    paddingHorizontal: hs(10),
+    paddingVertical: vs(8),
+  },
+  removeCompactButtonText: {
+    fontSize: rf(12),
+    fontWeight: "700",
+    color: UI_COLORS.danger,
   },
   removeButton: {
     width: s(32),
@@ -1213,6 +1429,46 @@ const styles = StyleSheet.create({
     fontSize: rf(13),
     fontWeight: "700",
     color: UI_COLORS.accentStrong,
+  },
+  cartItemRight: {
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: vs(10),
+  },
+  quantityControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: hs(6),
+  },
+  quantityButton: {
+    width: s(30),
+    height: s(30),
+    borderRadius: s(15),
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.surface,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quantityButtonText: {
+    fontSize: rf(16),
+    fontWeight: "800",
+    color: UI_COLORS.text,
+  },
+  quantityInput: {
+    minWidth: hs(52),
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    backgroundColor: UI_COLORS.surface,
+    paddingHorizontal: hs(10),
+    paddingVertical: vs(8),
+    fontSize: rf(13),
+    fontWeight: "700",
+    color: UI_COLORS.text,
+    textAlign: "center",
   },
   removeCartButton: {
     alignSelf: "center",
