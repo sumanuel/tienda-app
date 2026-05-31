@@ -473,7 +473,9 @@ const CartSummaryFooter = React.memo(function CartSummaryFooter({
         </View>
         {rateEnabled ? (
           <View style={styles.totalUSD}>
-            <Text style={styles.totalLabel}>{`PAGAR ${referenceCurrency}`}</Text>
+            <Text
+              style={styles.totalLabel}
+            >{`PAGAR ${referenceCurrency}`}</Text>
             <Text style={styles.totalAmount}>{totalReference || "0.00"}</Text>
           </View>
         ) : null}

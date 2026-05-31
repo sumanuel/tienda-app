@@ -180,8 +180,9 @@ export const resolveProductPricing = (product = {}, options = {}) => {
     costReferenceAmount:
       Number(snapshot?.costReferenceAmount ?? product?.cost) || 0,
     additionalCostReferenceAmount:
-      Number(snapshot?.additionalCostReferenceAmount ?? product?.additionalCost) ||
-      0,
+      Number(
+        snapshot?.additionalCostReferenceAmount ?? product?.additionalCost,
+      ) || 0,
   };
 };
 
@@ -198,12 +199,12 @@ export const resolveSaleItemPricing = (item = {}, options = {}) => {
   const referencePrice =
     Number(snapshot?.referenceAmount ?? item?.priceUSD) || 0;
   const localPriceSnapshot = Number(snapshot?.localAmount ?? item?.price);
-  const exchangeRate = Number(
-    snapshot?.exchangeRate ?? options?.exchangeRate,
-  ) || 0;
+  const exchangeRate =
+    Number(snapshot?.exchangeRate ?? options?.exchangeRate) || 0;
   const rateEnabled = Boolean(
-    snapshot?.rateEnabled ?? options?.rateEnabled ??
-      referenceCurrency !== localCurrency,
+    snapshot?.rateEnabled ??
+    options?.rateEnabled ??
+    referenceCurrency !== localCurrency,
   );
 
   const localPrice = Number.isFinite(localPriceSnapshot)
@@ -228,8 +229,7 @@ export const resolveSaleItemPricing = (item = {}, options = {}) => {
     referenceCurrency,
     localPrice,
     referencePrice,
-    subtotalLocal:
-      (Number(item?.quantity) || 0) * (Number(localPrice) || 0),
+    subtotalLocal: (Number(item?.quantity) || 0) * (Number(localPrice) || 0),
     subtotalReference:
       (Number(item?.quantity) || 0) * (Number(referencePrice) || 0),
   };
@@ -251,13 +251,16 @@ export const resolveSaleMonetaryTotals = (sale = {}, options = {}) => {
     localCurrency,
     referenceCurrency,
     totalLocal: Number(snapshot?.totalLocalAmount ?? sale?.total) || 0,
-    totalReference: Number(snapshot?.totalReferenceAmount ?? sale?.totalUSD) || 0,
+    totalReference:
+      Number(snapshot?.totalReferenceAmount ?? sale?.totalUSD) || 0,
     exchangeRate:
-      Number(snapshot?.exchangeRate ?? sale?.exchangeRate ?? options?.exchangeRate) ||
-      0,
+      Number(
+        snapshot?.exchangeRate ?? sale?.exchangeRate ?? options?.exchangeRate,
+      ) || 0,
     rateEnabled: Boolean(
-      snapshot?.rateEnabled ?? options?.rateEnabled ??
-        referenceCurrency !== localCurrency,
+      snapshot?.rateEnabled ??
+      options?.rateEnabled ??
+      referenceCurrency !== localCurrency,
     ),
   };
 };

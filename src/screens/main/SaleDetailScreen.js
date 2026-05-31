@@ -210,7 +210,9 @@ export const SaleDetailScreen = () => {
     const priceUSD = pricing.referencePrice;
     const displayLocalPrice = pricing.localPrice;
     const displaySubtotalLocal =
-      Number(item.subtotal) || pricing.subtotalLocal || quantity * displayLocalPrice;
+      Number(item.subtotal) ||
+      pricing.subtotalLocal ||
+      quantity * displayLocalPrice;
 
     return (
       <View
