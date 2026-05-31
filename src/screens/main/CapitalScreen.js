@@ -145,7 +145,9 @@ const CapitalScreen = () => {
 
       <View style={styles.summaryGrid}>
         <SurfaceCard style={[styles.summaryCard, styles.summaryCardHalf]}>
-          <Text style={styles.summaryTitle}>{`Capital disponible ${referenceCurrency}`}</Text>
+          <Text
+            style={styles.summaryTitle}
+          >{`Capital disponible ${referenceCurrency}`}</Text>
           <Text
             style={[
               styles.summaryAmount,
@@ -165,7 +167,9 @@ const CapitalScreen = () => {
         </SurfaceCard>
 
         <SurfaceCard style={[styles.summaryCard, styles.summaryCardHalf]}>
-          <Text style={styles.summaryTitle}>{`Capital disponible ${localCurrency}`}</Text>
+          <Text
+            style={styles.summaryTitle}
+          >{`Capital disponible ${localCurrency}`}</Text>
           <Text
             style={[
               styles.summaryAmount,
@@ -190,7 +194,9 @@ const CapitalScreen = () => {
           </Text>
           <Text style={styles.summarySubtitle}>
             {formatAmount(inventoryCostLocal)}
-            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)} ${localCurrency}` : ""}
+            {exchangeRate
+              ? ` • Tasa ${exchangeRate.toFixed(2)} ${localCurrency}`
+              : ""}
           </Text>
         </SurfaceCard>
 
@@ -215,7 +221,9 @@ const CapitalScreen = () => {
           </Text>
           <Text style={styles.cardSubtitle}>
             {formatAmount(totalReceivable)}
-            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)} ${localCurrency}.` : ""}
+            {exchangeRate
+              ? ` • Tasa ${exchangeRate.toFixed(2)} ${localCurrency}.`
+              : ""}
           </Text>
         </SurfaceCard>
 
@@ -228,7 +236,9 @@ const CapitalScreen = () => {
           </Text>
           <Text style={styles.cardSubtitle}>
             {formatAmount(totalPayable)}
-            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)} ${localCurrency}.` : ""}
+            {exchangeRate
+              ? ` • Tasa ${exchangeRate.toFixed(2)} ${localCurrency}.`
+              : ""}
           </Text>
         </SurfaceCard>
       </View>

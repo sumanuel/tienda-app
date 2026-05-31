@@ -146,7 +146,8 @@ const canSkipProductsSeed = async () => {
 
 const normalizeProductRecord = (product = {}) => ({
   ...(() => {
-    const { referencePrice, localPrice } = normalizeLegacyProductPrices(product);
+    const { referencePrice, localPrice } =
+      normalizeLegacyProductPrices(product);
     return {
       priceUSD: referencePrice,
       priceVES: localPrice,
@@ -849,7 +850,8 @@ export const searchProducts = async (query) => {
 export const insertProduct = async (product) => {
   try {
     assertSharedStoreCloudWriteAvailable();
-    const { referencePrice, localPrice } = normalizeLegacyProductPrices(product);
+    const { referencePrice, localPrice } =
+      normalizeLegacyProductPrices(product);
 
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
@@ -914,7 +916,8 @@ export const insertProduct = async (product) => {
 export const updateProduct = async (id, product) => {
   try {
     assertSharedStoreCloudWriteAvailable();
-    const { referencePrice, localPrice } = normalizeLegacyProductPrices(product);
+    const { referencePrice, localPrice } =
+      normalizeLegacyProductPrices(product);
 
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();

@@ -188,8 +188,8 @@ const SalesListHeader = React.memo(function SalesListHeader({
             rateEnabled && summary.referenceTotal > 0
               ? formatCurrency(summary.referenceTotal, referenceCurrency)
               : activeTab === "today"
-              ? "Total acumulado de hoy"
-              : `${formatDate(startDate)} - ${formatDate(endDate)}`
+                ? "Total acumulado de hoy"
+                : `${formatDate(startDate)} - ${formatDate(endDate)}`
           }
           tone="accent"
           style={styles.metricCard}
@@ -377,7 +377,13 @@ export const SalesScreen = () => {
           )
         : 0;
     },
-    [calculateTotal, exchangeRate, localCurrency, rateEnabled, referenceCurrency],
+    [
+      calculateTotal,
+      exchangeRate,
+      localCurrency,
+      rateEnabled,
+      referenceCurrency,
+    ],
   );
 
   const getSaleDisplayNumber = (sale) =>
@@ -486,8 +492,8 @@ export const SalesScreen = () => {
         count: todayStats?.count || 0,
         total: todayStats?.total || 0,
         referenceTotal: rateEnabled
-          ? (todayStats?.totalUSD || 0)
-          : (todayStats?.total || 0),
+          ? todayStats?.totalUSD || 0
+          : todayStats?.total || 0,
       };
     }
 
@@ -711,7 +717,7 @@ export const SalesScreen = () => {
         item={item}
         calculateTotal={calculateTotal}
         getSaleDisplayNumber={getSaleDisplayNumber}
-          localCurrency={localCurrency}
+        localCurrency={localCurrency}
         onShowDetails={handleShowDetails}
         onCancelSale={handleCancelSale}
       />
