@@ -23,8 +23,8 @@ export const calculateIVA = (amount, included = false) => {
 };
 
 /**
- * Calcula el IGTF (solo para pagos en USD)
- * @param {number} amount - Monto en USD
+ * Calcula el IGTF para pagos en moneda de referencia
+ * @param {number} amount - Monto base
  * @returns {object} Objeto con base, tax y total
  */
 export const calculateIGTF = (amount) => {
@@ -38,10 +38,17 @@ export const calculateIGTF = (amount) => {
 /**
  * Calcula todos los impuestos aplicables a una venta
  * @param {number} subtotal - Subtotal de la venta
- * @param {string} paymentCurrency - Moneda de pago (USD/VES)
+ * @param {string} paymentCurrency - Moneda de pago
+ * @param {object} options - Configuración monetaria
  * @returns {object} Desglose completo de impuestos
  */
-export const calculateAllTaxes = (subtotal, paymentCurrency = "VES") => {
+export const calculateAllTaxes = (
+  subtotal,
+  paymentCurrency = "VES",
+  options = {},
+) => {
+  const localCurrency = options?.localCurrency || "VES";
+  const referenceCurrency = options?.referenceCurrency || "USD";
   const result = {
     subtotal,
     iva: 0,
@@ -54,8 +61,12 @@ export const calculateAllTaxes = (subtotal, paymentCurrency = "VES") => {
   result.iva = ivaCalc.tax;
   result.total = ivaCalc.total;
 
-  // Calcular IGTF solo si es pago en USD y está configurado
-  if (paymentCurrency === "USD" && TAX_CONFIG.applyIGTF) {
+  // Calcular IGTF solo si el pago es en moneda de referencia extranjera.
+  if (
+    paymentCurrency === referenceCurrency &&
+    paymentCurrency !== localCurrency &&
+    TAX_CONFIG.applyIGTF
+  ) {
     const igtfCalc = calculateIGTF(result.total);
     result.igtf = igtfCalc.tax;
     result.total = igtfCalc.total;

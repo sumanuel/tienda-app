@@ -4,7 +4,10 @@ import {
   calculateProfit,
 } from "../../utils/pricing";
 import { convertCurrency } from "../../utils/exchange";
-import { normalizeCurrencyCode } from "../../utils/currency";
+import {
+  normalizeCurrencyCode,
+  resolveProductPricing,
+} from "../../utils/currency";
 
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -166,7 +169,15 @@ export const calculateProductPrice = (product, round = true) => {
  * @returns {number} Margen en %
  */
 export const calculateProductMargin = (product) => {
-  const price = product.priceUSD || product.salePrice;
+  const pricing = resolveProductPricing(product, {
+    exchangeRate: product?.exchangeRate,
+    localCurrency: product?.localCurrency,
+    referenceCurrency: product?.referenceCurrency,
+    rateEnabled:
+      product?.rateEnabled ??
+      product?.referenceCurrency !== product?.localCurrency,
+  });
+  const price = pricing.referencePrice || product.priceUSD || product.salePrice;
   const baseCost = Number(product?.cost) || 0;
   const additionalCost = Number(product?.additionalCost) || 0;
   return calculateMargin(baseCost + additionalCost, price);
@@ -204,17 +215,33 @@ export const calculateSaleProfit = (items) => {
  * @param {number} newRate - Nueva tasa de cambio
  * @returns {array} Productos actualizados
  */
-export const recalculatePrices = (products, newRate) => {
+export const recalculatePrices = (products, newRate, options = {}) => {
+  const localCurrency = options?.localCurrency || "VES";
+  const referenceCurrency = options?.referenceCurrency || "USD";
+  const rateEnabled =
+    options?.rateEnabled ?? referenceCurrency !== localCurrency;
+
   return products.map((product) => {
-    const baseCost = Number(product?.cost) || 0;
-    const additionalCost = Number(product?.additionalCost) || 0;
-    const priceUSD = (baseCost + additionalCost) * (1 + product.margin / 100);
-    const priceVES = priceUSD * newRate;
+    const pricing = calculateProductPricing({
+      cost: product?.cost,
+      additionalCost: product?.additionalCost,
+      costCurrency:
+        product?.costCurrency ||
+        product?.referenceCurrency ||
+        referenceCurrency,
+      margin: product?.margin,
+      exchangeRate: newRate,
+      localCurrency: product?.localCurrency || localCurrency,
+      referenceCurrency: product?.referenceCurrency || referenceCurrency,
+      rateEnabled: product?.rateEnabled ?? rateEnabled,
+    });
 
     return {
       ...product,
-      priceUSD,
-      priceVES,
+      priceUSD: pricing.legacyPriceUSD,
+      priceVES: pricing.legacyPriceVES,
+      localCurrency: product?.localCurrency || localCurrency,
+      referenceCurrency: product?.referenceCurrency || referenceCurrency,
       lastUpdated: new Date().toISOString(),
     };
   });

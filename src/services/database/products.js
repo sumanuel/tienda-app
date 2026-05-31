@@ -96,6 +96,43 @@ const buildProductPricingSnapshot = (product = {}) => {
   };
 };
 
+const refreshProductPricingForExchangeRate = (product = {}, exchangeRate) => {
+  const pricingSnapshot = buildProductPricingSnapshot(product);
+  const localCurrency = normalizeCurrencyCode(
+    pricingSnapshot.localCurrency || product.localCurrency,
+    "VES",
+  );
+  const referenceCurrency = normalizeCurrencyCode(
+    pricingSnapshot.referenceCurrency || product.referenceCurrency,
+    localCurrency,
+  );
+  const referenceAmount = Number(pricingSnapshot.referenceAmount) || 0;
+  const numericRate = Number(exchangeRate) || 0;
+  const rateEnabled = referenceCurrency !== localCurrency && numericRate > 0;
+
+  const localAmount = rateEnabled
+    ? Math.round(referenceAmount * numericRate * 100) / 100
+    : referenceAmount;
+
+  return {
+    ...product,
+    localCurrency,
+    referenceCurrency,
+    priceUSD: referenceAmount,
+    priceVES: localAmount,
+    pricingSnapshot: {
+      ...pricingSnapshot,
+      localCurrency,
+      referenceCurrency,
+      referenceAmount,
+      localAmount,
+      exchangeRate: numericRate,
+      rateEnabled,
+      source: "exchange_rate_update",
+    },
+  };
+};
+
 let productsColumnsChecked = false;
 let productsHasAdditionalCostColumn = false;
 let productsHasIvaColumn = false;
@@ -1254,13 +1291,18 @@ export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
       const batch = writeBatch(firestore);
 
       activeProducts.forEach((item) => {
+        const updatedProduct = refreshProductPricingForExchangeRate(
+          item,
+          exchangeRate,
+        );
         batch.set(
           doc(getProductsCollectionRef(), String(item.id)),
           {
-            priceVES:
-              Math.round(
-                (Number(item.priceUSD) || 0) * Number(exchangeRate) * 100,
-              ) / 100,
+            priceUSD: updatedProduct.priceUSD,
+            priceVES: updatedProduct.priceVES,
+            pricingSnapshot: updatedProduct.pricingSnapshot,
+            localCurrency: updatedProduct.localCurrency,
+            referenceCurrency: updatedProduct.referenceCurrency,
             updatedAt: new Date().toISOString(),
           },
           { merge: true },
@@ -1275,20 +1317,25 @@ export const updateAllPricesWithExchangeRate = async (exchangeRate) => {
     }
 
     console.log(
-      `Actualizando precios con nueva tasa: 1 USD = ${exchangeRate} VES`,
+      `Actualizando precios con nueva tasa de referencia/local: ${exchangeRate}`,
     );
 
-    // Actualizar todos los productos activos con precio USD > 0
-    const result = await db.runAsync(
-      `UPDATE products
-       SET priceVES = ROUND(priceUSD * ?, 2),
-           updatedAt = CURRENT_TIMESTAMP
-       WHERE active = 1 AND priceUSD > 0;`,
-      [exchangeRate],
+    await ensureProductsAdditionalCostColumn();
+    const activeProducts = await db.getAllAsync(
+      "SELECT * FROM products WHERE active = 1 AND priceUSD > 0;",
     );
 
-    console.log(`Precios actualizados: ${result.changes} productos`);
-    return result.changes;
+    const updatePromises = activeProducts.map((product) =>
+      updateProduct(
+        product.id,
+        refreshProductPricingForExchangeRate(product, exchangeRate),
+      ),
+    );
+
+    await Promise.all(updatePromises);
+
+    console.log(`Precios actualizados: ${activeProducts.length} productos`);
+    return activeProducts.length;
   } catch (error) {
     console.error("Error actualizando precios con tasa de cambio:", error);
     throw error;

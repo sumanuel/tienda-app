@@ -1,5 +1,6 @@
 import { updateProduct } from "../database/products";
-import { recalculatePrices } from "./priceCalculator";
+import { calculateProductPricing, recalculatePrices } from "./priceCalculator";
+import { resolveProductPricing } from "../../utils/currency";
 
 /**
  * Actualiza precios de todos los productos según nueva tasa
@@ -7,9 +8,9 @@ import { recalculatePrices } from "./priceCalculator";
  * @param {number} newRate - Nueva tasa de cambio
  * @returns {Promise<array>} Productos actualizados
  */
-export const updateAllPrices = async (products, newRate) => {
+export const updateAllPrices = async (products, newRate, options = {}) => {
   try {
-    const updatedProducts = recalculatePrices(products, newRate);
+    const updatedProducts = recalculatePrices(products, newRate, options);
 
     // Actualizar cada producto en la base de datos
     const updatePromises = updatedProducts.map((product) =>
@@ -30,17 +31,34 @@ export const updateAllPrices = async (products, newRate) => {
  * @param {number} rate - Tasa de cambio actual
  * @returns {Promise<object>} Producto actualizado
  */
-export const updateProductPrice = async (product, rate) => {
+export const updateProductPrice = async (product, rate, options = {}) => {
   try {
-    const baseCost = Number(product?.cost) || 0;
-    const additionalCost = Number(product?.additionalCost) || 0;
-    const priceUSD = (baseCost + additionalCost) * (1 + product.margin / 100);
-    const priceVES = priceUSD * rate;
+    const localCurrency =
+      options?.localCurrency || product?.localCurrency || "VES";
+    const referenceCurrency =
+      options?.referenceCurrency || product?.referenceCurrency || "USD";
+    const rateEnabled =
+      options?.rateEnabled ?? referenceCurrency !== localCurrency;
+    const pricing = calculateProductPricing({
+      cost: product?.cost,
+      additionalCost: product?.additionalCost,
+      costCurrency:
+        product?.costCurrency ||
+        product?.referenceCurrency ||
+        referenceCurrency,
+      margin: product?.margin,
+      exchangeRate: rate,
+      localCurrency,
+      referenceCurrency,
+      rateEnabled,
+    });
 
     const updated = {
       ...product,
-      priceUSD,
-      priceVES,
+      priceUSD: pricing.legacyPriceUSD,
+      priceVES: pricing.legacyPriceVES,
+      localCurrency,
+      referenceCurrency,
       lastUpdated: new Date().toISOString(),
     };
 
@@ -63,13 +81,26 @@ export const getProductsNeedingUpdate = (
   products,
   currentRate,
   threshold = 2,
+  options = {},
 ) => {
-  return products.filter((product) => {
-    if (!product.priceUSD || !product.priceVES) return true;
+  const localCurrency = options?.localCurrency || "VES";
+  const referenceCurrency = options?.referenceCurrency || "USD";
+  const rateEnabled =
+    options?.rateEnabled ?? referenceCurrency !== localCurrency;
 
-    const expectedVES = product.priceUSD * currentRate;
+  return products.filter((product) => {
+    const pricing = resolveProductPricing(product, {
+      exchangeRate: currentRate,
+      localCurrency: product?.localCurrency || localCurrency,
+      referenceCurrency: product?.referenceCurrency || referenceCurrency,
+      rateEnabled: product?.rateEnabled ?? rateEnabled,
+    });
+
+    if (!pricing.referencePrice || !pricing.localPrice) return true;
+
+    const expectedLocal = pricing.referencePrice * currentRate;
     const difference =
-      Math.abs((expectedVES - product.priceVES) / expectedVES) * 100;
+      Math.abs((expectedLocal - pricing.localPrice) / expectedLocal) * 100;
 
     return difference >= threshold;
   });
