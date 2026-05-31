@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
 import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useAccounts } from "../../hooks/useAccounts";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
@@ -46,6 +47,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
   const tabBarHeight = useOptionalBottomTabBarHeight();
   const { canStart, start, TourGuideZone } =
     useTourGuideController("accountsPayable");
+  const { localCurrency } = useExchangeRateContext();
   const TOUR_ZONE_BASE = 6200;
   const [tourBooted, setTourBooted] = useState(false);
   const {
@@ -140,7 +142,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
         title: "Marcar como pagada",
         message: `¿Confirmar que la cuenta de ${
           account.supplierName
-        } por ${formatCurrency(account.amount || 0, "VES")} ha sido pagada?`,
+        } por ${formatCurrency(account.amount || 0, account.baseCurrency || localCurrency)} ha sido pagada?`,
         type: "warning",
         buttons: [
           { text: "Cancelar", style: "cancel" },
@@ -506,7 +508,7 @@ export const AccountsPayableScreen = ({ navigation }) => {
           </View>
 
           <Text style={styles.summaryAmount}>
-            {formatCurrency(totalAmount, "VES")}
+            {formatCurrency(totalAmount, localCurrency)}
           </Text>
         </SurfaceCard>
       </TourGuideZone>

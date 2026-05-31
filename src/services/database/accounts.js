@@ -16,12 +16,17 @@ import {
   parseConsecutiveSequence,
 } from "./consecutives";
 import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
+import { getSettings } from "./settings";
 import {
   getActiveStoreSeedKey,
   getStoreCollectionRef,
   getStoreDocRef,
   hasActiveStoreContext,
 } from "../store/storeRefs";
+import {
+  getCurrencyBehavior,
+  normalizeCurrencyCode,
+} from "../../utils/currency";
 
 const cloudAccountsSeeded = new Set();
 
@@ -55,6 +60,60 @@ const getPaymentsCollectionRef = () =>
 const getCustomersCollectionRef = () => getStoreCollectionRef("customers");
 
 const getSuppliersCollectionRef = () => getStoreCollectionRef("suppliers");
+
+const normalizeReferenceAmount = (value) => {
+  if (value == null || value === "") {
+    return null;
+  }
+
+  const parsed = roundMoney(value);
+  return parsed > 0 ? parsed : null;
+};
+
+const inferLegacyBaseCurrency = (account = {}) => {
+  const explicitCurrency = normalizeCurrencyCode(
+    account.baseCurrency || account.currency,
+    "",
+  );
+
+  if (explicitCurrency) {
+    return explicitCurrency;
+  }
+
+  if (normalizeReferenceAmount(account.baseAmountUSD) != null) {
+    return "USD";
+  }
+
+  return "VES";
+};
+
+const normalizeAccountCurrencyInput = (
+  baseCurrency,
+  { localCurrency, referenceCurrency } = {},
+  baseAmountUSD = null,
+) => {
+  const explicitCurrency = normalizeCurrencyCode(baseCurrency, "");
+
+  if (explicitCurrency) {
+    return explicitCurrency;
+  }
+
+  if (normalizeReferenceAmount(baseAmountUSD) != null) {
+    return normalizeCurrencyCode(referenceCurrency, "USD");
+  }
+
+  return normalizeCurrencyCode(localCurrency, "VES");
+};
+
+const getAccountCurrencyDefaults = async () => {
+  const settings = await getSettings();
+  const behavior = getCurrencyBehavior(settings);
+
+  return {
+    localCurrency: behavior.localCurrency,
+    referenceCurrency: behavior.referenceCurrency,
+  };
+};
 
 const normalizeAccountRecord = (account = {}, accountType = "receivable") => ({
   id:
@@ -100,11 +159,8 @@ const normalizeAccountRecord = (account = {}, accountType = "receivable") => ({
   status: String(account.status || "pending"),
   invoiceNumber: String(account.invoiceNumber || "").trim(),
   dueDate: account.dueDate || null,
-  baseCurrency: String(account.baseCurrency || "VES"),
-  baseAmountUSD:
-    account.baseAmountUSD == null || account.baseAmountUSD === ""
-      ? null
-      : roundMoney(account.baseAmountUSD),
+  baseCurrency: inferLegacyBaseCurrency(account),
+  baseAmountUSD: normalizeReferenceAmount(account.baseAmountUSD),
   exchangeRateAtCreation:
     account.exchangeRateAtCreation == null ||
     account.exchangeRateAtCreation === ""
@@ -661,6 +717,16 @@ export const createAccountReceivable = async (accountData) => {
       assertSharedStoreCloudWriteAvailable();
     }
 
+    const currencyDefaults = await getAccountCurrencyDefaults();
+    const normalizedBaseCurrency = normalizeAccountCurrencyInput(
+      accountData?.baseCurrency,
+      currencyDefaults,
+      accountData?.baseAmountUSD,
+    );
+    const normalizedBaseAmountUSD = normalizeReferenceAmount(
+      accountData?.baseAmountUSD,
+    );
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const existingAccounts = await getCloudAccounts("receivable");
@@ -678,6 +744,8 @@ export const createAccountReceivable = async (accountData) => {
       const payload = normalizeAccountRecord(
         {
           ...accountData,
+          baseCurrency: normalizedBaseCurrency,
+          baseAmountUSD: normalizedBaseAmountUSD,
           id,
           receivableNumber: consecutive.value,
           status: "pending",
@@ -711,8 +779,8 @@ export const createAccountReceivable = async (accountData) => {
         customerId || null,
         customerName,
         roundedAmount,
-        baseCurrency || "VES",
-        baseAmountUSD || null,
+        normalizedBaseCurrency,
+        normalizedBaseAmountUSD,
         exchangeRateAtCreation || null,
         description || null,
         dueDate || null,
@@ -743,6 +811,16 @@ export const createAccountPayable = async (accountData) => {
       assertSharedStoreCloudWriteAvailable();
     }
 
+    const currencyDefaults = await getAccountCurrencyDefaults();
+    const normalizedBaseCurrency = normalizeAccountCurrencyInput(
+      accountData?.baseCurrency,
+      currencyDefaults,
+      accountData?.baseAmountUSD,
+    );
+    const normalizedBaseAmountUSD = normalizeReferenceAmount(
+      accountData?.baseAmountUSD,
+    );
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const existingAccounts = await getCloudAccounts("payable");
@@ -760,6 +838,8 @@ export const createAccountPayable = async (accountData) => {
       const payload = normalizeAccountRecord(
         {
           ...accountData,
+          baseCurrency: normalizedBaseCurrency,
+          baseAmountUSD: normalizedBaseAmountUSD,
           id,
           payableNumber: consecutive.value,
           status: "pending",
@@ -793,8 +873,8 @@ export const createAccountPayable = async (accountData) => {
         supplierId || null,
         supplierName,
         roundedAmount,
-        baseCurrency || "VES",
-        baseAmountUSD || null,
+        normalizedBaseCurrency,
+        normalizedBaseAmountUSD,
         exchangeRateAtCreation || null,
         description || null,
         dueDate || null,
@@ -825,6 +905,16 @@ export const updateAccountReceivable = async (id, accountData) => {
       assertSharedStoreCloudWriteAvailable();
     }
 
+    const currencyDefaults = await getAccountCurrencyDefaults();
+    const normalizedBaseCurrency = normalizeAccountCurrencyInput(
+      accountData?.baseCurrency,
+      currencyDefaults,
+      accountData?.baseAmountUSD,
+    );
+    const normalizedBaseAmountUSD = normalizeReferenceAmount(
+      accountData?.baseAmountUSD,
+    );
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       await setDoc(
@@ -832,6 +922,8 @@ export const updateAccountReceivable = async (id, accountData) => {
         normalizeAccountRecord(
           {
             ...accountData,
+            baseCurrency: normalizedBaseCurrency,
+            baseAmountUSD: normalizedBaseAmountUSD,
             id: Number(id),
             updatedAt: new Date().toISOString(),
           },
@@ -860,8 +952,8 @@ export const updateAccountReceivable = async (id, accountData) => {
       [
         customerName,
         amount,
-        baseCurrency || "VES",
-        baseAmountUSD ?? null,
+        normalizedBaseCurrency,
+        normalizedBaseAmountUSD,
         exchangeRateAtCreation ?? null,
         description || null,
         dueDate || null,
@@ -884,6 +976,16 @@ export const updateAccountPayable = async (id, accountData) => {
       assertSharedStoreCloudWriteAvailable();
     }
 
+    const currencyDefaults = await getAccountCurrencyDefaults();
+    const normalizedBaseCurrency = normalizeAccountCurrencyInput(
+      accountData?.baseCurrency,
+      currencyDefaults,
+      accountData?.baseAmountUSD,
+    );
+    const normalizedBaseAmountUSD = normalizeReferenceAmount(
+      accountData?.baseAmountUSD,
+    );
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       await setDoc(
@@ -891,6 +993,8 @@ export const updateAccountPayable = async (id, accountData) => {
         normalizeAccountRecord(
           {
             ...accountData,
+            baseCurrency: normalizedBaseCurrency,
+            baseAmountUSD: normalizedBaseAmountUSD,
             id: Number(id),
             updatedAt: new Date().toISOString(),
           },
@@ -917,8 +1021,8 @@ export const updateAccountPayable = async (id, accountData) => {
       [
         supplierName,
         amount,
-        baseCurrency || "VES",
-        baseAmountUSD || null,
+        normalizedBaseCurrency,
+        normalizedBaseAmountUSD,
         exchangeRateAtCreation || null,
         description || null,
         dueDate || null,
@@ -1525,6 +1629,8 @@ export const updateReceivableAmountsOnRateChange = async (newRate) => {
       assertSharedStoreCloudWriteAvailable();
     }
 
+    const { referenceCurrency } = await getAccountCurrencyDefaults();
+
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
       const accounts = await getCloudAccounts("receivable");
@@ -1550,7 +1656,8 @@ export const updateReceivableAmountsOnRateChange = async (newRate) => {
         }
 
         if (
-          account.baseCurrency === "USD" &&
+          normalizeCurrencyCode(account.baseCurrency, referenceCurrency) ===
+            referenceCurrency &&
           Number(account.baseAmountUSD) > 0
         ) {
           batch.set(
@@ -1591,9 +1698,9 @@ export const updateReceivableAmountsOnRateChange = async (newRate) => {
        SET amount = ROUND(baseAmountUSD * ?, 2)
        WHERE status != 'paid'
          AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) < ROUND(amount, 2)
-         AND baseCurrency = 'USD'
+        AND UPPER(COALESCE(baseCurrency, '')) = UPPER(?)
          AND baseAmountUSD IS NOT NULL AND baseAmountUSD > 0`,
-      [newRate],
+      [newRate, referenceCurrency],
     );
     console.log("Amounts de cuentas por cobrar actualizados con nueva tasa");
   } catch (error) {
@@ -1610,6 +1717,8 @@ export const updatePayableAmountsOnRateChange = async (newRate) => {
     if (!isCloudAccountsEnabled()) {
       assertSharedStoreCloudWriteAvailable();
     }
+
+    const { referenceCurrency } = await getAccountCurrencyDefaults();
 
     if (isCloudAccountsEnabled()) {
       await ensureCloudAccountsSeeded();
@@ -1636,7 +1745,8 @@ export const updatePayableAmountsOnRateChange = async (newRate) => {
         }
 
         if (
-          account.baseCurrency === "USD" &&
+          normalizeCurrencyCode(account.baseCurrency, referenceCurrency) ===
+            referenceCurrency &&
           Number(account.baseAmountUSD) > 0
         ) {
           batch.set(
@@ -1677,9 +1787,9 @@ export const updatePayableAmountsOnRateChange = async (newRate) => {
        SET amount = ROUND(baseAmountUSD * ?, 2)
        WHERE status != 'paid'
          AND (ROUND(COALESCE(paidAmount, 0), 2) + 0.01) < ROUND(amount, 2)
-         AND baseCurrency = 'USD'
+        AND UPPER(COALESCE(baseCurrency, '')) = UPPER(?)
          AND baseAmountUSD IS NOT NULL AND baseAmountUSD > 0`,
-      [newRate],
+      [newRate, referenceCurrency],
     );
     console.log("Amounts de cuentas por pagar actualizados con nueva tasa");
   } catch (error) {

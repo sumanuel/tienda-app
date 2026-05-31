@@ -168,6 +168,7 @@ Avance actual:
 - `currency.js` y `exchange.js` ya resuelven comportamiento monetario desde settings activos.
 - `ExchangeRateContext` ahora expone `localCurrency`, `referenceCurrency`, `exchangeMode` y `rateEnabled`.
 - La pantalla de tasa y el convertidor dejaron de asumir VES/USD en su UI principal.
+- Formularios y listados principales de cuentas ya respetan `localCurrency`, `referenceCurrency` y si la tienda usa o no USD.
 
 Cierre de fase:
 
@@ -175,7 +176,7 @@ Cierre de fase:
 
 ### Fase 3. Esquema de datos y migraciones
 
-- Estado: Pendiente
+- Estado: En planificacion
 - Objetivo: dejar de persistir el modelo como si siempre existieran USD y VES.
 
 Entregables:
@@ -206,6 +207,10 @@ Checklist:
 - [ ] Definir estructura nueva para cuentas por cobrar y pagar.
 - [ ] Crear backfill para historicos.
 - [ ] Mantener lectura backward compatible durante rollout.
+
+Documento tecnico asociado:
+
+- `PLAN_FASE_3_MIGRACION_MONETARIA.md`
 
 Cierre de fase:
 

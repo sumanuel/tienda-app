@@ -17,10 +17,16 @@ import {
   updateProductStock,
   insertInventoryMovement,
 } from "../../services/database/products";
-import { useExchangeRate } from "../../hooks/useExchangeRate";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { getSettings } from "../../services/database/settings";
+import {
+  calculateProductPricing,
+  normalizeLegacyProductCosts,
+} from "../../services/pricing/priceCalculator";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
+import { convertCurrency } from "../../utils/exchange";
+import { formatCurrency } from "../../utils/currency";
 import {
   s,
   rf,
@@ -42,12 +48,17 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const { showAlert, CustomAlert } = useCustomAlert();
 
-  const { rate: exchangeRate } = useExchangeRate();
+  const {
+    rate: exchangeRate,
+    localCurrency,
+    referenceCurrency,
+    rateEnabled,
+  } = useExchangeRateContext();
   const [settings, setSettings] = useState({});
 
   const [cost, setCost] = useState("");
   const [additionalCost, setAdditionalCost] = useState("");
-  const [costCurrency, setCostCurrency] = useState("USD");
+  const [costCurrency, setCostCurrency] = useState(referenceCurrency);
   const [margin, setMargin] = useState(30);
   const [calculatedPrices, setCalculatedPrices] = useState({
     usd: "",
@@ -102,11 +113,37 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
   }, [canStart, start, tourBooted]);
 
   const appliedRate = useMemo(() => {
-    const rateFromSettings = Number(settings?.pricing?.currencies?.USD) || 0;
-    return Number(exchangeRate) || rateFromSettings || 0;
-  }, [exchangeRate, settings]);
+    return Number(exchangeRate) || 0;
+  }, [exchangeRate]);
+
+  const currencyOptions = useMemo(() => {
+    const options = [
+      { code: localCurrency, label: `Costo en ${localCurrency}` },
+    ];
+
+    if (rateEnabled && referenceCurrency !== localCurrency) {
+      options.unshift({
+        code: referenceCurrency,
+        label: `Costo en ${referenceCurrency}`,
+      });
+    }
+
+    return options;
+  }, [localCurrency, rateEnabled, referenceCurrency]);
 
   // Precargar datos actuales del producto (para no forzar recalculo)
+  useEffect(() => {
+    setCostCurrency((prev) => {
+      if (!rateEnabled) {
+        return localCurrency;
+      }
+
+      return prev === localCurrency || prev === referenceCurrency
+        ? prev
+        : referenceCurrency;
+    });
+  }, [localCurrency, rateEnabled, referenceCurrency]);
+
   useEffect(() => {
     const productCost = typeof product?.cost === "number" ? product.cost : 0;
     const productAdditional =
@@ -118,7 +155,7 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
 
     setCost(productCost.toFixed(2));
     setAdditionalCost(productAdditional.toFixed(2));
-    setCostCurrency("USD");
+    setCostCurrency(rateEnabled ? referenceCurrency : localCurrency);
     setMargin(productMargin);
 
     const priceUSD =
@@ -132,7 +169,7 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
     });
 
     setPricingDirty(false);
-  }, [product, settings]);
+  }, [localCurrency, product, rateEnabled, referenceCurrency, settings]);
 
   // Si no hay priceVES persistido, precargarlo por conversión (sin marcar dirty)
   useEffect(() => {
@@ -142,14 +179,31 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
     const usd = calculatedPrices.usd ? parseFloat(calculatedPrices.usd) : 0;
     const ves = calculatedPrices.ves ? parseFloat(calculatedPrices.ves) : 0;
 
-    if (usd > 0 && (!ves || Number.isNaN(ves))) {
-      const computedVES = usd * appliedRate;
+    if (usd > 0 && (!ves || Number.isNaN(ves)) && rateEnabled) {
+      const computedLocal = convertCurrency(
+        usd,
+        referenceCurrency,
+        localCurrency,
+        appliedRate,
+        {
+          referenceCurrency,
+          localCurrency,
+          usesUsdConversion: rateEnabled,
+        },
+      );
       setCalculatedPrices((prev) => ({
         ...prev,
-        ves: computedVES.toFixed(2),
+        ves: computedLocal.toFixed(2),
       }));
     }
-  }, [appliedRate, calculatedPrices.usd, calculatedPrices.ves]);
+  }, [
+    appliedRate,
+    calculatedPrices.usd,
+    calculatedPrices.ves,
+    localCurrency,
+    rateEnabled,
+    referenceCurrency,
+  ]);
 
   // Recalcular precios solo si el usuario toca costo/margen
   useEffect(() => {
@@ -167,28 +221,34 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
       return;
     }
 
-    const totalCostInCostCurrency =
-      costValue + (Number.isNaN(additionalCostValue) ? 0 : additionalCostValue);
-
-    const sellingPriceInCostCurrency =
-      totalCostInCostCurrency * (1 + (Number(margin) || 0) / 100);
-
-    let usdPrice = 0;
-    let vesPrice = 0;
-
-    if (costCurrency === "USD") {
-      usdPrice = sellingPriceInCostCurrency;
-      vesPrice = usdPrice * appliedRate;
-    } else {
-      vesPrice = sellingPriceInCostCurrency;
-      usdPrice = vesPrice / appliedRate;
-    }
+    const pricing = calculateProductPricing({
+      cost: costValue,
+      additionalCost: Number.isNaN(additionalCostValue)
+        ? 0
+        : additionalCostValue,
+      costCurrency,
+      margin,
+      exchangeRate: appliedRate,
+      localCurrency,
+      referenceCurrency,
+      rateEnabled,
+    });
 
     setCalculatedPrices({
-      usd: usdPrice.toFixed(2),
-      ves: vesPrice.toFixed(2),
+      usd:
+        pricing.referencePrice == null ? "" : pricing.referencePrice.toFixed(2),
+      ves: pricing.localPrice == null ? "" : pricing.localPrice.toFixed(2),
     });
-  }, [cost, additionalCost, costCurrency, margin, appliedRate]);
+  }, [
+    appliedRate,
+    additionalCost,
+    cost,
+    costCurrency,
+    localCurrency,
+    margin,
+    rateEnabled,
+    referenceCurrency,
+  ]);
 
   const handleSave = async () => {
     if (loading) return;
@@ -228,11 +288,10 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
       // Por defecto, solo actualizamos stock.
       // Si el usuario modificó costo/margen, persistimos también costo/costo adicional/margen/precios.
       if (pricingDirtyRef.current) {
-        if (costCurrency !== "USD" && !appliedRate) {
+        if (costCurrency === localCurrency && rateEnabled && !appliedRate) {
           showAlert({
             title: "Error",
-            message:
-              "No hay tasa disponible para calcular desde VES. Revisa tu tasa USD→VES.",
+            message: `No hay tasa disponible para calcular desde ${localCurrency}. Revisa tu tasa ${referenceCurrency}→${localCurrency}.`,
             type: "error",
           });
           return;
@@ -243,30 +302,35 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
           ? parseFloat(additionalCost)
           : 0;
 
-        const costUSD =
-          costCurrency === "USD" ? costInput : costInput / appliedRate;
-        const additionalCostUSD =
-          costCurrency === "USD"
-            ? additionalCostInput
-            : additionalCostInput / appliedRate;
+        const pricing = calculateProductPricing({
+          cost: costInput,
+          additionalCost: additionalCostInput,
+          costCurrency,
+          margin,
+          exchangeRate: appliedRate,
+          localCurrency,
+          referenceCurrency,
+          rateEnabled,
+        });
+        const normalizedCosts = normalizeLegacyProductCosts({
+          cost: costInput,
+          additionalCost: additionalCostInput,
+          costCurrency,
+          exchangeRate: appliedRate,
+          localCurrency,
+          referenceCurrency,
+          rateEnabled,
+        });
 
         const updatedProduct = {
           name: product.name,
           barcode: product.barcode,
           category: product.category,
           description: product.description || "",
-          cost: costUSD,
-          additionalCost: additionalCostUSD,
-          priceUSD:
-            calculatedPrices.usd !== "" &&
-            !Number.isNaN(parseFloat(calculatedPrices.usd))
-              ? parseFloat(calculatedPrices.usd)
-              : Number(product.priceUSD) || 0,
-          priceVES:
-            calculatedPrices.ves !== "" &&
-            !Number.isNaN(parseFloat(calculatedPrices.ves))
-              ? parseFloat(calculatedPrices.ves)
-              : Number(product.priceVES) || 0,
+          cost: normalizedCosts.referenceCost,
+          additionalCost: normalizedCosts.referenceAdditionalCost,
+          priceUSD: pricing.legacyPriceUSD || Number(product.priceUSD) || 0,
+          priceVES: pricing.legacyPriceVES || Number(product.priceVES) || 0,
           margin: Number(margin) || 0,
           stock: newStock,
           minStock: typeof product.minStock === "number" ? product.minStock : 0,
@@ -366,10 +430,7 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
               borderRadius={borderRadius.lg}
             >
               <View style={styles.currencySwitch}>
-                {[
-                  { code: "USD", label: "Costo en USD" },
-                  { code: "Bs", label: "Costo en VES" },
-                ].map((option) => {
+                {currencyOptions.map((option) => {
                   const active = costCurrency === option.code;
                   return (
                     <TouchableOpacity
@@ -381,11 +442,14 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
                       onPress={() => {
                         if (option.code === costCurrency) return;
 
-                        if (option.code === "Bs" && !appliedRate) {
+                        if (
+                          rateEnabled &&
+                          option.code === localCurrency &&
+                          !appliedRate
+                        ) {
                           showAlert({
                             title: "Tasa requerida",
-                            message:
-                              "Configura la tasa USD→VES para ingresar costos en VES.",
+                            message: `Configura la tasa ${referenceCurrency}→${localCurrency} para ingresar costos en ${localCurrency}.`,
                             type: "error",
                           });
                           return;
@@ -395,20 +459,37 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
                         const parsedAdditional = parseFloat(additionalCost);
 
                         const canConvert =
+                          rateEnabled &&
                           appliedRate &&
                           !Number.isNaN(parsedCost) &&
                           (!additionalCost || !Number.isNaN(parsedAdditional));
 
                         if (canConvert) {
-                          const factor =
-                            option.code === "Bs"
-                              ? appliedRate
-                              : 1 / appliedRate;
-                          setCost((parsedCost * factor).toFixed(2));
+                          const convertedCost = convertCurrency(
+                            parsedCost,
+                            costCurrency,
+                            option.code,
+                            appliedRate,
+                            {
+                              referenceCurrency,
+                              localCurrency,
+                              usesUsdConversion: rateEnabled,
+                            },
+                          );
+                          setCost(convertedCost.toFixed(2));
                           setAdditionalCost(
-                            (Number.isNaN(parsedAdditional)
-                              ? 0
-                              : parsedAdditional * factor
+                            convertCurrency(
+                              Number.isNaN(parsedAdditional)
+                                ? 0
+                                : parsedAdditional,
+                              costCurrency,
+                              option.code,
+                              appliedRate,
+                              {
+                                referenceCurrency,
+                                localCurrency,
+                                usesUsdConversion: rateEnabled,
+                              },
                             ).toFixed(2),
                           );
                         }
@@ -481,19 +562,31 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
             </View>
 
             <View style={styles.priceGrid}>
+              {rateEnabled ? (
+                <View style={styles.priceCard}>
+                  <Text style={styles.priceLabel}>{referenceCurrency}</Text>
+                  <Text style={styles.priceValue}>
+                    {calculatedPrices.usd
+                      ? formatCurrency(
+                          parseFloat(calculatedPrices.usd),
+                          referenceCurrency,
+                        )
+                      : "—"}
+                  </Text>
+                  <Text style={styles.priceHint}>
+                    {pricingDirty ? "Recalculado" : "Precio actual"}
+                  </Text>
+                </View>
+              ) : null}
               <View style={styles.priceCard}>
-                <Text style={styles.priceLabel}>USD</Text>
+                <Text style={styles.priceLabel}>{localCurrency}</Text>
                 <Text style={styles.priceValue}>
-                  {calculatedPrices.usd ? `$${calculatedPrices.usd}` : "—"}
-                </Text>
-                <Text style={styles.priceHint}>
-                  {pricingDirty ? "Recalculado" : "Precio actual"}
-                </Text>
-              </View>
-              <View style={styles.priceCard}>
-                <Text style={styles.priceLabel}>VES</Text>
-                <Text style={styles.priceValue}>
-                  {calculatedPrices.ves ? `VES ${calculatedPrices.ves}` : "—"}
+                  {calculatedPrices.ves
+                    ? formatCurrency(
+                        parseFloat(calculatedPrices.ves),
+                        localCurrency,
+                      )
+                    : "—"}
                 </Text>
                 <Text style={styles.priceHint}>
                   {pricingDirty ? "Recalculado" : "Precio actual"}

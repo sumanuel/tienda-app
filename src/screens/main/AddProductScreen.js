@@ -12,9 +12,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useProducts } from "../../hooks/useProducts";
-import { useExchangeRate } from "../../hooks/useExchangeRate";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { getSettings } from "../../services/database/settings";
 import { insertInventoryMovement } from "../../services/database/products";
+import {
+  calculateProductPricing,
+  normalizeLegacyProductCosts,
+} from "../../services/pricing/priceCalculator";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
   ScreenHero,
@@ -22,6 +26,8 @@ import {
   UI_COLORS,
   SHADOWS,
 } from "../../components/common/AppUI";
+import { formatCurrency } from "../../utils/currency";
+import { convertCurrency } from "../../utils/exchange";
 import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 /**
@@ -29,14 +35,19 @@ import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
  */
 export const AddProductScreen = ({ navigation }) => {
   const { addProduct } = useProducts();
-  const { rate: exchangeRate } = useExchangeRate();
+  const {
+    rate: exchangeRate,
+    localCurrency,
+    referenceCurrency,
+    rateEnabled,
+  } = useExchangeRateContext();
   const { showAlert, CustomAlert } = useCustomAlert();
   const [loading, setLoading] = useState(false);
 
   const [settings, setSettings] = useState({});
   const [cost, setCost] = useState("");
   const [additionalCost, setAdditionalCost] = useState("");
-  const [costCurrency, setCostCurrency] = useState("USD");
+  const [costCurrency, setCostCurrency] = useState(referenceCurrency);
   const [margin, setMargin] = useState(30);
   const [iva, setIva] = useState(0);
   const [calculatedPrices, setCalculatedPrices] = useState({
@@ -52,6 +63,22 @@ export const AddProductScreen = ({ navigation }) => {
   const stockRef = useRef(null);
   const scrollViewRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
+
+  const appliedRate = Number(exchangeRate) || 0;
+  const currencyOptions = useMemo(() => {
+    const options = [
+      { code: localCurrency, label: `Costo en ${localCurrency}` },
+    ];
+
+    if (rateEnabled && referenceCurrency !== localCurrency) {
+      options.unshift({
+        code: referenceCurrency,
+        label: `Costo en ${referenceCurrency}`,
+      });
+    }
+
+    return options;
+  }, [localCurrency, rateEnabled, referenceCurrency]);
 
   useEffect(() => {
     return () => {
@@ -72,10 +99,19 @@ export const AddProductScreen = ({ navigation }) => {
   }, []);
 
   useEffect(() => {
-    const rateFromSettings = Number(settings?.pricing?.currencies?.USD) || 0;
-    const appliedRate = Number(exchangeRate) || rateFromSettings || 0;
+    setCostCurrency((prev) => {
+      if (!rateEnabled) {
+        return localCurrency;
+      }
 
-    if (cost && appliedRate) {
+      return prev === localCurrency || prev === referenceCurrency
+        ? prev
+        : referenceCurrency;
+    });
+  }, [localCurrency, rateEnabled, referenceCurrency]);
+
+  useEffect(() => {
+    if (cost) {
       const costValue = parseFloat(cost);
       const additionalCostValue = additionalCost
         ? parseFloat(additionalCost)
@@ -85,34 +121,41 @@ export const AddProductScreen = ({ navigation }) => {
         additionalCost === "" || !Number.isNaN(additionalCostValue);
 
       if (!Number.isNaN(costValue) && canUseAdditionalCost) {
-        const totalCostInCostCurrency =
-          costValue +
-          (Number.isNaN(additionalCostValue) ? 0 : additionalCostValue);
-
-        const sellingPriceInCostCurrency =
-          totalCostInCostCurrency * (1 + margin / 100);
-
-        let usdPrice = 0;
-        let vesPrice = 0;
-
-        if (costCurrency === "USD") {
-          usdPrice = sellingPriceInCostCurrency;
-          vesPrice = usdPrice * appliedRate;
-        } else {
-          vesPrice = sellingPriceInCostCurrency;
-          usdPrice = vesPrice / appliedRate;
-        }
+        const pricing = calculateProductPricing({
+          cost: costValue,
+          additionalCost: Number.isNaN(additionalCostValue)
+            ? 0
+            : additionalCostValue,
+          costCurrency,
+          margin,
+          exchangeRate: appliedRate,
+          localCurrency,
+          referenceCurrency,
+          rateEnabled,
+        });
 
         setCalculatedPrices({
-          usd: usdPrice.toFixed(2),
-          ves: vesPrice.toFixed(2),
+          usd:
+            pricing.referencePrice == null
+              ? ""
+              : pricing.referencePrice.toFixed(2),
+          ves: pricing.localPrice == null ? "" : pricing.localPrice.toFixed(2),
         });
         return;
       }
     }
 
     setCalculatedPrices({ usd: "", ves: "" });
-  }, [cost, additionalCost, costCurrency, margin, settings, exchangeRate]);
+  }, [
+    appliedRate,
+    cost,
+    additionalCost,
+    costCurrency,
+    localCurrency,
+    margin,
+    rateEnabled,
+    referenceCurrency,
+  ]);
 
   const scrollToField = (ref) => {
     if (ref?.current && scrollViewRef?.current) {
@@ -192,7 +235,7 @@ export const AddProductScreen = ({ navigation }) => {
       return;
     }
 
-    if (!calculatedPrices.usd || !calculatedPrices.ves) {
+    if (!calculatedPrices.ves || (rateEnabled && !calculatedPrices.usd)) {
       showAlert({
         title: "Error",
         message:
@@ -225,36 +268,38 @@ export const AddProductScreen = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const rateFromSettings = Number(settings?.pricing?.currencies?.USD) || 0;
-      const appliedRate = Number(exchangeRate) || rateFromSettings || 0;
-
       const costInput = parseFloat(cost);
       const additionalCostInput = additionalCost
         ? parseFloat(additionalCost)
         : 0;
-
-      const costUSD =
-        costCurrency === "USD"
-          ? costInput
-          : appliedRate
-            ? costInput / appliedRate
-            : 0;
-
-      const additionalCostUSD =
-        costCurrency === "USD"
-          ? additionalCostInput
-          : appliedRate
-            ? additionalCostInput / appliedRate
-            : 0;
+      const pricing = calculateProductPricing({
+        cost: costInput,
+        additionalCost: additionalCostInput,
+        costCurrency,
+        margin,
+        exchangeRate: appliedRate,
+        localCurrency,
+        referenceCurrency,
+        rateEnabled,
+      });
+      const normalizedCosts = normalizeLegacyProductCosts({
+        cost: costInput,
+        additionalCost: additionalCostInput,
+        costCurrency,
+        exchangeRate: appliedRate,
+        localCurrency,
+        referenceCurrency,
+        rateEnabled,
+      });
 
       const productData = {
         name: formData.name.trim(),
         category: formData.category.trim() || "General",
-        cost: costUSD,
-        additionalCost: additionalCostUSD,
+        cost: normalizedCosts.referenceCost,
+        additionalCost: normalizedCosts.referenceAdditionalCost,
         costCurrency,
-        priceUSD: parseFloat(calculatedPrices.usd),
-        priceVES: parseFloat(calculatedPrices.ves),
+        priceUSD: pricing.legacyPriceUSD,
+        priceVES: pricing.legacyPriceVES,
         margin,
         iva: Number(iva) || 0,
         trackInventory: formData.trackInventory ? 1 : 0,
@@ -297,14 +342,14 @@ export const AddProductScreen = ({ navigation }) => {
   const pricingSummary = useMemo(() => {
     const usd = calculatedPrices.usd ? parseFloat(calculatedPrices.usd) : 0;
     const ves = calculatedPrices.ves ? parseFloat(calculatedPrices.ves) : 0;
-    const inferredRate = usd ? ves / usd : exchangeRate || 0;
+    const inferredRate = usd ? ves / usd : appliedRate || 0;
 
     return {
       usd,
       ves,
       rate: inferredRate,
     };
-  }, [calculatedPrices, exchangeRate]);
+  }, [appliedRate, calculatedPrices]);
 
   return (
     <>
@@ -398,10 +443,7 @@ export const AddProductScreen = ({ navigation }) => {
 
           <SurfaceCard style={styles.card}>
             <View style={styles.currencySwitch}>
-              {[
-                { code: "USD", label: "Costo en USD" },
-                { code: "Bs", label: "Costo en VES" },
-              ].map((option) => {
+              {currencyOptions.map((option) => {
                 const active = costCurrency === option.code;
                 return (
                   <Pressable
@@ -414,16 +456,14 @@ export const AddProductScreen = ({ navigation }) => {
                     onPress={() => {
                       if (option.code === costCurrency) return;
 
-                      const rateFromSettings =
-                        Number(settings?.pricing?.currencies?.USD) || 0;
-                      const appliedRate =
-                        Number(exchangeRate) || rateFromSettings || 0;
-
-                      if (option.code === "Bs" && !appliedRate) {
+                      if (
+                        rateEnabled &&
+                        option.code === localCurrency &&
+                        !appliedRate
+                      ) {
                         showAlert({
                           title: "Tasa requerida",
-                          message:
-                            "Configura la tasa USD→VES para ingresar costos en VES.",
+                          message: `Configura la tasa ${referenceCurrency}→${localCurrency} para ingresar costos en ${localCurrency}.`,
                           type: "error",
                         });
                         return;
@@ -432,19 +472,40 @@ export const AddProductScreen = ({ navigation }) => {
                       const parsedCost = parseFloat(cost);
                       const parsedAdditional = parseFloat(additionalCost);
 
-                      if (appliedRate && !Number.isNaN(parsedCost)) {
-                        const factor =
-                          option.code === "Bs" ? appliedRate : 1 / appliedRate;
-                        setCost((parsedCost * factor).toFixed(2));
+                      if (
+                        rateEnabled &&
+                        appliedRate &&
+                        !Number.isNaN(parsedCost)
+                      ) {
+                        const convertedCost = convertCurrency(
+                          parsedCost,
+                          costCurrency,
+                          option.code,
+                          appliedRate,
+                          {
+                            referenceCurrency,
+                            localCurrency,
+                            usesUsdConversion: rateEnabled,
+                          },
+                        );
+                        setCost(convertedCost.toFixed(2));
 
                         // Mantener opcionalidad: si está vacío, no lo forzamos a 0.00
                         if (additionalCost !== "") {
-                          setAdditionalCost(
-                            (Number.isNaN(parsedAdditional)
+                          const convertedAdditionalCost = convertCurrency(
+                            Number.isNaN(parsedAdditional)
                               ? 0
-                              : parsedAdditional * factor
-                            ).toFixed(2),
+                              : parsedAdditional,
+                            costCurrency,
+                            option.code,
+                            appliedRate,
+                            {
+                              referenceCurrency,
+                              localCurrency,
+                              usesUsdConversion: rateEnabled,
+                            },
                           );
+                          setAdditionalCost(convertedAdditionalCost.toFixed(2));
                         }
                       }
 
@@ -529,20 +590,34 @@ export const AddProductScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.priceGrid}>
+              {rateEnabled ? (
+                <View style={styles.priceCard}>
+                  <Text style={styles.priceLabel}>{referenceCurrency}</Text>
+                  <Text style={styles.priceValue}>
+                    {calculatedPrices.usd
+                      ? formatCurrency(
+                          parseFloat(calculatedPrices.usd),
+                          referenceCurrency,
+                        )
+                      : "—"}
+                  </Text>
+                  <Text style={styles.priceHint}>Incluye margen aplicado</Text>
+                </View>
+              ) : null}
               <View style={styles.priceCard}>
-                <Text style={styles.priceLabel}>USD</Text>
+                <Text style={styles.priceLabel}>{localCurrency}</Text>
                 <Text style={styles.priceValue}>
-                  {calculatedPrices.usd ? `$${calculatedPrices.usd}` : "—"}
-                </Text>
-                <Text style={styles.priceHint}>Incluye margen aplicado</Text>
-              </View>
-              <View style={styles.priceCard}>
-                <Text style={styles.priceLabel}>VES</Text>
-                <Text style={styles.priceValue}>
-                  {calculatedPrices.ves ? `VES ${calculatedPrices.ves}` : "—"}
+                  {calculatedPrices.ves
+                    ? formatCurrency(
+                        parseFloat(calculatedPrices.ves),
+                        localCurrency,
+                      )
+                    : "—"}
                 </Text>
                 <Text style={styles.priceHint}>
-                  Conversión con tasa vigente
+                  {rateEnabled
+                    ? "Conversión con tasa vigente"
+                    : "Precio local sugerido"}
                 </Text>
               </View>
             </View>

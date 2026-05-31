@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTourGuideController } from "rn-tourguide";
 import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useAccounts } from "../../hooks/useAccounts";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
@@ -48,6 +49,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   const tabBarHeight = useOptionalBottomTabBarHeight();
   const { canStart, start, TourGuideZone } =
     useTourGuideController("accountsReceivable");
+  const { localCurrency } = useExchangeRateContext();
   const TOUR_ZONE_BASE = 6100;
   const [tourBooted, setTourBooted] = useState(false);
   const {
@@ -208,7 +210,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         title: "Marcar como pagada",
         message: `¿Confirmar que la cuenta de ${
           account.customerName
-        } por ${formatCurrency(account.amount || 0, "VES")} ha sido pagada?`,
+        } por ${formatCurrency(account.amount || 0, account.baseCurrency || localCurrency)} ha sido pagada?`,
         type: "warning",
         buttons: [
           { text: "Cancelar", style: "cancel" },
@@ -371,7 +373,10 @@ export const AccountsReceivableScreen = ({ navigation }) => {
           <View style={styles.amountRow}>
             <View style={styles.amountContainer}>
               <Text style={styles.amount}>
-                {formatCurrency(item.amount || 0, item.currency || "VES")}
+                {formatCurrency(
+                  item.amount || 0,
+                  item.baseCurrency || localCurrency,
+                )}
               </Text>
               {item.dueDate ? (
                 <Text style={styles.dueDate}>
@@ -392,7 +397,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
                     <Text style={styles.balanceValuePaid}>
                       {formatCurrency(
                         item.paidAmount || 0,
-                        item.currency || "VES",
+                        item.baseCurrency || localCurrency,
                       )}
                     </Text>
                   </View>
@@ -404,7 +409,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
                           0,
                           (item.amount || 0) - (item.paidAmount || 0),
                         ),
-                        item.currency || "VES",
+                        item.baseCurrency || localCurrency,
                       )}
                     </Text>
                   </View>
@@ -568,7 +573,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
           </View>
 
           <Text style={styles.summaryAmount}>
-            {formatCurrency(totalAmount, "VES")}
+            {formatCurrency(totalAmount, localCurrency)}
           </Text>
         </SurfaceCard>
       </TourGuideZone>
