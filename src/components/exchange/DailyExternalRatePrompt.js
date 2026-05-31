@@ -6,6 +6,7 @@ import { getSettings } from "../../services/database/settings";
 import { insertRateNotification } from "../../services/database/rateNotifications";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { useRateNotifications } from "../../contexts/RateNotificationsContext";
+import { getCurrencyBehavior } from "../../utils/currency";
 
 const STORAGE_KEY_LAST_FETCHED_DATE = "usdRateDailyCheck:lastFetchedDate";
 const STORAGE_KEY_LAST_PROMPTED_DATE = "usdRateDailyCheck:lastPromptedDate";
@@ -82,6 +83,9 @@ const DailyExternalRatePrompt = () => {
 
     const now = new Date();
     const settings = await getSettings();
+    const currencyBehavior = getCurrencyBehavior(settings);
+    const localCurrency = currencyBehavior.localCurrency;
+    const referenceCurrency = currencyBehavior.referenceCurrency;
 
     const exchangeSettings = settings?.exchange || {};
     const enabled = exchangeSettings?.dailyPromptEnabled ?? true;
@@ -180,7 +184,7 @@ const DailyExternalRatePrompt = () => {
           try {
             const storedMessage = `Consulta diaria (${pad2(hour)}:${pad2(
               minute,
-            )}): ${fetchedRate.toFixed(2)} VES por USD (${String(apiSource)}).`;
+            )}): ${fetchedRate.toFixed(2)} ${localCurrency} por ${referenceCurrency} (${String(apiSource)}).`;
 
             await insertRateNotification({
               type: "exchange_rate",
@@ -196,9 +200,9 @@ const DailyExternalRatePrompt = () => {
         }
       }
 
-      const messageBase = `Se detectó una tasa USD: ${fetchedRate.toFixed(
+      const messageBase = `Se detectó una tasa de referencia: ${fetchedRate.toFixed(
         2,
-      )} VES por USD`;
+      )} ${localCurrency} por ${referenceCurrency}`;
       const message = `${messageBase}${
         apiUpdatedAt ? `\nActualización: ${apiUpdatedAt}` : ""
       }\n\n¿Deseas actualizar la tasa ahora?`;

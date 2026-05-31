@@ -6,7 +6,7 @@ import { buildSaleItemMonetaryFields } from "../../utils/currency";
  * @param {number} amount - Monto a convertir
  * @param {string} fromCurrency - Moneda origen
  * @param {string} toCurrency - Moneda destino
- * @param {number} rate - Tasa de cambio USD/VES
+ * @param {number} rate - Tasa de cambio entre moneda de referencia y local
  * @returns {number} Monto convertido
  */
 export const convert = (amount, fromCurrency, toCurrency, rate) => {
@@ -18,7 +18,7 @@ export const convert = (amount, fromCurrency, toCurrency, rate) => {
  * @param {number} baseAmount - Monto base
  * @param {string} baseCurrency - Moneda base
  * @param {number} rate - Tasa de cambio
- * @returns {object} Objeto con USD y VES
+ * @returns {object} Objeto con monto en referencia y local
  */
 export const calculateDualPrice = (
   baseAmount,
@@ -67,7 +67,7 @@ export const calculateDualPrice = (
  * @param {array} items - Items del carrito
  * @param {string} baseCurrency - Moneda base
  * @param {number} rate - Tasa de cambio
- * @returns {object} Total en USD y VES
+ * @returns {object} Total en moneda de referencia y local
  */
 export const calculateCartTotal = (items, baseCurrency, rate, options = {}) => {
   const localCurrency = options?.localCurrency || "VES";

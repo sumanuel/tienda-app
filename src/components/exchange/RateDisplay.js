@@ -33,7 +33,7 @@ export const RateDisplay = ({
       <View style={[styles.container, style]}>
         <View style={styles.header}>
           <Text style={styles.label}>Tasa actual</Text>
-          <Text style={styles.source}>BCV</Text>
+          <Text style={styles.source}>{source || "N/D"}</Text>
         </View>
         <Text style={styles.noRate}>Tasa no disponible</Text>
       </View>
@@ -62,7 +62,7 @@ export const RateDisplay = ({
         {getExchangeRateLabel(rate, {
           referenceCurrency,
           localCurrency,
-          usesUsdConversion: true,
+          usesUsdConversion: rateEnabled,
           exchangeMode: "manual",
         })}
       </Text>

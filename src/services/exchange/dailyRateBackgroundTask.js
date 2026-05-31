@@ -5,6 +5,7 @@ import * as Localization from "expo-localization";
 import { getSettings } from "../database/settings";
 import { insertRateNotification } from "../database/rateNotifications";
 import { initAllTables } from "../database/db";
+import { getCurrencyBehavior } from "../../utils/currency";
 
 const TASK_NAME = "daily-usd-rate-check";
 
@@ -111,6 +112,9 @@ TaskManager.defineTask(TASK_NAME, async () => {
 
     const now = new Date();
     const settings = await getSettings();
+    const currencyBehavior = getCurrencyBehavior(settings);
+    const localCurrency = currencyBehavior.localCurrency;
+    const referenceCurrency = currencyBehavior.referenceCurrency;
     const exchangeSettings = settings?.exchange || {};
 
     const enabled = exchangeSettings?.dailyPromptEnabled ?? true;
@@ -156,7 +160,7 @@ TaskManager.defineTask(TASK_NAME, async () => {
     // Notificación persistente (sirve para el badge aunque la app no se abra).
     const storedMessage = `Consulta diaria (${pad2(hour)}:${pad2(minute)}): ${fetched.rate.toFixed(
       2,
-    )} VES por USD (${String(fetched.source)}).`;
+    )} ${localCurrency} por ${referenceCurrency} (${String(fetched.source)}).`;
 
     await insertRateNotification({
       type: "exchange_rate",
