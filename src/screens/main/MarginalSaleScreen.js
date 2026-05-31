@@ -203,7 +203,9 @@ const MarginalSaleScreen = ({ navigation }) => {
   }, [localCurrency, rateEnabled, referenceCurrency]);
 
   useEffect(() => {
-    if (!amountCurrencyOptions.some((option) => option.code === amountCurrency)) {
+    if (
+      !amountCurrencyOptions.some((option) => option.code === amountCurrency)
+    ) {
       setAmountCurrency(amountCurrencyOptions[0]?.code || localCurrency);
     }
   }, [amountCurrency, amountCurrencyOptions, localCurrency]);
@@ -426,26 +428,30 @@ const MarginalSaleScreen = ({ navigation }) => {
 
           return (
             <>
-        <Text
-          style={compact ? styles.pendingItemTitle : styles.cartItemName}
-          numberOfLines={compact ? 2 : 1}
-        >
-          {compact ? item.name : item.name.toUpperCase()}
-        </Text>
-        <Text style={compact ? styles.pendingItemMeta : styles.cartItemPrice}>
-          {formatCurrency(pricing.localPrice, localCurrency)}
-          {rateEnabled && pricing.referencePrice > 0
-            ? ` · ${formatCurrency(pricing.referencePrice, referenceCurrency)} c/u`
-            : ""}
-        </Text>
-        <Text
-          style={compact ? styles.pendingItemAmount : styles.cartItemSubtotal}
-        >
-          {`Subtotal: ${formatCurrency(
-            Number(item.subtotal) || pricing.subtotalLocal,
-            localCurrency,
-          )}`}
-        </Text>
+              <Text
+                style={compact ? styles.pendingItemTitle : styles.cartItemName}
+                numberOfLines={compact ? 2 : 1}
+              >
+                {compact ? item.name : item.name.toUpperCase()}
+              </Text>
+              <Text
+                style={compact ? styles.pendingItemMeta : styles.cartItemPrice}
+              >
+                {formatCurrency(pricing.localPrice, localCurrency)}
+                {rateEnabled && pricing.referencePrice > 0
+                  ? ` · ${formatCurrency(pricing.referencePrice, referenceCurrency)} c/u`
+                  : ""}
+              </Text>
+              <Text
+                style={
+                  compact ? styles.pendingItemAmount : styles.cartItemSubtotal
+                }
+              >
+                {`Subtotal: ${formatCurrency(
+                  Number(item.subtotal) || pricing.subtotalLocal,
+                  localCurrency,
+                )}`}
+              </Text>
             </>
           );
         })()}
@@ -776,8 +782,7 @@ const MarginalSaleScreen = ({ navigation }) => {
             pendingSaleData.saleItems || [],
             {
               exchangeRate: pendingSaleData.exchangeRate,
-              localCurrency:
-                pendingSaleData.localCurrency || localCurrency,
+              localCurrency: pendingSaleData.localCurrency || localCurrency,
               referenceCurrency:
                 pendingSaleData.referenceCurrency || referenceCurrency,
               rateEnabled,

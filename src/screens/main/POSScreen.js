@@ -1345,8 +1345,7 @@ export const POSScreen = ({ navigation, route }) => {
             pendingSaleData.saleItems || [],
             {
               exchangeRate: pendingSaleData.exchangeRate,
-              localCurrency:
-                pendingSaleData.localCurrency || localCurrency,
+              localCurrency: pendingSaleData.localCurrency || localCurrency,
               referenceCurrency:
                 pendingSaleData.referenceCurrency || referenceCurrency,
               rateEnabled,
