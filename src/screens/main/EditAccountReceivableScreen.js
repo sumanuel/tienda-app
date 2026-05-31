@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useCustomers } from "../../hooks/useCustomers";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import { convertCurrency } from "../../utils/exchange";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
   FormActionRow,
@@ -37,14 +38,15 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
   const { editAccountReceivable } = useAccounts();
   const { getCustomerByDocument } = useCustomers();
   const { account } = route.params;
-  const { rate } = useExchangeRateContext();
+  const { rate, localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
   const { showAlert, CustomAlert } = useCustomAlert();
 
   const [formData, setFormData] = useState({
     documentNumber: "",
     customerName: "",
     amount: "",
-    baseCurrency: "VES",
+    baseCurrency: localCurrency,
     description: "",
     dueDate: "",
     invoiceNumber: "",
@@ -61,8 +63,25 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
   };
 
   useEffect(() => {
+    setFormData((prev) => {
+      const nextCurrency = rateEnabled ? prev.baseCurrency : localCurrency;
+
+      if (prev.baseCurrency === nextCurrency) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        baseCurrency: nextCurrency,
+      };
+    });
+  }, [localCurrency, rateEnabled]);
+
+  useEffect(() => {
     if (account) {
-      const baseCurrency = account.baseCurrency || "VES";
+      const baseCurrency =
+        account.baseCurrency ||
+        (Number(account.baseAmountUSD) > 0 ? referenceCurrency : localCurrency);
       const exchangeRateAtCreation =
         Number(account.exchangeRateAtCreation) || 0;
       const accountAmount = Number(account.amount) || 0;
@@ -72,7 +91,7 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
           : null;
 
       let baseAmountText = "";
-      if (baseCurrency === "USD") {
+      if (baseCurrency === referenceCurrency) {
         if (accountBaseUSD !== null && Number.isFinite(accountBaseUSD)) {
           baseAmountText = accountBaseUSD.toString();
         } else if (exchangeRateAtCreation > 0) {
@@ -101,7 +120,7 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
         setSelectedDate(Number.isNaN(parsed.getTime()) ? new Date() : parsed);
       }
     }
-  }, [account, rate]);
+  }, [account, localCurrency, rate, referenceCurrency]);
 
   const parseAmountInput = (value) => {
     if (typeof value !== "string") return 0;
@@ -112,18 +131,52 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
 
   const currentRate = Number(rate) || 0;
   const baseAmountValue = parseAmountInput(formData.amount);
-  const computedUSD =
-    formData.baseCurrency === "USD"
+  const computedReference =
+    formData.baseCurrency === referenceCurrency
       ? baseAmountValue
-      : currentRate > 0
-        ? baseAmountValue / currentRate
+      : rateEnabled && currentRate > 0
+        ? convertCurrency(
+            baseAmountValue,
+            formData.baseCurrency,
+            referenceCurrency,
+            currentRate,
+            {
+              referenceCurrency,
+              localCurrency,
+              usesUsdConversion: rateEnabled,
+            },
+          )
         : null;
-  const computedVES =
-    formData.baseCurrency === "USD"
-      ? currentRate > 0
-        ? baseAmountValue * currentRate
-        : null
+  const computedLocal =
+    formData.baseCurrency === localCurrency
       : baseAmountValue;
+      : rateEnabled && currentRate > 0
+        ? convertCurrency(
+            baseAmountValue,
+            formData.baseCurrency,
+            localCurrency,
+            currentRate,
+            {
+              referenceCurrency,
+              localCurrency,
+              usesUsdConversion: rateEnabled,
+            },
+          )
+        : null;
+  const currencyOptions = useMemo(() => {
+    const options = [
+      { value: localCurrency, label: `Monto en ${localCurrency}` },
+    ];
+
+    if (rateEnabled && referenceCurrency !== localCurrency) {
+      options.push({
+        value: referenceCurrency,
+        label: `Monto en ${referenceCurrency}`,
+      });
+    }
+
+    return options;
+  }, [localCurrency, rateEnabled, referenceCurrency]);
 
   const handleDocumentChange = async (documentNumber) => {
     updateFormData("documentNumber", documentNumber);
@@ -191,11 +244,14 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
       return;
     }
 
-    if (formData.baseCurrency === "USD" && currentRate <= 0) {
+    if (
+      formData.baseCurrency === referenceCurrency &&
+      rateEnabled &&
+      currentRate <= 0
+    ) {
       showAlert({
         title: "Error",
-        message:
-          "Debes definir una tasa de cambio para registrar un monto en USD",
+        message: `Debes definir una tasa de cambio para registrar un monto en ${referenceCurrency}`,
         type: "error",
       });
       return;
@@ -216,12 +272,16 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
         description: formData.description,
         dueDate: formData.dueDate,
         invoiceNumber: formData.invoiceNumber,
-        amount: computedVES ?? 0,
+        amount: computedLocal ?? 0,
         baseCurrency: formData.baseCurrency,
         baseAmountUSD:
-          formData.baseCurrency === "USD" ? (computedUSD ?? 0) : null,
+          formData.baseCurrency === referenceCurrency
+            ? (computedReference ?? 0)
+            : null,
         exchangeRateAtCreation:
-          formData.baseCurrency === "USD" ? currentRate : null,
+          formData.baseCurrency === referenceCurrency && rateEnabled
+            ? currentRate
+            : null,
       });
       showAlert({
         title: "Éxito",
@@ -301,20 +361,12 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
             <SurfaceCard style={styles.card}>
               <Text style={styles.label}>Moneda del monto *</Text>
               <SegmentedOptions
-                options={[
-                  { value: "VES", label: "Monto en Bs" },
-                  { value: "USD", label: "Monto en USD" },
-                ]}
+                options={currencyOptions}
                 value={formData.baseCurrency}
                 onChange={(code) => updateFormData("baseCurrency", code)}
               />
 
-              <Text style={styles.label}>
-                {formData.baseCurrency === "USD"
-                  ? "Monto (USD)"
-                  : "Monto (VES)"}{" "}
-                *
-              </Text>
+              <Text style={styles.label}>{`Monto (${formData.baseCurrency || localCurrency}) *`}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="0.00"
@@ -326,24 +378,24 @@ export const EditAccountReceivableScreen = ({ navigation, route }) => {
 
               <View style={styles.dualAmountCard}>
                 <View style={styles.dualAmountRow}>
-                  <Text style={styles.dualAmountLabel}>USD</Text>
+                  <Text style={styles.dualAmountLabel}>{referenceCurrency}</Text>
                   <Text style={styles.dualAmountValue}>
-                    {computedUSD === null
+                    {computedReference === null
                       ? "—"
-                      : formatCurrency(computedUSD, "USD")}
+                      : formatCurrency(computedReference, referenceCurrency)}
                   </Text>
                 </View>
                 <View style={styles.dualAmountRow}>
-                  <Text style={styles.dualAmountLabel}>VES</Text>
+                  <Text style={styles.dualAmountLabel}>{localCurrency}</Text>
                   <Text style={styles.dualAmountValue}>
-                    {computedVES === null
+                    {computedLocal === null
                       ? "—"
-                      : formatCurrency(computedVES, "VES")}
+                      : formatCurrency(computedLocal, localCurrency)}
                   </Text>
                 </View>
-                {currentRate > 0 ? (
+                {rateEnabled && currentRate > 0 ? (
                   <Text style={styles.dualAmountHint}>
-                    Tasa actual: 1 USD = VES. {currentRate.toFixed(2)}
+                    Tasa actual: 1 {referenceCurrency} = {localCurrency}. {currentRate.toFixed(2)}
                   </Text>
                 ) : (
                   <Text style={styles.dualAmountHint}>

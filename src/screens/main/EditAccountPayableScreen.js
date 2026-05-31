@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useSuppliers } from "../../hooks/useSuppliers";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import { convertCurrency } from "../../utils/exchange";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
   FormActionRow,
@@ -36,7 +37,8 @@ import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 export const EditAccountPayableScreen = ({ navigation, route }) => {
   const { editAccountPayable } = useAccounts();
   const { getSupplierByDocument } = useSuppliers();
-  const { rate } = useExchangeRateContext();
+  const { rate, localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
   const { showAlert, CustomAlert } = useCustomAlert();
   const { account } = route.params;
 
@@ -44,7 +46,7 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
     documentNumber: "",
     supplierName: "",
     amount: "",
-    baseCurrency: "VES",
+    baseCurrency: localCurrency,
     description: "",
     invoiceNumber: "",
     dueDate: "",
@@ -54,12 +56,53 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
+    setFormData((prev) => {
+      const nextCurrency = rateEnabled ? prev.baseCurrency : localCurrency;
+
+      if (prev.baseCurrency === nextCurrency) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        baseCurrency: nextCurrency,
+      };
+    });
+  }, [localCurrency, rateEnabled]);
+
+  useEffect(() => {
     if (account) {
+      const baseCurrency =
+        account.baseCurrency ||
+        (Number(account.baseAmountUSD) > 0 ? referenceCurrency : localCurrency);
+      const exchangeRateAtCreation =
+        Number(account.exchangeRateAtCreation) || 0;
+      const accountAmount = Number(account.amount) || 0;
+      const accountBaseReference =
+        account.baseAmountUSD !== null && account.baseAmountUSD !== undefined
+          ? Number(account.baseAmountUSD)
+          : null;
+
+      let baseAmountText = "";
+      if (baseCurrency === referenceCurrency) {
+        if (accountBaseReference !== null && Number.isFinite(accountBaseReference)) {
+          baseAmountText = accountBaseReference.toString();
+        } else if (exchangeRateAtCreation > 0) {
+          baseAmountText = (accountAmount / exchangeRateAtCreation).toFixed(2);
+        } else {
+          const currentRate = Number(rate) || 0;
+          baseAmountText =
+            currentRate > 0 ? (accountAmount / currentRate).toFixed(2) : "";
+        }
+      } else {
+        baseAmountText = accountAmount ? accountAmount.toString() : "";
+      }
+
       setFormData({
         documentNumber: account.documentNumber || "",
         supplierName: account.supplierName || "",
-        amount: account.amount?.toString() || "",
-        baseCurrency: account.baseCurrency || "VES",
+        amount: baseAmountText,
+        baseCurrency,
         description: account.description || "",
         invoiceNumber: account.invoiceNumber || "",
         dueDate: account.dueDate || "",
@@ -70,7 +113,7 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
         setSelectedDate(Number.isNaN(parsed.getTime()) ? new Date() : parsed);
       }
     }
-  }, [account]);
+  }, [account, localCurrency, rate, referenceCurrency]);
 
   const formatLocalDate = (date) => {
     const pad = (value) => String(value).padStart(2, "0");
@@ -92,18 +135,52 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
 
   const currentRate = Number(rate) || 0;
   const baseAmountValue = parseAmountInput(formData.amount);
-  const computedUSD =
-    formData.baseCurrency === "USD"
+  const computedReference =
+    formData.baseCurrency === referenceCurrency
       ? baseAmountValue
-      : currentRate > 0
-        ? baseAmountValue / currentRate
+      : rateEnabled && currentRate > 0
+        ? convertCurrency(
+            baseAmountValue,
+            formData.baseCurrency,
+            referenceCurrency,
+            currentRate,
+            {
+              referenceCurrency,
+              localCurrency,
+              usesUsdConversion: rateEnabled,
+            },
+          )
         : null;
-  const computedVES =
-    formData.baseCurrency === "USD"
-      ? currentRate > 0
-        ? baseAmountValue * currentRate
-        : null
-      : baseAmountValue;
+  const computedLocal =
+    formData.baseCurrency === localCurrency
+      ? baseAmountValue
+      : rateEnabled && currentRate > 0
+        ? convertCurrency(
+            baseAmountValue,
+            formData.baseCurrency,
+            localCurrency,
+            currentRate,
+            {
+              referenceCurrency,
+              localCurrency,
+              usesUsdConversion: rateEnabled,
+            },
+          )
+        : null;
+  const currencyOptions = useMemo(() => {
+    const options = [
+      { value: localCurrency, label: `Monto en ${localCurrency}` },
+    ];
+
+    if (rateEnabled && referenceCurrency !== localCurrency) {
+      options.push({
+        value: referenceCurrency,
+        label: `Monto en ${referenceCurrency}`,
+      });
+    }
+
+    return options;
+  }, [localCurrency, rateEnabled, referenceCurrency]);
 
   const handleDocumentChange = async (documentNumber) => {
     updateFormData("documentNumber", documentNumber);
@@ -172,11 +249,14 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
       return;
     }
 
-    if (formData.baseCurrency === "USD" && currentRate <= 0) {
+    if (
+      formData.baseCurrency === referenceCurrency &&
+      rateEnabled &&
+      currentRate <= 0
+    ) {
       showAlert({
         title: "Error",
-        message:
-          "Debes definir una tasa de cambio para registrar un monto en USD",
+        message: `Debes definir una tasa de cambio para registrar un monto en ${referenceCurrency}`,
         type: "error",
       });
       return;
@@ -194,12 +274,16 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
     try {
       await editAccountPayable(account.id, {
         supplierName: formData.supplierName.trim(),
-        amount: computedVES ?? 0,
+        amount: computedLocal ?? 0,
         baseCurrency: formData.baseCurrency,
         baseAmountUSD:
-          formData.baseCurrency === "USD" ? (computedUSD ?? 0) : null,
+          formData.baseCurrency === referenceCurrency
+            ? (computedReference ?? 0)
+            : null,
         exchangeRateAtCreation:
-          formData.baseCurrency === "USD" ? currentRate : null,
+          formData.baseCurrency === referenceCurrency && rateEnabled
+            ? currentRate
+            : null,
         description: formData.description.trim(),
         dueDate: formData.dueDate,
         documentNumber: formData.documentNumber.trim(),
@@ -279,18 +363,12 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
             <SurfaceCard style={styles.card}>
               <Text style={styles.label}>Moneda del monto *</Text>
               <SegmentedOptions
-                options={[
-                  { value: "VES", label: "Monto en Bs" },
-                  { value: "USD", label: "Monto en USD" },
-                ]}
+                options={currencyOptions}
                 value={formData.baseCurrency}
                 onChange={(code) => updateFormData("baseCurrency", code)}
               />
 
-              <Text style={styles.label}>
-                {formData.baseCurrency === "USD" ? "Monto (USD)" : "Monto (Bs)"}{" "}
-                *
-              </Text>
+              <Text style={styles.label}>{`Monto (${formData.baseCurrency || localCurrency}) *`}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="0.00"
@@ -302,24 +380,24 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
 
               <View style={styles.dualAmountCard}>
                 <View style={styles.dualAmountRow}>
-                  <Text style={styles.dualAmountLabel}>USD</Text>
+                  <Text style={styles.dualAmountLabel}>{referenceCurrency}</Text>
                   <Text style={styles.dualAmountValue}>
-                    {computedUSD === null
+                    {computedReference === null
                       ? "—"
-                      : formatCurrency(computedUSD, "USD")}
+                      : formatCurrency(computedReference, referenceCurrency)}
                   </Text>
                 </View>
                 <View style={styles.dualAmountRow}>
-                  <Text style={styles.dualAmountLabel}>VES</Text>
+                  <Text style={styles.dualAmountLabel}>{localCurrency}</Text>
                   <Text style={styles.dualAmountValue}>
-                    {computedVES === null
+                    {computedLocal === null
                       ? "—"
-                      : formatCurrency(computedVES, "VES")}
+                      : formatCurrency(computedLocal, localCurrency)}
                   </Text>
                 </View>
-                {currentRate > 0 ? (
+                {rateEnabled && currentRate > 0 ? (
                   <Text style={styles.dualAmountHint}>
-                    Tasa actual: 1 USD = VES. {currentRate.toFixed(2)}
+                    Tasa actual: 1 {referenceCurrency} = {localCurrency}. {currentRate.toFixed(2)}
                   </Text>
                 ) : (
                   <Text style={styles.dualAmountHint}>
