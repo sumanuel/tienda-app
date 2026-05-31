@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAccounts } from "../../hooks/useAccounts";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
 import { buildReceivableConsolidatedWhatsAppMessage } from "../../utils/whatsappMessages";
@@ -82,6 +83,8 @@ const ReceivableConsolidatedScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { accountsReceivable, loading, error, refresh } = useAccounts();
+  const { localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
   const { showAlert, CustomAlert } = useCustomAlert();
 
   const [query, setQuery] = useState("");
@@ -201,6 +204,9 @@ const ReceivableConsolidatedScreen = () => {
           documentNumber: group?.documentNumber,
           totalPendingVES: group?.totalPending,
           totalPendingUSD: group?.totalPendingUSD,
+          localCurrency,
+          referenceCurrency,
+          rateEnabled,
           items: (group?.items || []).map((item) => ({
             invoiceNumber: item.invoiceNumber,
             receivableNumber: item.receivableNumber,
@@ -276,11 +282,11 @@ const ReceivableConsolidatedScreen = () => {
           <View style={styles.totalCard}>
             <Text style={styles.totalLabel}>Debe en total</Text>
             <Text style={styles.totalValue}>
-              {formatCurrency(item.totalPending, "VES")}
+              {formatCurrency(item.totalPending, localCurrency)}
             </Text>
-            {item.totalPendingUSD > 0 ? (
+            {rateEnabled && item.totalPendingUSD > 0 ? (
               <Text style={styles.totalValueSecondary}>
-                {formatCurrency(item.totalPendingUSD, "USD")}
+                {formatCurrency(item.totalPendingUSD, referenceCurrency)}
               </Text>
             ) : null}
           </View>
@@ -337,11 +343,14 @@ const ReceivableConsolidatedScreen = () => {
                 </View>
                 <View style={styles.detailAmounts}>
                   <Text style={styles.detailPending}>
-                    {formatCurrency(detail.pendingAmount, "VES")}
+                    {formatCurrency(detail.pendingAmount, localCurrency)}
                   </Text>
-                  {detail.pendingAmountUSD > 0 ? (
+                  {rateEnabled && detail.pendingAmountUSD > 0 ? (
                     <Text style={styles.detailPendingUsd}>
-                      {formatCurrency(detail.pendingAmountUSD, "USD")}
+                      {formatCurrency(
+                        detail.pendingAmountUSD,
+                        referenceCurrency,
+                      )}
                     </Text>
                   ) : null}
                 </View>
@@ -351,7 +360,14 @@ const ReceivableConsolidatedScreen = () => {
         </SurfaceCard>
       );
     },
-    [handleSendWhatsApp, openEditScreen, openRecordPaymentScreen],
+    [
+      handleSendWhatsApp,
+      localCurrency,
+      openEditScreen,
+      openRecordPaymentScreen,
+      rateEnabled,
+      referenceCurrency,
+    ],
   );
 
   const keyExtractor = useCallback((item) => item.key, []);
@@ -384,8 +400,19 @@ const ReceivableConsolidatedScreen = () => {
         </View>
 
         <Text style={styles.summaryAmount}>
-          {formatCurrency(globalTotalPending, "VES")}
+          {formatCurrency(globalTotalPending, localCurrency)}
         </Text>
+        {rateEnabled ? (
+          <Text style={styles.summaryAmountSecondary}>
+            {formatCurrency(
+              consolidatedAccounts.reduce(
+                (sum, item) => sum + (Number(item.totalPendingUSD) || 0),
+                0,
+              ),
+              referenceCurrency,
+            )}
+          </Text>
+        ) : null}
       </SurfaceCard>
 
       <SurfaceCard style={styles.searchCard}>
@@ -507,6 +534,11 @@ const styles = StyleSheet.create({
     fontSize: rf(28),
     fontWeight: "900",
     color: UI_COLORS.accentStrong,
+  },
+  summaryAmountSecondary: {
+    fontSize: rf(14),
+    fontWeight: "700",
+    color: UI_COLORS.muted,
   },
   searchCard: {
     gap: vs(10),

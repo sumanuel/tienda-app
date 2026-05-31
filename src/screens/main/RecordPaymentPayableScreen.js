@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useAccounts } from "../../hooks/useAccounts";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
@@ -34,6 +35,7 @@ export const RecordPaymentPayableScreen = () => {
   const route = useRoute();
   const { account } = route.params;
   const { recordPayment, getBalance } = useAccounts();
+  const { localCurrency } = useExchangeRateContext();
   const { showAlert, CustomAlert } = useCustomAlert();
 
   const [loading, setLoading] = useState(false);
@@ -160,6 +162,7 @@ export const RecordPaymentPayableScreen = () => {
   }
 
   const totalPaid = balance.paidAmount || 0;
+  const currency = account.baseCurrency || account.currency || localCurrency;
   const paymentOptions = [
     { value: "cash", label: "Efectivo" },
     { value: "card", label: "Tarjeta" },
@@ -189,11 +192,11 @@ export const RecordPaymentPayableScreen = () => {
               subtitle={`Registra el abono al proveedor ${account.supplierName} con el saldo pendiente visible antes de confirmar.`}
               pills={[
                 {
-                  text: `Pendiente ${formatCurrency(balance.balance, "VES")}`,
+                  text: `Pendiente ${formatCurrency(balance.balance, currency)}`,
                   tone: balance.balance > 0 ? "warning" : "accent",
                 },
                 {
-                  text: `Pagado ${formatCurrency(totalPaid, "VES")}`,
+                  text: `Pagado ${formatCurrency(totalPaid, currency)}`,
                   tone: "info",
                 },
               ]}
@@ -204,7 +207,7 @@ export const RecordPaymentPayableScreen = () => {
                 <View style={styles.metricBlock}>
                   <Text style={styles.metricLabel}>Saldo pendiente</Text>
                   <Text style={[styles.metricValue, styles.pendingValue]}>
-                    {formatCurrency(balance.balance, "VES")}
+                    {formatCurrency(balance.balance, currency)}
                   </Text>
                 </View>
                 <InfoPill text={paymentDateLabel} tone="info" />
@@ -213,13 +216,13 @@ export const RecordPaymentPayableScreen = () => {
                 <View style={styles.metricInlineCard}>
                   <Text style={styles.metricInlineLabel}>Total</Text>
                   <Text style={styles.metricInlineValue}>
-                    {formatCurrency(balance.totalAmount, "VES")}
+                    {formatCurrency(balance.totalAmount, currency)}
                   </Text>
                 </View>
                 <View style={styles.metricInlineCard}>
                   <Text style={styles.metricInlineLabel}>Pagado</Text>
                   <Text style={styles.metricInlineValue}>
-                    {formatCurrency(totalPaid, "VES")}
+                    {formatCurrency(totalPaid, currency)}
                   </Text>
                 </View>
               </View>

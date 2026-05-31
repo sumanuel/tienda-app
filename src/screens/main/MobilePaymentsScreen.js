@@ -13,6 +13,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
@@ -78,6 +79,7 @@ const formatLocalDateTime = (value) => {
 export const MobilePaymentsScreen = () => {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useOptionalBottomTabBarHeight();
+  const { localCurrency } = useExchangeRateContext();
   const { showAlert, CustomAlert } = useCustomAlert();
 
   const [activeTab, setActiveTab] = useState("pending");
@@ -268,7 +270,7 @@ export const MobilePaymentsScreen = () => {
             </View>
             <Text style={styles.paymentCustomer}>{item.customerName}</Text>
             <Text style={styles.paymentAmount}>
-              {formatCurrency(amount, "VES")}
+              {formatCurrency(amount, localCurrency)}
             </Text>
             {item?.createdAt ? (
               <Text style={styles.paymentCreatedAt}>

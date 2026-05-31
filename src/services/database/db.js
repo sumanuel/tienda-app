@@ -504,6 +504,7 @@ export const initAllTables = async () => {
           additionalCost REAL DEFAULT 0,
           priceUSD REAL DEFAULT 0,
           priceVES REAL DEFAULT 0,
+          pricingSnapshot TEXT,
           margin REAL DEFAULT 0,
           trackInventory INTEGER DEFAULT 1,
           stock INTEGER DEFAULT 0,
@@ -538,6 +539,7 @@ export const initAllTables = async () => {
           discount REAL DEFAULT 0,
           total REAL DEFAULT 0,
           currency TEXT DEFAULT 'VES',
+          monetarySnapshot TEXT,
           exchangeRate REAL DEFAULT 0,
           paymentMethod TEXT,
           paid REAL DEFAULT 0,
@@ -556,6 +558,7 @@ export const initAllTables = async () => {
           quantity REAL NOT NULL,
           price REAL NOT NULL,
           priceUSD REAL DEFAULT 0,
+          priceSnapshot TEXT,
           subtotal REAL NOT NULL,
           FOREIGN KEY (saleId) REFERENCES sales(id)
         );
@@ -770,6 +773,9 @@ const runMigrations = async () => {
         const hasTrackInventory = (columns || []).some(
           (c) => c?.name === "trackInventory",
         );
+        const hasPricingSnapshot = (columns || []).some(
+          (c) => c?.name === "pricingSnapshot",
+        );
 
         if (!hasAdditionalCost) {
           await db.execAsync(
@@ -780,6 +786,12 @@ const runMigrations = async () => {
         if (!hasTrackInventory) {
           await db.execAsync(
             "ALTER TABLE products ADD COLUMN trackInventory INTEGER DEFAULT 1;",
+          );
+        }
+
+        if (!hasPricingSnapshot) {
+          await db.execAsync(
+            "ALTER TABLE products ADD COLUMN pricingSnapshot TEXT;",
           );
         }
       }
@@ -915,6 +927,7 @@ const runMigrations = async () => {
         quantity REAL NOT NULL,
         price REAL NOT NULL,
         priceUSD REAL DEFAULT 0,
+        priceSnapshot TEXT,
         subtotal REAL NOT NULL,
         FOREIGN KEY (saleId) REFERENCES sales(id)
       );`,
@@ -943,12 +956,33 @@ const runMigrations = async () => {
     const hasSaleItemPriceUSD = saleItemColumns.some(
       (col) => col.name === "priceUSD",
     );
+    const hasSaleItemPriceSnapshot = saleItemColumns.some(
+      (col) => col.name === "priceSnapshot",
+    );
     if (!hasSaleItemPriceUSD) {
       console.log("Adding priceUSD column to sale_items table...");
       await db.runAsync(
         "ALTER TABLE sale_items ADD COLUMN priceUSD REAL DEFAULT 0",
       );
       console.log("priceUSD column added successfully");
+    }
+    if (!hasSaleItemPriceSnapshot) {
+      await db.runAsync(
+        "ALTER TABLE sale_items ADD COLUMN priceSnapshot TEXT",
+      );
+    }
+
+    if (salesTable?.name) {
+      const salesColumns = await db.getAllAsync("PRAGMA table_info(sales)");
+      const hasSalesMonetarySnapshot = salesColumns.some(
+        (col) => col.name === "monetarySnapshot",
+      );
+
+      if (!hasSalesMonetarySnapshot) {
+        await db.runAsync(
+          "ALTER TABLE sales ADD COLUMN monetarySnapshot TEXT",
+        );
+      }
     }
 
     // Backfill básico para ventas existentes: priceUSD = price / exchangeRate

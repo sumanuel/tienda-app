@@ -97,6 +97,9 @@ export const buildReceivableConsolidatedWhatsAppMessage = ({
   documentNumber,
   totalPendingVES,
   totalPendingUSD,
+  localCurrency = "VES",
+  referenceCurrency = "USD",
+  rateEnabled = true,
   items = [],
 }) => {
   const headerBlock = joinSections([
@@ -115,9 +118,15 @@ export const buildReceivableConsolidatedWhatsAppMessage = ({
       item.description ? `Concepto: ${item.description}` : null,
       item.dueDate ? `Vence: ${item.dueDate}` : null,
       "",
-      `Pendiente: ${formatCurrency(Number(item.pendingAmountVES) || 0, "VES")}${
-        Number(item.pendingAmountUSD) > 0
-          ? ` (${formatCurrency(Number(item.pendingAmountUSD), "USD")})`
+      `Pendiente: ${formatCurrency(
+        Number(item.pendingAmountVES) || 0,
+        localCurrency,
+      )}${
+        rateEnabled && Number(item.pendingAmountUSD) > 0
+          ? ` (${formatCurrency(
+              Number(item.pendingAmountUSD),
+              referenceCurrency,
+            )})`
           : ""
       }`,
     ]
@@ -125,9 +134,12 @@ export const buildReceivableConsolidatedWhatsAppMessage = ({
       .join("\n");
   });
 
-  const totalBlock = `Total pendiente: ${formatCurrency(Number(totalPendingVES) || 0, "VES")}${
-    Number(totalPendingUSD) > 0
-      ? ` (${formatCurrency(Number(totalPendingUSD), "USD")})`
+  const totalBlock = `Total pendiente: ${formatCurrency(
+    Number(totalPendingVES) || 0,
+    localCurrency,
+  )}${
+    rateEnabled && Number(totalPendingUSD) > 0
+      ? ` (${formatCurrency(Number(totalPendingUSD), referenceCurrency)})`
       : ""
   }`;
 

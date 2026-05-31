@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
 import { handleCloudAccessError } from "../firebase/cloudAccess";
+import { normalizeCurrencyCode } from "../../utils/currency";
 import {
   formatConsecutiveNumber,
   getNextCloudConsecutive,
@@ -34,10 +35,71 @@ const normalizeLegacyProductPrices = (product = {}) => {
   };
 };
 
+const parseStoredJson = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "object") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(String(value));
+  } catch (_) {
+    return null;
+  }
+};
+
+const buildProductPricingSnapshot = (product = {}) => {
+  const legacyPrices = normalizeLegacyProductPrices(product);
+  const existingSnapshot =
+    parseStoredJson(product.pricingSnapshot) || parseStoredJson(product.pricing);
+  const localCurrency = normalizeCurrencyCode(
+    existingSnapshot?.localCurrency || product.localCurrency,
+    "VES",
+  );
+  const referenceCurrency = normalizeCurrencyCode(
+    existingSnapshot?.referenceCurrency || product.referenceCurrency,
+    localCurrency === "USD" ? "USD" : "USD",
+  );
+  const referenceAmount = Number(
+    existingSnapshot?.referenceAmount ??
+      existingSnapshot?.referencePrice ??
+      legacyPrices.referencePrice,
+  );
+  const localAmount = Number(
+    existingSnapshot?.localAmount ??
+      existingSnapshot?.localPrice ??
+      legacyPrices.localPrice,
+  );
+
+  return {
+    localCurrency,
+    referenceCurrency,
+    localAmount: Number.isFinite(localAmount) ? localAmount : 0,
+    referenceAmount: Number.isFinite(referenceAmount) ? referenceAmount : 0,
+    costReferenceAmount:
+      Number(
+        existingSnapshot?.costReferenceAmount ??
+          existingSnapshot?.referenceCost ??
+          product.cost,
+      ) || 0,
+    additionalCostReferenceAmount:
+      Number(
+        existingSnapshot?.additionalCostReferenceAmount ??
+          existingSnapshot?.additionalReferenceCost ??
+          product.additionalCost,
+      ) || 0,
+    source: existingSnapshot ? "snapshot" : "legacy",
+  };
+};
+
 let productsColumnsChecked = false;
 let productsHasAdditionalCostColumn = false;
 let productsHasIvaColumn = false;
 let productsHasTrackInventoryColumn = false;
+let productsHasPricingSnapshotColumn = false;
 const cloudProductsSeeded = new Set();
 const CLOUD_PRODUCTS_SEED_VERSION = 1;
 const cloudActiveProductsCache = new Map();
@@ -146,11 +208,11 @@ const canSkipProductsSeed = async () => {
 
 const normalizeProductRecord = (product = {}) => ({
   ...(() => {
-    const { referencePrice, localPrice } =
-      normalizeLegacyProductPrices(product);
+    const pricingSnapshot = buildProductPricingSnapshot(product);
     return {
-      priceUSD: referencePrice,
-      priceVES: localPrice,
+      priceUSD: pricingSnapshot.referenceAmount,
+      priceVES: pricingSnapshot.localAmount,
+      pricingSnapshot,
     };
   })(),
   id:
@@ -644,6 +706,7 @@ const ensureProductsAdditionalCostColumn = async () => {
       productsColumnsChecked = true;
       productsHasAdditionalCostColumn = false;
       productsHasTrackInventoryColumn = false;
+      productsHasPricingSnapshotColumn = false;
       return;
     }
 
@@ -654,6 +717,9 @@ const ensureProductsAdditionalCostColumn = async () => {
     productsHasIvaColumn = (columns || []).some((c) => c?.name === "iva");
     productsHasTrackInventoryColumn = (columns || []).some(
       (c) => c?.name === "trackInventory",
+    );
+    productsHasPricingSnapshotColumn = (columns || []).some(
+      (c) => c?.name === "pricingSnapshot",
     );
 
     if (!productsHasAdditionalCostColumn) {
@@ -673,6 +739,13 @@ const ensureProductsAdditionalCostColumn = async () => {
         "ALTER TABLE products ADD COLUMN trackInventory INTEGER DEFAULT 1;",
       );
       productsHasTrackInventoryColumn = true;
+    }
+
+    if (!productsHasPricingSnapshotColumn) {
+      await db.execAsync(
+        "ALTER TABLE products ADD COLUMN pricingSnapshot TEXT;",
+      );
+      productsHasPricingSnapshotColumn = true;
     }
 
     productsColumnsChecked = true;
@@ -699,6 +772,7 @@ export const initDatabase = async () => {
         additionalCost REAL DEFAULT 0,
         priceUSD REAL DEFAULT 0,
         priceVES REAL DEFAULT 0,
+        pricingSnapshot TEXT,
         margin REAL DEFAULT 0,
         iva REAL DEFAULT 0,
         trackInventory INTEGER DEFAULT 1,
@@ -850,8 +924,13 @@ export const searchProducts = async (query) => {
 export const insertProduct = async (product) => {
   try {
     assertSharedStoreCloudWriteAvailable();
-    const { referencePrice, localPrice } =
-      normalizeLegacyProductPrices(product);
+    const { referenceAmount, localAmount, ...pricingSnapshotRest } =
+      buildProductPricingSnapshot(product);
+    const pricingSnapshot = {
+      ...pricingSnapshotRest,
+      referenceAmount,
+      localAmount,
+    };
 
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
@@ -878,8 +957,8 @@ export const insertProduct = async (product) => {
     await ensureProductsAdditionalCostColumn();
     console.log("Insertando producto en BD:", product);
     const result = await db.runAsync(
-      `INSERT INTO products (name, barcode, category, description, cost, additionalCost, priceUSD, priceVES, margin, iva, trackInventory, stock, minStock, image, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO products (name, barcode, category, description, cost, additionalCost, priceUSD, priceVES, pricingSnapshot, margin, iva, trackInventory, stock, minStock, image, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         product.name,
         product.barcode,
@@ -887,8 +966,9 @@ export const insertProduct = async (product) => {
         product.description || "",
         product.cost || 0,
         product.additionalCost || 0,
-        referencePrice,
-        localPrice,
+        referenceAmount,
+        localAmount,
+        JSON.stringify(pricingSnapshot),
         product.margin || 0,
         product.iva || 0,
         product.trackInventory === 0 ? 0 : 1,
@@ -916,8 +996,13 @@ export const insertProduct = async (product) => {
 export const updateProduct = async (id, product) => {
   try {
     assertSharedStoreCloudWriteAvailable();
-    const { referencePrice, localPrice } =
-      normalizeLegacyProductPrices(product);
+    const { referenceAmount, localAmount, ...pricingSnapshotRest } =
+      buildProductPricingSnapshot(product);
+    const pricingSnapshot = {
+      ...pricingSnapshotRest,
+      referenceAmount,
+      localAmount,
+    };
 
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
@@ -937,7 +1022,7 @@ export const updateProduct = async (id, product) => {
     const result = await db.runAsync(
       `UPDATE products
        SET name = ?, barcode = ?, category = ?, description = ?,
-             cost = ?, additionalCost = ?, priceUSD = ?, priceVES = ?, margin = ?, iva = ?,
+             cost = ?, additionalCost = ?, priceUSD = ?, priceVES = ?, pricingSnapshot = ?, margin = ?, iva = ?,
              trackInventory = ?, stock = ?, minStock = ?, image = ?, updatedAt = CURRENT_TIMESTAMP
        WHERE id = ?;`,
       [
@@ -947,8 +1032,9 @@ export const updateProduct = async (id, product) => {
         product.description,
         product.cost,
         product.additionalCost || 0,
-        referencePrice,
-        localPrice,
+        referenceAmount,
+        localAmount,
+        JSON.stringify(pricingSnapshot),
         product.margin,
         product.iva || 0,
         product.trackInventory === 0 ? 0 : 1,

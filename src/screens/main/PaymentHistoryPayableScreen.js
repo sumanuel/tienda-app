@@ -19,11 +19,13 @@ import {
   SHADOWS,
 } from "../../components/common/AppUI";
 import { rf, vs, spacing, borderRadius } from "../../utils/responsive";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 
 export const PaymentHistoryPayableScreen = () => {
   const route = useRoute();
   const { account } = route.params;
   const { getPayments } = useAccounts();
+  const { localCurrency } = useExchangeRateContext();
 
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export const PaymentHistoryPayableScreen = () => {
     <SurfaceCard style={styles.paymentItem}>
       <View style={styles.paymentHeader}>
         <Text style={styles.paymentAmount}>
-          {formatCurrency(item.amount, "VES")}
+          {formatCurrency(item.amount, account.baseCurrency || localCurrency)}
         </Text>
         <InfoPill
           text={getPaymentMethodLabel(item.paymentMethod)}
@@ -90,6 +92,7 @@ export const PaymentHistoryPayableScreen = () => {
   );
 
   const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const currency = account.baseCurrency || account.currency || localCurrency;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -119,7 +122,7 @@ export const PaymentHistoryPayableScreen = () => {
                     tone: payments.length ? "warning" : "neutral",
                   },
                   {
-                    text: `Pagado ${formatCurrency(totalPaid, "VES")}`,
+                    text: `Pagado ${formatCurrency(totalPaid, currency)}`,
                     tone: "accent",
                   },
                 ]}
@@ -129,13 +132,13 @@ export const PaymentHistoryPayableScreen = () => {
                 <View style={styles.summaryMetric}>
                   <Text style={styles.summaryLabel}>Total pagado</Text>
                   <Text style={styles.summaryValueAccent}>
-                    {formatCurrency(totalPaid, "VES")}
+                    {formatCurrency(totalPaid, currency)}
                   </Text>
                 </View>
                 <View style={styles.summaryMetric}>
                   <Text style={styles.summaryLabel}>Monto original</Text>
                   <Text style={styles.summaryValue}>
-                    {formatCurrency(account.amount || 0, "VES")}
+                    {formatCurrency(account.amount || 0, currency)}
                   </Text>
                 </View>
               </SurfaceCard>

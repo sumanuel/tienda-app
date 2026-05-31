@@ -28,6 +28,105 @@ import {
   hasActiveStoreContext,
 } from "../store/storeRefs";
 
+const parseStoredJson = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "object") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(String(value));
+  } catch (_) {
+    return null;
+  }
+};
+
+const buildSaleItemPriceSnapshot = (item = {}, saleContext = {}) => {
+  const existingSnapshot = parseStoredJson(item.priceSnapshot);
+  const localCurrency = normalizeCurrencyCode(
+    existingSnapshot?.localCurrency || saleContext?.localCurrency || saleContext?.currency,
+    "VES",
+  );
+  const referenceCurrency = normalizeCurrencyCode(
+    existingSnapshot?.referenceCurrency || saleContext?.referenceCurrency,
+    localCurrency,
+  );
+  const localAmount = Number(
+    existingSnapshot?.localAmount ?? existingSnapshot?.amount ?? item.price,
+  );
+  const referenceAmount = Number(
+    existingSnapshot?.referenceAmount ?? item.priceUSD ??
+      (referenceCurrency === localCurrency ? item.price : 0),
+  );
+
+  return {
+    localCurrency,
+    referenceCurrency,
+    localAmount: Number.isFinite(localAmount) ? localAmount : 0,
+    referenceAmount: Number.isFinite(referenceAmount) ? referenceAmount : 0,
+    exchangeRate: Number(existingSnapshot?.exchangeRate ?? saleContext?.exchangeRate) || 0,
+    source: existingSnapshot ? "snapshot" : "legacy",
+  };
+};
+
+const buildSaleMonetarySnapshot = (sale = {}, items = []) => {
+  const existingSnapshot = parseStoredJson(sale.monetarySnapshot);
+  const fallbackLocalCurrency = normalizeCurrencyCode(sale.currency, "VES");
+  const localCurrency = normalizeCurrencyCode(
+    existingSnapshot?.localCurrency || fallbackLocalCurrency,
+    fallbackLocalCurrency,
+  );
+  const firstItemReferenceCurrency = items.find(
+    (item) => item?.priceSnapshot?.referenceCurrency,
+  )?.priceSnapshot?.referenceCurrency;
+  const referenceCurrency = normalizeCurrencyCode(
+    existingSnapshot?.referenceCurrency || sale.referenceCurrency || firstItemReferenceCurrency,
+    localCurrency,
+  );
+  const totalLocalAmount = Number(
+    existingSnapshot?.totalLocalAmount ?? sale.total ??
+      items.reduce(
+        (sum, item) =>
+          sum +
+          (Number(item?.priceSnapshot?.localAmount) || Number(item.price) || 0) *
+            (Number(item.quantity) || 0),
+        0,
+      ),
+  );
+  const totalReferenceAmount = Number(
+    existingSnapshot?.totalReferenceAmount ?? sale.totalUSD ??
+      items.reduce(
+        (sum, item) =>
+          sum +
+          (Number(item?.priceSnapshot?.referenceAmount) ||
+            Number(item.priceUSD) ||
+            0) *
+            (Number(item.quantity) || 0),
+        0,
+      ),
+  );
+
+  return {
+    localCurrency,
+    referenceCurrency,
+    totalLocalAmount: Number.isFinite(totalLocalAmount) ? totalLocalAmount : 0,
+    totalReferenceAmount: Number.isFinite(totalReferenceAmount)
+      ? totalReferenceAmount
+      : 0,
+    exchangeRate: Number(existingSnapshot?.exchangeRate ?? sale.exchangeRate) || 0,
+    rateEnabled:
+      existingSnapshot?.rateEnabled ?? referenceCurrency !== localCurrency,
+    source: existingSnapshot ? "snapshot" : "legacy",
+  };
+};
+
+let salesSnapshotColumnsChecked = false;
+let salesHasMonetarySnapshotColumn = false;
+let saleItemsHasPriceSnapshotColumn = false;
+
 const cloudSalesSeeded = new Set();
 const CLOUD_SALES_SEED_VERSION = 1;
 const cloudSalesCache = new Map();
@@ -217,26 +316,28 @@ const canSkipSalesSeed = async () => {
   );
 };
 
-const normalizeSaleItem = (item = {}) => ({
-  productId: Number(item.productId) || 0,
-  productName: String(item.productName || "").trim(),
-  quantity: Number(item.quantity) || 0,
-  price: Number(item.price) || 0,
-  priceUSD: Number(item.priceUSD) || Number(item.price) || 0,
-  subtotal:
-    Number(item.subtotal) ||
-    (Number(item.quantity) || 0) * (Number(item.price) || 0),
-});
+const normalizeSaleItem = (item = {}, saleContext = {}) => {
+  const priceSnapshot = buildSaleItemPriceSnapshot(item, saleContext);
+
+  return {
+    productId: Number(item.productId) || 0,
+    productName: String(item.productName || "").trim(),
+    quantity: Number(item.quantity) || 0,
+    price: Number(item.price) || 0,
+    priceUSD: priceSnapshot.referenceAmount,
+    priceSnapshot,
+    subtotal:
+      Number(item.subtotal) ||
+      (Number(item.quantity) || 0) * (Number(item.price) || 0),
+  };
+};
 
 const normalizeSaleRecord = (sale = {}) => {
   const items = Array.isArray(sale.items)
-    ? sale.items.map(normalizeSaleItem)
+    ? sale.items.map((item) => normalizeSaleItem(item, sale))
     : [];
-  const totalUSD = items.reduce(
-    (sum, item) =>
-      sum + (Number(item.priceUSD) || 0) * (Number(item.quantity) || 0),
-    0,
-  );
+  const monetarySnapshot = buildSaleMonetarySnapshot(sale, items);
+  const totalUSD = monetarySnapshot.totalReferenceAmount;
 
   return {
     id:
@@ -262,10 +363,60 @@ const normalizeSaleRecord = (sale = {}) => {
     status: String(sale.status || "completed"),
     notes: String(sale.notes || ""),
     createdAt: sale.createdAt || new Date().toISOString(),
+    monetarySnapshot,
     items,
     itemCount: items.length,
     totalUSD,
   };
+};
+
+const ensureSalesSnapshotColumns = async () => {
+  if (salesSnapshotColumnsChecked) {
+    return;
+  }
+
+  try {
+    const salesTable = await db.getFirstAsync(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='sales';",
+    );
+    const saleItemsTable = await db.getFirstAsync(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='sale_items';",
+    );
+
+    if (salesTable?.name) {
+      const salesColumns = await db.getAllAsync("PRAGMA table_info(sales);");
+      salesHasMonetarySnapshotColumn = (salesColumns || []).some(
+        (column) => column?.name === "monetarySnapshot",
+      );
+
+      if (!salesHasMonetarySnapshotColumn) {
+        await db.execAsync(
+          "ALTER TABLE sales ADD COLUMN monetarySnapshot TEXT;",
+        );
+        salesHasMonetarySnapshotColumn = true;
+      }
+    }
+
+    if (saleItemsTable?.name) {
+      const saleItemColumns = await db.getAllAsync(
+        "PRAGMA table_info(sale_items);",
+      );
+      saleItemsHasPriceSnapshotColumn = (saleItemColumns || []).some(
+        (column) => column?.name === "priceSnapshot",
+      );
+
+      if (!saleItemsHasPriceSnapshotColumn) {
+        await db.execAsync(
+          "ALTER TABLE sale_items ADD COLUMN priceSnapshot TEXT;",
+        );
+        saleItemsHasPriceSnapshotColumn = true;
+      }
+    }
+
+    salesSnapshotColumnsChecked = true;
+  } catch (error) {
+    console.warn("Warning ensuring sales snapshot columns:", error);
+  }
 };
 
 const sortSalesByDateDesc = (sales = []) =>
@@ -645,6 +796,7 @@ export const initSalesTable = async () => {
         discount REAL DEFAULT 0,
         total REAL DEFAULT 0,
         currency TEXT DEFAULT 'VES',
+        monetarySnapshot TEXT,
         exchangeRate REAL DEFAULT 0,
         paymentMethod TEXT,
         paid REAL DEFAULT 0,
@@ -665,6 +817,7 @@ export const initSalesTable = async () => {
         quantity REAL NOT NULL,
         price REAL NOT NULL,
         priceUSD REAL DEFAULT 0,
+        priceSnapshot TEXT,
         subtotal REAL NOT NULL,
         FOREIGN KEY (saleId) REFERENCES sales(id)
       );`,
@@ -687,6 +840,19 @@ export const insertSale = async (sale, items) => {
     }
 
     const normalizedCurrency = normalizeCurrencyCode(sale?.currency, "VES");
+    const normalizedItems = (items || []).map((item) =>
+      normalizeSaleItem(item, {
+        ...sale,
+        currency: normalizedCurrency,
+      }),
+    );
+    const monetarySnapshot = buildSaleMonetarySnapshot(
+      {
+        ...sale,
+        currency: normalizedCurrency,
+      },
+      normalizedItems,
+    );
 
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
@@ -699,10 +865,11 @@ export const insertSale = async (sale, items) => {
       const payload = normalizeSaleRecord({
         ...sale,
         currency: normalizedCurrency,
+        monetarySnapshot,
         id,
         saleNumber: consecutive.value,
         createdAt: new Date().toISOString(),
-        items,
+        items: normalizedItems,
       });
       await setDoc(doc(getSalesCollectionRef(), String(id)), payload);
       if (payload.status !== "cancelled") {
@@ -713,9 +880,10 @@ export const insertSale = async (sale, items) => {
     }
 
     // Insertar venta
+    await ensureSalesSnapshotColumns();
     const saleResult = await db.runAsync(
-      `INSERT INTO sales (customerId, subtotal, tax, discount, total, currency, exchangeRate, paymentMethod, paid, change, status, notes, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO sales (customerId, subtotal, tax, discount, total, currency, monetarySnapshot, exchangeRate, paymentMethod, paid, change, status, notes, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         sale.customerId || null,
         sale.subtotal,
@@ -723,6 +891,7 @@ export const insertSale = async (sale, items) => {
         sale.discount || 0,
         sale.total,
         normalizedCurrency,
+        JSON.stringify(monetarySnapshot),
         sale.exchangeRate,
         sale.paymentMethod,
         sale.paid,
@@ -742,10 +911,10 @@ export const insertSale = async (sale, items) => {
     ]);
 
     // Insertar items de la venta
-    for (const item of items) {
+    for (const item of normalizedItems) {
       await db.runAsync(
-        `INSERT INTO sale_items (saleId, productId, productName, quantity, price, priceUSD, subtotal)
-         VALUES (?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO sale_items (saleId, productId, productName, quantity, price, priceUSD, priceSnapshot, subtotal)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           saleId,
           item.productId,
@@ -753,6 +922,7 @@ export const insertSale = async (sale, items) => {
           item.quantity,
           item.price,
           item.priceUSD || 0,
+          JSON.stringify(item.priceSnapshot || null),
           item.quantity * item.price,
         ],
       );
