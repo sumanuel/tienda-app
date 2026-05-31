@@ -85,7 +85,10 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
 
       let baseAmountText = "";
       if (baseCurrency === referenceCurrency) {
-        if (accountBaseReference !== null && Number.isFinite(accountBaseReference)) {
+        if (
+          accountBaseReference !== null &&
+          Number.isFinite(accountBaseReference)
+        ) {
           baseAmountText = accountBaseReference.toString();
         } else if (exchangeRateAtCreation > 0) {
           baseAmountText = (accountAmount / exchangeRateAtCreation).toFixed(2);
@@ -368,7 +371,9 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
                 onChange={(code) => updateFormData("baseCurrency", code)}
               />
 
-              <Text style={styles.label}>{`Monto (${formData.baseCurrency || localCurrency}) *`}</Text>
+              <Text
+                style={styles.label}
+              >{`Monto (${formData.baseCurrency || localCurrency}) *`}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="0.00"
@@ -380,7 +385,9 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
 
               <View style={styles.dualAmountCard}>
                 <View style={styles.dualAmountRow}>
-                  <Text style={styles.dualAmountLabel}>{referenceCurrency}</Text>
+                  <Text style={styles.dualAmountLabel}>
+                    {referenceCurrency}
+                  </Text>
                   <Text style={styles.dualAmountValue}>
                     {computedReference === null
                       ? "—"
@@ -397,7 +404,8 @@ export const EditAccountPayableScreen = ({ navigation, route }) => {
                 </View>
                 {rateEnabled && currentRate > 0 ? (
                   <Text style={styles.dualAmountHint}>
-                    Tasa actual: 1 {referenceCurrency} = {localCurrency}. {currentRate.toFixed(2)}
+                    Tasa actual: 1 {referenceCurrency} = {localCurrency}.{" "}
+                    {currentRate.toFixed(2)}
                   </Text>
                 ) : (
                   <Text style={styles.dualAmountHint}>

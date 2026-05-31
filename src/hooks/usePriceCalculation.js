@@ -5,14 +5,20 @@ import {
   applyDiscount,
 } from "../utils/pricing";
 import { convertCurrency } from "../utils/exchange";
+import { buildSaleItemMonetaryFields } from "../utils/currency";
 
 /**
  * Hook para cálculos de precios y conversiones
  * @param {number} exchangeRate - Tasa de cambio actual
  * @returns {object} Funciones de cálculo
  */
-export const usePriceCalculation = (exchangeRate) => {
-  const [baseCurrency, setBaseCurrency] = useState("USD");
+export const usePriceCalculation = (exchangeRate, options = {}) => {
+  const localCurrency = options?.localCurrency || "VES";
+  const referenceCurrency = options?.referenceCurrency || "USD";
+  const rateEnabled =
+    options?.rateEnabled ?? referenceCurrency !== localCurrency;
+  const defaultBaseCurrency = rateEnabled ? referenceCurrency : localCurrency;
+  const [baseCurrency, setBaseCurrency] = useState(defaultBaseCurrency);
 
   /**
    * Calcula el precio de venta basado en costo y margen
@@ -34,9 +40,13 @@ export const usePriceCalculation = (exchangeRate) => {
   const convert = useCallback(
     (amount, from, to) => {
       if (!exchangeRate) return amount;
-      return convertCurrency(amount, from, to, exchangeRate);
+      return convertCurrency(amount, from, to, exchangeRate, {
+        referenceCurrency,
+        localCurrency,
+        usesUsdConversion: rateEnabled,
+      });
     },
-    [exchangeRate]
+    [exchangeRate, localCurrency, rateEnabled, referenceCurrency],
   );
 
   /**
@@ -45,22 +55,43 @@ export const usePriceCalculation = (exchangeRate) => {
   const getDualPrice = useCallback(
     (amount, currency) => {
       if (!exchangeRate) {
-        return { USD: 0, VES: 0 };
+        return {
+          referenceAmount: 0,
+          localAmount: 0,
+          [referenceCurrency]: 0,
+          [localCurrency]: 0,
+          USD: 0,
+          VES: 0,
+        };
       }
 
-      if (currency === "USD") {
+      if (currency === referenceCurrency) {
+        const localAmount = convert(amount, referenceCurrency, localCurrency);
         return {
-          USD: amount,
-          VES: convert(amount, "USD", "VES"),
+          referenceAmount: amount,
+          localAmount,
+          [referenceCurrency]: amount,
+          [localCurrency]: localAmount,
+          USD: referenceCurrency === "USD" ? amount : 0,
+          VES: localCurrency === "VES" ? localAmount : 0,
         };
       } else {
+        const referenceAmount = convert(
+          amount,
+          localCurrency,
+          referenceCurrency,
+        );
         return {
-          USD: convert(amount, "VES", "USD"),
-          VES: amount,
+          referenceAmount,
+          localAmount: amount,
+          [referenceCurrency]: referenceAmount,
+          [localCurrency]: amount,
+          USD: referenceCurrency === "USD" ? referenceAmount : 0,
+          VES: localCurrency === "VES" ? amount : 0,
         };
       }
     },
-    [exchangeRate, convert]
+    [exchangeRate, convert, localCurrency, referenceCurrency],
   );
 
   /**
@@ -76,12 +107,20 @@ export const usePriceCalculation = (exchangeRate) => {
   const calculateCartTotal = useCallback(
     (items) => {
       return items.reduce((total, item) => {
+        const monetary = buildSaleItemMonetaryFields(item, {
+          exchangeRate,
+          localCurrency,
+          referenceCurrency,
+          rateEnabled,
+        });
         const itemPrice =
-          baseCurrency === "USD" ? item.priceUSD : item.priceVES;
+          baseCurrency === referenceCurrency
+            ? monetary.priceUSD
+            : monetary.price;
         return total + itemPrice * item.quantity;
       }, 0);
     },
-    [baseCurrency]
+    [baseCurrency, exchangeRate, localCurrency, rateEnabled, referenceCurrency],
   );
 
   /**
@@ -103,12 +142,14 @@ export const usePriceCalculation = (exchangeRate) => {
         total,
       };
     },
-    [calculateCartTotal]
+    [calculateCartTotal],
   );
 
   return {
     baseCurrency,
     setBaseCurrency,
+    localCurrency,
+    referenceCurrency,
     calculatePrice,
     getMargin,
     convert,

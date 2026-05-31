@@ -8,6 +8,8 @@ import {
 } from "react-native";
 import { calculateSalePrice } from "../../utils/pricing";
 import { formatCurrency } from "../../utils/currency";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
+import { convertCurrency } from "../../utils/exchange";
 
 /**
  * Componente para calcular precios basado en costo y margen
@@ -16,6 +18,8 @@ export const PriceCalculator = ({ onCalculate, style }) => {
   const [cost, setCost] = useState("");
   const [margin, setMargin] = useState("30");
   const [result, setResult] = useState(null);
+  const { rate, localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
 
   const handleCalculate = () => {
     const costNum = parseFloat(cost) || 0;
@@ -38,12 +42,27 @@ export const PriceCalculator = ({ onCalculate, style }) => {
     }
   };
 
+  const localPrice =
+    result && rateEnabled && Number(rate) > 0
+      ? convertCurrency(
+          result.price,
+          referenceCurrency,
+          localCurrency,
+          Number(rate),
+          {
+            referenceCurrency,
+            localCurrency,
+            usesUsdConversion: rateEnabled,
+          },
+        )
+      : null;
+
   return (
     <View style={[styles.container, style]}>
       <Text style={styles.title}>Calculadora de Precios</Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Costo (USD)</Text>
+        <Text style={styles.label}>{`Costo (${referenceCurrency})`}</Text>
         <TextInput
           style={styles.input}
           value={cost}
@@ -75,13 +94,23 @@ export const PriceCalculator = ({ onCalculate, style }) => {
           <View style={styles.resultRow}>
             <Text style={styles.resultLabel}>Precio de Venta:</Text>
             <Text style={styles.resultValue}>
-              {formatCurrency(result.price, "USD")}
+              {formatCurrency(result.price, referenceCurrency)}
             </Text>
           </View>
+          {rateEnabled && localPrice != null ? (
+            <View style={styles.resultRow}>
+              <Text
+                style={styles.resultLabel}
+              >{`Precio en ${localCurrency}:`}</Text>
+              <Text style={styles.resultValue}>
+                {formatCurrency(localPrice, localCurrency)}
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.resultRow}>
             <Text style={styles.resultLabel}>Ganancia:</Text>
             <Text style={[styles.resultValue, styles.profit]}>
-              {formatCurrency(result.profit, "USD")}
+              {formatCurrency(result.profit, referenceCurrency)}
             </Text>
           </View>
         </View>
