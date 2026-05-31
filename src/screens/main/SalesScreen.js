@@ -18,6 +18,7 @@ import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabB
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import { convertCurrency } from "../../utils/exchange";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import {
@@ -62,6 +63,7 @@ const SaleListItem = React.memo(function SaleListItem({
   getSaleDisplayNumber,
   onShowDetails,
   onCancelSale,
+  localCurrency,
 }) {
   const handleShowDetails = useCallback(() => {
     onShowDetails(item);
@@ -95,7 +97,7 @@ const SaleListItem = React.memo(function SaleListItem({
           </Text>
         </View>
         <InfoPill
-          text={formatCurrency(calculateTotal(item), "VES")}
+          text={formatCurrency(calculateTotal(item), localCurrency)}
           tone="info"
         />
       </View>
@@ -139,10 +141,13 @@ const SalesListHeader = React.memo(function SalesListHeader({
   onChangeTab,
   onOpenEndPicker,
   onOpenStartPicker,
+  localCurrency,
   showEndPicker,
   showStartPicker,
   startDate,
   summary,
+  rateEnabled,
+  referenceCurrency,
 }) {
   return (
     <View style={styles.headerContent}>
@@ -158,7 +163,7 @@ const SalesListHeader = React.memo(function SalesListHeader({
             tone: "info",
           },
           {
-            text: formatCurrency(summary.total, "VES"),
+            text: formatCurrency(summary.total, localCurrency),
             tone: "accent",
           },
         ]}
@@ -178,9 +183,11 @@ const SalesListHeader = React.memo(function SalesListHeader({
         />
         <MetricCard
           label="Facturado"
-          value={formatCurrency(summary.total, "VES")}
+          value={formatCurrency(summary.total, localCurrency)}
           hint={
-            activeTab === "today"
+            rateEnabled && summary.referenceTotal > 0
+              ? formatCurrency(summary.referenceTotal, referenceCurrency)
+              : activeTab === "today"
               ? "Total acumulado de hoy"
               : `${formatDate(startDate)} - ${formatDate(endDate)}`
           }
@@ -314,7 +321,8 @@ export const SalesScreen = () => {
   const { sales, todayStats, loading, loadSales, loadTodayStats, cancelSale } =
     useSales();
 
-  const { rate } = useExchangeRateContext();
+  const { rate, localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
   const { showAlert, CustomAlert } = useCustomAlert();
 
   const exchangeRate = Number(rate) || 0;
@@ -323,11 +331,54 @@ export const SalesScreen = () => {
     if (sale?.paymentMethod === "por_cobrar" && exchangeRate > 0) {
       const totalUSD = Number(sale.totalUSD) || 0;
       if (totalUSD > 0) {
-        return totalUSD * exchangeRate;
+        return rateEnabled
+          ? convertCurrency(
+              totalUSD,
+              referenceCurrency,
+              localCurrency,
+              exchangeRate,
+              {
+                referenceCurrency,
+                localCurrency,
+                usesUsdConversion: rateEnabled,
+              },
+            )
+          : totalUSD;
       }
     }
     return sale?.total || 0;
   };
+
+  const calculateReferenceTotal = useCallback(
+    (sale) => {
+      const totalReference = Number(sale?.totalUSD) || 0;
+      if (totalReference > 0) {
+        return totalReference;
+      }
+
+      const totalLocal = Number(calculateTotal(sale)) || 0;
+      const rateAtSale = Number(sale?.exchangeRate) || exchangeRate || 0;
+
+      if (!rateEnabled) {
+        return totalLocal;
+      }
+
+      return rateAtSale > 0
+        ? convertCurrency(
+            totalLocal,
+            localCurrency,
+            referenceCurrency,
+            rateAtSale,
+            {
+              referenceCurrency,
+              localCurrency,
+              usesUsdConversion: rateEnabled,
+            },
+          )
+        : 0;
+    },
+    [calculateTotal, exchangeRate, localCurrency, rateEnabled, referenceCurrency],
+  );
 
   const getSaleDisplayNumber = (sale) =>
     sale?.saleNumber || `VTA-${String(sale?.id || 0).padStart(6, "0")}`;
@@ -434,6 +485,9 @@ export const SalesScreen = () => {
       return {
         count: todayStats?.count || 0,
         total: todayStats?.total || 0,
+        referenceTotal: rateEnabled
+          ? (todayStats?.totalUSD || 0)
+          : (todayStats?.total || 0),
       };
     }
 
@@ -441,11 +495,22 @@ export const SalesScreen = () => {
       (sum, sale) => sum + (Number(calculateTotal(sale)) || 0),
       0,
     );
+    const referenceTotal = filteredSales.reduce(
+      (sum, sale) => sum + (Number(calculateReferenceTotal(sale)) || 0),
+      0,
+    );
     return {
       count: filteredSales.length,
       total,
+      referenceTotal,
     };
-  }, [activeTab, todayStats, filteredSales]);
+  }, [
+    activeTab,
+    calculateReferenceTotal,
+    filteredSales,
+    rateEnabled,
+    todayStats,
+  ]);
 
   useEffect(() => {
     const run = async () => {
@@ -462,41 +527,52 @@ export const SalesScreen = () => {
           return acc;
         }, {});
 
-        const soldVES = (filteredSales || []).reduce(
+        const soldLocal = (filteredSales || []).reduce(
           (sum, sale) => sum + (Number(calculateTotal(sale)) || 0),
           0,
         );
 
-        const soldUSD = (filteredSales || []).reduce((sum, sale) => {
-          const totalUSD = Number(sale.totalUSD) || 0;
-          if (totalUSD > 0) {
-            return sum + totalUSD;
-          }
-
-          const totalVES = Number(calculateTotal(sale)) || 0;
-          const rateAtSale = Number(sale.exchangeRate) || exchangeRate || 0;
-          return sum + (rateAtSale > 0 ? totalVES / rateAtSale : 0);
-        }, 0);
+        const soldReference = (filteredSales || []).reduce(
+          (sum, sale) => sum + (Number(calculateReferenceTotal(sale)) || 0),
+          0,
+        );
 
         const costUSD = (filteredSales || []).reduce((sum, sale) => {
           const saleId = Number(sale.id);
           return sum + (costBySaleId[saleId] || 0);
         }, 0);
 
-        const costVES = (filteredSales || []).reduce((sum, sale) => {
+        const costLocal = (filteredSales || []).reduce((sum, sale) => {
           const saleId = Number(sale.id);
           const costUSD = costBySaleId[saleId] || 0;
           const rateAtSale = Number(sale.exchangeRate) || exchangeRate || 0;
-          return sum + costUSD * rateAtSale;
+          if (!rateEnabled) {
+            return sum + costUSD;
+          }
+
+          return (
+            sum +
+            convertCurrency(
+              costUSD,
+              referenceCurrency,
+              localCurrency,
+              rateAtSale,
+              {
+                referenceCurrency,
+                localCurrency,
+                usesUsdConversion: rateEnabled,
+              },
+            )
+          );
         }, 0);
 
         setTotals({
-          soldVES,
-          soldUSD,
-          costVES,
+          soldVES: soldLocal,
+          soldUSD: soldReference,
+          costVES: costLocal,
           costUSD,
-          profitVES: soldVES - costVES,
-          profitUSD: soldUSD - costUSD,
+          profitVES: soldLocal - costLocal,
+          profitUSD: soldReference - costUSD,
         });
       } catch (error) {
         console.error("Error calculando totales de ventas:", error);
@@ -635,6 +711,7 @@ export const SalesScreen = () => {
         item={item}
         calculateTotal={calculateTotal}
         getSaleDisplayNumber={getSaleDisplayNumber}
+          localCurrency={localCurrency}
         onShowDetails={handleShowDetails}
         onCancelSale={handleCancelSale}
       />
@@ -658,6 +735,9 @@ export const SalesScreen = () => {
         onChangeTab={setActiveTab}
         onOpenEndPicker={openEndPicker}
         onOpenStartPicker={openStartPicker}
+        localCurrency={localCurrency}
+        rateEnabled={rateEnabled}
+        referenceCurrency={referenceCurrency}
         showEndPicker={showEndPicker}
         showStartPicker={showStartPicker}
         startDate={startDate}
@@ -760,20 +840,24 @@ export const SalesScreen = () => {
                 <View style={styles.modalMetricCard}>
                   <Text style={styles.modalLabel}>Total vendido</Text>
                   <Text style={styles.modalValue}>
-                    {formatCurrency(totals.soldVES, "VES")}
+                    {formatCurrency(totals.soldVES, localCurrency)}
                   </Text>
-                  <Text style={styles.modalValueSecondary}>
-                    {formatCurrency(totals.soldUSD, "USD")}
-                  </Text>
+                  {rateEnabled ? (
+                    <Text style={styles.modalValueSecondary}>
+                      {formatCurrency(totals.soldUSD, referenceCurrency)}
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={styles.modalMetricCard}>
                   <Text style={styles.modalLabel}>Costo vendido</Text>
                   <Text style={styles.modalValue}>
-                    {formatCurrency(totals.costVES, "VES")}
+                    {formatCurrency(totals.costVES, localCurrency)}
                   </Text>
-                  <Text style={styles.modalValueSecondary}>
-                    {formatCurrency(totals.costUSD, "USD")}
-                  </Text>
+                  {rateEnabled ? (
+                    <Text style={styles.modalValueSecondary}>
+                      {formatCurrency(totals.costUSD, referenceCurrency)}
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={styles.modalMetricCard}>
                   <Text style={styles.modalLabel}>Ganancia</Text>
@@ -785,11 +869,13 @@ export const SalesScreen = () => {
                         : styles.negativeValue,
                     ]}
                   >
-                    {formatCurrency(totals.profitVES, "VES")}
+                    {formatCurrency(totals.profitVES, localCurrency)}
                   </Text>
-                  <Text style={styles.modalValueSecondary}>
-                    {formatCurrency(totals.profitUSD, "USD")}
-                  </Text>
+                  {rateEnabled ? (
+                    <Text style={styles.modalValueSecondary}>
+                      {formatCurrency(totals.profitUSD, referenceCurrency)}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             )}

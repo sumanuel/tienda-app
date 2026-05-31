@@ -12,6 +12,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import { convertCurrency } from "../../utils/exchange";
 import { db } from "../../services/database/db";
 import { s, rf, vs, spacing, borderRadius } from "../../utils/responsive";
 import {
@@ -27,7 +28,8 @@ import {
  */
 export const CancelledSalesScreen = () => {
   const navigation = useNavigation();
-  const { rate } = useExchangeRateContext();
+  const { rate, localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
 
   const [cancelledSales, setCancelledSales] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +40,19 @@ export const CancelledSalesScreen = () => {
     if (sale?.paymentMethod === "por_cobrar" && exchangeRate > 0) {
       const totalUSD = Number(sale.totalUSD) || 0;
       if (totalUSD > 0) {
-        return totalUSD * exchangeRate;
+        return rateEnabled
+          ? convertCurrency(
+              totalUSD,
+              referenceCurrency,
+              localCurrency,
+              exchangeRate,
+              {
+                referenceCurrency,
+                localCurrency,
+                usesUsdConversion: rateEnabled,
+              },
+            )
+          : totalUSD;
       }
     }
     return sale?.total || 0;
@@ -109,7 +123,7 @@ export const CancelledSalesScreen = () => {
         </View>
         <View style={styles.saleAmountBadge}>
           <Text style={styles.saleAmountText}>
-            {formatCurrency(calculateTotal(item), "VES")}
+            {formatCurrency(calculateTotal(item), localCurrency)}
           </Text>
         </View>
       </View>

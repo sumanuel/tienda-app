@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { auth, firestore } from "../firebase/firebase";
 import { handleCloudAccessError } from "../firebase/cloudAccess";
+import { normalizeCurrencyCode } from "../../utils/currency";
 import {
   formatConsecutiveNumber,
   getNextCloudConsecutive,
@@ -221,7 +222,7 @@ const normalizeSaleItem = (item = {}) => ({
   productName: String(item.productName || "").trim(),
   quantity: Number(item.quantity) || 0,
   price: Number(item.price) || 0,
-  priceUSD: Number(item.priceUSD) || 0,
+  priceUSD: Number(item.priceUSD) || Number(item.price) || 0,
   subtotal:
     Number(item.subtotal) ||
     (Number(item.quantity) || 0) * (Number(item.price) || 0),
@@ -253,7 +254,7 @@ const normalizeSaleRecord = (sale = {}) => {
     tax: Number(sale.tax) || 0,
     discount: Number(sale.discount) || 0,
     total: Number(sale.total) || 0,
-    currency: String(sale.currency || "VES"),
+    currency: normalizeCurrencyCode(sale.currency, "VES"),
     exchangeRate: Number(sale.exchangeRate) || 0,
     paymentMethod: String(sale.paymentMethod || ""),
     paid: Number(sale.paid) || 0,
@@ -685,6 +686,8 @@ export const insertSale = async (sale, items) => {
       assertSharedStoreCloudWriteAvailable();
     }
 
+    const normalizedCurrency = normalizeCurrencyCode(sale?.currency, "VES");
+
     if (isCloudSalesEnabled()) {
       await ensureCloudSalesSeeded();
       const storeData = await getStoreSeedState();
@@ -695,6 +698,7 @@ export const insertSale = async (sale, items) => {
       const id = consecutive.sequence;
       const payload = normalizeSaleRecord({
         ...sale,
+        currency: normalizedCurrency,
         id,
         saleNumber: consecutive.value,
         createdAt: new Date().toISOString(),
@@ -718,7 +722,7 @@ export const insertSale = async (sale, items) => {
         sale.tax,
         sale.discount || 0,
         sale.total,
-        sale.currency,
+        normalizedCurrency,
         sale.exchangeRate,
         sale.paymentMethod,
         sale.paid,

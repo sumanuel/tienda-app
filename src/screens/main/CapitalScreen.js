@@ -4,6 +4,7 @@ import { useAccounts } from "../../hooks/useAccounts";
 import { useInventory } from "../../hooks/useInventory";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import { convertCurrency } from "../../utils/exchange";
 import {
   InfoPill,
   SurfaceCard,
@@ -15,7 +16,8 @@ import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 const CapitalScreen = () => {
   const { receivableStats, payableStats } = useAccounts();
   const { inventory } = useInventory();
-  const { rate } = useExchangeRateContext();
+  const { rate, localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
 
   const exchangeRate = Number(rate) || 0;
 
@@ -24,45 +26,102 @@ const CapitalScreen = () => {
 
   const capital = totalReceivable - totalPayable;
 
-  const formatAmount = (value) => formatCurrency(value || 0, "VES");
-  const formatUSD = (value) => formatCurrency(value || 0, "USD");
-  const toUSD = (value) =>
-    exchangeRate > 0 ? Number(value || 0) / exchangeRate : null;
+  const formatAmount = (value) => formatCurrency(value || 0, localCurrency);
+  const formatReferenceAmount = (value) =>
+    formatCurrency(value || 0, referenceCurrency);
+  const toReferenceAmount = (value) => {
+    if (!rateEnabled) {
+      return Number(value || 0);
+    }
 
-  // Inventario: asumimos que products.cost está en USD (costo USD)
-  const inventoryCostUSD = (inventory || []).reduce((sum, product) => {
+    if (exchangeRate > 0) {
+      return convertCurrency(
+        Number(value || 0),
+        localCurrency,
+        referenceCurrency,
+        exchangeRate,
+        {
+          referenceCurrency,
+          localCurrency,
+          usesUsdConversion: rateEnabled,
+        },
+      );
+    }
+
+    return null;
+  };
+
+  const inventoryCostReference = (inventory || []).reduce((sum, product) => {
     const stock = Number(product.stock) || 0;
-    const costUSD = Number(product.cost) || 0;
-    const additionalCostUSD = Number(product.additionalCost) || 0;
-    return sum + stock * (costUSD + additionalCostUSD);
+    const referenceCost = Number(product.cost) || 0;
+    const referenceAdditionalCost = Number(product.additionalCost) || 0;
+    return sum + stock * (referenceCost + referenceAdditionalCost);
   }, 0);
-  const inventoryCostVES = exchangeRate ? inventoryCostUSD * exchangeRate : 0;
+  const inventoryCostLocal = rateEnabled
+    ? exchangeRate > 0
+      ? convertCurrency(
+          inventoryCostReference,
+          referenceCurrency,
+          localCurrency,
+          exchangeRate,
+          {
+            referenceCurrency,
+            localCurrency,
+            usesUsdConversion: rateEnabled,
+          },
+        )
+      : 0
+    : inventoryCostReference;
 
-  const inventorySellUSD = (inventory || []).reduce((sum, product) => {
+  const inventorySellReference = (inventory || []).reduce((sum, product) => {
     const stock = Number(product.stock) || 0;
-    const priceUSD = Number(product.priceUSD) || 0;
-    return sum + stock * priceUSD;
+    const referencePrice = Number(product.priceUSD) || 0;
+    return sum + stock * referencePrice;
   }, 0);
 
-  const inventorySellVES = (inventory || []).reduce((sum, product) => {
+  const inventorySellLocal = (inventory || []).reduce((sum, product) => {
     const stock = Number(product.stock) || 0;
-    const priceVES =
+    const localPrice =
       Number(product.priceVES) ||
-      (exchangeRate ? (Number(product.priceUSD) || 0) * exchangeRate : 0);
-    return sum + Math.round(stock * priceVES * 100) / 100; // Redondear a 2 decimales
+      (rateEnabled && exchangeRate
+        ? convertCurrency(
+            Number(product.priceUSD) || 0,
+            referenceCurrency,
+            localCurrency,
+            exchangeRate,
+            {
+              referenceCurrency,
+              localCurrency,
+              usesUsdConversion: rateEnabled,
+            },
+          )
+        : Number(product.priceUSD) || 0);
+    return sum + Math.round(stock * localPrice * 100) / 100;
   }, 0);
 
   // Redondear valores finales a 2 decimales para consistencia
-  const roundedInventorySellVES = Math.round(inventorySellVES * 100) / 100;
+  const roundedInventorySellLocal = Math.round(inventorySellLocal * 100) / 100;
   const roundedCapital = Math.round(capital * 100) / 100;
-  const roundedInventorySellUSD = Math.round(inventorySellUSD * 100) / 100;
+  const roundedInventorySellReference =
+    Math.round(inventorySellReference * 100) / 100;
   const roundedExchangeRate = Math.round(exchangeRate * 100) / 100;
-  const capitalDisponibleUSD =
-    exchangeRate > 0
-      ? roundedInventorySellUSD + roundedCapital / roundedExchangeRate
-      : null;
-  const receivableUSD = toUSD(totalReceivable);
-  const payableUSD = toUSD(totalPayable);
+  const capitalDisponibleReference =
+    rateEnabled && exchangeRate > 0
+      ? roundedInventorySellReference +
+        convertCurrency(
+          roundedCapital,
+          localCurrency,
+          referenceCurrency,
+          roundedExchangeRate,
+          {
+            referenceCurrency,
+            localCurrency,
+            usesUsdConversion: rateEnabled,
+          },
+        )
+      : toReferenceAmount(roundedInventorySellLocal + roundedCapital);
+  const receivableReference = toReferenceAmount(totalReceivable);
+  const payableReference = toReferenceAmount(totalPayable);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -86,18 +145,19 @@ const CapitalScreen = () => {
 
       <View style={styles.summaryGrid}>
         <SurfaceCard style={[styles.summaryCard, styles.summaryCardHalf]}>
-          <Text style={styles.summaryTitle}>Capital disponible USD</Text>
+          <Text style={styles.summaryTitle}>{`Capital disponible ${referenceCurrency}`}</Text>
           <Text
             style={[
               styles.summaryAmount,
-              capitalDisponibleUSD === null || capitalDisponibleUSD >= 0
+              capitalDisponibleReference === null ||
+              capitalDisponibleReference >= 0
                 ? styles.positiveValue
                 : styles.negativeValue,
             ]}
           >
-            {capitalDisponibleUSD === null
+            {capitalDisponibleReference === null
               ? "Sin tasa"
-              : formatUSD(capitalDisponibleUSD)}
+              : formatReferenceAmount(capitalDisponibleReference)}
           </Text>
           <Text style={styles.summarySubtitle}>
             Inventario + capital actual
@@ -105,16 +165,16 @@ const CapitalScreen = () => {
         </SurfaceCard>
 
         <SurfaceCard style={[styles.summaryCard, styles.summaryCardHalf]}>
-          <Text style={styles.summaryTitle}>Capital disponible VES</Text>
+          <Text style={styles.summaryTitle}>{`Capital disponible ${localCurrency}`}</Text>
           <Text
             style={[
               styles.summaryAmount,
-              roundedInventorySellVES + roundedCapital >= 0
+              roundedInventorySellLocal + roundedCapital >= 0
                 ? styles.positiveValue
                 : styles.negativeValue,
             ]}
           >
-            {formatAmount(roundedInventorySellVES + roundedCapital)}
+            {formatAmount(roundedInventorySellLocal + roundedCapital)}
           </Text>
           <Text style={styles.summarySubtitle}>
             Inventario + capital actual
@@ -126,21 +186,21 @@ const CapitalScreen = () => {
         <SurfaceCard style={[styles.summaryCard, styles.summaryCardHalf]}>
           <Text style={styles.summaryTitle}>Inventario al costo</Text>
           <Text style={styles.summaryAmountNeutral}>
-            {formatUSD(inventoryCostUSD)}
+            {formatReferenceAmount(inventoryCostReference)}
           </Text>
           <Text style={styles.summarySubtitle}>
-            {formatAmount(inventoryCostVES)}
-            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)}` : ""}
+            {formatAmount(inventoryCostLocal)}
+            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)} ${localCurrency}` : ""}
           </Text>
         </SurfaceCard>
 
         <SurfaceCard style={[styles.summaryCard, styles.summaryCardHalf]}>
           <Text style={styles.summaryTitle}>Si vendes todo</Text>
           <Text style={styles.summaryAmountNeutral}>
-            {formatUSD(inventorySellUSD)}
+            {formatReferenceAmount(inventorySellReference)}
           </Text>
           <Text style={styles.summarySubtitle}>
-            {formatAmount(inventorySellVES)}
+            {formatAmount(inventorySellLocal)}
           </Text>
         </SurfaceCard>
       </View>
@@ -149,22 +209,26 @@ const CapitalScreen = () => {
         <SurfaceCard style={[styles.infoCard, styles.cardSpacing]}>
           <Text style={styles.cardTitle}>Cuentas por cobrar</Text>
           <Text style={styles.cardAmount}>
-            {receivableUSD === null ? "Sin tasa" : formatUSD(receivableUSD)}
+            {receivableReference === null
+              ? "Sin tasa"
+              : formatReferenceAmount(receivableReference)}
           </Text>
           <Text style={styles.cardSubtitle}>
             {formatAmount(totalReceivable)}
-            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)} VES.` : ""}
+            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)} ${localCurrency}.` : ""}
           </Text>
         </SurfaceCard>
 
         <SurfaceCard style={styles.infoCard}>
           <Text style={styles.cardTitle}>Cuentas por pagar</Text>
           <Text style={[styles.cardAmount, styles.payableAmount]}>
-            {payableUSD === null ? "Sin tasa" : formatUSD(payableUSD)}
+            {payableReference === null
+              ? "Sin tasa"
+              : formatReferenceAmount(payableReference)}
           </Text>
           <Text style={styles.cardSubtitle}>
             {formatAmount(totalPayable)}
-            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)} VES.` : ""}
+            {exchangeRate ? ` • Tasa ${exchangeRate.toFixed(2)} ${localCurrency}.` : ""}
           </Text>
         </SurfaceCard>
       </View>

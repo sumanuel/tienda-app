@@ -8,7 +8,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useExchangeRate } from "../../contexts/ExchangeRateContext";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { useSales } from "../../hooks/useSales";
 import { useInventory } from "../../hooks/useInventory";
@@ -142,10 +142,13 @@ export const DashboardScreen = ({ navigation }) => {
   const { showAlert, CustomAlert } = useCustomAlert();
   const {
     rate,
+    localCurrency,
+    referenceCurrency,
+    rateEnabled,
     loading: rateLoading,
     lastUpdate,
     updateRate,
-  } = useExchangeRate({ autoUpdate: false });
+  } = useExchangeRateContext();
   const { todayStats, loading: salesLoading, loadTodayStats } = useSales();
   const {
     stats: inventoryStats,
@@ -247,7 +250,9 @@ export const DashboardScreen = ({ navigation }) => {
     year: "numeric",
   });
 
-  const exchangeRateLabel = rate ? `${rate.toFixed(2)} VES` : "Pendiente";
+  const exchangeRateLabel = rate
+    ? `${rate.toFixed(2)} ${localCurrency}`
+    : "Pendiente";
   const exchangeRateHelper = rateLoading
     ? "Actualizando referencia"
     : lastUpdate
@@ -256,9 +261,12 @@ export const DashboardScreen = ({ navigation }) => {
 
   const pendingReceivable = formatCurrency(
     receivableStats?.pending || 0,
-    "VES",
+    localCurrency,
   );
-  const pendingPayable = formatCurrency(payableStats?.pending || 0, "VES");
+  const pendingPayable = formatCurrency(
+    payableStats?.pending || 0,
+    localCurrency,
+  );
   const inventorySummary = `${inventoryStats?.totalProducts || 0} productos`;
   const salesSummary = `${todayStats?.count || 0} ${
     todayStats?.count === 1 ? "venta" : "ventas"
@@ -330,7 +338,7 @@ export const DashboardScreen = ({ navigation }) => {
           <View style={styles.currencyButtons}>
             <View style={styles.currencyButtonActive}>
               <Text style={styles.currencyButtonTextActive}>
-                Operando en VES
+                {`Operando en ${localCurrency}`}
               </Text>
             </View>
             <Pressable
@@ -381,7 +389,7 @@ export const DashboardScreen = ({ navigation }) => {
           <View style={styles.balanceSection}>
             <Text style={styles.balanceLabel}>TOTAL VENDIDO</Text>
             <Text style={styles.balanceAmount}>
-              {formatCurrency(todayStats?.total || 0, "VES")}
+              {formatCurrency(todayStats?.total || 0, localCurrency)}
             </Text>
             <Text style={styles.salesCount}>
               {todayStats?.count || 0}{" "}

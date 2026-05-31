@@ -24,6 +24,16 @@ import {
 } from "../store/storeRefs";
 import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 
+const normalizeLegacyProductPrices = (product = {}) => {
+  const referencePrice = Number(product.priceUSD) || 0;
+  const localPrice = Number(product.priceVES);
+
+  return {
+    referencePrice,
+    localPrice: Number.isFinite(localPrice) ? localPrice : referencePrice,
+  };
+};
+
 let productsColumnsChecked = false;
 let productsHasAdditionalCostColumn = false;
 let productsHasIvaColumn = false;
@@ -135,6 +145,13 @@ const canSkipProductsSeed = async () => {
 };
 
 const normalizeProductRecord = (product = {}) => ({
+  ...(() => {
+    const { referencePrice, localPrice } = normalizeLegacyProductPrices(product);
+    return {
+      priceUSD: referencePrice,
+      priceVES: localPrice,
+    };
+  })(),
   id:
     Number(product.id) ||
     parseConsecutiveSequence(product.productNumber) ||
@@ -148,8 +165,6 @@ const normalizeProductRecord = (product = {}) => ({
   description: String(product.description || "").trim(),
   cost: Number(product.cost) || 0,
   additionalCost: Number(product.additionalCost) || 0,
-  priceUSD: Number(product.priceUSD) || 0,
-  priceVES: Number(product.priceVES) || 0,
   margin: Number(product.margin) || 0,
   iva: Number(product.iva) || 0,
   trackInventory: product.trackInventory === 0 ? 0 : 1,
@@ -834,6 +849,7 @@ export const searchProducts = async (query) => {
 export const insertProduct = async (product) => {
   try {
     assertSharedStoreCloudWriteAvailable();
+    const { referencePrice, localPrice } = normalizeLegacyProductPrices(product);
 
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
@@ -869,8 +885,8 @@ export const insertProduct = async (product) => {
         product.description || "",
         product.cost || 0,
         product.additionalCost || 0,
-        product.priceUSD || 0,
-        product.priceVES || 0,
+        referencePrice,
+        localPrice,
         product.margin || 0,
         product.iva || 0,
         product.trackInventory === 0 ? 0 : 1,
@@ -898,6 +914,7 @@ export const insertProduct = async (product) => {
 export const updateProduct = async (id, product) => {
   try {
     assertSharedStoreCloudWriteAvailable();
+    const { referencePrice, localPrice } = normalizeLegacyProductPrices(product);
 
     if (isCloudProductsEnabled()) {
       await ensureCloudProductsSeeded();
@@ -927,8 +944,8 @@ export const updateProduct = async (id, product) => {
         product.description,
         product.cost,
         product.additionalCost || 0,
-        product.priceUSD,
-        product.priceVES || 0,
+        referencePrice,
+        localPrice,
         product.margin,
         product.iva || 0,
         product.trackInventory === 0 ? 0 : 1,
