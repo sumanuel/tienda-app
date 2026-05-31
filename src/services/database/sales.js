@@ -1021,9 +1021,10 @@ export const getSaleById = async (saleId) => {
 
     return normalizeSaleRecord({
       ...sale,
-      items: await db.getAllAsync("SELECT * FROM sale_items WHERE saleId = ?;", [
-        saleId,
-      ]),
+      items: await db.getAllAsync(
+        "SELECT * FROM sale_items WHERE saleId = ?;",
+        [saleId],
+      ),
     });
   } catch (error) {
     throw error;
