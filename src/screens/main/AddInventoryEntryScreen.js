@@ -329,6 +329,8 @@ export const AddInventoryEntryScreen = ({ navigation, route }) => {
           description: product.description || "",
           cost: normalizedCosts.referenceCost,
           additionalCost: normalizedCosts.referenceAdditionalCost,
+          localCurrency,
+          referenceCurrency,
           priceUSD: pricing.legacyPriceUSD || Number(product.priceUSD) || 0,
           priceVES: pricing.legacyPriceVES || Number(product.priceVES) || 0,
           margin: Number(margin) || 0,

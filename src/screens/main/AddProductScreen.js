@@ -298,6 +298,8 @@ export const AddProductScreen = ({ navigation }) => {
         cost: normalizedCosts.referenceCost,
         additionalCost: normalizedCosts.referenceAdditionalCost,
         costCurrency,
+        localCurrency,
+        referenceCurrency,
         priceUSD: pricing.legacyPriceUSD,
         priceVES: pricing.legacyPriceVES,
         margin,

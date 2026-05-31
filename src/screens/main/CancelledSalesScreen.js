@@ -23,6 +23,22 @@ import {
   UI_COLORS,
 } from "../../components/common/AppUI";
 
+const parseStoredJson = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "object") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(String(value));
+  } catch (_) {
+    return null;
+  }
+};
+
 /**
  * Pantalla de ventas anuladas
  */
@@ -37,12 +53,16 @@ export const CancelledSalesScreen = () => {
   const exchangeRate = Number(rate) || 0;
 
   const calculateTotal = (sale) => {
+    const monetarySnapshot = parseStoredJson(sale?.monetarySnapshot);
+    const totalReference = Number(
+      monetarySnapshot?.totalReferenceAmount ?? sale?.totalUSD,
+    );
+
     if (sale?.paymentMethod === "por_cobrar" && exchangeRate > 0) {
-      const totalUSD = Number(sale.totalUSD) || 0;
-      if (totalUSD > 0) {
+      if (totalReference > 0) {
         return rateEnabled
           ? convertCurrency(
-              totalUSD,
+              totalReference,
               referenceCurrency,
               localCurrency,
               exchangeRate,
@@ -52,10 +72,11 @@ export const CancelledSalesScreen = () => {
                 usesUsdConversion: rateEnabled,
               },
             )
-          : totalUSD;
+          : totalReference;
       }
     }
-    return sale?.total || 0;
+
+    return Number(monetarySnapshot?.totalLocalAmount ?? sale?.total) || 0;
   };
 
   const getSaleDisplayNumber = (sale) =>
@@ -66,8 +87,7 @@ export const CancelledSalesScreen = () => {
       setLoading(true);
       const result = await db.getAllAsync(
         `SELECT s.*,
-                (SELECT COUNT(*) FROM sale_items si WHERE si.saleId = s.id) as itemCount,
-                (SELECT ROUND(SUM(si.quantity * COALESCE(si.priceUSD, 0)), 6) FROM sale_items si WHERE si.saleId = s.id) as totalUSD
+                (SELECT COUNT(*) FROM sale_items si WHERE si.saleId = s.id) as itemCount
          FROM sales s
          WHERE s.status = 'cancelled'
          ORDER BY s.createdAt DESC;`,

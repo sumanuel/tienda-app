@@ -1083,7 +1083,9 @@ export const POSScreen = ({ navigation, route }) => {
               tax: taxAmount,
               discount: 0,
               total: total,
-              currency: "VES",
+              currency: localCurrency,
+              localCurrency,
+              referenceCurrency,
               exchangeRate: exchangeRate,
               paymentMethod: paymentMethod,
               paid: total,
@@ -1101,6 +1103,8 @@ export const POSScreen = ({ navigation, route }) => {
                   Number(item.priceUSD) ||
                   Number(item.product?.priceUSD) ||
                   (exchangeRate ? Number(item.price) / exchangeRate : 0),
+                localCurrency,
+                referenceCurrency,
                 subtotal: item.subtotal,
               })),
             });
@@ -1118,7 +1122,9 @@ export const POSScreen = ({ navigation, route }) => {
         tax: taxAmount,
         discount: 0,
         total: total,
-        currency: "VES",
+        currency: localCurrency,
+        localCurrency,
+        referenceCurrency,
         exchangeRate: exchangeRate,
         paymentMethod: paymentMethod,
         paid: total,
@@ -1139,6 +1145,8 @@ export const POSScreen = ({ navigation, route }) => {
           Number(item.priceUSD) ||
           Number(item.product?.priceUSD) ||
           (exchangeRate ? Number(item.price) / exchangeRate : 0),
+        localCurrency,
+        referenceCurrency,
         subtotal: item.subtotal,
       }));
 

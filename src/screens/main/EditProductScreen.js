@@ -327,6 +327,8 @@ export const EditProductScreen = ({ navigation, route }) => {
         cost: normalizedCosts.referenceCost,
         additionalCost: normalizedCosts.referenceAdditionalCost,
         costCurrency: costCurrency,
+        localCurrency,
+        referenceCurrency,
         priceUSD: pricing.legacyPriceUSD,
         priceVES: pricing.legacyPriceVES,
         margin: margin,

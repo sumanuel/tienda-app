@@ -526,7 +526,9 @@ const MarginalSaleScreen = ({ navigation }) => {
               tax: taxAmount,
               discount: 0,
               total,
-              currency: "VES",
+              currency: localCurrency,
+              localCurrency,
+              referenceCurrency,
               exchangeRate: rateValue,
               paymentMethod,
               paid: total,
@@ -543,6 +545,8 @@ const MarginalSaleScreen = ({ navigation }) => {
                 priceUSD:
                   Number(item.priceUSD) ||
                   (rateValue ? Number(item.price) / rateValue : 0),
+                localCurrency,
+                referenceCurrency,
                 subtotal: item.subtotal,
               })),
             });
@@ -559,7 +563,9 @@ const MarginalSaleScreen = ({ navigation }) => {
         tax: taxAmount,
         discount: 0,
         total,
-        currency: "VES",
+        currency: localCurrency,
+        localCurrency,
+        referenceCurrency,
         exchangeRate: rateValue,
         paymentMethod,
         paid: total,
@@ -578,6 +584,8 @@ const MarginalSaleScreen = ({ navigation }) => {
         priceUSD:
           Number(item.priceUSD) ||
           (rateValue ? Number(item.price) / rateValue : 0),
+        localCurrency,
+        referenceCurrency,
         subtotal: item.subtotal,
       }));
 

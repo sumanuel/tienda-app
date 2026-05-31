@@ -468,6 +468,25 @@ const getLocalSaleItemsBySaleIds = async (saleIds = []) => {
   }, new Map());
 };
 
+const normalizeLocalSalesRows = async (salesRows = []) => {
+  const normalizedRows = Array.isArray(salesRows) ? salesRows : [];
+
+  if (normalizedRows.length === 0) {
+    return [];
+  }
+
+  const saleItemsBySaleId = await getLocalSaleItemsBySaleIds(
+    normalizedRows.map((saleRow) => saleRow.id),
+  );
+
+  return normalizedRows.map((saleRow) =>
+    normalizeSaleRecord({
+      ...saleRow,
+      items: saleItemsBySaleId.get(Number(saleRow.id)) || [],
+    }),
+  );
+};
+
 const getCloudSales = async () => {
   const cacheKey = getCloudSalesCacheKey();
   const cachedSales = cloudSalesCache.get(cacheKey);
@@ -964,15 +983,13 @@ export const getAllSales = async (limit = 100) => {
     }
 
     const result = await db.getAllAsync(
-      `SELECT s.*, 
-              (SELECT COUNT(*) FROM sale_items si WHERE si.saleId = s.id) as itemCount,
-              (SELECT ROUND(SUM(si.quantity * COALESCE(si.priceUSD, 0)), 6) FROM sale_items si WHERE si.saleId = s.id) as totalUSD
+      `SELECT s.*
        FROM sales s 
        WHERE s.status != 'cancelled'
        ORDER BY s.createdAt DESC LIMIT ?;`,
       [limit],
     );
-    return result;
+    return await normalizeLocalSalesRows(result);
   } catch (error) {
     throw error;
   }
@@ -1002,14 +1019,12 @@ export const getSaleById = async (saleId) => {
       return null;
     }
 
-    // Obtener items
-    const items = await db.getAllAsync(
-      "SELECT * FROM sale_items WHERE saleId = ?;",
-      [saleId],
-    );
-
-    sale.items = items;
-    return sale;
+    return normalizeSaleRecord({
+      ...sale,
+      items: await db.getAllAsync("SELECT * FROM sale_items WHERE saleId = ?;", [
+        saleId,
+      ]),
+    });
   } catch (error) {
     throw error;
   }
@@ -1030,7 +1045,7 @@ export const getSalesByDateRange = async (startDate, endDate) => {
       "SELECT * FROM sales WHERE createdAt >= ? AND createdAt <= ? ORDER BY createdAt DESC;",
       [startDate, endDate],
     );
-    return result;
+    return await normalizeLocalSalesRows(result);
   } catch (error) {
     throw error;
   }
@@ -1095,30 +1110,59 @@ export const getTodaySales = async () => {
           (sum, sale) => sum + (Number(sale.total) || 0),
           0,
         ),
+        totalUSD: todaySales.reduce(
+          (sum, sale) => sum + (Number(sale.totalUSD) || 0),
+          0,
+        ),
       };
     }
 
     const { startIso, endIso } = getTodayUtcRangeForDevice();
-    const result = await db.getFirstAsync(
-      `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total
+    const result = await db.getAllAsync(
+      `SELECT *
        FROM sales
        WHERE datetime(createdAt) >= datetime(?)
          AND datetime(createdAt) < datetime(?)
-         AND status = 'completed';`,
+         AND status = 'completed'
+       ORDER BY createdAt DESC;`,
       [startIso, endIso],
     );
-    return result;
+    const normalizedSales = await normalizeLocalSalesRows(result);
+    return {
+      count: normalizedSales.length,
+      total: normalizedSales.reduce(
+        (sum, sale) => sum + (Number(sale.total) || 0),
+        0,
+      ),
+      totalUSD: normalizedSales.reduce(
+        (sum, sale) => sum + (Number(sale.totalUSD) || 0),
+        0,
+      ),
+    };
   } catch (error) {
     if (handleCloudAccessError(error, "sales:getToday")) {
       const { startIso, endIso } = getTodayUtcRangeForDevice();
-      return await db.getFirstAsync(
-        `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total
+      const result = await db.getAllAsync(
+        `SELECT *
          FROM sales
          WHERE datetime(createdAt) >= datetime(?)
            AND datetime(createdAt) < datetime(?)
-           AND status = 'completed';`,
+           AND status = 'completed'
+         ORDER BY createdAt DESC;`,
         [startIso, endIso],
       );
+      const normalizedSales = await normalizeLocalSalesRows(result);
+      return {
+        count: normalizedSales.length,
+        total: normalizedSales.reduce(
+          (sum, sale) => sum + (Number(sale.total) || 0),
+          0,
+        ),
+        totalUSD: normalizedSales.reduce(
+          (sum, sale) => sum + (Number(sale.totalUSD) || 0),
+          0,
+        ),
+      };
     }
     throw error;
   }
