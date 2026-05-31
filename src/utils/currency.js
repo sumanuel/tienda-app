@@ -84,6 +84,184 @@ export const getCurrencyBehavior = (settings = {}) => {
   };
 };
 
+const parseCurrencySnapshotJson = (value) => {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+
+  try {
+    return JSON.parse(String(value));
+  } catch (_) {
+    return null;
+  }
+};
+
+const convertSnapshotAmount = (
+  amount,
+  fromCurrency,
+  toCurrency,
+  exchangeRate,
+  options = {},
+) => {
+  const numericAmount = Number(amount) || 0;
+  if (!numericAmount) return 0;
+
+  const behavior = getCurrencyBehavior(options?.settings || options);
+  const normalizedFrom = normalizeCurrencyCode(
+    fromCurrency,
+    behavior.referenceCurrency,
+  );
+  const normalizedTo = normalizeCurrencyCode(
+    toCurrency,
+    behavior.localCurrency,
+  );
+
+  if (normalizedFrom === normalizedTo) return numericAmount;
+
+  const numericRate = Number(exchangeRate) || 0;
+  if (numericRate <= 0) return numericAmount;
+
+  if (
+    normalizedFrom === behavior.referenceCurrency &&
+    normalizedTo === behavior.localCurrency
+  ) {
+    return numericAmount * numericRate;
+  }
+
+  if (
+    normalizedFrom === behavior.localCurrency &&
+    normalizedTo === behavior.referenceCurrency
+  ) {
+    return numericAmount / numericRate;
+  }
+
+  return numericAmount;
+};
+
+export const resolveProductPricing = (product = {}, options = {}) => {
+  const snapshot = parseCurrencySnapshotJson(product?.pricingSnapshot);
+  const localCurrency = normalizeCurrencyCode(
+    snapshot?.localCurrency || options?.localCurrency || product?.localCurrency,
+    DEFAULT_CURRENCY,
+  );
+  const referenceCurrency = normalizeCurrencyCode(
+    snapshot?.referenceCurrency ||
+      options?.referenceCurrency ||
+      product?.referenceCurrency,
+    localCurrency,
+  );
+  const referencePrice =
+    Number(snapshot?.referenceAmount ?? product?.priceUSD) || 0;
+  const localPriceSnapshot = Number(snapshot?.localAmount ?? product?.priceVES);
+  const exchangeRate = Number(options?.exchangeRate) || 0;
+  const rateEnabled = Boolean(options?.rateEnabled);
+
+  const localPrice = Number.isFinite(localPriceSnapshot)
+    ? localPriceSnapshot
+    : rateEnabled && exchangeRate > 0 && referencePrice > 0
+      ? convertSnapshotAmount(
+          referencePrice,
+          referenceCurrency,
+          localCurrency,
+          exchangeRate,
+          {
+            localCurrency,
+            referenceCurrency,
+            usesUsdConversion: rateEnabled,
+          },
+        )
+      : referencePrice;
+
+  return {
+    snapshot,
+    localCurrency,
+    referenceCurrency,
+    localPrice,
+    referencePrice,
+    costReferenceAmount:
+      Number(snapshot?.costReferenceAmount ?? product?.cost) || 0,
+    additionalCostReferenceAmount:
+      Number(snapshot?.additionalCostReferenceAmount ?? product?.additionalCost) ||
+      0,
+  };
+};
+
+export const resolveSaleItemPricing = (item = {}, options = {}) => {
+  const snapshot = parseCurrencySnapshotJson(item?.priceSnapshot);
+  const localCurrency = normalizeCurrencyCode(
+    snapshot?.localCurrency || options?.localCurrency,
+    DEFAULT_CURRENCY,
+  );
+  const referenceCurrency = normalizeCurrencyCode(
+    snapshot?.referenceCurrency || options?.referenceCurrency,
+    localCurrency,
+  );
+  const referencePrice =
+    Number(snapshot?.referenceAmount ?? item?.priceUSD) || 0;
+  const localPriceSnapshot = Number(snapshot?.localAmount ?? item?.price);
+  const exchangeRate = Number(
+    snapshot?.exchangeRate ?? options?.exchangeRate,
+  ) || 0;
+  const rateEnabled = Boolean(
+    snapshot?.rateEnabled ?? options?.rateEnabled ??
+      referenceCurrency !== localCurrency,
+  );
+
+  const localPrice = Number.isFinite(localPriceSnapshot)
+    ? localPriceSnapshot
+    : rateEnabled && exchangeRate > 0 && referencePrice > 0
+      ? convertSnapshotAmount(
+          referencePrice,
+          referenceCurrency,
+          localCurrency,
+          exchangeRate,
+          {
+            localCurrency,
+            referenceCurrency,
+            usesUsdConversion: rateEnabled,
+          },
+        )
+      : referencePrice;
+
+  return {
+    snapshot,
+    localCurrency,
+    referenceCurrency,
+    localPrice,
+    referencePrice,
+    subtotalLocal:
+      (Number(item?.quantity) || 0) * (Number(localPrice) || 0),
+    subtotalReference:
+      (Number(item?.quantity) || 0) * (Number(referencePrice) || 0),
+  };
+};
+
+export const resolveSaleMonetaryTotals = (sale = {}, options = {}) => {
+  const snapshot = parseCurrencySnapshotJson(sale?.monetarySnapshot);
+  const localCurrency = normalizeCurrencyCode(
+    snapshot?.localCurrency || options?.localCurrency || sale?.currency,
+    DEFAULT_CURRENCY,
+  );
+  const referenceCurrency = normalizeCurrencyCode(
+    snapshot?.referenceCurrency || options?.referenceCurrency,
+    localCurrency,
+  );
+
+  return {
+    snapshot,
+    localCurrency,
+    referenceCurrency,
+    totalLocal: Number(snapshot?.totalLocalAmount ?? sale?.total) || 0,
+    totalReference: Number(snapshot?.totalReferenceAmount ?? sale?.totalUSD) || 0,
+    exchangeRate:
+      Number(snapshot?.exchangeRate ?? sale?.exchangeRate ?? options?.exchangeRate) ||
+      0,
+    rateEnabled: Boolean(
+      snapshot?.rateEnabled ?? options?.rateEnabled ??
+        referenceCurrency !== localCurrency,
+    ),
+  };
+};
+
 /**
  * Convierte un precio de USD a VES usando la tasa actual
  * @param {number} usdPrice - Precio en USD

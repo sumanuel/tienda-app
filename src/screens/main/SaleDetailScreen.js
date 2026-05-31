@@ -14,8 +14,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
-import { formatCurrency } from "../../utils/currency";
-import { convertCurrency } from "../../utils/exchange";
+import {
+  formatCurrency,
+  resolveSaleItemPricing,
+  resolveSaleMonetaryTotals,
+} from "../../utils/currency";
 import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
 import { buildSaleInvoiceWhatsAppMessage } from "../../utils/whatsappMessages";
 import { getCustomerById } from "../../services/database/customers";
@@ -53,37 +56,18 @@ export const SaleDetailScreen = () => {
 
   const exchangeRate = Number(rate) || 0;
 
-  const resolveLocalSaleAmount = (referenceAmount, localAmount = 0) => {
-    const normalizedLocalAmount = Number(localAmount) || 0;
-    const normalizedReferenceAmount = Number(referenceAmount) || 0;
-
-    if (normalizedLocalAmount > 0) {
-      return normalizedLocalAmount;
-    }
-
-    if (rateEnabled && exchangeRate > 0 && normalizedReferenceAmount > 0) {
-      return convertCurrency(
-        normalizedReferenceAmount,
-        referenceCurrency,
-        localCurrency,
-        exchangeRate,
-        {
-          referenceCurrency,
-          localCurrency,
-          usesUsdConversion: rateEnabled,
-        },
-      );
-    }
-
-    return normalizedReferenceAmount;
-  };
-
   const getSaleDisplayNumber = (saleData) =>
     saleData?.saleNumber ||
     `VTA-${String(saleData?.id || saleId || 0).padStart(6, "0")}`;
 
   const calculateTotal = (saleData) => {
-    const persistedTotal = Number(saleData?.total) || 0;
+    const totals = resolveSaleMonetaryTotals(saleData, {
+      exchangeRate,
+      localCurrency,
+      referenceCurrency,
+      rateEnabled,
+    });
+    const persistedTotal = Number(totals.totalLocal) || 0;
 
     if (persistedTotal > 0) {
       return persistedTotal;
@@ -92,8 +76,12 @@ export const SaleDetailScreen = () => {
     return (saleData?.items || []).reduce(
       (sum, item) =>
         sum +
-        resolveLocalSaleAmount(item?.priceUSD, item?.price) *
-          (Number(item?.quantity) || 0),
+        resolveSaleItemPricing(item, {
+          exchangeRate,
+          localCurrency,
+          referenceCurrency,
+          rateEnabled,
+        }).subtotalLocal,
       0,
     );
   };
@@ -148,8 +136,13 @@ export const SaleDetailScreen = () => {
     const items = details?.items || [];
     const lines = items.map((it) => {
       const quantity = Number(it.quantity) || 0;
-      const priceUSD = Number(it.priceUSD) || 0;
-      const displayLocalPrice = resolveLocalSaleAmount(priceUSD, it?.price);
+      const pricing = resolveSaleItemPricing(it, {
+        exchangeRate,
+        localCurrency,
+        referenceCurrency,
+        rateEnabled,
+      });
+      const displayLocalPrice = pricing.localPrice;
       return {
         productName: it.productName,
         quantity,
@@ -157,11 +150,12 @@ export const SaleDetailScreen = () => {
       };
     });
 
-    const totalUSDNumber = (details?.items || []).reduce(
-      (sum, it) =>
-        sum + (Number(it.priceUSD) || 0) * (Number(it.quantity) || 0),
-      0,
-    );
+    const totalUSDNumber = resolveSaleMonetaryTotals(details || sale, {
+      exchangeRate,
+      localCurrency,
+      referenceCurrency,
+      rateEnabled,
+    }).totalReference;
 
     return buildSaleInvoiceWhatsAppMessage({
       saleNumber: getSaleDisplayNumber(sale),
@@ -207,10 +201,16 @@ export const SaleDetailScreen = () => {
 
   const renderDetailItem = ({ item, index }) => {
     const quantity = Number(item.quantity) || 0;
-    const priceUSD = Number(item.priceUSD) || 0;
-    const displayLocalPrice = resolveLocalSaleAmount(priceUSD, item?.price);
+    const pricing = resolveSaleItemPricing(item, {
+      exchangeRate,
+      localCurrency,
+      referenceCurrency,
+      rateEnabled,
+    });
+    const priceUSD = pricing.referencePrice;
+    const displayLocalPrice = pricing.localPrice;
     const displaySubtotalLocal =
-      Number(item.subtotal) || quantity * displayLocalPrice;
+      Number(item.subtotal) || pricing.subtotalLocal || quantity * displayLocalPrice;
 
     return (
       <View
@@ -264,10 +264,12 @@ export const SaleDetailScreen = () => {
     customer?.name ||
     (sale.notes ? sale.notes.replace("Cliente: ", "") : "Sin nombre");
   const totalVes = calculateTotal(sale);
-  const totalUsdNumber = (details?.items || []).reduce(
-    (sum, it) => sum + (Number(it.priceUSD) || 0) * (Number(it.quantity) || 0),
-    0,
-  );
+  const totalUsdNumber = resolveSaleMonetaryTotals(details || sale, {
+    exchangeRate,
+    localCurrency,
+    referenceCurrency,
+    rateEnabled,
+  }).totalReference;
 
   return (
     <>

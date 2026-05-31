@@ -41,8 +41,11 @@ import {
   insertInventoryMovement,
 } from "../../services/database/products";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { formatCurrency } from "../../utils/currency";
-import { convertCurrency } from "../../utils/exchange";
+import {
+  formatCurrency,
+  resolveProductPricing,
+  resolveSaleItemPricing,
+} from "../../utils/currency";
 import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 const TOUR_ZONE_BASE = 0;
@@ -201,6 +204,7 @@ const POSListHeader = React.memo(function POSListHeader({
 
 const CartItemRow = React.memo(function CartItemRow({
   item,
+  localCurrency,
   quantityDraft,
   formatQuantity,
   setQuantityDraft,
@@ -215,10 +219,10 @@ const CartItemRow = React.memo(function CartItemRow({
           {item.name.toUpperCase()}
         </Text>
         <Text style={styles.cartItemPrice}>
-          VES. {item.price.toFixed(2)} x {item.quantity}
+          {formatCurrency(item.price, localCurrency)} x {item.quantity}
         </Text>
         <Text style={styles.cartItemSubtotal}>
-          Subtotal: VES. {item.subtotal.toFixed(2)}
+          Subtotal: {formatCurrency(item.subtotal, localCurrency)}
         </Text>
       </View>
 
@@ -333,22 +337,14 @@ const ProductListItem = React.memo(function ProductListItem({
 }) {
   const stockValue = Number(item.stock) || 0;
   const isOutOfStock = stockValue === 0;
-  const referencePrice = Number(item.priceUSD) || 0;
-  const visibleLocalPrice =
-    Number(item.priceVES) ||
-    (rateEnabled && exchangeRate > 0 && referencePrice > 0
-      ? convertCurrency(
-          referencePrice,
-          referenceCurrency,
-          localCurrency,
-          exchangeRate,
-          {
-            referenceCurrency,
-            localCurrency,
-            usesUsdConversion: rateEnabled,
-          },
-        )
-      : referencePrice);
+  const pricing = resolveProductPricing(item, {
+    exchangeRate,
+    localCurrency,
+    referenceCurrency,
+    rateEnabled,
+  });
+  const referencePrice = pricing.referencePrice;
+  const visibleLocalPrice = pricing.localPrice;
 
   const handleAddToCart = useCallback(() => {
     addToCart(item);
@@ -439,12 +435,15 @@ const CartSummaryFooter = React.memo(function CartSummaryFooter({
   taxAmount,
   total,
   exchangeRate,
+  localCurrency,
+  referenceCurrency,
+  rateEnabled,
   insetsBottom,
   clearCart,
   completeSale,
 }) {
-  const totalUSD =
-    exchangeRate > 0 ? (total / exchangeRate).toFixed(2) : "0.00";
+  const totalReference =
+    rateEnabled && exchangeRate > 0 ? (total / exchangeRate).toFixed(2) : null;
 
   return (
     <View
@@ -456,20 +455,28 @@ const CartSummaryFooter = React.memo(function CartSummaryFooter({
       <View style={styles.totalSection}>
         <View style={styles.totalVES}>
           <Text style={styles.totalMetaLabel}>Subtotal</Text>
-          <Text style={styles.totalMetaValue}>{subtotalAmount.toFixed(2)}</Text>
+          <Text style={styles.totalMetaValue}>
+            {formatCurrency(subtotalAmount, localCurrency)}
+          </Text>
           {taxAmount > 0 && (
             <>
               <Text style={styles.totalMetaLabel}>IVA</Text>
-              <Text style={styles.totalMetaValue}>{taxAmount.toFixed(2)}</Text>
+              <Text style={styles.totalMetaValue}>
+                {formatCurrency(taxAmount, localCurrency)}
+              </Text>
             </>
           )}
-          <Text style={styles.totalLabel}>PAGAR VES</Text>
-          <Text style={styles.totalAmount}>{total.toFixed(2)}</Text>
+          <Text style={styles.totalLabel}>{`PAGAR ${localCurrency}`}</Text>
+          <Text style={styles.totalAmount}>
+            {formatCurrency(total, localCurrency)}
+          </Text>
         </View>
-        <View style={styles.totalUSD}>
-          <Text style={styles.totalLabel}>PAGAR USD</Text>
-          <Text style={styles.totalAmount}>{totalUSD}</Text>
-        </View>
+        {rateEnabled ? (
+          <View style={styles.totalUSD}>
+            <Text style={styles.totalLabel}>{`PAGAR ${referenceCurrency}`}</Text>
+            <Text style={styles.totalAmount}>{totalReference || "0.00"}</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.actionButtons}>
@@ -664,23 +671,14 @@ export const POSScreen = ({ navigation, route }) => {
       incomingItems
         .map((item, index) => {
           const quantity = Number(item?.quantity) || 1;
-          const price = Number(item?.price) || 0;
-          const priceUSD = Number(item?.priceUSD) || 0;
-          const resolvedLocalPrice =
-            price ||
-            (rateEnabled && exchangeRate > 0 && priceUSD > 0
-              ? convertCurrency(
-                  priceUSD,
-                  referenceCurrency,
-                  localCurrency,
-                  Number(exchangeRate),
-                  {
-                    referenceCurrency,
-                    localCurrency,
-                    usesUsdConversion: rateEnabled,
-                  },
-                )
-              : priceUSD);
+          const pricing = resolveSaleItemPricing(item, {
+            exchangeRate: Number(exchangeRate),
+            localCurrency,
+            referenceCurrency,
+            rateEnabled,
+          });
+          const resolvedLocalPrice = pricing.localPrice;
+          const priceUSD = pricing.referencePrice;
           const name = String(
             item?.name || item?.productName || item?.product?.name || "",
           ).trim();
@@ -692,7 +690,7 @@ export const POSScreen = ({ navigation, route }) => {
           return {
             id:
               item?.id ||
-              `marginal-${Date.now()}-${index}-${Math.round(price * 100)}`,
+              `marginal-${Date.now()}-${index}-${Math.round(resolvedLocalPrice * 100)}`,
             name,
             price: resolvedLocalPrice,
             priceUSD,
@@ -920,24 +918,14 @@ export const POSScreen = ({ navigation, route }) => {
           return [updatedItem, ...newCart];
         }
 
-        const basePriceUSD =
-          Number(product.priceUSD) ||
-          (exchangeRate ? (Number(product.priceVES) || 0) / exchangeRate : 0);
-        const resolvedLocalPrice =
-          Number(product.priceVES) ||
-          (rateEnabled && exchangeRate > 0 && basePriceUSD > 0
-            ? convertCurrency(
-                basePriceUSD,
-                referenceCurrency,
-                localCurrency,
-                exchangeRate,
-                {
-                  referenceCurrency,
-                  localCurrency,
-                  usesUsdConversion: rateEnabled,
-                },
-              )
-            : basePriceUSD);
+        const pricing = resolveProductPricing(product, {
+          exchangeRate,
+          localCurrency,
+          referenceCurrency,
+          rateEnabled,
+        });
+        const basePriceUSD = pricing.referencePrice;
+        const resolvedLocalPrice = pricing.localPrice;
         const newItem = {
           id: product.id,
           name: product.name,
@@ -1228,10 +1216,8 @@ export const POSScreen = ({ navigation, route }) => {
       // Mostrar confirmación
       const confirmationMessage =
         paymentMethod === "por_cobrar"
-          ? `Total: VES. ${total.toFixed(
-              2,
-            )}\nCliente: ${customerName}\n\nCuenta por cobrar creada automáticamente`
-          : `Total: VES. ${total.toFixed(2)}\nCliente: ${customerName}`;
+          ? `Total: ${formatCurrency(total, localCurrency)}\nCliente: ${customerName}\n\nCuenta por cobrar creada automáticamente`
+          : `Total: ${formatCurrency(total, localCurrency)}\nCliente: ${customerName}`;
 
       showAlert({
         title: "Venta completada",
@@ -1386,12 +1372,8 @@ export const POSScreen = ({ navigation, route }) => {
       // Mostrar confirmación
       const confirmationMessage =
         pendingSaleData.paymentMethod === "por_cobrar"
-          ? `Total: VES. ${pendingSaleData.total.toFixed(
-              2,
-            )}\nCliente: ${newCustomerName.trim()}\n\nCliente creado y cuenta por cobrar generada`
-          : `Total: VES. ${pendingSaleData.total.toFixed(
-              2,
-            )}\nCliente: ${newCustomerName.trim()}\n\nCliente creado exitosamente`;
+          ? `Total: ${formatCurrency(pendingSaleData.total, localCurrency)}\nCliente: ${newCustomerName.trim()}\n\nCliente creado y cuenta por cobrar generada`
+          : `Total: ${formatCurrency(pendingSaleData.total, localCurrency)}\nCliente: ${newCustomerName.trim()}\n\nCliente creado exitosamente`;
 
       showAlert({
         title: "Venta completada",
@@ -1444,6 +1426,7 @@ export const POSScreen = ({ navigation, route }) => {
     ({ item }) => (
       <CartItemRow
         item={item}
+        localCurrency={localCurrency}
         quantityDraft={quantityDrafts[item.id]}
         formatQuantity={formatQuantity}
         setQuantityDraft={setQuantityDraft}
@@ -1715,6 +1698,9 @@ export const POSScreen = ({ navigation, route }) => {
                 taxAmount={taxAmount}
                 total={total}
                 exchangeRate={exchangeRate}
+                localCurrency={localCurrency}
+                referenceCurrency={referenceCurrency}
+                rateEnabled={rateEnabled}
                 insetsBottom={insets.bottom}
                 clearCart={clearCart}
                 completeSale={completeSale}

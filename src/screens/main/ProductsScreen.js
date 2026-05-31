@@ -18,8 +18,7 @@ import { getSettings } from "../../services/database/settings";
 import { countProductInventoryMovements } from "../../services/database/products";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { useCustomAlert } from "../../components/common/CustomAlert";
-import { formatCurrency } from "../../utils/currency";
-import { convertCurrency } from "../../utils/exchange";
+import { formatCurrency, resolveProductPricing } from "../../utils/currency";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   EmptyStateCard,
@@ -48,22 +47,14 @@ const ProductCard = React.memo(function ProductCard({
   onEdit,
   onDelete,
 }) {
-  const referencePrice = Number(item.priceUSD) || 0;
-  const localPrice =
-    Number(item.priceVES) ||
-    (rateEnabled && appliedRate > 0 && referencePrice > 0
-      ? convertCurrency(
-          referencePrice,
-          referenceCurrency,
-          localCurrency,
-          appliedRate,
-          {
-            referenceCurrency,
-            localCurrency,
-            usesUsdConversion: rateEnabled,
-          },
-        )
-      : referencePrice);
+  const pricing = resolveProductPricing(item, {
+    exchangeRate: appliedRate,
+    localCurrency,
+    referenceCurrency,
+    rateEnabled,
+  });
+  const referencePrice = pricing.referencePrice;
+  const localPrice = pricing.localPrice;
   const stock = Number(item.stock) || 0;
   const minStock = Number(item.minStock ?? 0);
   const lowStock = minStock ? stock <= minStock : stock <= 5;

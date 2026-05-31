@@ -3,7 +3,7 @@ import { ScrollView, View, Text, StyleSheet } from "react-native";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useInventory } from "../../hooks/useInventory";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
-import { formatCurrency } from "../../utils/currency";
+import { formatCurrency, resolveProductPricing } from "../../utils/currency";
 import { convertCurrency } from "../../utils/exchange";
 import {
   InfoPill,
@@ -53,8 +53,15 @@ const CapitalScreen = () => {
 
   const inventoryCostReference = (inventory || []).reduce((sum, product) => {
     const stock = Number(product.stock) || 0;
-    const referenceCost = Number(product.cost) || 0;
-    const referenceAdditionalCost = Number(product.additionalCost) || 0;
+    const pricing = resolveProductPricing(product, {
+      exchangeRate,
+      localCurrency,
+      referenceCurrency,
+      rateEnabled,
+    });
+    const referenceCost = Number(pricing.costReferenceAmount) || 0;
+    const referenceAdditionalCost =
+      Number(pricing.additionalCostReferenceAmount) || 0;
     return sum + stock * (referenceCost + referenceAdditionalCost);
   }, 0);
   const inventoryCostLocal = rateEnabled
@@ -75,27 +82,25 @@ const CapitalScreen = () => {
 
   const inventorySellReference = (inventory || []).reduce((sum, product) => {
     const stock = Number(product.stock) || 0;
-    const referencePrice = Number(product.priceUSD) || 0;
+    const pricing = resolveProductPricing(product, {
+      exchangeRate,
+      localCurrency,
+      referenceCurrency,
+      rateEnabled,
+    });
+    const referencePrice = Number(pricing.referencePrice) || 0;
     return sum + stock * referencePrice;
   }, 0);
 
   const inventorySellLocal = (inventory || []).reduce((sum, product) => {
     const stock = Number(product.stock) || 0;
-    const localPrice =
-      Number(product.priceVES) ||
-      (rateEnabled && exchangeRate
-        ? convertCurrency(
-            Number(product.priceUSD) || 0,
-            referenceCurrency,
-            localCurrency,
-            exchangeRate,
-            {
-              referenceCurrency,
-              localCurrency,
-              usesUsdConversion: rateEnabled,
-            },
-          )
-        : Number(product.priceUSD) || 0);
+    const pricing = resolveProductPricing(product, {
+      exchangeRate,
+      localCurrency,
+      referenceCurrency,
+      rateEnabled,
+    });
+    const localPrice = Number(pricing.localPrice) || 0;
     return sum + Math.round(stock * localPrice * 100) / 100;
   }, 0);
 
