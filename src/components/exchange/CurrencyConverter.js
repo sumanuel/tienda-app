@@ -1,52 +1,77 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { convertCurrency } from "../../utils/exchange";
+import { convertCurrency, getExchangeRateLabel } from "../../utils/exchange";
 import { rf, spacing, borderRadius, iconSize } from "../../utils/responsive";
 import { SHADOWS, UI_COLORS } from "../common/AppUI";
 
 /**
  * Componente para convertir entre monedas
  */
-export const CurrencyConverter = ({ exchangeRate, style }) => {
-  const [usdAmount, setUsdAmount] = useState("");
-  const [vesAmount, setVesAmount] = useState("");
-  const [activeField, setActiveField] = useState("USD");
+export const CurrencyConverter = ({
+  exchangeRate,
+  referenceCurrency = "USD",
+  localCurrency = "VES",
+  rateEnabled = true,
+  style,
+}) => {
+  const [referenceAmount, setReferenceAmount] = useState("");
+  const [localAmount, setLocalAmount] = useState("");
+  const [activeField, setActiveField] = useState(referenceCurrency);
 
-  const handleUsdChange = (value) => {
-    setUsdAmount(value);
-    setActiveField("USD");
+  const handleReferenceChange = (value) => {
+    setReferenceAmount(value);
+    setActiveField(referenceCurrency);
 
     const numValue = parseFloat(value) || 0;
-    const converted = convertCurrency(numValue, "USD", "VES", exchangeRate);
-    setVesAmount(converted.toFixed(2));
+    const converted = convertCurrency(
+      numValue,
+      referenceCurrency,
+      localCurrency,
+      exchangeRate,
+      { referenceCurrency, localCurrency, usesUsdConversion: rateEnabled },
+    );
+    setLocalAmount(converted.toFixed(2));
   };
 
-  const handleVesChange = (value) => {
-    setVesAmount(value);
-    setActiveField("VES");
+  const handleLocalChange = (value) => {
+    setLocalAmount(value);
+    setActiveField(localCurrency);
 
     const numValue = parseFloat(value) || 0;
-    const converted = convertCurrency(numValue, "VES", "USD", exchangeRate);
-    setUsdAmount(converted.toFixed(2));
+    const converted = convertCurrency(
+      numValue,
+      localCurrency,
+      referenceCurrency,
+      exchangeRate,
+      { referenceCurrency, localCurrency, usesUsdConversion: rateEnabled },
+    );
+    setReferenceAmount(converted.toFixed(2));
   };
 
   const handleSwap = () => {
-    const temp = usdAmount;
-    setUsdAmount(vesAmount);
-    setVesAmount(temp);
+    const temp = referenceAmount;
+    setReferenceAmount(localAmount);
+    setLocalAmount(temp);
   };
+
+  if (!rateEnabled) {
+    return null;
+  }
 
   return (
     <View style={[styles.container, style]}>
       <Text style={styles.title}>Convertidor de monedas</Text>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.currencyLabel}>USD</Text>
+        <Text style={styles.currencyLabel}>{referenceCurrency}</Text>
         <TextInput
-          style={[styles.input, activeField === "USD" && styles.activeInput]}
-          value={usdAmount}
-          onChangeText={handleUsdChange}
+          style={[
+            styles.input,
+            activeField === referenceCurrency && styles.activeInput,
+          ]}
+          value={referenceAmount}
+          onChangeText={handleReferenceChange}
           keyboardType="numeric"
           placeholder="0.00"
         />
@@ -60,11 +85,14 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
       </Pressable>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.currencyLabel}>VES </Text>
+        <Text style={styles.currencyLabel}>{localCurrency}</Text>
         <TextInput
-          style={[styles.input, activeField === "VES" && styles.activeInput]}
-          value={vesAmount}
-          onChangeText={handleVesChange}
+          style={[
+            styles.input,
+            activeField === localCurrency && styles.activeInput,
+          ]}
+          value={localAmount}
+          onChangeText={handleLocalChange}
           keyboardType="numeric"
           placeholder="0.00"
         />
@@ -72,7 +100,12 @@ export const CurrencyConverter = ({ exchangeRate, style }) => {
 
       {exchangeRate && (
         <Text style={styles.rateInfo}>
-          Tasa actual: 1 USD = VES. {exchangeRate.toFixed(2)}
+          {getExchangeRateLabel(exchangeRate, {
+            referenceCurrency,
+            localCurrency,
+            usesUsdConversion: true,
+            exchangeMode: "manual",
+          })}
         </Text>
       )}
     </View>

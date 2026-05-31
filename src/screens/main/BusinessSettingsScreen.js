@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { getSettings, saveSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import CountrySelectField from "../../components/common/CountrySelectField";
 import PhoneInput from "../../components/common/PhoneInput";
+import {
+  buildCurrencyConfig,
+  resolveUsesUsdConversion,
+} from "../../constants/countryMetadata";
 import {
   ScreenHero,
   SurfaceCard,
@@ -34,7 +39,29 @@ export const BusinessSettingsScreen = () => {
     address: "",
     phone: "",
     email: "",
+    countryCode: "VE",
+    countryName: "Venezuela",
+    defaultDialCode: "58",
   });
+  const [usesUsdConversion, setUsesUsdConversion] = useState(true);
+
+  const currencyConfig = useMemo(
+    () =>
+      buildCurrencyConfig({
+        countryCode: business.countryCode,
+        usesUsdConversion,
+      }),
+    [business.countryCode, usesUsdConversion],
+  );
+
+  const isVenezuelaStore = currencyConfig.countryCode === "VE";
+  const taxIdLabel = isVenezuelaStore ? "RIF" : "Identificación fiscal";
+
+  useEffect(() => {
+    if (business.countryCode === "VE" && !usesUsdConversion) {
+      setUsesUsdConversion(true);
+    }
+  }, [business.countryCode, usesUsdConversion]);
 
   useEffect(() => {
     const loadBusinessData = async () => {
@@ -47,8 +74,17 @@ export const BusinessSettingsScreen = () => {
           address: "",
           phone: "",
           email: "",
+          countryCode: "VE",
+          countryName: "Venezuela",
+          defaultDialCode: "58",
         };
         setBusiness(businessInfo);
+        setUsesUsdConversion(
+          resolveUsesUsdConversion(
+            businessInfo.countryCode,
+            settings?.pricing?.usesUsdConversion,
+          ),
+        );
       } catch (error) {
         console.error("Error loading business data:", error);
         showAlert({
@@ -82,7 +118,27 @@ export const BusinessSettingsScreen = () => {
         ...settings,
         business: {
           ...business,
+          countryCode: currencyConfig.countryCode,
+          countryName: currencyConfig.countryName,
+          defaultDialCode: currencyConfig.defaultDialCode,
           isConfigured: true,
+        },
+        pricing: {
+          ...settings.pricing,
+          localCurrency: currencyConfig.localCurrency,
+          displayCurrency: currencyConfig.displayCurrency,
+          referenceCurrency: currencyConfig.referenceCurrency,
+          usesUsdConversion: currencyConfig.usesUsdConversion,
+          baseCurrency: currencyConfig.baseCurrency,
+        },
+        exchange: {
+          ...settings.exchange,
+          mode: currencyConfig.exchangeMode,
+          source: currencyConfig.exchangeSource,
+          defaultSource: currencyConfig.exchangeSource,
+          autoUpdate: currencyConfig.exchangeMode === "official_ve",
+          dailyPromptEnabled: currencyConfig.exchangeMode === "official_ve",
+          lastConfiguredAt: new Date().toISOString(),
         },
       };
       await saveSettings(updatedSettings);
@@ -147,10 +203,29 @@ export const BusinessSettingsScreen = () => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>RIF</Text>
+            <Text style={styles.inputLabel}>País de operación *</Text>
+            <CountrySelectField
+              value={business.countryCode}
+              onChange={({ countryCode, countryName, defaultDialCode }) =>
+                setBusiness((prev) => ({
+                  ...prev,
+                  countryCode,
+                  countryName,
+                  defaultDialCode,
+                }))
+              }
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>{taxIdLabel}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ej: J-12345678-9"
+              placeholder={
+                isVenezuelaStore
+                  ? "Ej: J-12345678-9"
+                  : "Ej: NIT o documento fiscal"
+              }
               value={business.rif}
               onChangeText={(text) => setBusiness({ ...business, rif: text })}
             />
@@ -174,9 +249,64 @@ export const BusinessSettingsScreen = () => {
             <Text style={styles.inputLabel}>Teléfono</Text>
             <PhoneInput
               value={business.phone}
+              countryCode={business.countryCode}
               onChangeText={(text) => setBusiness({ ...business, phone: text })}
               placeholder="Ej: 4121234567"
             />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Modo monetario</Text>
+            <View style={styles.modeCard}>
+              <Text style={styles.modeTitle}>
+                Moneda local: {currencyConfig.localCurrency}
+              </Text>
+              <Text style={styles.modeDescription}>
+                {isVenezuelaStore
+                  ? "Venezuela mantiene la operación actual con USD, VES y tasa activa."
+                  : usesUsdConversion
+                    ? `La tienda trabajará con USD y ${currencyConfig.localCurrency}. La tasa se gestionará manualmente.`
+                    : `La tienda trabajará sólo con ${currencyConfig.localCurrency}. La app ocultará tasa y conversiones.`}
+              </Text>
+
+              {!isVenezuelaStore ? (
+                <View style={styles.modeRow}>
+                  <Pressable
+                    style={[
+                      styles.modeChip,
+                      !usesUsdConversion && styles.modeChipActive,
+                    ]}
+                    onPress={() => setUsesUsdConversion(false)}
+                  >
+                    <Text
+                      style={[
+                        styles.modeChipText,
+                        !usesUsdConversion && styles.modeChipTextActive,
+                      ]}
+                    >
+                      Solo {currencyConfig.localCurrency}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[
+                      styles.modeChip,
+                      usesUsdConversion && styles.modeChipActive,
+                    ]}
+                    onPress={() => setUsesUsdConversion(true)}
+                  >
+                    <Text
+                      style={[
+                        styles.modeChipText,
+                        usesUsdConversion && styles.modeChipTextActive,
+                      ]}
+                    >
+                      USD + {currencyConfig.localCurrency}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
@@ -287,6 +417,53 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.md,
     marginTop: vs(8),
+  },
+  modeCard: {
+    backgroundColor: UI_COLORS.surfaceAlt,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  modeTitle: {
+    fontSize: rf(15),
+    fontWeight: "700",
+    color: UI_COLORS.text,
+  },
+  modeDescription: {
+    fontSize: rf(13),
+    lineHeight: vs(18),
+    color: UI_COLORS.muted,
+  },
+  modeRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  modeChip: {
+    flex: 1,
+    minHeight: vs(42),
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: hs(12),
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: UI_COLORS.border,
+    backgroundColor: UI_COLORS.surface,
+  },
+  modeChipActive: {
+    backgroundColor: UI_COLORS.accentSoft,
+    borderColor: UI_COLORS.accent,
+  },
+  modeChipText: {
+    fontSize: rf(13),
+    fontWeight: "700",
+    color: UI_COLORS.text,
+    textAlign: "center",
+  },
+  modeChipTextActive: {
+    color: UI_COLORS.accentStrong,
   },
   button: {
     flex: 1,

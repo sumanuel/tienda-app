@@ -1,13 +1,33 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { formatExchangeRate } from "../../utils/exchange";
+import { formatExchangeRate, getExchangeRateLabel } from "../../utils/exchange";
 import { rf, spacing, borderRadius } from "../../utils/responsive";
 import { SHADOWS, UI_COLORS } from "../common/AppUI";
 
 /**
  * Componente para mostrar la tasa de cambio actual
  */
-export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
+export const RateDisplay = ({
+  rate,
+  source,
+  lastUpdate,
+  localCurrency = "VES",
+  referenceCurrency = "USD",
+  rateEnabled = true,
+  style,
+}) => {
+  if (!rateEnabled) {
+    return (
+      <View style={[styles.container, style]}>
+        <View style={styles.header}>
+          <Text style={styles.label}>Tasa actual</Text>
+          <Text style={styles.source}>OFF</Text>
+        </View>
+        <Text style={styles.noRate}>Esta tienda opera sin tasa activa</Text>
+      </View>
+    );
+  }
+
   if (!rate) {
     return (
       <View style={[styles.container, style]}>
@@ -32,9 +52,20 @@ export const RateDisplay = ({ rate, source, lastUpdate, style }) => {
       </View>
 
       <View style={styles.rateContainer}>
-        <Text style={styles.currency}>1 USD equivale a</Text>
-        <Text style={styles.rate}>VES. {formatExchangeRate(rate)}</Text>
+        <Text style={styles.currency}>1 {referenceCurrency} equivale a</Text>
+        <Text style={styles.rate}>
+          {localCurrency} {formatExchangeRate(rate)}
+        </Text>
       </View>
+
+      <Text style={styles.lastUpdate}>
+        {getExchangeRateLabel(rate, {
+          referenceCurrency,
+          localCurrency,
+          usesUsdConversion: true,
+          exchangeMode: "manual",
+        })}
+      </Text>
 
       <Text style={styles.lastUpdate}>
         Última actualización: {formattedDate}

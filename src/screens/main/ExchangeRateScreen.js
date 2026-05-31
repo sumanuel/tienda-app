@@ -28,7 +28,15 @@ import {
 import { rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 export const ExchangeRateScreen = () => {
-  const { rate, lastUpdate, setManualRate } = useExchangeRate({
+  const {
+    rate,
+    lastUpdate,
+    setManualRate,
+    localCurrency,
+    referenceCurrency,
+    rateEnabled,
+    exchangeMode,
+  } = useExchangeRate({
     autoUpdate: false,
   });
   const { canStart, start, TourGuideZone } =
@@ -85,6 +93,16 @@ export const ExchangeRateScreen = () => {
   }, [canStart, start, tourBooted]);
 
   const handleManualSave = async () => {
+    if (!rateEnabled) {
+      showAlert({
+        title: "Sin tasa activa",
+        message:
+          "La tienda actual opera sin conversión activa, por lo que no necesita tasa.",
+        type: "info",
+      });
+      return;
+    }
+
     const numericValue = parseFloat(manualValue.replace(",", "."));
     if (Number.isNaN(numericValue) || numericValue <= 0) {
       showAlert({
@@ -100,7 +118,7 @@ export const ExchangeRateScreen = () => {
       await setManualRate(numericValue);
       showAlert({
         title: "Tasa actualizada",
-        message: `Guardamos ${numericValue.toFixed(2)} VES por USD`,
+        message: `Guardamos ${numericValue.toFixed(2)} ${localCurrency} por ${referenceCurrency}`,
         type: "success",
       });
     } catch (error) {
@@ -159,16 +177,17 @@ export const ExchangeRateScreen = () => {
 
           <TourGuideZone
             zone={TOUR_ZONE_BASE + 1}
-            text={
-              "Esta es la tasa que usará la app para convertir USD↔VES en precios, ventas y reportes."
-            }
+            text={`Esta es la tasa que usará la app para convertir ${referenceCurrency}↔${localCurrency} en precios, ventas y reportes.`}
             borderRadius={borderRadius.lg}
           >
             <View>
               <RateDisplay
                 rate={rate}
-                source="BCV"
+                source={exchangeMode === "official_ve" ? "BCV" : "MANUAL"}
                 lastUpdate={lastUpdate}
+                localCurrency={localCurrency}
+                referenceCurrency={referenceCurrency}
+                rateEnabled={rateEnabled}
                 style={styles.rateDisplay}
               />
             </View>
@@ -190,7 +209,10 @@ export const ExchangeRateScreen = () => {
                     la app.
                   </Text>
                 </View>
-                <InfoPill text="USD → VES" tone="info" />
+                <InfoPill
+                  text={`${referenceCurrency} → ${localCurrency}`}
+                  tone="info"
+                />
               </View>
 
               <View style={styles.manualInputRow}>
@@ -239,13 +261,17 @@ export const ExchangeRateScreen = () => {
 
           <TourGuideZone
             zone={TOUR_ZONE_BASE + 4}
-            text={
-              "Usa el conversor para comprobar equivalencias rápidas entre USD y VES."
-            }
+            text={`Usa el conversor para comprobar equivalencias rápidas entre ${referenceCurrency} y ${localCurrency}.`}
             borderRadius={borderRadius.lg}
           >
             <View>
-              <CurrencyConverter exchangeRate={rate} style={styles.converter} />
+              <CurrencyConverter
+                exchangeRate={rate}
+                referenceCurrency={referenceCurrency}
+                localCurrency={localCurrency}
+                rateEnabled={rateEnabled}
+                style={styles.converter}
+              />
             </View>
           </TourGuideZone>
         </ScrollView>

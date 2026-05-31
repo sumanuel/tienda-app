@@ -3,6 +3,11 @@ import { getDoc, setDoc } from "firebase/firestore";
 import { auth } from "../firebase/firebase";
 import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 import {
+  DEFAULT_COUNTRY_METADATA,
+  buildCurrencyConfig,
+  getCountryMetadata,
+} from "../../constants/countryMetadata";
+import {
   getStoreDocRef,
   getStoreNestedDocRef,
   getUserMembershipDocRef,
@@ -176,10 +181,74 @@ export const getSettings = async () => {
         rif: pickTextValue(storeData?.rif, merged?.business?.rif),
         address: pickTextValue(storeData?.address, merged?.business?.address),
         phone: pickTextValue(storeData?.phone, merged?.business?.phone),
+        countryCode: pickTextValue(
+          storeData?.countryCode,
+          merged?.business?.countryCode,
+          defaults.business.countryCode,
+        ).toUpperCase(),
+        countryName: pickTextValue(
+          storeData?.countryName,
+          merged?.business?.countryName,
+          defaults.business.countryName,
+        ),
+        defaultDialCode: pickTextValue(
+          storeData?.defaultDialCode,
+          merged?.business?.defaultDialCode,
+          defaults.business.defaultDialCode,
+        ),
         email: pickTextValue(
           storeData?.email,
           merged?.business?.email,
         ).toLowerCase(),
+      };
+
+      const currencyConfig = buildCurrencyConfig({
+        countryCode: merged?.business?.countryCode,
+        usesUsdConversion: merged?.pricing?.usesUsdConversion,
+      });
+
+      merged.business = {
+        ...(merged.business || {}),
+        countryCode: currencyConfig.countryCode,
+        countryName: pickTextValue(
+          merged?.business?.countryName,
+          currencyConfig.countryName,
+        ),
+        defaultDialCode: pickTextValue(
+          merged?.business?.defaultDialCode,
+          currencyConfig.defaultDialCode,
+        ),
+      };
+      merged.pricing = {
+        ...(merged.pricing || {}),
+        localCurrency: pickTextValue(
+          merged?.pricing?.localCurrency,
+          currencyConfig.localCurrency,
+        ),
+        referenceCurrency: pickTextValue(
+          merged?.pricing?.referenceCurrency,
+          currencyConfig.referenceCurrency,
+        ),
+        usesUsdConversion: currencyConfig.usesUsdConversion,
+        displayCurrency: pickTextValue(
+          merged?.pricing?.displayCurrency,
+          currencyConfig.displayCurrency,
+        ),
+        baseCurrency: pickTextValue(
+          merged?.pricing?.baseCurrency,
+          currencyConfig.baseCurrency,
+        ),
+      };
+      merged.exchange = {
+        ...(merged.exchange || {}),
+        mode: pickTextValue(
+          merged?.exchange?.mode,
+          currencyConfig.exchangeMode,
+        ),
+        source: pickTextValue(
+          merged?.exchange?.source,
+          currencyConfig.exchangeSource,
+        ),
       };
 
       try {
@@ -319,6 +388,13 @@ export const saveSettings = async (settings) => {
               .toUpperCase(),
             address: String(settings?.business?.address || "").trim(),
             phone: String(settings?.business?.phone || "").trim(),
+            countryCode: String(settings?.business?.countryCode || "")
+              .trim()
+              .toUpperCase(),
+            countryName: String(settings?.business?.countryName || "").trim(),
+            defaultDialCode: String(
+              settings?.business?.defaultDialCode || "",
+            ).trim(),
             email: String(settings?.business?.email || "")
               .trim()
               .toLowerCase(),
@@ -372,11 +448,17 @@ const getDefaultSettings = () => ({
     address: "",
     phone: "",
     email: "",
+    countryCode: DEFAULT_COUNTRY_METADATA.code,
+    countryName: DEFAULT_COUNTRY_METADATA.name,
+    defaultDialCode: DEFAULT_COUNTRY_METADATA.dialCode,
     isConfigured: false,
   },
   pricing: {
     baseCurrency: "USD",
     displayCurrency: "VES",
+    localCurrency: "VES",
+    referenceCurrency: "USD",
+    usesUsdConversion: true,
     defaultMargin: 30,
     minMargin: 10,
     maxMargin: 200,
@@ -394,6 +476,9 @@ const getDefaultSettings = () => ({
     autoUpdate: true,
     updateInterval: 30,
     defaultSource: "BCV",
+    mode: "official_ve",
+    source: "BCV",
+    lastConfiguredAt: null,
     alertOnRateChange: true,
     rateChangeThreshold: 5,
     // Consulta diaria (7pm) desde API externa con confirmación del usuario

@@ -9,6 +9,7 @@ import {
 import { CountryPicker, countryCodes } from "react-native-country-codes-picker";
 import * as Localization from "expo-localization";
 import { borderRadius, hs, rf, vs } from "../../utils/responsive";
+import { getCountryMetadata } from "../../constants/countryMetadata";
 
 const DEFAULT_COUNTRY_CODE = "VE";
 const DEFAULT_CALLING_CODE = "58";
@@ -44,7 +45,10 @@ const findCountryByCallingCode = (value) => {
   );
 };
 
-const getDefaultCountry = () => {
+const getDefaultCountry = (preferredCountryCode) => {
+  const preferredCountry = findCountryByCode(preferredCountryCode);
+  if (preferredCountry) return preferredCountry;
+
   const deviceCountry = findCountryByCode(getDeviceRegion());
   if (deviceCountry) return deviceCountry;
 
@@ -85,6 +89,8 @@ const parsePhoneValue = (value, fallbackCallingCode) => {
 export const PhoneInput = ({
   value,
   onChangeText,
+  countryCode,
+  onCountryChange,
   placeholder = "Ej: 4121234567",
   disabled = false,
   inputRef,
@@ -95,9 +101,11 @@ export const PhoneInput = ({
   containerStyle,
   inputStyle,
 }) => {
-  const [selectedCountry, setSelectedCountry] = useState(getDefaultCountry);
+  const [selectedCountry, setSelectedCountry] = useState(() =>
+    getDefaultCountry(countryCode),
+  );
   const [callingCode, setCallingCode] = useState(() => {
-    const defaultCountry = getDefaultCountry();
+    const defaultCountry = getDefaultCountry(countryCode);
     return normalizeDialCode(defaultCountry?.dial_code) || DEFAULT_CALLING_CODE;
   });
   const [nationalNumber, setNationalNumber] = useState("");
@@ -106,12 +114,12 @@ export const PhoneInput = ({
   const lastEmittedValueRef = useRef(null);
 
   useEffect(() => {
-    const defaultCountry = getDefaultCountry();
+    const defaultCountry = getDefaultCountry(countryCode);
     setSelectedCountry(defaultCountry);
     setCallingCode(
       normalizeDialCode(defaultCountry?.dial_code) || DEFAULT_CALLING_CODE,
     );
-  }, []);
+  }, [countryCode]);
 
   useEffect(() => {
     const parsed = parsePhoneValue(value, callingCode);
@@ -127,7 +135,7 @@ export const PhoneInput = ({
     const resolvedCountry =
       findCountryByCallingCode(nextCallingCode) ||
       selectedCountry ||
-      getDefaultCountry();
+      getDefaultCountry(countryCode);
 
     setCallingCode(nextCallingCode);
     setSelectedCountry(resolvedCountry);
@@ -152,12 +160,19 @@ export const PhoneInput = ({
 
   const onSelectCountry = (country) => {
     const nextCallingCode = normalizeDialCode(country?.dial_code);
+    const metadata = getCountryMetadata(country?.code);
 
     if (country) setSelectedCountry(country);
     if (nextCallingCode) {
       setCallingCode(String(nextCallingCode));
       emit(String(nextCallingCode), nationalNumber);
     }
+
+    onCountryChange?.({
+      countryCode: metadata.code,
+      countryName: metadata.name,
+      defaultDialCode: metadata.dialCode,
+    });
 
     setPickerVisible(false);
   };

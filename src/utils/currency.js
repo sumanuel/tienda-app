@@ -1,4 +1,88 @@
-import { CURRENCIES } from "../constants/currencies";
+import { CURRENCIES, DEFAULT_CURRENCY } from "../constants/currencies";
+
+export const normalizeCurrencyCode = (
+  currencyCode,
+  fallbackCurrency = DEFAULT_CURRENCY,
+) => {
+  const normalizedCode = String(currencyCode || "")
+    .trim()
+    .toUpperCase();
+
+  if (normalizedCode) {
+    return normalizedCode;
+  }
+
+  return String(fallbackCurrency || DEFAULT_CURRENCY)
+    .trim()
+    .toUpperCase();
+};
+
+export const getCurrencyDefinition = (
+  currencyCode,
+  fallbackCurrency = DEFAULT_CURRENCY,
+) => {
+  const resolvedCode = normalizeCurrencyCode(currencyCode, fallbackCurrency);
+
+  return (
+    CURRENCIES[resolvedCode] || {
+      code: resolvedCode,
+      symbol: resolvedCode,
+      name: resolvedCode,
+      decimals: 2,
+      position: "before",
+    }
+  );
+};
+
+export const getCurrencyBehavior = (settings = {}) => {
+  const pricing = settings?.pricing || {};
+  const exchange = settings?.exchange || {};
+
+  const localCurrency = normalizeCurrencyCode(
+    pricing.localCurrency || pricing.displayCurrency,
+    DEFAULT_CURRENCY,
+  );
+  const referenceCurrency = normalizeCurrencyCode(
+    pricing.referenceCurrency || pricing.baseCurrency,
+    "USD",
+  );
+  const usesUsdConversion = Boolean(pricing.usesUsdConversion);
+  const exchangeMode = String(
+    exchange.mode ||
+      (usesUsdConversion && referenceCurrency !== localCurrency
+        ? "manual"
+        : "disabled"),
+  )
+    .trim()
+    .toLowerCase();
+
+  return {
+    localCurrency,
+    referenceCurrency,
+    displayCurrency: normalizeCurrencyCode(
+      pricing.displayCurrency || localCurrency,
+      localCurrency,
+    ),
+    baseCurrency: normalizeCurrencyCode(
+      pricing.baseCurrency ||
+        (usesUsdConversion ? referenceCurrency : localCurrency),
+      localCurrency,
+    ),
+    usesUsdConversion,
+    exchangeMode,
+    rateEnabled:
+      usesUsdConversion &&
+      exchangeMode !== "disabled" &&
+      referenceCurrency !== localCurrency,
+    exchangeSource: String(
+      exchange.source ||
+        exchange.defaultSource ||
+        (exchangeMode === "official_ve" ? "BCV" : "MANUAL"),
+    )
+      .trim()
+      .toUpperCase(),
+  };
+};
 
 /**
  * Convierte un precio de USD a VES usando la tasa actual
@@ -31,12 +115,12 @@ export const convertVESToUSD = (vesPrice, exchangeRate) => {
  */
 export const formatCurrency = (
   amount,
-  currencyCode = "VES",
-  showSymbol = true
+  currencyCode = DEFAULT_CURRENCY,
+  showSymbol = true,
 ) => {
   if (!amount && amount !== 0) return "-";
 
-  const currency = CURRENCIES[currencyCode];
+  const currency = getCurrencyDefinition(currencyCode, DEFAULT_CURRENCY);
   if (!currency) return amount.toString();
 
   const formatted = amount
@@ -90,9 +174,26 @@ export const isValidAmount = (amount) => {
  * @returns {object} Funciones de conversión
  */
 export const useCurrencyConversion = (exchangeRate) => {
+  const referenceCurrency = "USD";
+  const localCurrency = DEFAULT_CURRENCY;
+
   return {
+    convertToLocal: (referenceAmount) =>
+      convertUSDToVES(referenceAmount, exchangeRate),
+    convertToReference: (localAmount) =>
+      convertVESToUSD(localAmount, exchangeRate),
     convertToVES: (usdPrice) => convertUSDToVES(usdPrice, exchangeRate),
     convertToUSD: (vesPrice) => convertVESToUSD(vesPrice, exchangeRate),
+    formatLocal: (referenceAmount) =>
+      formatCurrency(
+        convertUSDToVES(referenceAmount, exchangeRate),
+        localCurrency,
+      ),
+    formatReference: (localAmount) =>
+      formatCurrency(
+        convertVESToUSD(localAmount, exchangeRate),
+        referenceCurrency,
+      ),
     formatVES: (usdPrice) =>
       formatCurrency(convertUSDToVES(usdPrice, exchangeRate), "VES"),
     formatUSD: (vesPrice) =>

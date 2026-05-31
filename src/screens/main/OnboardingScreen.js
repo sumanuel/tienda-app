@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import CountrySelectField from "../../components/common/CountrySelectField";
 import PhoneInput from "../../components/common/PhoneInput";
 import { useAuth } from "../../contexts/AuthContext";
 import { getSettings, saveSettings } from "../../services/database/settings";
@@ -29,6 +30,11 @@ import {
   listPendingInvitesForCurrentUser,
 } from "../../services/store/storeCollaborationService";
 import { saveOnboardingState } from "../../services/onboarding/onboardingState";
+import {
+  buildCurrencyConfig,
+  getCountryMetadata,
+  resolveUsesUsdConversion,
+} from "../../constants/countryMetadata";
 import {
   InfoPill,
   ScreenHero,
@@ -134,12 +140,36 @@ export const OnboardingScreen = ({
     address: "",
     phone: "",
     email: "",
+    countryCode: "VE",
+    countryName: "Venezuela",
+    defaultDialCode: "58",
   });
 
-  const [displayCurrency, setDisplayCurrency] = useState("VES");
+  const [usesUsdConversion, setUsesUsdConversion] = useState(true);
   const [rateInput, setRateInput] = useState("");
   const [ivaInput, setIvaInput] = useState("16");
   const [applyIvaOnSales, setApplyIvaOnSales] = useState(false);
+
+  const currencyConfig = useMemo(
+    () =>
+      buildCurrencyConfig({
+        countryCode: business.countryCode,
+        usesUsdConversion,
+      }),
+    [business.countryCode, usesUsdConversion],
+  );
+
+  const isVenezuelaStore = currencyConfig.countryCode === "VE";
+  const taxIdLabel = isVenezuelaStore ? "RIF" : "Identificación fiscal";
+  const taxIdPlaceholder = isVenezuelaStore
+    ? "Ej: J-12345678-9"
+    : "Ej: NIT o documento fiscal";
+
+  useEffect(() => {
+    if (business.countryCode === "VE" && !usesUsdConversion) {
+      setUsesUsdConversion(true);
+    }
+  }, [business.countryCode, usesUsdConversion]);
 
   const activeMembership = memberships.find(
     (item) => item.storeId === activeStoreId,
@@ -176,6 +206,7 @@ export const OnboardingScreen = ({
       try {
         const current = await getSettings();
         const existingBusiness = current?.business || {};
+        const pricing = current?.pricing || {};
         const hasExistingBusiness = [
           existingBusiness?.name,
           existingBusiness?.rif,
@@ -185,17 +216,37 @@ export const OnboardingScreen = ({
         ].some((value) => String(value || "").trim().length > 0);
 
         existingBusinessLoadedRef.current = hasExistingBusiness;
+        const existingCountry = getCountryMetadata(
+          existingBusiness?.countryCode,
+        );
+        const resolvedUsesUsd = resolveUsesUsdConversion(
+          existingCountry.code,
+          pricing?.usesUsdConversion,
+        );
+
         setBusiness((prev) => ({
           ...prev,
           ...existingBusiness,
+          countryCode: existingCountry.code,
+          countryName:
+            String(existingBusiness?.countryName || "").trim() ||
+            existingCountry.name,
+          defaultDialCode:
+            String(existingBusiness?.defaultDialCode || "").trim() ||
+            existingCountry.dialCode,
         }));
+        setUsesUsdConversion(resolvedUsesUsd);
 
         // Si ya existe una tasa guardada, precargarla.
         // Esto aplica especialmente cuando el usuario reabre el onboarding desde el librito.
         const currentRate = await getCurrentRate();
         const savedRate = currentRate?.rate;
-        const pricing = current?.pricing || {};
-        if (!rateDirtyRef.current && savedRate && savedRate > 0) {
+        if (
+          !rateDirtyRef.current &&
+          resolvedUsesUsd &&
+          savedRate &&
+          savedRate > 0
+        ) {
           existingRateLoadedRef.current = true;
           setRateInput(String(savedRate));
         }
@@ -283,20 +334,40 @@ export const OnboardingScreen = ({
           }
 
           const current = await getSettings();
+          const nextCurrencyConfig = buildCurrencyConfig({
+            countryCode: business.countryCode,
+            usesUsdConversion,
+          });
           const nextSettings = {
             ...current,
             business: {
               ...current.business,
               ...business,
+              countryCode: nextCurrencyConfig.countryCode,
+              countryName: nextCurrencyConfig.countryName,
+              defaultDialCode: nextCurrencyConfig.defaultDialCode,
               isConfigured: true,
             },
             pricing: {
               ...current.pricing,
-              displayCurrency: "VES",
-              baseCurrency: "USD",
+              localCurrency: nextCurrencyConfig.localCurrency,
+              displayCurrency: nextCurrencyConfig.displayCurrency,
+              referenceCurrency: nextCurrencyConfig.referenceCurrency,
+              usesUsdConversion: nextCurrencyConfig.usesUsdConversion,
+              baseCurrency: nextCurrencyConfig.baseCurrency,
               iva:
                 parseFloat((ivaInput || "").toString().replace(/,/g, ".")) || 0,
               applyIvaOnSales,
+            },
+            exchange: {
+              ...current.exchange,
+              mode: nextCurrencyConfig.exchangeMode,
+              source: nextCurrencyConfig.exchangeSource,
+              defaultSource: nextCurrencyConfig.exchangeSource,
+              autoUpdate: nextCurrencyConfig.exchangeMode === "official_ve",
+              dailyPromptEnabled:
+                nextCurrencyConfig.exchangeMode === "official_ve",
+              lastConfiguredAt: new Date().toISOString(),
             },
           };
 
@@ -310,7 +381,7 @@ export const OnboardingScreen = ({
           const rate = parseFloat(
             (rateInput || "").toString().replace(/,/g, "."),
           );
-          if (rate && rate > 0) {
+          if (nextCurrencyConfig.usesUsdConversion && rate && rate > 0) {
             await setManualRate(rate, "ONBOARDING");
           }
         } catch (error) {
@@ -416,6 +487,15 @@ export const OnboardingScreen = ({
       return false;
     }
 
+    if (!business.countryCode?.trim()) {
+      showAlert({
+        title: "Falta información",
+        message: "Selecciona el país donde operará la tienda.",
+        type: "error",
+      });
+      return false;
+    }
+
     if (requireInitialStoreSetup && !business.rif?.trim()) {
       showAlert({
         title: "Falta información",
@@ -438,14 +518,16 @@ export const OnboardingScreen = ({
   };
 
   const validateCurrency = () => {
-    const rate = parseFloat((rateInput || "").toString().replace(/,/g, "."));
-    if (!rate || rate <= 0) {
-      showAlert({
-        title: "Tasa requerida",
-        message: "Ingresa una tasa válida (USD → VES).",
-        type: "error",
-      });
-      return false;
+    if (currencyConfig.usesUsdConversion) {
+      const rate = parseFloat((rateInput || "").toString().replace(/,/g, "."));
+      if (!rate || rate <= 0) {
+        showAlert({
+          title: "Tasa requerida",
+          message: `Ingresa una tasa válida (USD → ${currencyConfig.localCurrency}).`,
+          type: "error",
+        });
+        return false;
+      }
     }
 
     const iva = parseFloat((ivaInput || "").toString().replace(/,/g, "."));
@@ -574,14 +656,16 @@ export const OnboardingScreen = ({
                   ? requireInitialStoreSetup
                     ? "Crea tu tienda inicial"
                     : "Datos del negocio"
-                  : "Moneda y tasa"
+                  : "Moneda y operación"
               }
               subtitle={
                 step === "business"
                   ? requireInitialStoreSetup
                     ? "Usaremos estos datos para crear tu primera tienda y dejarla lista para operar."
                     : "Configura la información base para comprobantes, reportes y contacto comercial."
-                  : "Define la tasa y el IVA inicial con una lectura más clara y operativa."
+                  : isVenezuelaStore
+                    ? "Venezuela mantiene el flujo actual con USD, VES y tasa activa."
+                    : "Define si trabajarás sólo con tu moneda local o también con conversión desde USD."
               }
               style={styles.formHero}
             />
@@ -619,6 +703,26 @@ export const OnboardingScreen = ({
                 )}
 
                 <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>País de operación *</Text>
+                  <CountrySelectField
+                    value={business.countryCode}
+                    onChange={({ countryCode, countryName, defaultDialCode }) =>
+                      setBusiness((prev) => ({
+                        ...prev,
+                        countryCode,
+                        countryName,
+                        defaultDialCode,
+                      }))
+                    }
+                  />
+                  <Text style={styles.helperText}>
+                    Moneda local detectada: {currencyConfig.localCurrency}. El
+                    prefijo telefónico sugerido será +
+                    {currencyConfig.defaultDialCode}.
+                  </Text>
+                </View>
+
+                <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>
                     {requireInitialStoreSetup
                       ? "Nombre de la tienda *"
@@ -644,11 +748,11 @@ export const OnboardingScreen = ({
                 </View>
 
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>RIF</Text>
+                  <Text style={styles.fieldLabel}>{taxIdLabel}</Text>
                   <TextInput
                     ref={businessRifRef}
                     style={styles.input}
-                    placeholder="Ej: J-12345678-9"
+                    placeholder={taxIdPlaceholder}
                     placeholderTextColor="#9aa2b1"
                     value={business.rif}
                     onChangeText={(text) =>
@@ -684,6 +788,7 @@ export const OnboardingScreen = ({
                   <Text style={styles.fieldLabel}>Teléfono</Text>
                   <PhoneInput
                     value={business.phone}
+                    countryCode={business.countryCode}
                     onChangeText={(text) =>
                       setBusiness((prev) => ({ ...prev, phone: text }))
                     }
@@ -722,62 +827,88 @@ export const OnboardingScreen = ({
             ) : (
               <SurfaceCard style={styles.formCard}>
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Moneda a usar</Text>
-                  <View style={styles.currencyRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.currencyChip,
-                        displayCurrency === "VES" && styles.currencyChipActive,
-                      ]}
-                      activeOpacity={0.85}
-                      onPress={() => setDisplayCurrency("VES")}
-                    >
-                      <Text
-                        style={[
-                          styles.currencyChipText,
-                          displayCurrency === "VES" &&
-                            styles.currencyChipTextActive,
-                        ]}
-                      >
-                        VES
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.currencyChip, styles.currencyChipDisabled]}
-                      activeOpacity={0.85}
-                      onPress={() => {
-                        showAlert({
-                          title: "Próximamente",
-                          message:
-                            "Actualmente la app está optimizada para VES (USD → VES). Podemos habilitar otras monedas cuando ampliemos las conversiones.",
-                          type: "info",
-                        });
-                      }}
-                    >
-                      <Text style={styles.currencyChipText}>USD</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={styles.fieldLabel}>
+                    Moneda local de la tienda
+                  </Text>
+                  <Text style={styles.helperText}>
+                    Tu tienda operará principalmente en{" "}
+                    {currencyConfig.localCurrency}. Esta moneda se resuelve
+                    automáticamente por el país seleccionado.
+                  </Text>
                 </View>
 
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Tasa (USD → VES) *</Text>
-                  <TextInput
-                    ref={rateRef}
-                    style={styles.input}
-                    placeholder="Ej: 38.50"
-                    placeholderTextColor="#9aa2b1"
-                    value={rateInput}
-                    onChangeText={(text) => {
-                      rateDirtyRef.current = true;
-                      setRateInput(text);
-                    }}
-                    keyboardType="decimal-pad"
-                    returnKeyType="next"
-                    onFocus={() => scrollToFormField(rateRef)}
-                    onSubmitEditing={() => ivaRef.current?.focus()}
-                  />
+                  <Text style={styles.fieldLabel}>
+                    Uso de USD en costos o precios
+                  </Text>
+                  {isVenezuelaStore ? (
+                    <Text style={styles.helperText}>
+                      En Venezuela este flujo se mantiene activo para conservar
+                      el comportamiento actual de la app.
+                    </Text>
+                  ) : (
+                    <View style={styles.currencyRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.currencyChip,
+                          !usesUsdConversion && styles.currencyChipActive,
+                        ]}
+                        activeOpacity={0.85}
+                        onPress={() => setUsesUsdConversion(false)}
+                      >
+                        <Text
+                          style={[
+                            styles.currencyChipText,
+                            !usesUsdConversion && styles.currencyChipTextActive,
+                          ]}
+                        >
+                          Solo {currencyConfig.localCurrency}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.currencyChip,
+                          usesUsdConversion && styles.currencyChipActive,
+                        ]}
+                        activeOpacity={0.85}
+                        onPress={() => setUsesUsdConversion(true)}
+                      >
+                        <Text
+                          style={[
+                            styles.currencyChipText,
+                            usesUsdConversion && styles.currencyChipTextActive,
+                          ]}
+                        >
+                          USD + {currencyConfig.localCurrency}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
+
+                {currencyConfig.usesUsdConversion ? (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>
+                      Tasa (USD → {currencyConfig.localCurrency}) *
+                    </Text>
+                    <TextInput
+                      ref={rateRef}
+                      style={styles.input}
+                      placeholder="Ej: 38.50"
+                      placeholderTextColor="#9aa2b1"
+                      value={rateInput}
+                      onChangeText={(text) => {
+                        rateDirtyRef.current = true;
+                        setRateInput(text);
+                      }}
+                      keyboardType="decimal-pad"
+                      returnKeyType="next"
+                      onFocus={() => scrollToFormField(rateRef)}
+                      onSubmitEditing={() => ivaRef.current?.focus()}
+                    />
+                  </View>
+                ) : null}
 
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>IVA por defecto (%)</Text>
@@ -819,8 +950,9 @@ export const OnboardingScreen = ({
                 </View>
 
                 <Text style={styles.helperText}>
-                  Podrás modificar la tasa y el IVA luego en “Margen de
-                  ganancias”.
+                  {currencyConfig.usesUsdConversion
+                    ? `Podrás ajustar la tasa USD → ${currencyConfig.localCurrency} y el IVA más adelante en la configuración comercial.`
+                    : `Como operarás sólo en ${currencyConfig.localCurrency}, la app ocultará tasa, equivalencias y conversores relacionados con USD.`}
                 </Text>
               </SurfaceCard>
             )}

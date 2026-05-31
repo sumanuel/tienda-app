@@ -1,4 +1,4 @@
-import { CURRENCIES } from "../constants/currencies";
+import { getCurrencyBehavior, normalizeCurrencyCode } from "./currency";
 
 /**
  * Convierte un monto de una moneda a otra
@@ -12,22 +12,48 @@ export const convertCurrency = (
   amount,
   fromCurrency,
   toCurrency,
-  exchangeRate
+  exchangeRate,
+  options = {},
 ) => {
   if (!amount) return 0;
-  if (fromCurrency === toCurrency) return amount;
+  const behavior = getCurrencyBehavior(options?.settings || options);
+  const normalizedFrom = normalizeCurrencyCode(
+    fromCurrency,
+    behavior.referenceCurrency,
+  );
+  const normalizedTo = normalizeCurrencyCode(
+    toCurrency,
+    behavior.localCurrency,
+  );
 
-  // Si convertimos de USD a VES
-  if (fromCurrency === "USD" && toCurrency === "VES") {
+  if (normalizedFrom === normalizedTo) return amount;
+  if (!exchangeRate || exchangeRate <= 0) return amount;
+
+  if (
+    normalizedFrom === behavior.referenceCurrency &&
+    normalizedTo === behavior.localCurrency
+  ) {
     return amount * exchangeRate;
   }
 
-  // Si convertimos de VES a USD
-  if (fromCurrency === "VES" && toCurrency === "USD") {
+  if (
+    normalizedFrom === behavior.localCurrency &&
+    normalizedTo === behavior.referenceCurrency
+  ) {
     return amount / exchangeRate;
   }
 
   return amount;
+};
+
+export const getExchangeRateLabel = (rate, options = {}) => {
+  const behavior = getCurrencyBehavior(options?.settings || options);
+
+  if (!behavior.rateEnabled) {
+    return `La tienda opera sin tasa activa`;
+  }
+
+  return `1 ${behavior.referenceCurrency} = ${behavior.localCurrency} ${formatExchangeRate(rate)}`;
 };
 
 /**

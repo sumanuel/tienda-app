@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { formatCurrency } from "../../utils/currency";
+import { formatCurrency, getCurrencyBehavior } from "../../utils/currency";
+import { convertCurrency } from "../../utils/exchange";
 import { getSettings } from "../../services/database/settings";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 
 /**
  * Componente para mostrar precio en múltiples monedas
@@ -13,6 +15,7 @@ export const MultiCurrencyPrice = React.memo(function MultiCurrencyPrice({
   style,
 }) {
   const [settings, setSettings] = useState({});
+  const { rate } = useExchangeRateContext();
 
   useEffect(() => {
     let mounted = true;
@@ -31,19 +34,27 @@ export const MultiCurrencyPrice = React.memo(function MultiCurrencyPrice({
     };
   }, []);
 
-  const displayPriceVES = useMemo(() => {
+  const behavior = useMemo(() => getCurrencyBehavior(settings), [settings]);
+
+  const displayLocalPrice = useMemo(() => {
     if (priceVES != null) {
       return priceVES;
     }
 
-    if (priceUSD && settings.pricing?.currencies?.USD) {
-      return priceUSD * settings.pricing.currencies.USD;
+    if (behavior.rateEnabled && priceUSD && rate) {
+      return convertCurrency(
+        priceUSD,
+        behavior.referenceCurrency,
+        behavior.localCurrency,
+        rate,
+        behavior,
+      );
     }
 
     return null;
-  }, [priceUSD, priceVES, settings]);
+  }, [priceUSD, priceVES, behavior, rate]);
 
-  if (!priceUSD && !displayPriceVES) {
+  if (!priceUSD && !displayLocalPrice) {
     return null;
   }
 
@@ -52,22 +63,31 @@ export const MultiCurrencyPrice = React.memo(function MultiCurrencyPrice({
       {showBoth ? (
         <>
           <View style={styles.priceRow}>
-            <Text style={styles.currencyLabel}>USD</Text>
+            <Text style={styles.currencyLabel}>
+              {behavior.referenceCurrency}
+            </Text>
             <Text style={styles.priceUSD}>
-              {formatCurrency(priceUSD, "USD")}
+              {formatCurrency(priceUSD, behavior.referenceCurrency)}
             </Text>
           </View>
-          <View style={styles.priceRow}>
-            <Text style={styles.currencyLabel}>VES</Text>
-            <Text style={styles.priceVES}>
-              {formatCurrency(displayPriceVES, "VES")}
-            </Text>
-          </View>
+          {behavior.rateEnabled ? (
+            <View style={styles.priceRow}>
+              <Text style={styles.currencyLabel}>{behavior.localCurrency}</Text>
+              <Text style={styles.priceVES}>
+                {formatCurrency(displayLocalPrice, behavior.localCurrency)}
+              </Text>
+            </View>
+          ) : null}
         </>
       ) : (
         <View style={styles.priceRow}>
           <Text style={styles.singlePrice}>
-            {formatCurrency(displayPriceVES, "VES")}
+            {formatCurrency(
+              behavior.rateEnabled ? displayLocalPrice : priceUSD,
+              behavior.rateEnabled
+                ? behavior.localCurrency
+                : behavior.displayCurrency,
+            )}
           </Text>
         </View>
       )}

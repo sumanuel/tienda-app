@@ -5,11 +5,13 @@ import {
   autoUpdateRate,
   setManualRate as setManualExchangeRate,
 } from "../services/exchange/rateService";
+import { getSettings } from "../services/database/settings";
 import {
   updateReceivableAmountsOnRateChange,
   updatePayableAmountsOnRateChange,
 } from "../services/database/accounts";
 import { useAuth } from "./AuthContext";
+import { getCurrencyBehavior } from "../utils/currency";
 
 // Crear el contexto
 const ExchangeRateContext = createContext();
@@ -21,6 +23,9 @@ export const ExchangeRateProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [currencyBehavior, setCurrencyBehavior] = useState(
+    getCurrencyBehavior(),
+  );
 
   // Recargar la tasa cuando cambia la sesión o la tienda activa.
   useEffect(() => {
@@ -50,6 +55,16 @@ export const ExchangeRateProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
+      const settings = await getSettings();
+      const nextBehavior = getCurrencyBehavior(settings);
+      setCurrencyBehavior(nextBehavior);
+
+      if (!nextBehavior.rateEnabled) {
+        setRate(null);
+        setLastUpdate(null);
+        return;
+      }
+
       const currentRate = await getCurrentRate();
 
       if (currentRate) {
@@ -72,8 +87,14 @@ export const ExchangeRateProvider = ({ children }) => {
   /**
    * Actualiza la tasa desde una fuente externa
    */
-  const updateRate = async (source = "BCV") => {
+  const updateRate = async (
+    source = currencyBehavior.exchangeSource || "BCV",
+  ) => {
     try {
+      if (!currencyBehavior.rateEnabled) {
+        throw new Error("La tienda actual no usa tasa de cambio activa.");
+      }
+
       setLoading(true);
       setError(null);
 
@@ -106,6 +127,10 @@ export const ExchangeRateProvider = ({ children }) => {
    */
   const setManualRate = async (manualRate) => {
     try {
+      if (!currencyBehavior.rateEnabled) {
+        throw new Error("La tienda actual no usa tasa de cambio activa.");
+      }
+
       setLoading(true);
       setError(null);
 
@@ -149,6 +174,7 @@ export const ExchangeRateProvider = ({ children }) => {
     loading,
     error,
     lastUpdate,
+    ...currencyBehavior,
     updateRate,
     setManualRate,
     updateRateLocal,
@@ -179,11 +205,11 @@ export const useExchangeRate = (settings = {}) => {
 
   // Auto-actualización si está configurada
   useEffect(() => {
-    if (!settings.autoUpdate) return;
+    if (!settings.autoUpdate || !context.rateEnabled) return;
 
     const interval = setInterval(
       () => {
-        context.updateRate("BCV");
+        context.updateRate(context.exchangeSource || "BCV");
       },
       (settings.updateInterval || 30) * 60 * 1000,
     );
