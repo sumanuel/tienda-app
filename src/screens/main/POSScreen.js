@@ -42,9 +42,11 @@ import {
 } from "../../services/database/products";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import {
+  buildSaleItemMonetaryFields,
   formatCurrency,
   resolveProductPricing,
   resolveSaleItemPricing,
+  sumSaleItemsReferenceTotal,
 } from "../../utils/currency";
 import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
@@ -1084,19 +1086,25 @@ export const POSScreen = ({ navigation, route }) => {
               notes: `Cliente: ${customerDocument}${
                 referenceNumber ? ` - Ref: ${referenceNumber}` : ""
               }`,
-              saleItems: cart.map((item) => ({
-                productId: item.product.id,
-                productName: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                priceUSD:
-                  Number(item.priceUSD) ||
-                  Number(item.product?.priceUSD) ||
-                  (exchangeRate ? Number(item.price) / exchangeRate : 0),
-                localCurrency,
-                referenceCurrency,
-                subtotal: item.subtotal,
-              })),
+              saleItems: cart.map((item) => {
+                const monetary = buildSaleItemMonetaryFields(item, {
+                  exchangeRate,
+                  localCurrency,
+                  referenceCurrency,
+                  rateEnabled,
+                });
+
+                return {
+                  productId: item.product.id,
+                  productName: item.name,
+                  quantity: item.quantity,
+                  price: monetary.price,
+                  priceUSD: monetary.priceUSD,
+                  localCurrency: monetary.localCurrency,
+                  referenceCurrency: monetary.referenceCurrency,
+                  subtotal: monetary.subtotal,
+                };
+              }),
             });
             setShowNewCustomerModal(true);
             setProcessingSale(false);
@@ -1126,19 +1134,25 @@ export const POSScreen = ({ navigation, route }) => {
       };
 
       // Preparar items de la venta
-      const saleItems = cart.map((item) => ({
-        productId: item.product.id,
-        productName: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        priceUSD:
-          Number(item.priceUSD) ||
-          Number(item.product?.priceUSD) ||
-          (exchangeRate ? Number(item.price) / exchangeRate : 0),
-        localCurrency,
-        referenceCurrency,
-        subtotal: item.subtotal,
-      }));
+      const saleItems = cart.map((item) => {
+        const monetary = buildSaleItemMonetaryFields(item, {
+          exchangeRate,
+          localCurrency,
+          referenceCurrency,
+          rateEnabled,
+        });
+
+        return {
+          productId: item.product.id,
+          productName: item.name,
+          quantity: item.quantity,
+          price: monetary.price,
+          priceUSD: monetary.priceUSD,
+          localCurrency: monetary.localCurrency,
+          referenceCurrency: monetary.referenceCurrency,
+          subtotal: monetary.subtotal,
+        };
+      });
 
       // Registrar la venta y obtener el ID/consecutivo visible
       const saleResult = await addSale(saleData, saleItems);
@@ -1178,15 +1192,12 @@ export const POSScreen = ({ navigation, route }) => {
       // Si el método de pago es "por_cobrar", crear cuenta por cobrar automáticamente
       if (paymentMethod === "por_cobrar") {
         try {
-          const baseAmountUSD = cart.reduce(
-            (sum, item) =>
-              sum +
-              (Number(item.priceUSD) ||
-                Number(item.product?.priceUSD) ||
-                (exchangeRate ? Number(item.price) / exchangeRate : 0)) *
-                (Number(item.quantity) || 0),
-            0,
-          );
+          const baseAmountUSD = sumSaleItemsReferenceTotal(cart, {
+            exchangeRate,
+            localCurrency,
+            referenceCurrency,
+            rateEnabled,
+          });
           const accountData = {
             customerId: customerId || null,
             customerName: customerName.trim() || "Cliente",
@@ -1330,16 +1341,16 @@ export const POSScreen = ({ navigation, route }) => {
       // Si el método de pago es "por_cobrar", crear cuenta por cobrar automáticamente
       if (pendingSaleData.paymentMethod === "por_cobrar") {
         try {
-          const baseAmountUSD = (pendingSaleData.saleItems || []).reduce(
-            (sum, item) =>
-              sum +
-              (Number(item.priceUSD) ||
-                Number(item.product?.priceUSD) ||
-                (pendingSaleData.exchangeRate
-                  ? Number(item.price) / pendingSaleData.exchangeRate
-                  : 0)) *
-                (Number(item.quantity) || 0),
-            0,
+          const baseAmountUSD = sumSaleItemsReferenceTotal(
+            pendingSaleData.saleItems || [],
+            {
+              exchangeRate: pendingSaleData.exchangeRate,
+              localCurrency:
+                pendingSaleData.localCurrency || localCurrency,
+              referenceCurrency:
+                pendingSaleData.referenceCurrency || referenceCurrency,
+              rateEnabled,
+            },
           );
           const accountData = {
             customerId: customerId || null,

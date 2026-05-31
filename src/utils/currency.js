@@ -235,6 +235,27 @@ export const resolveSaleItemPricing = (item = {}, options = {}) => {
   };
 };
 
+export const buildSaleItemMonetaryFields = (item = {}, options = {}) => {
+  const pricing = resolveSaleItemPricing(item, options);
+
+  return {
+    localCurrency: pricing.localCurrency,
+    referenceCurrency: pricing.referenceCurrency,
+    price: Number(item?.price) || pricing.localPrice,
+    priceUSD: Number(item?.priceUSD) || pricing.referencePrice,
+    subtotal: Number(item?.subtotal) || pricing.subtotalLocal,
+    subtotalReference:
+      Number(item?.subtotalReference) || pricing.subtotalReference,
+  };
+};
+
+export const sumSaleItemsReferenceTotal = (items = [], options = {}) =>
+  items.reduce(
+    (sum, item) =>
+      sum + buildSaleItemMonetaryFields(item, options).subtotalReference,
+    0,
+  );
+
 export const resolveSaleMonetaryTotals = (sale = {}, options = {}) => {
   const snapshot = parseCurrencySnapshotJson(sale?.monetarySnapshot);
   const localCurrency = normalizeCurrencyCode(

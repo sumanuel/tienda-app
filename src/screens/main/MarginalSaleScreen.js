@@ -15,10 +15,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabBarHeight";
-import { useExchangeRate } from "../../hooks/useExchangeRate";
 import { useSales } from "../../hooks/useSales";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useAccounts } from "../../hooks/useAccounts";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { useCustomAlert } from "../../components/common/CustomAlert";
 import { getSettings } from "../../services/database/settings";
 import {
@@ -27,13 +27,15 @@ import {
   SurfaceCard,
   UI_COLORS,
 } from "../../components/common/AppUI";
+import {
+  buildSaleItemMonetaryFields,
+  formatCurrency,
+  resolveSaleItemPricing,
+  sumSaleItemsReferenceTotal,
+} from "../../utils/currency";
 import { borderRadius, hs, rf, s, spacing, vs } from "../../utils/responsive";
 
 const SPECIAL_CODE = "VENTA-MARGINAL";
-const AMOUNT_CURRENCY_OPTIONS = [
-  { code: "USD", label: "Monto en USD" },
-  { code: "VES", label: "Monto en VES" },
-];
 
 const PAYMENT_OPTIONS = [
   { value: "cash", label: "Efectivo", icon: "cash-outline" },
@@ -66,24 +68,38 @@ const parseAmount = (value) => {
 
 const createMarginalItem = ({
   description,
-  amountVES,
-  amountUSD,
+  localAmount,
+  referenceAmount,
+  localCurrency,
+  referenceCurrency,
+  rateEnabled,
+  exchangeRate,
   iva,
   sequence,
 }) => {
   return {
     id: `marginal-${Date.now()}-${sequence}`,
     name: description,
-    price: amountVES,
-    priceUSD: amountUSD,
+    price: localAmount,
+    priceUSD: referenceAmount,
     quantity: 1,
-    subtotal: amountVES,
+    subtotal: localAmount,
     iva: Number(iva) || 0,
+    localCurrency,
+    referenceCurrency,
+    priceSnapshot: {
+      localAmount,
+      referenceAmount,
+      localCurrency,
+      referenceCurrency,
+      exchangeRate,
+      rateEnabled,
+    },
     product: {
       id: 0,
       name: description,
-      priceUSD: amountUSD,
-      priceVES: amountVES,
+      priceUSD: referenceAmount,
+      priceVES: localAmount,
       stock: 1,
       trackInventory: 0,
       iva: Number(iva) || 0,
@@ -96,7 +112,8 @@ const createMarginalItem = ({
 const MarginalSaleScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useOptionalBottomTabBarHeight();
-  const { rate: exchangeRate } = useExchangeRate();
+  const { rate, localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
   const { registerSale: addSale } = useSales();
   const { addAccountReceivable } = useAccounts();
   const { getCustomerByDocument, ensureGenericCustomer, addCustomer } =
@@ -107,7 +124,7 @@ const MarginalSaleScreen = ({ navigation }) => {
     description: "",
     amount: "",
   });
-  const [amountCurrency, setAmountCurrency] = useState("USD");
+  const [amountCurrency, setAmountCurrency] = useState(referenceCurrency);
   const [cart, setCart] = useState([]);
   const [quantityDrafts, setQuantityDrafts] = useState({});
   const [showCart, setShowCart] = useState(false);
@@ -173,21 +190,38 @@ const MarginalSaleScreen = ({ navigation }) => {
   }, []);
 
   const amountValue = useMemo(() => parseAmount(draft.amount), [draft.amount]);
-  const rateValue = Number(exchangeRate) || 0;
-  const amountUSD = useMemo(() => {
-    if (amountCurrency === "USD") {
+  const rateValue = Number(rate) || 0;
+  const amountCurrencyOptions = useMemo(() => {
+    if (!rateEnabled || referenceCurrency === localCurrency) {
+      return [{ code: localCurrency, label: `Monto en ${localCurrency}` }];
+    }
+
+    return [
+      { code: referenceCurrency, label: `Monto en ${referenceCurrency}` },
+      { code: localCurrency, label: `Monto en ${localCurrency}` },
+    ];
+  }, [localCurrency, rateEnabled, referenceCurrency]);
+
+  useEffect(() => {
+    if (!amountCurrencyOptions.some((option) => option.code === amountCurrency)) {
+      setAmountCurrency(amountCurrencyOptions[0]?.code || localCurrency);
+    }
+  }, [amountCurrency, amountCurrencyOptions, localCurrency]);
+
+  const referenceAmount = useMemo(() => {
+    if (amountCurrency === referenceCurrency) {
       return amountValue;
     }
 
     return rateValue > 0 ? amountValue / rateValue : 0;
-  }, [amountCurrency, amountValue, rateValue]);
-  const amountVES = useMemo(() => {
-    if (amountCurrency === "VES") {
+  }, [amountCurrency, amountValue, rateValue, referenceCurrency]);
+  const localAmount = useMemo(() => {
+    if (amountCurrency === localCurrency) {
       return amountValue;
     }
 
     return rateValue > 0 ? amountValue * rateValue : 0;
-  }, [amountCurrency, amountValue, rateValue]);
+  }, [amountCurrency, amountValue, localCurrency, rateValue]);
   const subtotalAmount = useMemo(
     () => cart.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0),
     [cart],
@@ -204,7 +238,12 @@ const MarginalSaleScreen = ({ navigation }) => {
     );
   }, [cart, pricingSettings.applyIvaOnSales]);
   const total = subtotalAmount + taxAmount;
-  const totalUSD = rateValue > 0 ? total / rateValue : 0;
+  const totalReference = sumSaleItemsReferenceTotal(cart, {
+    exchangeRate: rateValue,
+    localCurrency,
+    referenceCurrency,
+    rateEnabled,
+  });
   const requiresReference =
     paymentMethod === "transfer" || paymentMethod === "pago_movil";
 
@@ -290,17 +329,17 @@ const MarginalSaleScreen = ({ navigation }) => {
   const handleChangeAmountCurrency = (nextCurrency) => {
     if (nextCurrency === amountCurrency) return;
 
-    if (nextCurrency === "VES" && rateValue <= 0) {
+    if (nextCurrency === localCurrency && rateEnabled && rateValue <= 0) {
       showAlert({
         title: "Tasa requerida",
-        message: "Configura la tasa USD→VES para ingresar montos en VES.",
+        message: `Configura la tasa ${referenceCurrency}→${localCurrency} para ingresar montos en ${localCurrency}.`,
         type: "error",
       });
       return;
     }
 
     if (Number.isFinite(amountValue) && amountValue > 0 && rateValue > 0) {
-      const factor = nextCurrency === "VES" ? rateValue : 1 / rateValue;
+      const factor = nextCurrency === localCurrency ? rateValue : 1 / rateValue;
       updateDraft("amount", (amountValue * factor).toFixed(2));
     }
 
@@ -339,12 +378,12 @@ const MarginalSaleScreen = ({ navigation }) => {
       return;
     }
 
-    const resolvedAmountVES =
-      amountCurrency === "VES" ? amountValue : amountVES;
-    const resolvedAmountUSD =
-      amountCurrency === "USD" ? amountValue : amountUSD;
+    const resolvedLocalAmount =
+      amountCurrency === localCurrency ? amountValue : localAmount;
+    const resolvedReferenceAmount =
+      amountCurrency === referenceCurrency ? amountValue : referenceAmount;
 
-    if (resolvedAmountVES <= 0 || resolvedAmountUSD <= 0) {
+    if (resolvedLocalAmount <= 0 || resolvedReferenceAmount <= 0) {
       showAlert({
         title: "Monto inválido",
         message: "No se pudo convertir el monto con la tasa activa.",
@@ -355,8 +394,12 @@ const MarginalSaleScreen = ({ navigation }) => {
 
     const nextItem = createMarginalItem({
       description: draft.description.trim(),
-      amountVES: resolvedAmountVES,
-      amountUSD: resolvedAmountUSD,
+      localAmount: resolvedLocalAmount,
+      referenceAmount: resolvedReferenceAmount,
+      localCurrency,
+      referenceCurrency,
+      rateEnabled,
+      exchangeRate: rateValue,
       iva: pricingSettings.iva,
       sequence: cart.length,
     });
@@ -373,6 +416,16 @@ const MarginalSaleScreen = ({ navigation }) => {
   const renderMarginalCartRow = (item, { compact = false } = {}) => (
     <View key={item.id} style={compact ? styles.pendingItem : styles.cartItem}>
       <View style={compact ? styles.pendingItemCopy : styles.cartItemLeft}>
+        {(() => {
+          const pricing = resolveSaleItemPricing(item, {
+            exchangeRate: rateValue,
+            localCurrency,
+            referenceCurrency,
+            rateEnabled,
+          });
+
+          return (
+            <>
         <Text
           style={compact ? styles.pendingItemTitle : styles.cartItemName}
           numberOfLines={compact ? 2 : 1}
@@ -380,14 +433,22 @@ const MarginalSaleScreen = ({ navigation }) => {
           {compact ? item.name : item.name.toUpperCase()}
         </Text>
         <Text style={compact ? styles.pendingItemMeta : styles.cartItemPrice}>
-          VES {Number(item.price).toFixed(2)} · ${" "}
-          {Number(item.priceUSD).toFixed(2)} c/u
+          {formatCurrency(pricing.localPrice, localCurrency)}
+          {rateEnabled && pricing.referencePrice > 0
+            ? ` · ${formatCurrency(pricing.referencePrice, referenceCurrency)} c/u`
+            : ""}
         </Text>
         <Text
           style={compact ? styles.pendingItemAmount : styles.cartItemSubtotal}
         >
-          Subtotal: VES {Number(item.subtotal).toFixed(2)}
+          {`Subtotal: ${formatCurrency(
+            Number(item.subtotal) || pricing.subtotalLocal,
+            localCurrency,
+          )}`}
         </Text>
+            </>
+          );
+        })()}
       </View>
 
       <View style={compact ? styles.pendingItemControls : styles.cartItemRight}>
@@ -537,18 +598,25 @@ const MarginalSaleScreen = ({ navigation }) => {
               notes: `Cliente: ${customerDocument}${
                 referenceNumber ? ` - Ref: ${referenceNumber}` : ""
               }`,
-              saleItems: cart.map((item) => ({
-                productId: 0,
-                productName: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                priceUSD:
-                  Number(item.priceUSD) ||
-                  (rateValue ? Number(item.price) / rateValue : 0),
-                localCurrency,
-                referenceCurrency,
-                subtotal: item.subtotal,
-              })),
+              saleItems: cart.map((item) => {
+                const monetary = buildSaleItemMonetaryFields(item, {
+                  exchangeRate: rateValue,
+                  localCurrency,
+                  referenceCurrency,
+                  rateEnabled,
+                });
+
+                return {
+                  productId: 0,
+                  productName: item.name,
+                  quantity: item.quantity,
+                  price: monetary.price,
+                  priceUSD: monetary.priceUSD,
+                  localCurrency: monetary.localCurrency,
+                  referenceCurrency: monetary.referenceCurrency,
+                  subtotal: monetary.subtotal,
+                };
+              }),
             });
             setShowNewCustomerModal(true);
             setProcessingSale(false);
@@ -576,18 +644,25 @@ const MarginalSaleScreen = ({ navigation }) => {
         }`,
       };
 
-      const saleItems = cart.map((item) => ({
-        productId: 0,
-        productName: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        priceUSD:
-          Number(item.priceUSD) ||
-          (rateValue ? Number(item.price) / rateValue : 0),
-        localCurrency,
-        referenceCurrency,
-        subtotal: item.subtotal,
-      }));
+      const saleItems = cart.map((item) => {
+        const monetary = buildSaleItemMonetaryFields(item, {
+          exchangeRate: rateValue,
+          localCurrency,
+          referenceCurrency,
+          rateEnabled,
+        });
+
+        return {
+          productId: 0,
+          productName: item.name,
+          quantity: item.quantity,
+          price: monetary.price,
+          priceUSD: monetary.priceUSD,
+          localCurrency: monetary.localCurrency,
+          referenceCurrency: monetary.referenceCurrency,
+          subtotal: monetary.subtotal,
+        };
+      });
 
       const saleResult = await addSale(saleData, saleItems);
       const saleId = saleResult?.id ?? saleResult;
@@ -596,17 +671,18 @@ const MarginalSaleScreen = ({ navigation }) => {
 
       if (paymentMethod === "por_cobrar") {
         try {
-          const baseAmountUSD = cart.reduce(
-            (sum, item) =>
-              sum + (Number(item.priceUSD) || 0) * (Number(item.quantity) || 0),
-            0,
-          );
+          const baseAmountUSD = sumSaleItemsReferenceTotal(cart, {
+            exchangeRate: rateValue,
+            localCurrency,
+            referenceCurrency,
+            rateEnabled,
+          });
           await addAccountReceivable({
             customerId: customerId || null,
             customerName: customerName.trim() || "Cliente",
             documentNumber: customerDocument?.trim() || null,
             amount: total,
-            baseCurrency: "USD",
+            baseCurrency: referenceCurrency,
             baseAmountUSD,
             exchangeRateAtCreation: rateValue,
             description: `Venta a crédito - ${cart.length} producto(s): ${cart
@@ -628,8 +704,8 @@ const MarginalSaleScreen = ({ navigation }) => {
 
       const confirmationMessage =
         paymentMethod === "por_cobrar"
-          ? `Total: VES. ${total.toFixed(2)}\nCliente: ${customerName}\n\nCuenta por cobrar creada automáticamente`
-          : `Total: VES. ${total.toFixed(2)}\nCliente: ${customerName}`;
+          ? `Total: ${formatCurrency(total, localCurrency)}\nCliente: ${customerName}\n\nCuenta por cobrar creada automáticamente`
+          : `Total: ${formatCurrency(total, localCurrency)}\nCliente: ${customerName}`;
 
       showAlert({
         title: "Venta completada",
@@ -696,17 +772,24 @@ const MarginalSaleScreen = ({ navigation }) => {
 
       if (pendingSaleData.paymentMethod === "por_cobrar") {
         try {
-          const baseAmountUSD = (pendingSaleData.saleItems || []).reduce(
-            (sum, item) =>
-              sum + (Number(item.priceUSD) || 0) * (Number(item.quantity) || 0),
-            0,
+          const baseAmountUSD = sumSaleItemsReferenceTotal(
+            pendingSaleData.saleItems || [],
+            {
+              exchangeRate: pendingSaleData.exchangeRate,
+              localCurrency:
+                pendingSaleData.localCurrency || localCurrency,
+              referenceCurrency:
+                pendingSaleData.referenceCurrency || referenceCurrency,
+              rateEnabled,
+            },
           );
           await addAccountReceivable({
             customerId: customerId || null,
             customerName: newCustomerName.trim(),
             documentNumber: customerDocument?.trim() || null,
             amount: pendingSaleData.total,
-            baseCurrency: "USD",
+            baseCurrency:
+              pendingSaleData.referenceCurrency || referenceCurrency,
             baseAmountUSD,
             exchangeRateAtCreation: pendingSaleData.exchangeRate,
             description: `Venta a crédito - ${cart.length} producto(s): ${cart
@@ -731,8 +814,8 @@ const MarginalSaleScreen = ({ navigation }) => {
 
       const confirmationMessage =
         pendingSaleData.paymentMethod === "por_cobrar"
-          ? `Total: VES. ${pendingSaleData.total.toFixed(2)}\nCliente: ${newCustomerName.trim()}\n\nCliente creado y cuenta por cobrar generada`
-          : `Total: VES. ${pendingSaleData.total.toFixed(2)}\nCliente: ${newCustomerName.trim()}\n\nCliente creado exitosamente`;
+          ? `Total: ${formatCurrency(pendingSaleData.total, localCurrency)}\nCliente: ${newCustomerName.trim()}\n\nCliente creado y cuenta por cobrar generada`
+          : `Total: ${formatCurrency(pendingSaleData.total, localCurrency)}\nCliente: ${newCustomerName.trim()}\n\nCliente creado exitosamente`;
 
       showAlert({
         title: "Venta completada",
@@ -843,16 +926,20 @@ const MarginalSaleScreen = ({ navigation }) => {
 
             <View style={styles.priceGrid}>
               <View style={styles.priceCard}>
-                <Text style={styles.priceLabel}>USD</Text>
+                <Text style={styles.priceLabel}>{referenceCurrency}</Text>
                 <Text style={styles.priceValue}>
-                  {amountUSD > 0 ? `$${amountUSD.toFixed(2)}` : "—"}
+                  {referenceAmount > 0
+                    ? formatCurrency(referenceAmount, referenceCurrency)
+                    : "—"}
                 </Text>
                 <Text style={styles.priceHint}>Monto unitario calculado</Text>
               </View>
               <View style={styles.priceCard}>
-                <Text style={styles.priceLabel}>VES</Text>
+                <Text style={styles.priceLabel}>{localCurrency}</Text>
                 <Text style={styles.priceValue}>
-                  {amountVES > 0 ? `VES ${amountVES.toFixed(2)}` : "—"}
+                  {localAmount > 0
+                    ? formatCurrency(localAmount, localCurrency)
+                    : "—"}
                 </Text>
                 <Text style={styles.priceHint}>
                   Conversión con tasa vigente
@@ -914,12 +1001,12 @@ const MarginalSaleScreen = ({ navigation }) => {
               >
                 <Text style={styles.cartAmountLabel}>Carrito marginal</Text>
                 <Text style={styles.cartAmountValue}>
-                  VES {total.toFixed(2)}
+                  {formatCurrency(total, localCurrency)}
                 </Text>
                 <Text style={styles.cartAmountUsd}>
-                  {rateValue > 0
-                    ? `$${totalUSD.toFixed(2)}`
-                    : "Sin conversion USD"}
+                  {rateEnabled && totalReference > 0
+                    ? formatCurrency(totalReference, referenceCurrency)
+                    : `Sin conversión ${referenceCurrency}`}
                 </Text>
               </Pressable>
             ) : null}
@@ -1069,21 +1156,21 @@ const MarginalSaleScreen = ({ navigation }) => {
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Subtotal</Text>
                   <Text style={styles.summaryValue}>
-                    VES. {subtotalAmount.toFixed(2)}
+                    {formatCurrency(subtotalAmount, localCurrency)}
                   </Text>
                 </View>
                 {taxAmount > 0 ? (
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>IVA</Text>
                     <Text style={styles.summaryValue}>
-                      VES. {taxAmount.toFixed(2)}
+                      {formatCurrency(taxAmount, localCurrency)}
                     </Text>
                   </View>
                 ) : null}
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Total</Text>
                   <Text style={styles.summaryTotal}>
-                    VES. {total.toFixed(2)}
+                    {formatCurrency(total, localCurrency)}
                   </Text>
                 </View>
               </View>
