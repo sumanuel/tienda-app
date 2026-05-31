@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { useAccounts } from "../../hooks/useAccounts";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
 import {
   EmptyStateCard,
@@ -24,6 +25,8 @@ export const PaymentHistoryScreen = () => {
   const route = useRoute();
   const { account } = route.params;
   const { getPayments } = useAccounts();
+  const { localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
 
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +61,7 @@ export const PaymentHistoryScreen = () => {
     <SurfaceCard style={styles.paymentItem}>
       <View style={styles.paymentHeader}>
         <Text style={styles.paymentAmount}>
-          {formatCurrency(item.amount, account.currency || "VES")}
+          {formatCurrency(item.amount, localCurrency)}
         </Text>
         <InfoPill
           text={getPaymentMethodLabel(item.paymentMethod)}
@@ -99,7 +102,10 @@ export const PaymentHistoryScreen = () => {
   }
 
   const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
-  const currency = account.currency || "VES";
+  const referenceAmount = Number(account?.baseAmountUSD) || 0;
+  const referenceCode = account?.baseCurrency || referenceCurrency;
+  const showReferenceAmount =
+    rateEnabled && referenceAmount > 0 && referenceCode !== localCurrency;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -123,7 +129,7 @@ export const PaymentHistoryScreen = () => {
                   tone: payments.length ? "info" : "neutral",
                 },
                 {
-                  text: `Pagado ${formatCurrency(totalPaid, currency)}`,
+                  text: `Pagado ${formatCurrency(totalPaid, localCurrency)}`,
                   tone: "accent",
                 },
               ]}
@@ -133,14 +139,19 @@ export const PaymentHistoryScreen = () => {
               <View style={styles.summaryMetric}>
                 <Text style={styles.summaryLabel}>Total pagado</Text>
                 <Text style={styles.summaryValueAccent}>
-                  {formatCurrency(totalPaid, currency)}
+                  {formatCurrency(totalPaid, localCurrency)}
                 </Text>
               </View>
               <View style={styles.summaryMetric}>
                 <Text style={styles.summaryLabel}>Monto original</Text>
                 <Text style={styles.summaryValue}>
-                  {formatCurrency(account.amount, currency)}
+                  {formatCurrency(account.amount, localCurrency)}
                 </Text>
+                {showReferenceAmount ? (
+                  <Text style={styles.paymentReference}>
+                    {formatCurrency(referenceAmount, referenceCode)}
+                  </Text>
+                ) : null}
               </View>
             </SurfaceCard>
           </View>

@@ -70,7 +70,7 @@ const normalizeReferenceAmount = (value) => {
   return parsed > 0 ? parsed : null;
 };
 
-const inferLegacyBaseCurrency = (account = {}) => {
+const inferLegacyBaseCurrency = (account = {}, currencyDefaults = {}) => {
   const explicitCurrency = normalizeCurrencyCode(
     account.baseCurrency || account.currency,
     "",
@@ -81,10 +81,10 @@ const inferLegacyBaseCurrency = (account = {}) => {
   }
 
   if (normalizeReferenceAmount(account.baseAmountUSD) != null) {
-    return "USD";
+    return normalizeCurrencyCode(currencyDefaults.referenceCurrency, "USD");
   }
 
-  return "VES";
+  return normalizeCurrencyCode(currencyDefaults.localCurrency, "VES");
 };
 
 const normalizeAccountCurrencyInput = (
@@ -115,7 +115,11 @@ const getAccountCurrencyDefaults = async () => {
   };
 };
 
-const normalizeAccountRecord = (account = {}, accountType = "receivable") => ({
+const normalizeAccountRecord = (
+  account = {},
+  accountType = "receivable",
+  currencyDefaults = {},
+) => ({
   id:
     Number(account.id) ||
     parseConsecutiveSequence(
@@ -159,7 +163,7 @@ const normalizeAccountRecord = (account = {}, accountType = "receivable") => ({
   status: String(account.status || "pending"),
   invoiceNumber: String(account.invoiceNumber || "").trim(),
   dueDate: account.dueDate || null,
-  baseCurrency: inferLegacyBaseCurrency(account),
+  baseCurrency: inferLegacyBaseCurrency(account, currencyDefaults),
   baseAmountUSD: normalizeReferenceAmount(account.baseAmountUSD),
   exchangeRateAtCreation:
     account.exchangeRateAtCreation == null ||
@@ -184,6 +188,7 @@ const normalizePaymentRecord = (payment = {}) => ({
 });
 
 const getCloudAccounts = async (accountType = "receivable") => {
+  const currencyDefaults = await getAccountCurrencyDefaults();
   const snapshot = await getDocs(
     accountType === "payable"
       ? getPayableCollectionRef()
@@ -191,7 +196,14 @@ const getCloudAccounts = async (accountType = "receivable") => {
   );
 
   return snapshot.docs.map((item) =>
-    normalizeAccountRecord(item.data(), accountType),
+    normalizeAccountRecord(item.data(), accountType, currencyDefaults),
+  );
+};
+
+const normalizeAccountRows = async (rows = [], accountType = "receivable") => {
+  const currencyDefaults = await getAccountCurrencyDefaults();
+  return rows.map((row) =>
+    normalizeAccountRecord(row, accountType, currencyDefaults),
   );
 };
 
@@ -399,11 +411,16 @@ const ensureCloudAccountsSeeded = async () => {
   let hasChanges = false;
 
   if (receivableSnapshot.empty) {
+    const currencyDefaults = await getAccountCurrencyDefaults();
     const rows = await db.getAllAsync(
       "SELECT * FROM accounts_receivable ORDER BY createdAt DESC;",
     );
     rows.forEach((row) => {
-      const normalized = normalizeAccountRecord(row, "receivable");
+      const normalized = normalizeAccountRecord(
+        row,
+        "receivable",
+        currencyDefaults,
+      );
       batch.set(
         doc(getReceivableCollectionRef(), String(normalized.id)),
         normalized,
@@ -416,11 +433,16 @@ const ensureCloudAccountsSeeded = async () => {
   }
 
   if (payableSnapshot.empty) {
+    const currencyDefaults = await getAccountCurrencyDefaults();
     const rows = await db.getAllAsync(
       "SELECT * FROM accounts_payable ORDER BY createdAt DESC;",
     );
     rows.forEach((row) => {
-      const normalized = normalizeAccountRecord(row, "payable");
+      const normalized = normalizeAccountRecord(
+        row,
+        "payable",
+        currencyDefaults,
+      );
       batch.set(
         doc(getPayableCollectionRef(), String(normalized.id)),
         normalized,
@@ -491,12 +513,13 @@ export const getAllAccountsReceivable = async () => {
     const result = await db.getAllAsync(
       "SELECT ar.id, ar.receivableNumber, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId ORDER BY ar.createdAt DESC;",
     );
-    return result;
+    return await normalizeAccountRows(result, "receivable");
   } catch (error) {
     if (handleCloudAccessError(error, "accounts:getReceivable")) {
-      return await db.getAllAsync(
+      const result = await db.getAllAsync(
         "SELECT ar.id, ar.receivableNumber, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId ORDER BY ar.createdAt DESC;",
       );
+      return await normalizeAccountRows(result, "receivable");
     }
     throw error;
   }
@@ -539,11 +562,11 @@ export const searchAccountsReceivable = async (query) => {
        ORDER BY ar.createdAt DESC;`,
       [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm],
     );
-    return result;
+    return await normalizeAccountRows(result, "receivable");
   } catch (error) {
     if (handleCloudAccessError(error, "accounts:getPayable")) {
       const searchTerm = `%${query}%`;
-      return await db.getAllAsync(
+      const result = await db.getAllAsync(
         `SELECT ar.id, ar.receivableNumber, ar.customerId, ar.customerName, ar.documentNumber, ar.description, ROUND(ar.amount, 2) as amount, MAX(0, ROUND(COALESCE(ar.paidAmount, 0), 2)) as paidAmount, ar.status, ar.invoiceNumber, ar.dueDate, ar.baseCurrency, ar.baseAmountUSD, ar.exchangeRateAtCreation, ar.createdAt, ar.updatedAt, c.phone as customerPhone FROM accounts_receivable ar LEFT JOIN customers c ON c.id = ar.customerId
          WHERE ar.customerName LIKE ? 
          OR ar.documentNumber LIKE ? 
@@ -553,6 +576,7 @@ export const searchAccountsReceivable = async (query) => {
          ORDER BY ar.createdAt DESC;`,
         [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm],
       );
+      return await normalizeAccountRows(result, "receivable");
     }
     throw error;
   }
@@ -572,12 +596,13 @@ export const getAllAccountsPayable = async () => {
     const result = await db.getAllAsync(
       "SELECT id, payableNumber, supplierId, supplierName, documentNumber, description, invoiceNumber, dueDate, baseCurrency, baseAmountUSD, exchangeRateAtCreation, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;",
     );
-    return result;
+    return await normalizeAccountRows(result, "payable");
   } catch (error) {
     if (handleCloudAccessError(error, "accounts:fixCorruptedData")) {
-      return await db.getAllAsync(
+      const result = await db.getAllAsync(
         "SELECT id, payableNumber, supplierId, supplierName, documentNumber, description, invoiceNumber, dueDate, baseCurrency, baseAmountUSD, exchangeRateAtCreation, ROUND(amount, 2) as amount, MAX(0, ROUND(COALESCE(paidAmount, 0), 2)) as paidAmount, status, createdAt, updatedAt FROM accounts_payable ORDER BY createdAt DESC;",
       );
+      return await normalizeAccountRows(result, "payable");
     }
     throw error;
   }
@@ -620,7 +645,7 @@ export const searchAccountsPayable = async (query) => {
        ORDER BY createdAt DESC;`,
       [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm],
     );
-    return result;
+    return await normalizeAccountRows(result, "payable");
   } catch (error) {
     throw error;
   }

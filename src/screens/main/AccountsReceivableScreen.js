@@ -49,7 +49,8 @@ export const AccountsReceivableScreen = ({ navigation }) => {
   const tabBarHeight = useOptionalBottomTabBarHeight();
   const { canStart, start, TourGuideZone } =
     useTourGuideController("accountsReceivable");
-  const { localCurrency } = useExchangeRateContext();
+  const { localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
   const TOUR_ZONE_BASE = 6100;
   const [tourBooted, setTourBooted] = useState(false);
   const {
@@ -128,22 +129,28 @@ export const AccountsReceivableScreen = ({ navigation }) => {
     };
   }, [canStart, start, tourBooted]);
 
-  const buildReceivableWhatsAppText = useCallback((account) => {
-    const amount = Number(account?.amount) || 0;
-    const paidAmount = Number(account?.paidAmount) || 0;
-    const pendingAmount = Math.max(0, amount - paidAmount);
+  const buildReceivableWhatsAppText = useCallback(
+    (account) => {
+      const amount = Number(account?.amount) || 0;
+      const paidAmount = Number(account?.paidAmount) || 0;
+      const pendingAmount = Math.max(0, amount - paidAmount);
 
-    return buildReceivableReminderWhatsAppMessage({
-      customerName: account?.customerName,
-      invoiceNumber: account?.invoiceNumber,
-      description: account?.description,
-      dueDate: account?.dueDate,
-      amountVES: amount,
-      baseAmountUSD: Number(account?.baseAmountUSD) || 0,
-      paidAmountVES: paidAmount,
-      pendingAmountVES: pendingAmount,
-    });
-  }, []);
+      return buildReceivableReminderWhatsAppMessage({
+        customerName: account?.customerName,
+        invoiceNumber: account?.invoiceNumber,
+        description: account?.description,
+        dueDate: account?.dueDate,
+        amountLocal: amount,
+        baseAmountUSD: Number(account?.baseAmountUSD) || 0,
+        paidAmountLocal: paidAmount,
+        pendingAmountLocal: pendingAmount,
+        localCurrency,
+        referenceCurrency,
+        baseCurrency: account?.baseCurrency || referenceCurrency,
+      });
+    },
+    [localCurrency, referenceCurrency],
+  );
 
   const handleSendWhatsApp = useCallback(
     async (account) => {
@@ -210,7 +217,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
         title: "Marcar como pagada",
         message: `¿Confirmar que la cuenta de ${
           account.customerName
-        } por ${formatCurrency(account.amount || 0, account.baseCurrency || localCurrency)} ha sido pagada?`,
+        } por ${formatCurrency(account.amount || 0, localCurrency)} ha sido pagada?`,
         type: "warning",
         buttons: [
           { text: "Cancelar", style: "cancel" },
@@ -325,6 +332,10 @@ export const AccountsReceivableScreen = ({ navigation }) => {
 
   const renderAccount = useCallback(
     ({ item }) => {
+      const referenceAmount = Number(item.baseAmountUSD) || 0;
+      const referenceCode = item.baseCurrency || referenceCurrency;
+      const showReferenceAmount =
+        rateEnabled && referenceAmount > 0 && referenceCode !== localCurrency;
       const appearance = getStatusAppearance(
         item.status,
         item.dueDate,
@@ -373,11 +384,13 @@ export const AccountsReceivableScreen = ({ navigation }) => {
           <View style={styles.amountRow}>
             <View style={styles.amountContainer}>
               <Text style={styles.amount}>
-                {formatCurrency(
-                  item.amount || 0,
-                  item.baseCurrency || localCurrency,
-                )}
+                {formatCurrency(item.amount || 0, localCurrency)}
               </Text>
+              {showReferenceAmount ? (
+                <Text style={styles.dueDate}>
+                  {formatCurrency(referenceAmount, referenceCode)}
+                </Text>
+              ) : null}
               {item.dueDate ? (
                 <Text style={styles.dueDate}>
                   Vence{" "}
@@ -395,10 +408,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
                   <View style={[styles.balanceCard, styles.balanceCardSoft]}>
                     <Text style={styles.balanceLabel}>Pagado</Text>
                     <Text style={styles.balanceValuePaid}>
-                      {formatCurrency(
-                        item.paidAmount || 0,
-                        item.baseCurrency || localCurrency,
-                      )}
+                      {formatCurrency(item.paidAmount || 0, localCurrency)}
                     </Text>
                   </View>
                   <View style={[styles.balanceCard, styles.balanceCardWarn]}>
@@ -409,7 +419,7 @@ export const AccountsReceivableScreen = ({ navigation }) => {
                           0,
                           (item.amount || 0) - (item.paidAmount || 0),
                         ),
-                        item.baseCurrency || localCurrency,
+                        localCurrency,
                       )}
                     </Text>
                   </View>
@@ -532,9 +542,12 @@ export const AccountsReceivableScreen = ({ navigation }) => {
       getStatusAppearance,
       handleDelete,
       handleSendWhatsApp,
+      localCurrency,
       openRecordPaymentScreen,
       openPaymentHistoryScreen,
       openEditScreen,
+      rateEnabled,
+      referenceCurrency,
     ],
   );
 

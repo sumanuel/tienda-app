@@ -53,12 +53,18 @@ export const buildReceivableReminderWhatsAppMessage = ({
   invoiceNumber,
   description,
   dueDate,
-  amountVES,
+  amountLocal,
   baseAmountUSD,
-  paidAmountVES,
-  pendingAmountVES,
+  paidAmountLocal,
+  pendingAmountLocal,
+  localCurrency = "VES",
+  referenceCurrency = "USD",
+  baseCurrency = referenceCurrency,
 }) => {
-  const hasPartialPayment = Number(paidAmountVES) > 0;
+  const hasPartialPayment = Number(paidAmountLocal) > 0;
+  const referenceLabel = baseCurrency || referenceCurrency;
+  const shouldShowReference =
+    referenceLabel !== localCurrency && Number(baseAmountUSD) > 0;
 
   const headerBlock = joinSections([
     `Hola ${customerName || "Cliente"},`,
@@ -72,18 +78,18 @@ export const buildReceivableReminderWhatsAppMessage = ({
   ]);
 
   const amountBlock = joinSections([
-    `Monto: ${formatCurrency(Number(amountVES) || 0, "VES")}`,
-    Number(baseAmountUSD) > 0
-      ? `Monto (USD): ${formatCurrency(Number(baseAmountUSD), "USD")}`
+    `Monto: ${formatCurrency(Number(amountLocal) || 0, localCurrency)}`,
+    shouldShowReference
+      ? `Monto (${referenceLabel}): ${formatCurrency(Number(baseAmountUSD), referenceLabel)}`
       : null,
   ]);
 
   const balanceBlock = joinSections([
     hasPartialPayment
-      ? `Pagado: ${formatCurrency(Number(paidAmountVES) || 0, "VES")}`
+      ? `Pagado: ${formatCurrency(Number(paidAmountLocal) || 0, localCurrency)}`
       : null,
     hasPartialPayment
-      ? `Pendiente: ${formatCurrency(Number(pendingAmountVES) || 0, "VES")}`
+      ? `Pendiente: ${formatCurrency(Number(pendingAmountLocal) || 0, localCurrency)}`
       : null,
   ]);
 
