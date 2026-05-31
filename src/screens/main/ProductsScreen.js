@@ -16,8 +16,10 @@ import { useProducts } from "../../hooks/useProducts";
 import { countSalesByProduct } from "../../services/database/sales";
 import { getSettings } from "../../services/database/settings";
 import { countProductInventoryMovements } from "../../services/database/products";
-import { useExchangeRate } from "../../contexts/ExchangeRateContext";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { formatCurrency } from "../../utils/currency";
+import { convertCurrency } from "../../utils/exchange";
 import { hasSeenTour, markTourSeen } from "../../services/tour/tourStorage";
 import {
   EmptyStateCard,
@@ -40,11 +42,28 @@ import {
 const ProductCard = React.memo(function ProductCard({
   item,
   appliedRate,
+  localCurrency,
+  referenceCurrency,
+  rateEnabled,
   onEdit,
   onDelete,
 }) {
-  const priceUSD = Number(item.priceUSD) || 0;
-  const priceVES = appliedRate ? priceUSD * appliedRate : 0;
+  const referencePrice = Number(item.priceUSD) || 0;
+  const localPrice =
+    Number(item.priceVES) ||
+    (rateEnabled && appliedRate > 0 && referencePrice > 0
+      ? convertCurrency(
+          referencePrice,
+          referenceCurrency,
+          localCurrency,
+          appliedRate,
+          {
+            referenceCurrency,
+            localCurrency,
+            usesUsdConversion: rateEnabled,
+          },
+        )
+      : referencePrice);
   const stock = Number(item.stock) || 0;
   const minStock = Number(item.minStock ?? 0);
   const lowStock = minStock ? stock <= minStock : stock <= 5;
@@ -107,15 +126,21 @@ const ProductCard = React.memo(function ProductCard({
 
       <View style={styles.priceRow}>
         <View style={styles.priceTag}>
-          <Text style={styles.priceTagLabel}>VES</Text>
-          <Text style={styles.priceTagValue}>{priceVES.toFixed(2)}</Text>
-        </View>
-        <View style={styles.priceTagSecondary}>
-          <Text style={styles.priceTagSecondaryLabel}>USD</Text>
-          <Text style={styles.priceTagSecondaryValue}>
-            {priceUSD.toFixed(2)}
+          <Text style={styles.priceTagLabel}>{localCurrency}</Text>
+          <Text style={styles.priceTagValue}>
+            {formatCurrency(localPrice, localCurrency)}
           </Text>
         </View>
+        {rateEnabled ? (
+          <View style={styles.priceTagSecondary}>
+            <Text style={styles.priceTagSecondaryLabel}>
+              {referenceCurrency}
+            </Text>
+            <Text style={styles.priceTagSecondaryValue}>
+              {formatCurrency(referencePrice, referenceCurrency)}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.productFooter}>
@@ -143,7 +168,12 @@ export const ProductsScreen = ({ navigation }) => {
   const { showAlert, CustomAlert } = useCustomAlert();
   const [searchQuery, setSearchQuery] = useState("");
   const [settings, setSettings] = useState({});
-  const { rate: exchangeRate } = useExchangeRate();
+  const {
+    rate: exchangeRate,
+    localCurrency,
+    referenceCurrency,
+    rateEnabled,
+  } = useExchangeRateContext();
   const { canStart, start, TourGuideZone } = useTourGuideController("products");
   const TOUR_ZONE_BASE = 1000;
   const [tourBooted, setTourBooted] = useState(false);
@@ -334,11 +364,21 @@ export const ProductsScreen = ({ navigation }) => {
       <ProductCard
         item={item}
         appliedRate={appliedRate}
+        localCurrency={localCurrency}
+        referenceCurrency={referenceCurrency}
+        rateEnabled={rateEnabled}
         onEdit={handleEditProduct}
         onDelete={handleDeleteProduct}
       />
     ),
-    [appliedRate, handleDeleteProduct, handleEditProduct],
+    [
+      appliedRate,
+      handleDeleteProduct,
+      handleEditProduct,
+      localCurrency,
+      rateEnabled,
+      referenceCurrency,
+    ],
   );
 
   const header = useMemo(

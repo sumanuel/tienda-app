@@ -29,7 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TourTooltip from "../../components/tour/TourTooltip";
 import { useProducts } from "../../hooks/useProducts";
 import { useSales } from "../../hooks/useSales";
-import { useExchangeRate } from "../../contexts/ExchangeRateContext";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useCustomAlert } from "../../components/common/CustomAlert";
@@ -41,6 +41,8 @@ import {
   insertInventoryMovement,
 } from "../../services/database/products";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { formatCurrency } from "../../utils/currency";
+import { convertCurrency } from "../../utils/exchange";
 import { s, rf, vs, hs, spacing, borderRadius } from "../../utils/responsive";
 
 const TOUR_ZONE_BASE = 0;
@@ -324,11 +326,29 @@ const ProductListItem = React.memo(function ProductListItem({
   item,
   index,
   exchangeRate,
+  localCurrency,
+  referenceCurrency,
+  rateEnabled,
   addToCart,
 }) {
   const stockValue = Number(item.stock) || 0;
   const isOutOfStock = stockValue === 0;
-  const computedPriceVES = item.priceVES || item.priceUSD * exchangeRate;
+  const referencePrice = Number(item.priceUSD) || 0;
+  const visibleLocalPrice =
+    Number(item.priceVES) ||
+    (rateEnabled && exchangeRate > 0 && referencePrice > 0
+      ? convertCurrency(
+          referencePrice,
+          referenceCurrency,
+          localCurrency,
+          exchangeRate,
+          {
+            referenceCurrency,
+            localCurrency,
+            usesUsdConversion: rateEnabled,
+          },
+        )
+      : referencePrice);
 
   const handleAddToCart = useCallback(() => {
     addToCart(item);
@@ -366,7 +386,9 @@ const ProductListItem = React.memo(function ProductListItem({
           )}
           {!isOutOfStock && (
             <Text style={styles.productMiniPrice}>
-              USD. {(Number(item.priceUSD) || 0).toFixed(2)}
+              {rateEnabled
+                ? formatCurrency(referencePrice, referenceCurrency)
+                : formatCurrency(visibleLocalPrice, localCurrency)}
             </Text>
           )}
         </View>
@@ -375,7 +397,7 @@ const ProductListItem = React.memo(function ProductListItem({
       <View style={styles.productPricePanel}>
         <Text style={styles.productPriceEyebrow}>Precio actual</Text>
         <Text style={styles.productPrice}>
-          VES. {computedPriceVES.toFixed(2)}
+          {formatCurrency(visibleLocalPrice, localCurrency)}
         </Text>
       </View>
 
@@ -502,7 +524,12 @@ export const POSScreen = ({ navigation, route }) => {
     loadProducts: refreshProducts,
   } = useProducts();
   const { registerSale: addSale } = useSales();
-  const { rate: exchangeRate } = useExchangeRate();
+  const {
+    rate: exchangeRate,
+    localCurrency,
+    referenceCurrency,
+    rateEnabled,
+  } = useExchangeRateContext();
   const { addAccountReceivable } = useAccounts();
   const { getCustomerByDocument, ensureGenericCustomer, addCustomer } =
     useCustomers();
@@ -638,14 +665,27 @@ export const POSScreen = ({ navigation, route }) => {
         .map((item, index) => {
           const quantity = Number(item?.quantity) || 1;
           const price = Number(item?.price) || 0;
-          const priceUSD =
-            Number(item?.priceUSD) ||
-            (exchangeRate ? price / Number(exchangeRate) : 0);
+          const priceUSD = Number(item?.priceUSD) || 0;
+          const resolvedLocalPrice =
+            price ||
+            (rateEnabled && exchangeRate > 0 && priceUSD > 0
+              ? convertCurrency(
+                  priceUSD,
+                  referenceCurrency,
+                  localCurrency,
+                  Number(exchangeRate),
+                  {
+                    referenceCurrency,
+                    localCurrency,
+                    usesUsdConversion: rateEnabled,
+                  },
+                )
+              : priceUSD);
           const name = String(
             item?.name || item?.productName || item?.product?.name || "",
           ).trim();
 
-          if (!name || price <= 0) {
+          if (!name || resolvedLocalPrice <= 0) {
             return null;
           }
 
@@ -654,10 +694,10 @@ export const POSScreen = ({ navigation, route }) => {
               item?.id ||
               `marginal-${Date.now()}-${index}-${Math.round(price * 100)}`,
             name,
-            price,
+            price: resolvedLocalPrice,
             priceUSD,
             quantity,
-            subtotal: Number(item?.subtotal) || price * quantity,
+            subtotal: Number(item?.subtotal) || resolvedLocalPrice * quantity,
             iva:
               Number(item?.iva ?? item?.product?.iva ?? pricingSettings.iva) ||
               0,
@@ -665,7 +705,7 @@ export const POSScreen = ({ navigation, route }) => {
               id: Number(item?.product?.id ?? item?.productId ?? 0),
               name,
               priceUSD,
-              priceVES: price,
+              priceVES: resolvedLocalPrice,
               stock: Number(item?.product?.stock ?? 1) || 1,
               trackInventory: Number(item?.product?.trackInventory ?? 0),
               iva:
@@ -676,7 +716,13 @@ export const POSScreen = ({ navigation, route }) => {
           };
         })
         .filter(Boolean),
-    [exchangeRate, pricingSettings.iva],
+    [
+      exchangeRate,
+      localCurrency,
+      pricingSettings.iva,
+      rateEnabled,
+      referenceCurrency,
+    ],
   );
 
   useEffect(() => {
@@ -877,13 +923,28 @@ export const POSScreen = ({ navigation, route }) => {
         const basePriceUSD =
           Number(product.priceUSD) ||
           (exchangeRate ? (Number(product.priceVES) || 0) / exchangeRate : 0);
+        const resolvedLocalPrice =
+          Number(product.priceVES) ||
+          (rateEnabled && exchangeRate > 0 && basePriceUSD > 0
+            ? convertCurrency(
+                basePriceUSD,
+                referenceCurrency,
+                localCurrency,
+                exchangeRate,
+                {
+                  referenceCurrency,
+                  localCurrency,
+                  usesUsdConversion: rateEnabled,
+                },
+              )
+            : basePriceUSD);
         const newItem = {
           id: product.id,
           name: product.name,
-          price: product.priceVES || product.priceUSD * exchangeRate,
+          price: resolvedLocalPrice,
           priceUSD: basePriceUSD,
           quantity: 1,
-          subtotal: product.priceVES || product.priceUSD * exchangeRate,
+          subtotal: resolvedLocalPrice,
           iva: Number(product.iva ?? pricingSettings.iva) || 0,
           product: product,
         };
@@ -900,7 +961,14 @@ export const POSScreen = ({ navigation, route }) => {
         });
       }
     },
-    [exchangeRate, pricingSettings.iva, showAlert],
+    [
+      exchangeRate,
+      localCurrency,
+      pricingSettings.iva,
+      rateEnabled,
+      referenceCurrency,
+      showAlert,
+    ],
   );
 
   /**
@@ -1126,7 +1194,7 @@ export const POSScreen = ({ navigation, route }) => {
             customerName: customerName.trim() || "Cliente",
             documentNumber: customerDocument?.trim() || null,
             amount: total,
-            baseCurrency: "USD",
+            baseCurrency: referenceCurrency,
             baseAmountUSD,
             exchangeRateAtCreation: exchangeRate,
             description: `Venta a crédito - ${cart.length} producto(s): ${cart
@@ -1282,7 +1350,7 @@ export const POSScreen = ({ navigation, route }) => {
             customerName: newCustomerName.trim(),
             documentNumber: customerDocument?.trim() || null,
             amount: pendingSaleData.total,
-            baseCurrency: "USD",
+            baseCurrency: referenceCurrency,
             baseAmountUSD,
             exchangeRateAtCreation: pendingSaleData.exchangeRate,
             description: `Venta a crédito - ${cart.length} producto(s): ${cart
@@ -1352,10 +1420,13 @@ export const POSScreen = ({ navigation, route }) => {
         item={item}
         index={index}
         exchangeRate={exchangeRate}
+        localCurrency={localCurrency}
+        referenceCurrency={referenceCurrency}
+        rateEnabled={rateEnabled}
         addToCart={addToCart}
       />
     ),
-    [addToCart, exchangeRate],
+    [addToCart, exchangeRate, localCurrency, rateEnabled, referenceCurrency],
   );
 
   /**
@@ -1455,7 +1526,7 @@ export const POSScreen = ({ navigation, route }) => {
             >
               <Text style={styles.cartFabAmountLabel}>Carrito</Text>
               <Text style={styles.cartFabAmountValue}>
-                VES. {total.toFixed(2)}
+                {formatCurrency(total, localCurrency)}
               </Text>
             </Pressable>
           ) : null}

@@ -15,6 +15,7 @@ import { useOptionalBottomTabBarHeight } from "../../hooks/useOptionalBottomTabB
 import { useSales } from "../../hooks/useSales";
 import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { formatCurrency } from "../../utils/currency";
+import { convertCurrency } from "../../utils/exchange";
 import { openWhatsApp, isValidWhatsAppPhone } from "../../utils/whatsapp";
 import { buildSaleInvoiceWhatsAppMessage } from "../../utils/whatsappMessages";
 import { getCustomerById } from "../../services/database/customers";
@@ -47,29 +48,54 @@ export const SaleDetailScreen = () => {
   const listPaddingBottom = iconSize.xl + fabBottom + vs(24);
   const { showAlert, CustomAlert } = useCustomAlert();
 
-  const { rate } = useExchangeRateContext();
+  const { rate, localCurrency, referenceCurrency, rateEnabled } =
+    useExchangeRateContext();
 
   const exchangeRate = Number(rate) || 0;
+
+  const resolveLocalSaleAmount = (referenceAmount, localAmount = 0) => {
+    const normalizedLocalAmount = Number(localAmount) || 0;
+    const normalizedReferenceAmount = Number(referenceAmount) || 0;
+
+    if (normalizedLocalAmount > 0) {
+      return normalizedLocalAmount;
+    }
+
+    if (rateEnabled && exchangeRate > 0 && normalizedReferenceAmount > 0) {
+      return convertCurrency(
+        normalizedReferenceAmount,
+        referenceCurrency,
+        localCurrency,
+        exchangeRate,
+        {
+          referenceCurrency,
+          localCurrency,
+          usesUsdConversion: rateEnabled,
+        },
+      );
+    }
+
+    return normalizedReferenceAmount;
+  };
 
   const getSaleDisplayNumber = (saleData) =>
     saleData?.saleNumber ||
     `VTA-${String(saleData?.id || saleId || 0).padStart(6, "0")}`;
 
   const calculateTotal = (saleData) => {
-    if (saleData?.paymentMethod === "por_cobrar" && exchangeRate > 0) {
-      const items = saleData?.items || [];
-      const totalUSD = items.reduce(
-        (sum, item) =>
-          sum + (Number(item.priceUSD) || 0) * (Number(item.quantity) || 0),
-        0,
-      );
+    const persistedTotal = Number(saleData?.total) || 0;
 
-      if (totalUSD > 0) {
-        return totalUSD * exchangeRate;
-      }
+    if (persistedTotal > 0) {
+      return persistedTotal;
     }
 
-    return saleData?.total || 0;
+    return (saleData?.items || []).reduce(
+      (sum, item) =>
+        sum +
+        resolveLocalSaleAmount(item?.priceUSD, item?.price) *
+          (Number(item?.quantity) || 0),
+      0,
+    );
   };
 
   const [sale, setSale] = useState(null);
@@ -123,17 +149,11 @@ export const SaleDetailScreen = () => {
     const lines = items.map((it) => {
       const quantity = Number(it.quantity) || 0;
       const priceUSD = Number(it.priceUSD) || 0;
-      const shouldRecalc =
-        sale?.paymentMethod === "por_cobrar" &&
-        exchangeRate > 0 &&
-        priceUSD > 0;
-      const displayPriceVES = shouldRecalc
-        ? priceUSD * exchangeRate
-        : Number(it.price) || 0;
+      const displayLocalPrice = resolveLocalSaleAmount(priceUSD, it?.price);
       return {
         productName: it.productName,
         quantity,
-        subtotalVES: quantity * displayPriceVES,
+        subtotalVES: quantity * displayLocalPrice,
       };
     });
 
@@ -188,17 +208,9 @@ export const SaleDetailScreen = () => {
   const renderDetailItem = ({ item, index }) => {
     const quantity = Number(item.quantity) || 0;
     const priceUSD = Number(item.priceUSD) || 0;
-
-    const shouldRecalc =
-      sale?.paymentMethod === "por_cobrar" && exchangeRate > 0 && priceUSD > 0;
-
-    const displayPriceVES = shouldRecalc
-      ? priceUSD * exchangeRate
-      : Number(item.price) || 0;
-
-    const displaySubtotalVES = shouldRecalc
-      ? quantity * displayPriceVES
-      : Number(item.subtotal) || quantity * displayPriceVES;
+    const displayLocalPrice = resolveLocalSaleAmount(priceUSD, item?.price);
+    const displaySubtotalLocal =
+      Number(item.subtotal) || quantity * displayLocalPrice;
 
     return (
       <View
@@ -207,12 +219,14 @@ export const SaleDetailScreen = () => {
         <View style={styles.detailItemInfo}>
           <Text style={styles.detailItemName}>{item.productName}</Text>
           <Text style={styles.detailItemQuantity}>
-            {quantity} × {formatCurrency(displayPriceVES, "VES")}
-            {priceUSD > 0 ? ` (${formatCurrency(priceUSD, "USD")})` : ""}
+            {quantity} × {formatCurrency(displayLocalPrice, localCurrency)}
+            {rateEnabled && priceUSD > 0
+              ? ` (${formatCurrency(priceUSD, referenceCurrency)})`
+              : ""}
           </Text>
         </View>
         <Text style={styles.detailItemTotal}>
-          {formatCurrency(displaySubtotalVES, "VES")}
+          {formatCurrency(displaySubtotalLocal, localCurrency)}
         </Text>
       </View>
     );
@@ -276,7 +290,7 @@ export const SaleDetailScreen = () => {
                       sale.paymentMethod === "por_cobrar" ? "warning" : "info",
                   },
                   {
-                    text: formatCurrency(totalVes, "VES"),
+                    text: formatCurrency(totalVes, localCurrency),
                     tone: "accent",
                   },
                 ]}
@@ -297,7 +311,7 @@ export const SaleDetailScreen = () => {
                     </Text>
                   </View>
                   <InfoPill
-                    text={formatCurrency(totalVes, "VES")}
+                    text={formatCurrency(totalVes, localCurrency)}
                     tone="accent"
                   />
                 </View>
@@ -323,7 +337,10 @@ export const SaleDetailScreen = () => {
                   <View style={styles.metricCard}>
                     <Text style={styles.metricLabel}>Subtotal</Text>
                     <Text style={styles.metricValue}>
-                      {formatCurrency(Number(sale.subtotal) || 0, "VES")}
+                      {formatCurrency(
+                        Number(sale.subtotal) || 0,
+                        localCurrency,
+                      )}
                     </Text>
                   </View>
 
@@ -331,7 +348,7 @@ export const SaleDetailScreen = () => {
                     <View style={styles.metricCard}>
                       <Text style={styles.metricLabel}>IVA</Text>
                       <Text style={styles.metricValue}>
-                        {formatCurrency(Number(sale.tax) || 0, "VES")}
+                        {formatCurrency(Number(sale.tax) || 0, localCurrency)}
                       </Text>
                     </View>
                   ) : null}
@@ -341,15 +358,17 @@ export const SaleDetailScreen = () => {
                     <Text
                       style={[styles.metricValue, styles.metricValueAccent]}
                     >
-                      {formatCurrency(Number(sale.total) || 0, "VES")}
+                      {formatCurrency(Number(sale.total) || 0, localCurrency)}
                     </Text>
                   </View>
 
-                  {totalUsdNumber > 0 ? (
+                  {rateEnabled && totalUsdNumber > 0 ? (
                     <View style={styles.metricCard}>
-                      <Text style={styles.metricLabel}>Total USD</Text>
+                      <Text
+                        style={styles.metricLabel}
+                      >{`Total ${referenceCurrency}`}</Text>
                       <Text style={styles.metricValue}>
-                        {formatCurrency(totalUsdNumber, "USD")}
+                        {formatCurrency(totalUsdNumber, referenceCurrency)}
                       </Text>
                     </View>
                   ) : null}
