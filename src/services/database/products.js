@@ -54,7 +54,8 @@ const parseStoredJson = (value) => {
 const buildProductPricingSnapshot = (product = {}) => {
   const legacyPrices = normalizeLegacyProductPrices(product);
   const existingSnapshot =
-    parseStoredJson(product.pricingSnapshot) || parseStoredJson(product.pricing);
+    parseStoredJson(product.pricingSnapshot) ||
+    parseStoredJson(product.pricing);
   const localCurrency = normalizeCurrencyCode(
     existingSnapshot?.localCurrency || product.localCurrency,
     "VES",

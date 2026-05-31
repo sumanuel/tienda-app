@@ -47,7 +47,9 @@ const parseStoredJson = (value) => {
 const buildSaleItemPriceSnapshot = (item = {}, saleContext = {}) => {
   const existingSnapshot = parseStoredJson(item.priceSnapshot);
   const localCurrency = normalizeCurrencyCode(
-    existingSnapshot?.localCurrency || saleContext?.localCurrency || saleContext?.currency,
+    existingSnapshot?.localCurrency ||
+      saleContext?.localCurrency ||
+      saleContext?.currency,
     "VES",
   );
   const referenceCurrency = normalizeCurrencyCode(
@@ -58,7 +60,8 @@ const buildSaleItemPriceSnapshot = (item = {}, saleContext = {}) => {
     existingSnapshot?.localAmount ?? existingSnapshot?.amount ?? item.price,
   );
   const referenceAmount = Number(
-    existingSnapshot?.referenceAmount ?? item.priceUSD ??
+    existingSnapshot?.referenceAmount ??
+      item.priceUSD ??
       (referenceCurrency === localCurrency ? item.price : 0),
   );
 
@@ -67,7 +70,8 @@ const buildSaleItemPriceSnapshot = (item = {}, saleContext = {}) => {
     referenceCurrency,
     localAmount: Number.isFinite(localAmount) ? localAmount : 0,
     referenceAmount: Number.isFinite(referenceAmount) ? referenceAmount : 0,
-    exchangeRate: Number(existingSnapshot?.exchangeRate ?? saleContext?.exchangeRate) || 0,
+    exchangeRate:
+      Number(existingSnapshot?.exchangeRate ?? saleContext?.exchangeRate) || 0,
     source: existingSnapshot ? "snapshot" : "legacy",
   };
 };
@@ -83,21 +87,27 @@ const buildSaleMonetarySnapshot = (sale = {}, items = []) => {
     (item) => item?.priceSnapshot?.referenceCurrency,
   )?.priceSnapshot?.referenceCurrency;
   const referenceCurrency = normalizeCurrencyCode(
-    existingSnapshot?.referenceCurrency || sale.referenceCurrency || firstItemReferenceCurrency,
+    existingSnapshot?.referenceCurrency ||
+      sale.referenceCurrency ||
+      firstItemReferenceCurrency,
     localCurrency,
   );
   const totalLocalAmount = Number(
-    existingSnapshot?.totalLocalAmount ?? sale.total ??
+    existingSnapshot?.totalLocalAmount ??
+      sale.total ??
       items.reduce(
         (sum, item) =>
           sum +
-          (Number(item?.priceSnapshot?.localAmount) || Number(item.price) || 0) *
+          (Number(item?.priceSnapshot?.localAmount) ||
+            Number(item.price) ||
+            0) *
             (Number(item.quantity) || 0),
         0,
       ),
   );
   const totalReferenceAmount = Number(
-    existingSnapshot?.totalReferenceAmount ?? sale.totalUSD ??
+    existingSnapshot?.totalReferenceAmount ??
+      sale.totalUSD ??
       items.reduce(
         (sum, item) =>
           sum +
@@ -116,7 +126,8 @@ const buildSaleMonetarySnapshot = (sale = {}, items = []) => {
     totalReferenceAmount: Number.isFinite(totalReferenceAmount)
       ? totalReferenceAmount
       : 0,
-    exchangeRate: Number(existingSnapshot?.exchangeRate ?? sale.exchangeRate) || 0,
+    exchangeRate:
+      Number(existingSnapshot?.exchangeRate ?? sale.exchangeRate) || 0,
     rateEnabled:
       existingSnapshot?.rateEnabled ?? referenceCurrency !== localCurrency,
     source: existingSnapshot ? "snapshot" : "legacy",

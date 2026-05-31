@@ -967,9 +967,7 @@ const runMigrations = async () => {
       console.log("priceUSD column added successfully");
     }
     if (!hasSaleItemPriceSnapshot) {
-      await db.runAsync(
-        "ALTER TABLE sale_items ADD COLUMN priceSnapshot TEXT",
-      );
+      await db.runAsync("ALTER TABLE sale_items ADD COLUMN priceSnapshot TEXT");
     }
 
     if (salesTable?.name) {
@@ -979,9 +977,7 @@ const runMigrations = async () => {
       );
 
       if (!hasSalesMonetarySnapshot) {
-        await db.runAsync(
-          "ALTER TABLE sales ADD COLUMN monetarySnapshot TEXT",
-        );
+        await db.runAsync("ALTER TABLE sales ADD COLUMN monetarySnapshot TEXT");
       }
     }
 
