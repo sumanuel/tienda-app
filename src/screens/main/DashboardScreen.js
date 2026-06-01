@@ -148,6 +148,7 @@ export const DashboardScreen = ({ navigation }) => {
     loading: rateLoading,
     lastUpdate,
     updateRate,
+    exchangeSource,
   } = useExchangeRateContext();
   const { todayStats, loading: salesLoading, loadTodayStats } = useSales();
   const {
@@ -221,7 +222,7 @@ export const DashboardScreen = ({ navigation }) => {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await updateRate("BCV");
+      await updateRate(exchangeSource);
       await refreshInventory();
       await loadTodayStats();
       await refreshAccounts();

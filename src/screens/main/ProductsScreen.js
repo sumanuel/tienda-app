@@ -330,9 +330,12 @@ export const ProductsScreen = ({ navigation }) => {
   }, [products]);
 
   const appliedRate = useMemo(() => {
-    const rateFromSettings = settings?.pricing?.currencies?.USD;
+    const activeReferenceCurrency =
+      settings?.pricing?.referenceCurrency || referenceCurrency;
+    const rateFromSettings =
+      settings?.pricing?.currencies?.[activeReferenceCurrency];
     return exchangeRate || rateFromSettings || 0;
-  }, [exchangeRate, settings]);
+  }, [exchangeRate, referenceCurrency, settings]);
 
   const metrics = useMemo(() => {
     const totalProducts = products.length;

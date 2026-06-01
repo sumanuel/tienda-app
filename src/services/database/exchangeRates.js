@@ -17,6 +17,11 @@ import {
 } from "../store/storeRefs";
 import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 import { getActiveStoreId } from "../store/storeSession";
+import { getSettings } from "./settings";
+import {
+  getCurrencyBehavior,
+  normalizeCurrencyCode,
+} from "../../utils/currency";
 
 const cloudExchangeRatesSeeded = new Set();
 
@@ -35,6 +40,41 @@ const getExchangeRatesCollectionRef = () =>
 
 const getSettingsDocRef = () =>
   getStoreNestedDocRef(["settings", "app_settings"]);
+
+const getDefaultExchangeCurrencies = () => ({
+  fromCurrency: "USD",
+  toCurrency: "VES",
+});
+
+const resolveExchangeCurrencies = (settings = {}) => {
+  const behavior = getCurrencyBehavior(settings);
+  const fromCurrency = normalizeCurrencyCode(
+    behavior.referenceCurrency,
+    getDefaultExchangeCurrencies().fromCurrency,
+  );
+  const toCurrency = normalizeCurrencyCode(
+    behavior.localCurrency,
+    getDefaultExchangeCurrencies().toCurrency,
+  );
+
+  return {
+    fromCurrency,
+    toCurrency,
+  };
+};
+
+const getExchangeCurrenciesFromSettings = async () => {
+  try {
+    const settings = await getSettings();
+    return resolveExchangeCurrencies(settings);
+  } catch (error) {
+    console.warn("Error resolving exchange currencies from settings:", error);
+    return getDefaultExchangeCurrencies();
+  }
+};
+
+const normalizeExchangeRateResult = (rate) =>
+  rate ? normalizeExchangeRateRecord(rate) : null;
 
 const canManageCloudExchangeRates = async () => {
   if (!isCloudExchangeRatesEnabled()) {
@@ -65,8 +105,14 @@ const normalizeExchangeRateRecord = (rate = {}) => ({
   id: Number(rate.id) || createCloudNumericId(),
   source: String(rate.source || "MANUAL").trim(),
   rate: Number(rate.rate) || 0,
-  fromCurrency: String(rate.fromCurrency || "USD").trim(),
-  toCurrency: String(rate.toCurrency || "VES").trim(),
+  fromCurrency: normalizeCurrencyCode(
+    rate.fromCurrency,
+    getDefaultExchangeCurrencies().fromCurrency,
+  ),
+  toCurrency: normalizeCurrencyCode(
+    rate.toCurrency,
+    getDefaultExchangeCurrencies().toCurrency,
+  ),
   isActive: Number(rate.isActive ?? 0),
   createdAt: rate.createdAt || new Date().toISOString(),
 });
@@ -79,11 +125,12 @@ const sortExchangeRatesByDateDesc = (items = []) =>
   );
 
 const buildFallbackRateRecord = (settings = {}) => {
+  const { fromCurrency, toCurrency } = resolveExchangeCurrencies(settings);
   const explicitRate = Number(settings?.exchange?.lastKnownRate);
-  const pricingRate = Number(settings?.pricing?.currencies?.USD);
+  const pricingRate = Number(settings?.pricing?.currencies?.[fromCurrency]);
   const hasExplicitRate = Number.isFinite(explicitRate) && explicitRate > 0;
   const hasCustomizedPricingRate =
-    Number.isFinite(pricingRate) && pricingRate > 0 && pricingRate !== 280;
+    Number.isFinite(pricingRate) && pricingRate > 0;
 
   const resolvedRate = hasExplicitRate
     ? explicitRate
@@ -101,8 +148,8 @@ const buildFallbackRateRecord = (settings = {}) => {
       .trim()
       .toUpperCase(),
     rate: resolvedRate,
-    fromCurrency: "USD",
-    toCurrency: "VES",
+    fromCurrency: settings?.exchange?.lastKnownFromCurrency || fromCurrency,
+    toCurrency: settings?.exchange?.lastKnownToCurrency || toCurrency,
     isActive: 1,
     createdAt:
       settings?.exchange?.lastRateUpdatedAt ||
@@ -154,7 +201,10 @@ const syncRateSnapshotToCloudSettings = async (rateRecord) => {
     {
       pricing: {
         currencies: {
-          USD: Number(rateRecord?.rate) || 0,
+          [normalizeCurrencyCode(
+            rateRecord?.fromCurrency,
+            getDefaultExchangeCurrencies().fromCurrency,
+          )]: Number(rateRecord?.rate) || 0,
         },
       },
       exchange: {
@@ -163,6 +213,14 @@ const syncRateSnapshotToCloudSettings = async (rateRecord) => {
         lastKnownRateSource: String(rateRecord?.source || "MANUAL")
           .trim()
           .toUpperCase(),
+        lastKnownFromCurrency: normalizeCurrencyCode(
+          rateRecord?.fromCurrency,
+          getDefaultExchangeCurrencies().fromCurrency,
+        ),
+        lastKnownToCurrency: normalizeCurrencyCode(
+          rateRecord?.toCurrency,
+          getDefaultExchangeCurrencies().toCurrency,
+        ),
         lastRateUpdatedAt: rateRecord?.createdAt || new Date().toISOString(),
       },
     },
@@ -223,8 +281,8 @@ export const initExchangeRatesTable = async () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         rate REAL NOT NULL,
-        fromCurrency TEXT DEFAULT 'USD',
-        toCurrency TEXT DEFAULT 'VES',
+        fromCurrency TEXT,
+        toCurrency TEXT,
         isActive INTEGER DEFAULT 0,
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP
       );`,
@@ -250,16 +308,20 @@ export const getActiveExchangeRate = async () => {
       const activeRate = rates.find((item) => Number(item.isActive) === 1);
 
       if (activeRate) {
-        return activeRate;
+        return normalizeExchangeRateResult(activeRate);
       }
 
-      return await getFallbackRateFromCloudSettings();
+      return normalizeExchangeRateResult(
+        await getFallbackRateFromCloudSettings(),
+      );
     }
 
     const result = await db.getFirstAsync(
       "SELECT * FROM exchange_rates WHERE isActive = 1 ORDER BY createdAt DESC LIMIT 1;",
     );
-    return result || (await getFallbackRateFromLocalSettings());
+    return normalizeExchangeRateResult(
+      result || (await getFallbackRateFromLocalSettings()),
+    );
   } catch (error) {
     console.warn(
       "Cloud exchange rate read failed, falling back locally:",
@@ -268,16 +330,27 @@ export const getActiveExchangeRate = async () => {
     const localRate = await db.getFirstAsync(
       "SELECT * FROM exchange_rates WHERE isActive = 1 ORDER BY createdAt DESC LIMIT 1;",
     );
-    return localRate || (await getFallbackRateFromLocalSettings());
+    return normalizeExchangeRateResult(
+      localRate || (await getFallbackRateFromLocalSettings()),
+    );
   }
 };
 
 /**
  * Inserta una nueva tasa de cambio y la activa
  */
-export const insertExchangeRate = async (source, rate) => {
+export const insertExchangeRate = async (source, rate, options = {}) => {
   try {
     console.log(`Inserting exchange rate: ${source} = ${rate}`);
+    const defaultCurrencies = await getExchangeCurrenciesFromSettings();
+    const fromCurrency = normalizeCurrencyCode(
+      options?.fromCurrency,
+      defaultCurrencies.fromCurrency,
+    );
+    const toCurrency = normalizeCurrencyCode(
+      options?.toCurrency,
+      defaultCurrencies.toCurrency,
+    );
 
     if (!isCloudExchangeRatesEnabled()) {
       assertSharedStoreCloudWriteAvailable();
@@ -301,8 +374,8 @@ export const insertExchangeRate = async (source, rate) => {
         id,
         source,
         rate,
-        fromCurrency: "USD",
-        toCurrency: "VES",
+        fromCurrency,
+        toCurrency,
         isActive: 1,
       });
 
@@ -326,8 +399,8 @@ export const insertExchangeRate = async (source, rate) => {
     // Insertar nueva tasa y activarla
     const result = await db.runAsync(
       `INSERT INTO exchange_rates (source, rate, fromCurrency, toCurrency, isActive)
-       VALUES (?, ?, 'USD', 'VES', 1);`,
-      [source, rate],
+       VALUES (?, ?, ?, ?, 1);`,
+      [source, rate, fromCurrency, toCurrency],
     );
 
     console.log(`Exchange rate inserted with ID: ${result.lastInsertRowId}`);
@@ -353,7 +426,7 @@ export const getExchangeRateHistory = async (limit = 30) => {
       "SELECT * FROM exchange_rates ORDER BY createdAt DESC LIMIT ?;",
       [limit],
     );
-    return result;
+    return result.map((item) => normalizeExchangeRateRecord(item));
   } catch (error) {
     throw error;
   }
@@ -378,7 +451,7 @@ export const getExchangeRatesByDateRange = async (startDate, endDate) => {
       "SELECT * FROM exchange_rates WHERE createdAt >= ? AND createdAt <= ? ORDER BY createdAt;",
       [startDate, endDate],
     );
-    return result;
+    return result.map((item) => normalizeExchangeRateRecord(item));
   } catch (error) {
     throw error;
   }
@@ -402,7 +475,7 @@ export const getLatestRateBySource = async (source) => {
       "SELECT * FROM exchange_rates WHERE source = ? ORDER BY createdAt DESC LIMIT 1;",
       [source],
     );
-    return result || null;
+    return result ? normalizeExchangeRateRecord(result) : null;
   } catch (error) {
     throw error;
   }

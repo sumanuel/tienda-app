@@ -4,6 +4,8 @@ import { auth } from "../firebase/firebase";
 import { assertSharedStoreCloudWriteAvailable } from "./cloudWriteGuard";
 import {
   DEFAULT_COUNTRY_METADATA,
+  buildExchangeDefaults,
+  buildPricingCurrencies,
   buildCurrencyConfig,
   getCountryMetadata,
 } from "../../constants/countryMetadata";
@@ -114,6 +116,123 @@ const stableStringify = (value) => {
   return JSON.stringify(value, replacer);
 };
 
+const normalizeSettingsCurrencyConfig = (settings, storeData = {}) => {
+  const nextSettings = { ...(settings || {}) };
+  const currencyConfig = buildCurrencyConfig({
+    countryCode: nextSettings?.business?.countryCode,
+    usesUsdConversion: nextSettings?.pricing?.usesUsdConversion,
+  });
+  const exchangeDefaults = buildExchangeDefaults({
+    countryCode: currencyConfig.countryCode,
+    usesUsdConversion: currencyConfig.usesUsdConversion,
+    referenceCurrency: currencyConfig.referenceCurrency,
+    localCurrency: currencyConfig.localCurrency,
+  });
+
+  nextSettings.business = {
+    ...(nextSettings.business || {}),
+    name: pickTextValue(
+      storeData?.name,
+      nextSettings?.business?.name,
+      "Mi Tienda",
+    ),
+    rif: pickTextValue(storeData?.rif, nextSettings?.business?.rif),
+    address: pickTextValue(storeData?.address, nextSettings?.business?.address),
+    phone: pickTextValue(storeData?.phone, nextSettings?.business?.phone),
+    countryCode: pickTextValue(
+      storeData?.countryCode,
+      nextSettings?.business?.countryCode,
+      currencyConfig.countryCode,
+    ).toUpperCase(),
+    countryName: pickTextValue(
+      storeData?.countryName,
+      nextSettings?.business?.countryName,
+      currencyConfig.countryName,
+    ),
+    defaultDialCode: pickTextValue(
+      storeData?.defaultDialCode,
+      nextSettings?.business?.defaultDialCode,
+      currencyConfig.defaultDialCode,
+    ),
+    email: pickTextValue(
+      storeData?.email,
+      nextSettings?.business?.email,
+    ).toLowerCase(),
+  };
+
+  nextSettings.pricing = {
+    ...(nextSettings.pricing || {}),
+    localCurrency: pickTextValue(
+      nextSettings?.pricing?.localCurrency,
+      currencyConfig.localCurrency,
+    ),
+    referenceCurrency: pickTextValue(
+      nextSettings?.pricing?.referenceCurrency,
+      currencyConfig.referenceCurrency,
+    ),
+    usesUsdConversion: currencyConfig.usesUsdConversion,
+    displayCurrency: pickTextValue(
+      nextSettings?.pricing?.displayCurrency,
+      currencyConfig.displayCurrency,
+    ),
+    baseCurrency: pickTextValue(
+      nextSettings?.pricing?.baseCurrency,
+      currencyConfig.baseCurrency,
+    ),
+    currencies: buildPricingCurrencies({
+      countryCode:
+        nextSettings?.business?.countryCode || currencyConfig.countryCode,
+      usesUsdConversion: currencyConfig.usesUsdConversion,
+      referenceCurrency:
+        nextSettings?.pricing?.referenceCurrency ||
+        currencyConfig.referenceCurrency,
+      localCurrency:
+        nextSettings?.pricing?.localCurrency || currencyConfig.localCurrency,
+      existingCurrencies: nextSettings?.pricing?.currencies,
+    }),
+  };
+
+  const resolvedExchangeMode = pickTextValue(
+    nextSettings?.exchange?.mode,
+    exchangeDefaults.exchangeMode,
+  );
+  const isOfficialVe = resolvedExchangeMode === "official_ve";
+
+  nextSettings.exchange = {
+    ...(nextSettings.exchange || {}),
+    mode: resolvedExchangeMode,
+    source: pickTextValue(
+      nextSettings?.exchange?.source,
+      exchangeDefaults.exchangeSource,
+    ),
+    defaultSource: pickTextValue(
+      nextSettings?.exchange?.defaultSource,
+      exchangeDefaults.defaultSource,
+    ),
+    autoUpdate: isOfficialVe
+      ? (nextSettings?.exchange?.autoUpdate ?? exchangeDefaults.autoUpdate)
+      : false,
+    dailyPromptEnabled: isOfficialVe
+      ? (nextSettings?.exchange?.dailyPromptEnabled ??
+        exchangeDefaults.dailyPromptEnabled)
+      : false,
+    externalApiUrl: isOfficialVe
+      ? pickTextValue(
+          nextSettings?.exchange?.externalApiUrl,
+          exchangeDefaults.externalApiUrl,
+        )
+      : "",
+    externalApiValuePath: isOfficialVe
+      ? pickTextValue(
+          nextSettings?.exchange?.externalApiValuePath,
+          exchangeDefaults.externalApiValuePath,
+        )
+      : "",
+  };
+
+  return nextSettings;
+};
+
 /**
  * Inicializa la tabla de configuraciones con valores por defecto
  */
@@ -170,86 +289,8 @@ export const getSettings = async () => {
         : {};
       const defaults = getDefaultSettings();
       const merged = deepMergeDefaults(defaults, parsed);
-
-      merged.business = {
-        ...(merged.business || {}),
-        name: pickTextValue(
-          storeData?.name,
-          merged?.business?.name,
-          defaults.business.name,
-        ),
-        rif: pickTextValue(storeData?.rif, merged?.business?.rif),
-        address: pickTextValue(storeData?.address, merged?.business?.address),
-        phone: pickTextValue(storeData?.phone, merged?.business?.phone),
-        countryCode: pickTextValue(
-          storeData?.countryCode,
-          merged?.business?.countryCode,
-          defaults.business.countryCode,
-        ).toUpperCase(),
-        countryName: pickTextValue(
-          storeData?.countryName,
-          merged?.business?.countryName,
-          defaults.business.countryName,
-        ),
-        defaultDialCode: pickTextValue(
-          storeData?.defaultDialCode,
-          merged?.business?.defaultDialCode,
-          defaults.business.defaultDialCode,
-        ),
-        email: pickTextValue(
-          storeData?.email,
-          merged?.business?.email,
-        ).toLowerCase(),
-      };
-
-      const currencyConfig = buildCurrencyConfig({
-        countryCode: merged?.business?.countryCode,
-        usesUsdConversion: merged?.pricing?.usesUsdConversion,
-      });
-
-      merged.business = {
-        ...(merged.business || {}),
-        countryCode: currencyConfig.countryCode,
-        countryName: pickTextValue(
-          merged?.business?.countryName,
-          currencyConfig.countryName,
-        ),
-        defaultDialCode: pickTextValue(
-          merged?.business?.defaultDialCode,
-          currencyConfig.defaultDialCode,
-        ),
-      };
-      merged.pricing = {
-        ...(merged.pricing || {}),
-        localCurrency: pickTextValue(
-          merged?.pricing?.localCurrency,
-          currencyConfig.localCurrency,
-        ),
-        referenceCurrency: pickTextValue(
-          merged?.pricing?.referenceCurrency,
-          currencyConfig.referenceCurrency,
-        ),
-        usesUsdConversion: currencyConfig.usesUsdConversion,
-        displayCurrency: pickTextValue(
-          merged?.pricing?.displayCurrency,
-          currencyConfig.displayCurrency,
-        ),
-        baseCurrency: pickTextValue(
-          merged?.pricing?.baseCurrency,
-          currencyConfig.baseCurrency,
-        ),
-      };
-      merged.exchange = {
-        ...(merged.exchange || {}),
-        mode: pickTextValue(
-          merged?.exchange?.mode,
-          currencyConfig.exchangeMode,
-        ),
-        source: pickTextValue(
-          merged?.exchange?.source,
-          currencyConfig.exchangeSource,
-        ),
-      };
+      const normalized = normalizeSettingsCurrencyConfig(merged, storeData);
+      Object.assign(merged, normalized);
 
       try {
         const name = String(merged?.business?.name || "").trim();
@@ -290,6 +331,8 @@ export const getSettings = async () => {
       const parsed = JSON.parse(result.value);
       const defaults = getDefaultSettings();
       const merged = deepMergeDefaults(defaults, parsed);
+      const normalized = normalizeSettingsCurrencyConfig(merged);
+      Object.assign(merged, normalized);
 
       // Migración suave: si el usuario ya tenía un nombre distinto al default,
       // considerar que el negocio ya fue configurado.
@@ -333,7 +376,9 @@ export const getSettings = async () => {
     if (result?.value) {
       try {
         const parsed = JSON.parse(result.value);
-        return deepMergeDefaults(getDefaultSettings(), parsed);
+        return normalizeSettingsCurrencyConfig(
+          deepMergeDefaults(getDefaultSettings(), parsed),
+        );
       } catch (parseError) {
         console.warn("Error parsing local settings fallback:", parseError);
       }
@@ -454,41 +499,37 @@ const getDefaultSettings = () => ({
     isConfigured: false,
   },
   pricing: {
-    baseCurrency: "USD",
-    displayCurrency: "VES",
-    localCurrency: "VES",
-    referenceCurrency: "USD",
-    usesUsdConversion: true,
+    ...buildCurrencyConfig({
+      countryCode: DEFAULT_COUNTRY_METADATA.code,
+      usesUsdConversion: undefined,
+    }),
     defaultMargin: 30,
     minMargin: 10,
     maxMargin: 200,
     roundPrices: true,
     roundTo: 0.5,
-    currencies: {
-      USD: 280,
-      EURO: 300,
-      USD2: 350,
-    },
+    currencies: buildPricingCurrencies({
+      countryCode: DEFAULT_COUNTRY_METADATA.code,
+      usesUsdConversion: undefined,
+      referenceCurrency: "USD",
+      localCurrency: DEFAULT_COUNTRY_METADATA.currencyCode,
+    }),
     iva: 16,
     applyIvaOnSales: false,
   },
   exchange: {
-    autoUpdate: true,
+    ...buildExchangeDefaults({
+      countryCode: DEFAULT_COUNTRY_METADATA.code,
+      usesUsdConversion: undefined,
+      referenceCurrency: "USD",
+      localCurrency: DEFAULT_COUNTRY_METADATA.currencyCode,
+    }),
     updateInterval: 30,
-    defaultSource: "BCV",
-    mode: "official_ve",
-    source: "BCV",
     lastConfiguredAt: null,
     alertOnRateChange: true,
     rateChangeThreshold: 5,
-    // Consulta diaria (7pm) desde API externa con confirmación del usuario
-    dailyPromptEnabled: true,
     dailyPromptHour: 19,
     dailyPromptMinute: 0,
-    externalApiUrl: "https://ve.dolarapi.com/v1/dolares/oficial",
-    // Ruta del valor dentro del JSON, por ejemplo: "rate" o "data.usd".
-    // Para DolarApi oficial: "promedio"
-    externalApiValuePath: "promedio",
   },
   inventory: {
     trackStock: true,

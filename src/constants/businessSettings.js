@@ -1,3 +1,22 @@
+import {
+  DEFAULT_COUNTRY_METADATA,
+  buildCurrencyConfig,
+  buildExchangeDefaults,
+} from "./countryMetadata";
+import { getApiExchangeSourcesForPair } from "./exchangeSources";
+
+const defaultCurrencyConfig = buildCurrencyConfig({
+  countryCode: DEFAULT_COUNTRY_METADATA.code,
+  usesUsdConversion: undefined,
+});
+
+const defaultExchangeConfig = buildExchangeDefaults({
+  countryCode: DEFAULT_COUNTRY_METADATA.code,
+  usesUsdConversion: undefined,
+  referenceCurrency: defaultCurrencyConfig.referenceCurrency,
+  localCurrency: defaultCurrencyConfig.localCurrency,
+});
+
 // Configuración general del negocio
 export const BUSINESS_SETTINGS = {
   // Información del negocio
@@ -11,8 +30,8 @@ export const BUSINESS_SETTINGS = {
 
   // Configuración de precios
   pricing: {
-    baseCurrency: "USD", // Moneda base para almacenar precios
-    displayCurrency: "VES", // Moneda principal para mostrar
+    baseCurrency: defaultCurrencyConfig.baseCurrency,
+    displayCurrency: defaultCurrencyConfig.displayCurrency,
     defaultMargin: 30, // Margen de ganancia por defecto (%)
     iva: 16, // IVA por defecto (%)
     applyIvaOnSales: false, // Aplicar IVA al momento del cobro
@@ -41,10 +60,15 @@ export const BUSINESS_SETTINGS = {
 
   // Configuración de tasas de cambio
   exchange: {
-    autoUpdate: true,
+    autoUpdate: defaultExchangeConfig.autoUpdate,
     updateInterval: 30, // minutos
-    defaultSource: "BCV",
-    fallbackSources: ["DOLAR_TODAY", "BINANCE"],
+    defaultSource: defaultExchangeConfig.defaultSource,
+    fallbackSources: getApiExchangeSourcesForPair({
+      fromCurrency: defaultCurrencyConfig.referenceCurrency,
+      toCurrency: defaultCurrencyConfig.localCurrency,
+    })
+      .slice(1)
+      .map((source) => source.id),
     alertOnRateChange: true,
     rateChangeThreshold: 5, // % de cambio para alertar
   },

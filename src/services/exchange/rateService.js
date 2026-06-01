@@ -3,15 +3,22 @@ import {
   getActiveExchangeRate,
 } from "../database/exchangeRates";
 import { fetchRateWithFallback } from "./rateApi";
+import {
+  DEFAULT_EXCHANGE_SOURCE,
+  getDefaultExchangeSource,
+} from "../../constants/exchangeSources";
 
 /**
  * Actualiza la tasa de cambio desde una fuente externa
  * @param {string} sourceId - ID de la fuente
  * @returns {Promise<object>} Nueva tasa
  */
-export const updateExchangeRate = async (sourceId = "BCV") => {
+export const updateExchangeRate = async (
+  sourceId = DEFAULT_EXCHANGE_SOURCE,
+) => {
   try {
-    const { source, rate } = await fetchRateWithFallback([sourceId]);
+    const resolvedSource = sourceId || getDefaultExchangeSource();
+    const { source, rate } = await fetchRateWithFallback([resolvedSource]);
     await insertExchangeRate(source, rate);
 
     return {
@@ -92,7 +99,11 @@ export const needsUpdate = async (maxMinutes = 30) => {
  * @returns {Promise<object|null>} Nueva tasa o null si no actualizó
  */
 export const autoUpdateRate = async (settings = {}) => {
-  const { enabled = true, interval = 30, source = "BCV" } = settings;
+  const {
+    enabled = true,
+    interval = 30,
+    source = DEFAULT_EXCHANGE_SOURCE,
+  } = settings;
 
   if (!enabled) return null;
 

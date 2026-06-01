@@ -12,6 +12,7 @@ import {
 } from "../services/database/accounts";
 import { useAuth } from "./AuthContext";
 import { getCurrencyBehavior } from "../utils/currency";
+import { DEFAULT_EXCHANGE_SOURCE } from "../constants/exchangeSources";
 
 // Crear el contexto
 const ExchangeRateContext = createContext();
@@ -23,6 +24,7 @@ export const ExchangeRateProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [rateSource, setRateSource] = useState(null);
   const [currencyBehavior, setCurrencyBehavior] = useState(
     getCurrencyBehavior(),
   );
@@ -36,6 +38,7 @@ export const ExchangeRateProvider = ({ children }) => {
     if (!user?.uid || !activeStoreId) {
       setRate(null);
       setLastUpdate(null);
+      setRateSource(null);
       setError(null);
       setLoading(false);
       return;
@@ -62,6 +65,7 @@ export const ExchangeRateProvider = ({ children }) => {
       if (!nextBehavior.rateEnabled) {
         setRate(null);
         setLastUpdate(null);
+        setRateSource(null);
         return;
       }
 
@@ -71,10 +75,12 @@ export const ExchangeRateProvider = ({ children }) => {
         // console.log("Loaded rate from DB:", currentRate.rate);
         setRate(currentRate.rate);
         setLastUpdate(new Date(currentRate.createdAt));
+        setRateSource(String(currentRate.source || "").trim() || null);
       } else {
         console.log("No rate found in DB, using default");
         setRate(null);
         setLastUpdate(null);
+        setRateSource(null);
       }
     } catch (err) {
       setError(err.message);
@@ -88,7 +94,7 @@ export const ExchangeRateProvider = ({ children }) => {
    * Actualiza la tasa desde una fuente externa
    */
   const updateRate = async (
-    source = currencyBehavior.exchangeSource || "BCV",
+    source = currencyBehavior.exchangeSource || DEFAULT_EXCHANGE_SOURCE,
   ) => {
     try {
       if (!currencyBehavior.rateEnabled) {
@@ -101,6 +107,7 @@ export const ExchangeRateProvider = ({ children }) => {
       const updated = await updateExchangeRate(source);
       setRate(updated.rate);
       setLastUpdate(new Date(updated.updatedAt));
+      setRateSource(String(updated.source || source || "").trim() || null);
 
       // Recalcular cuentas por cobrar originadas en ventas
       try {
@@ -137,6 +144,7 @@ export const ExchangeRateProvider = ({ children }) => {
       const updated = await setManualExchangeRate(manualRate);
       setRate(updated.rate);
       setLastUpdate(new Date(updated.updatedAt));
+      setRateSource(String(updated.source || "MANUAL").trim() || "MANUAL");
 
       console.log("Context updated - New rate:", updated.rate);
 
@@ -174,6 +182,7 @@ export const ExchangeRateProvider = ({ children }) => {
     loading,
     error,
     lastUpdate,
+    rateSource,
     ...currencyBehavior,
     updateRate,
     setManualRate,

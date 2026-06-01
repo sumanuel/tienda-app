@@ -32,10 +32,10 @@ export const ExchangeRateScreen = () => {
     rate,
     lastUpdate,
     setManualRate,
+    rateSource,
     localCurrency,
     referenceCurrency,
     rateEnabled,
-    exchangeMode,
   } = useExchangeRate({
     autoUpdate: false,
   });
@@ -172,7 +172,7 @@ export const ExchangeRateScreen = () => {
             iconColor={UI_COLORS.info}
             eyebrow="Conversi\u00f3n"
             title="Tasa de cambio"
-            subtitle="Administra la tasa oficial y tus referencias en una vista m\u00e1s clara y compacta."
+            subtitle="Administra la relación entre tu moneda de referencia y la moneda local en una vista clara y compacta."
           />
 
           <TourGuideZone
@@ -183,7 +183,7 @@ export const ExchangeRateScreen = () => {
             <View>
               <RateDisplay
                 rate={rate}
-                source={exchangeMode === "official_ve" ? "BCV" : "MANUAL"}
+                source={rateSource}
                 lastUpdate={lastUpdate}
                 localCurrency={localCurrency}
                 referenceCurrency={referenceCurrency}

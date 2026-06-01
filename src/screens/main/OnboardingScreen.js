@@ -31,6 +31,8 @@ import {
 } from "../../services/store/storeCollaborationService";
 import { saveOnboardingState } from "../../services/onboarding/onboardingState";
 import {
+  buildExchangeDefaults,
+  buildPricingCurrencies,
   buildCurrencyConfig,
   getCountryMetadata,
   resolveUsesUsdConversion,
@@ -338,6 +340,12 @@ export const OnboardingScreen = ({
             countryCode: business.countryCode,
             usesUsdConversion,
           });
+          const nextExchangeDefaults = buildExchangeDefaults({
+            countryCode: business.countryCode,
+            usesUsdConversion,
+            referenceCurrency: nextCurrencyConfig.referenceCurrency,
+            localCurrency: nextCurrencyConfig.localCurrency,
+          });
           const nextSettings = {
             ...current,
             business: {
@@ -355,18 +363,26 @@ export const OnboardingScreen = ({
               referenceCurrency: nextCurrencyConfig.referenceCurrency,
               usesUsdConversion: nextCurrencyConfig.usesUsdConversion,
               baseCurrency: nextCurrencyConfig.baseCurrency,
+              currencies: buildPricingCurrencies({
+                countryCode: business.countryCode,
+                usesUsdConversion,
+                referenceCurrency: nextCurrencyConfig.referenceCurrency,
+                localCurrency: nextCurrencyConfig.localCurrency,
+                existingCurrencies: current?.pricing?.currencies,
+              }),
               iva:
                 parseFloat((ivaInput || "").toString().replace(/,/g, ".")) || 0,
               applyIvaOnSales,
             },
             exchange: {
               ...current.exchange,
-              mode: nextCurrencyConfig.exchangeMode,
-              source: nextCurrencyConfig.exchangeSource,
-              defaultSource: nextCurrencyConfig.exchangeSource,
-              autoUpdate: nextCurrencyConfig.exchangeMode === "official_ve",
-              dailyPromptEnabled:
-                nextCurrencyConfig.exchangeMode === "official_ve",
+              mode: nextExchangeDefaults.exchangeMode,
+              source: nextExchangeDefaults.exchangeSource,
+              defaultSource: nextExchangeDefaults.defaultSource,
+              autoUpdate: nextExchangeDefaults.autoUpdate,
+              dailyPromptEnabled: nextExchangeDefaults.dailyPromptEnabled,
+              externalApiUrl: nextExchangeDefaults.externalApiUrl,
+              externalApiValuePath: nextExchangeDefaults.externalApiValuePath,
               lastConfiguredAt: new Date().toISOString(),
             },
           };

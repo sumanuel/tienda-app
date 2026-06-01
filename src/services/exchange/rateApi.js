@@ -1,9 +1,12 @@
 import axios from "axios";
-import { EXCHANGE_SOURCES } from "../../constants/exchangeSources";
+import {
+  EXCHANGE_SOURCES,
+  getApiExchangeSourcesForPair,
+} from "../../constants/exchangeSources";
 
 /**
- * Obtiene la tasa de cambio desde una API externa
- * @param {string} sourceId - ID de la fuente (BCV, DOLAR_TODAY, etc)
+ * Obtiene la tasa de cambio desde una API externa configurada
+ * @param {string} sourceId - ID de la fuente
  * @returns {Promise<number>} Tasa de cambio
  */
 export const fetchRateFromAPI = async (sourceId) => {
@@ -41,12 +44,12 @@ export const fetchRateFromAPI = async (sourceId) => {
 };
 
 /**
- * Obtiene tasa de cambio con fallback a múltiples fuentes
+ * Obtiene tasa de cambio con fallback a múltiples fuentes configuradas
  * @param {array} sources - Array de IDs de fuentes en orden de prioridad
  * @returns {Promise<object>} Objeto con source y rate
  */
 export const fetchRateWithFallback = async (
-  sources = ["BCV", "DOLAR_TODAY", "BINANCE"]
+  sources = getApiExchangeSourcesForPair().map((source) => source.id),
 ) => {
   for (const sourceId of sources) {
     try {
@@ -62,11 +65,11 @@ export const fetchRateWithFallback = async (
 };
 
 /**
- * Obtiene tasas de múltiples fuentes para comparación
+ * Obtiene tasas de múltiples fuentes API para comparación
  * @returns {Promise<array>} Array de objetos con source y rate
  */
 export const fetchRatesFromAllSources = async () => {
-  const sources = ["BCV", "DOLAR_TODAY", "BINANCE", "PARALLEL"];
+  const sources = getApiExchangeSourcesForPair().map((source) => source.id);
   const results = [];
 
   const promises = sources.map(async (sourceId) => {

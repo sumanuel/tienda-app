@@ -1,3 +1,5 @@
+import { getDefaultExchangeSource } from "./exchangeSources";
+
 export const COUNTRY_METADATA = {
   VE: {
     code: "VE",
@@ -144,6 +146,22 @@ export const COUNTRY_METADATA = {
 export const DEFAULT_COUNTRY_CODE = "VE";
 export const DEFAULT_COUNTRY_METADATA = COUNTRY_METADATA[DEFAULT_COUNTRY_CODE];
 
+const OFFICIAL_VE_RATE_API = {
+  externalApiUrl: "https://ve.dolarapi.com/v1/dolares/oficial",
+  externalApiValuePath: "promedio",
+};
+
+const normalizeCurrencyCode = (currencyCode, fallbackCurrency = "USD") =>
+  String(currencyCode || fallbackCurrency)
+    .trim()
+    .toUpperCase();
+
+const buildPairKey = (fromCurrency, toCurrency) =>
+  `${normalizeCurrencyCode(fromCurrency)}/${normalizeCurrencyCode(
+    toCurrency,
+    fromCurrency,
+  )}`;
+
 export const COUNTRY_OPTIONS = Object.values(COUNTRY_METADATA);
 
 export const getCountryMetadata = (countryCode) => {
@@ -173,6 +191,128 @@ export const resolveExchangeMode = ({ countryCode, usesUsdConversion }) => {
   return normalizedCode === "VE" ? "official_ve" : "manual";
 };
 
+export const getDefaultReferenceRate = ({
+  countryCode,
+  usesUsdConversion,
+  referenceCurrency = "USD",
+  localCurrency,
+} = {}) => {
+  const country = getCountryMetadata(countryCode);
+  const normalizedUsesUsd = resolveUsesUsdConversion(
+    country.code,
+    usesUsdConversion,
+  );
+  const normalizedReferenceCurrency = normalizeCurrencyCode(referenceCurrency);
+  const normalizedLocalCurrency = normalizeCurrencyCode(
+    localCurrency,
+    country.currencyCode,
+  );
+
+  if (
+    !normalizedUsesUsd ||
+    normalizedReferenceCurrency === normalizedLocalCurrency
+  ) {
+    return 0;
+  }
+
+  if (
+    buildPairKey(normalizedReferenceCurrency, normalizedLocalCurrency) ===
+    "USD/VES"
+  ) {
+    return 280;
+  }
+
+  return 0;
+};
+
+export const buildPricingCurrencies = ({
+  countryCode,
+  usesUsdConversion,
+  referenceCurrency = "USD",
+  localCurrency,
+  existingCurrencies = {},
+} = {}) => {
+  const country = getCountryMetadata(countryCode);
+  const normalizedUsesUsd = resolveUsesUsdConversion(
+    country.code,
+    usesUsdConversion,
+  );
+  const normalizedReferenceCurrency = normalizeCurrencyCode(referenceCurrency);
+  const normalizedLocalCurrency = normalizeCurrencyCode(
+    localCurrency,
+    country.currencyCode,
+  );
+  const nextCurrencies = {
+    ...(existingCurrencies && typeof existingCurrencies === "object"
+      ? existingCurrencies
+      : {}),
+  };
+
+  if (
+    !normalizedUsesUsd ||
+    normalizedReferenceCurrency === normalizedLocalCurrency
+  ) {
+    return nextCurrencies;
+  }
+
+  const currentRate = Number(nextCurrencies[normalizedReferenceCurrency]);
+  nextCurrencies[normalizedReferenceCurrency] =
+    Number.isFinite(currentRate) && currentRate > 0
+      ? currentRate
+      : getDefaultReferenceRate({
+          countryCode: country.code,
+          usesUsdConversion: normalizedUsesUsd,
+          referenceCurrency: normalizedReferenceCurrency,
+          localCurrency: normalizedLocalCurrency,
+        });
+
+  return nextCurrencies;
+};
+
+export const buildExchangeDefaults = ({
+  countryCode,
+  usesUsdConversion,
+  referenceCurrency = "USD",
+  localCurrency,
+} = {}) => {
+  const country = getCountryMetadata(countryCode);
+  const normalizedUsesUsd = resolveUsesUsdConversion(
+    country.code,
+    usesUsdConversion,
+  );
+  const normalizedLocalCurrency = normalizeCurrencyCode(
+    localCurrency,
+    country.currencyCode,
+  );
+  const normalizedReferenceCurrency = normalizeCurrencyCode(referenceCurrency);
+  const exchangeMode = resolveExchangeMode({
+    countryCode: country.code,
+    usesUsdConversion: normalizedUsesUsd,
+  });
+  const pairHasConversion =
+    normalizedUsesUsd &&
+    normalizedReferenceCurrency !== normalizedLocalCurrency;
+  const exchangeSource = pairHasConversion
+    ? getDefaultExchangeSource({
+        fromCurrency: normalizedReferenceCurrency,
+        toCurrency: normalizedLocalCurrency,
+      })
+    : "MANUAL";
+  const isOfficialVe = exchangeMode === "official_ve";
+
+  return {
+    exchangeMode,
+    exchangeSource,
+    defaultSource: exchangeSource,
+    autoUpdate: isOfficialVe,
+    dailyPromptEnabled: isOfficialVe,
+    externalApiUrl: isOfficialVe ? OFFICIAL_VE_RATE_API.externalApiUrl : "",
+    externalApiValuePath: isOfficialVe
+      ? OFFICIAL_VE_RATE_API.externalApiValuePath
+      : "",
+  };
+};
+
 export const buildCurrencyConfig = ({ countryCode, usesUsdConversion }) => {
   const country = getCountryMetadata(countryCode);
   const normalizedUsesUsd = resolveUsesUsdConversion(
@@ -182,6 +322,12 @@ export const buildCurrencyConfig = ({ countryCode, usesUsdConversion }) => {
   const exchangeMode = resolveExchangeMode({
     countryCode: country.code,
     usesUsdConversion: normalizedUsesUsd,
+  });
+  const exchangeDefaults = buildExchangeDefaults({
+    countryCode: country.code,
+    usesUsdConversion: normalizedUsesUsd,
+    referenceCurrency: "USD",
+    localCurrency: country.currencyCode,
   });
 
   return {
@@ -193,7 +339,7 @@ export const buildCurrencyConfig = ({ countryCode, usesUsdConversion }) => {
     referenceCurrency: "USD",
     usesUsdConversion: normalizedUsesUsd,
     exchangeMode,
-    exchangeSource: exchangeMode === "official_ve" ? "BCV" : "MANUAL",
+    exchangeSource: exchangeDefaults.exchangeSource,
     displayCurrency: country.currencyCode,
     baseCurrency: normalizedUsesUsd ? "USD" : country.currencyCode,
   };

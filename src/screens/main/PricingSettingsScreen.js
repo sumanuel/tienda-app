@@ -4,16 +4,15 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Pressable,
   TouchableOpacity,
-  TextInput,
   SafeAreaView,
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useExchangeRate } from "../../contexts/ExchangeRateContext";
+import { useExchangeRateContext } from "../../contexts/ExchangeRateContext";
 import { getSettings, saveSettings } from "../../services/database/settings";
 import { useCustomAlert } from "../../components/common/CustomAlert";
+import { buildPricingCurrencies } from "../../constants/countryMetadata";
 import {
   s,
   rf,
@@ -27,21 +26,16 @@ import {
 export const PricingSettingsScreen = () => {
   const {
     rate,
-    setManualRate,
     loading: rateLoading,
-    lastUpdate,
-  } = useExchangeRate({ autoUpdate: false });
+    referenceCurrency,
+    localCurrency,
+  } = useExchangeRateContext();
   const { showAlert, CustomAlert } = useCustomAlert();
   const [isLoading, setIsLoading] = useState(true);
 
   const [margin, setMargin] = useState(30);
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
-  const [baseCurrency, setBaseCurrency] = useState("USD");
-  const [currencies, setCurrencies] = useState({
-    USD: 280,
-    EURO: 300,
-    USD2: 350,
-  });
+  const [currencies, setCurrencies] = useState({});
   const [iva, setIva] = useState(16);
   const [applyIvaOnSales, setApplyIvaOnSales] = useState(false);
 
@@ -50,15 +44,8 @@ export const PricingSettingsScreen = () => {
 
   const [formMargin, setFormMargin] = useState("30");
   const [formLowStock, setFormLowStock] = useState("10");
-  const [formBaseCurrency, setFormBaseCurrency] = useState("USD");
-  const [formCurrencies, setFormCurrencies] = useState({
-    USD: "280",
-    EURO: "300",
-    USD2: "350",
-  });
   const [formIva, setFormIva] = useState("16");
   const [formApplyIvaOnSales, setFormApplyIvaOnSales] = useState(false);
-  const [manualRateInput, setManualRateInput] = useState("280");
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -68,18 +55,25 @@ export const PricingSettingsScreen = () => {
 
         const pricing = settings.pricing || {};
         const inventory = settings.inventory || {};
+        const activeReferenceCurrency =
+          pricing.referenceCurrency || referenceCurrency || "USD";
+        const activeLocalCurrency = pricing.localCurrency || localCurrency;
 
         const defaultMargin = pricing.defaultMargin ?? 30;
         const defaultLowStock = inventory.lowStockThreshold ?? 10;
-        const defaultBaseCurrency = pricing.baseCurrency || "USD";
-        let syncedCurrencies = pricing.currencies || {
-          USD: 280,
-          EURO: 300,
-          USD2: 350,
-        };
+        let syncedCurrencies = buildPricingCurrencies({
+          countryCode: settings?.business?.countryCode,
+          usesUsdConversion: pricing.usesUsdConversion,
+          referenceCurrency: activeReferenceCurrency,
+          localCurrency: activeLocalCurrency,
+          existingCurrencies: pricing.currencies,
+        });
 
-        if (rate && rate !== syncedCurrencies.USD) {
-          syncedCurrencies = { ...syncedCurrencies, USD: rate };
+        if (rate && rate !== syncedCurrencies[activeReferenceCurrency]) {
+          syncedCurrencies = {
+            ...syncedCurrencies,
+            [activeReferenceCurrency]: rate,
+          };
           const updatedSettings = {
             ...settings,
             pricing: {
@@ -95,24 +89,14 @@ export const PricingSettingsScreen = () => {
 
         setMargin(defaultMargin);
         setLowStockThreshold(defaultLowStock);
-        setBaseCurrency(defaultBaseCurrency);
         setCurrencies(syncedCurrencies);
         setIva(ivaValue);
         setApplyIvaOnSales(shouldApplyIva);
 
         setFormMargin(defaultMargin.toString());
         setFormLowStock(defaultLowStock.toString());
-        setFormBaseCurrency(defaultBaseCurrency);
-        setFormCurrencies({
-          USD: (syncedCurrencies.USD ?? 0).toString(),
-          EURO: (syncedCurrencies.EURO ?? 0).toString(),
-          USD2: (syncedCurrencies.USD2 ?? 0).toString(),
-        });
         setFormIva(ivaValue.toString());
         setFormApplyIvaOnSales(shouldApplyIva);
-        setManualRateInput(
-          rate?.toString() || (syncedCurrencies.USD ?? 0).toString(),
-        );
       } catch (error) {
         console.error("Error loading settings:", error);
         showAlert({
@@ -128,24 +112,11 @@ export const PricingSettingsScreen = () => {
     loadSettings();
   }, [rate]);
 
-  useEffect(() => {
-    if (rate) {
-      setManualRateInput(rate.toString());
-    }
-  }, [rate]);
-
   const startEditing = (section) => {
     if (section === "pricing") {
       setFormMargin(margin.toString());
-      setFormBaseCurrency(baseCurrency);
-      setFormCurrencies({
-        USD: (currencies.USD ?? 0).toString(),
-        EURO: (currencies.EURO ?? 0).toString(),
-        USD2: (currencies.USD2 ?? 0).toString(),
-      });
       setFormIva(iva.toString());
       setFormApplyIvaOnSales(applyIvaOnSales);
-      setManualRateInput(rate?.toString() || (currencies.USD ?? 0).toString());
     }
     if (section === "inventory") {
       setFormLowStock(lowStockThreshold.toString());
@@ -158,22 +129,12 @@ export const PricingSettingsScreen = () => {
     setSavingSection(null);
     setFormMargin(margin.toString());
     setFormLowStock(lowStockThreshold.toString());
-    setFormBaseCurrency(baseCurrency);
-    setFormCurrencies({
-      USD: (currencies.USD ?? 0).toString(),
-      EURO: (currencies.EURO ?? 0).toString(),
-      USD2: (currencies.USD2 ?? 0).toString(),
-    });
     setFormIva(iva.toString());
     setFormApplyIvaOnSales(applyIvaOnSales);
-    setManualRateInput(rate?.toString() || (currencies.USD ?? 0).toString());
   };
 
   const handleSavePricing = async () => {
     const numericMargin = parseFloat(formMargin.replace(",", "."));
-    const numericUsd = parseFloat(formCurrencies.USD.replace(",", "."));
-    const numericEuro = parseFloat(formCurrencies.EURO.replace(",", "."));
-    const numericUsd2 = parseFloat(formCurrencies.USD2.replace(",", "."));
     const numericIva = parseFloat(formIva.replace(",", "."));
 
     if (
@@ -184,19 +145,6 @@ export const PricingSettingsScreen = () => {
       showAlert({
         title: "Valor inválido",
         message: "Ingresa un margen entre 0 y 200",
-        type: "error",
-      });
-      return;
-    }
-
-    if (
-      [numericUsd, numericEuro, numericUsd2].some(
-        (value) => Number.isNaN(value) || value <= 0,
-      )
-    ) {
-      showAlert({
-        title: "Valor inválido",
-        message: "Verifica los valores de las monedas",
         type: "error",
       });
       return;
@@ -214,17 +162,28 @@ export const PricingSettingsScreen = () => {
     try {
       setSavingSection("pricing");
       const settings = await getSettings();
+      const normalizedCurrencies = buildPricingCurrencies({
+        countryCode: settings?.business?.countryCode,
+        usesUsdConversion: settings?.pricing?.usesUsdConversion,
+        referenceCurrency:
+          settings?.pricing?.referenceCurrency || referenceCurrency,
+        localCurrency: settings?.pricing?.localCurrency || localCurrency,
+        existingCurrencies: {
+          ...(settings?.pricing?.currencies || {}),
+          ...(rate > 0
+            ? {
+                [settings?.pricing?.referenceCurrency || referenceCurrency]:
+                  rate,
+              }
+            : {}),
+        },
+      });
       const updatedSettings = {
         ...settings,
         pricing: {
           ...(settings.pricing || {}),
           defaultMargin: numericMargin,
-          baseCurrency: formBaseCurrency,
-          currencies: {
-            USD: numericUsd,
-            EURO: numericEuro,
-            USD2: numericUsd2,
-          },
+          currencies: normalizedCurrencies,
           iva: numericIva,
           applyIvaOnSales: formApplyIvaOnSales,
         },
@@ -232,12 +191,7 @@ export const PricingSettingsScreen = () => {
       await saveSettings(updatedSettings);
 
       setMargin(numericMargin);
-      setBaseCurrency(formBaseCurrency);
-      setCurrencies({
-        USD: numericUsd,
-        EURO: numericEuro,
-        USD2: numericUsd2,
-      });
+      setCurrencies(normalizedCurrencies);
       setIva(numericIva);
       setApplyIvaOnSales(formApplyIvaOnSales);
 
@@ -299,17 +253,6 @@ export const PricingSettingsScreen = () => {
     } finally {
       setSavingSection(null);
     }
-  };
-
-  const formatCurrency = (value) => {
-    if (value == null) {
-      return "—";
-    }
-    return new Intl.NumberFormat("es-VE", {
-      style: "currency",
-      currency: "VES",
-      minimumFractionDigits: 2,
-    }).format(value);
   };
 
   if (isLoading) {

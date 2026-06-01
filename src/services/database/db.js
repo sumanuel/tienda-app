@@ -655,8 +655,8 @@ export const initAllTables = async () => {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           source TEXT NOT NULL,
           rate REAL NOT NULL,
-          fromCurrency TEXT DEFAULT 'USD',
-          toCurrency TEXT DEFAULT 'VES',
+          fromCurrency TEXT,
+          toCurrency TEXT,
           isActive INTEGER DEFAULT 0,
           createdAt TEXT DEFAULT CURRENT_TIMESTAMP
         );

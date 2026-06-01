@@ -16,6 +16,8 @@ import { useCustomAlert } from "../../components/common/CustomAlert";
 import CountrySelectField from "../../components/common/CountrySelectField";
 import PhoneInput from "../../components/common/PhoneInput";
 import {
+  buildExchangeDefaults,
+  buildPricingCurrencies,
   buildCurrencyConfig,
   resolveUsesUsdConversion,
 } from "../../constants/countryMetadata";
@@ -114,6 +116,12 @@ export const BusinessSettingsScreen = () => {
     try {
       setSaving(true);
       const settings = await getSettings();
+      const exchangeDefaults = buildExchangeDefaults({
+        countryCode: business.countryCode,
+        usesUsdConversion,
+        referenceCurrency: currencyConfig.referenceCurrency,
+        localCurrency: currencyConfig.localCurrency,
+      });
       const updatedSettings = {
         ...settings,
         business: {
@@ -130,14 +138,23 @@ export const BusinessSettingsScreen = () => {
           referenceCurrency: currencyConfig.referenceCurrency,
           usesUsdConversion: currencyConfig.usesUsdConversion,
           baseCurrency: currencyConfig.baseCurrency,
+          currencies: buildPricingCurrencies({
+            countryCode: business.countryCode,
+            usesUsdConversion,
+            referenceCurrency: currencyConfig.referenceCurrency,
+            localCurrency: currencyConfig.localCurrency,
+            existingCurrencies: settings?.pricing?.currencies,
+          }),
         },
         exchange: {
           ...settings.exchange,
-          mode: currencyConfig.exchangeMode,
-          source: currencyConfig.exchangeSource,
-          defaultSource: currencyConfig.exchangeSource,
-          autoUpdate: currencyConfig.exchangeMode === "official_ve",
-          dailyPromptEnabled: currencyConfig.exchangeMode === "official_ve",
+          mode: exchangeDefaults.exchangeMode,
+          source: exchangeDefaults.exchangeSource,
+          defaultSource: exchangeDefaults.defaultSource,
+          autoUpdate: exchangeDefaults.autoUpdate,
+          dailyPromptEnabled: exchangeDefaults.dailyPromptEnabled,
+          externalApiUrl: exchangeDefaults.externalApiUrl,
+          externalApiValuePath: exchangeDefaults.externalApiValuePath,
           lastConfiguredAt: new Date().toISOString(),
         },
       };
